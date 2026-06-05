@@ -1,0 +1,279 @@
+'use client';
+
+import React, { useRef, useState, useEffect } from 'react';
+import { motion, useDragControls } from 'motion/react';
+import { useOS, OSWindow } from '@/lib/os-context';
+import { X, Minus, Maximize2, Square } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface WindowFrameProps {
+  osWindow: OSWindow;
+  children: React.ReactNode;
+}
+
+export function WindowFrame({ osWindow, children }: WindowFrameProps) {
+  const { id, title, isMaximized, isMinimized, zIndex, x, y, width, height } = osWindow;
+  const { closeWindow, minimizeWindow, maximizeWindow, focusWindow, updateWindowDimensions, windows, performanceMode } = useOS();
+  const dragControls = useDragControls();
+  
+  const windowRef = useRef<HTMLDivElement>(null);
+  const resizeHandlers = useRef<{ move?: (e: PointerEvent) => void, up?: () => void }>({});
+  
+  const [isResizing, setIsResizing] = useState(false);
+  const [localSize, setLocalSize] = useState({ w: width, h: height });
+  const [localPosition, setLocalPosition] = useState({ x, y });
+
+  useEffect(() => {
+    // Copy the ref to a variable to satisfy the linter and ensure safety
+    const handlers = resizeHandlers.current;
+    
+    return () => {
+      // Ensure no dangling event listeners if unmounted while resizing
+      if (handlers.move) {
+        document.removeEventListener('pointermove', handlers.move);
+      }
+      if (handlers.up) {
+        document.removeEventListener('pointerup', handlers.up);
+      }
+    };
+  }, []);
+
+  // Use props normally, but use local state while dragging/resizing if needed.
+  // Actually, simplest fix for the linter: just use props as the source of truth
+  // and only use local state for intermediate resizing.
+  const currentWidth = isResizing ? localSize.w : width;
+  const currentHeight = isResizing ? localSize.h : height;
+  const currentX = isResizing ? localPosition.x : x;
+  const currentY = isResizing ? localPosition.y : y;
+
+  // Is this window the currently focused one?
+  const isActive = zIndex >= Math.max(...windows.map(w => w.zIndex));
+
+  // If minimized, we still want to render the markup to preserve state (like Terminal history or iframes)
+  // but we can completely hide it to prevent rendering costs.
+  if (isMinimized) {
+    return (
+      <div style={{ display: 'none' }}>
+        {children}
+      </div>
+    );
+  }
+
+  const startResize = (e: React.PointerEvent, edges: { top?: boolean; right?: boolean; bottom?: boolean; left?: boolean }) => {
+    e.stopPropagation();
+    if (isMaximized) return;
+    setIsResizing(true);
+    const startW = currentWidth;
+    const startH = currentHeight;
+    const startXPos = currentX;
+    const startYPos = currentY;
+    const startMouseX = e.clientX;
+    const startMouseY = e.clientY;
+
+    let newW = startW;
+    let newH = startH;
+    let newXPos = startXPos;
+    let newYPos = startYPos;
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      let deltaX = moveEvent.clientX - startMouseX;
+      let deltaY = moveEvent.clientY - startMouseY;
+
+      if (edges.right) {
+        newW = Math.max(300, startW + deltaX);
+      }
+      if (edges.bottom) {
+        newH = Math.max(200, startH + deltaY);
+      }
+      if (edges.left) {
+        newW = Math.max(300, startW - deltaX);
+        newXPos = startW - deltaX >= 300 ? startXPos + deltaX : startXPos + startW - 300;
+      }
+      if (edges.top) {
+        newH = Math.max(200, startH - deltaY);
+        newYPos = startH - deltaY >= 200 ? startYPos + deltaY : startYPos + startH - 200;
+      }
+
+      setLocalSize({ w: newW, h: newH });
+      setLocalPosition({ x: newXPos, y: newYPos });
+    };
+
+    const handlePointerUp = () => {
+      setIsResizing(false);
+      if (resizeHandlers.current.move) document.removeEventListener('pointermove', resizeHandlers.current.move);
+      if (resizeHandlers.current.up) document.removeEventListener('pointerup', resizeHandlers.current.up);
+      resizeHandlers.current.move = undefined;
+      resizeHandlers.current.up = undefined;
+      // Set the actual state with the locally captured new values
+      updateWindowDimensions(id, newXPos, newYPos, newW, newH);
+    };
+
+    resizeHandlers.current.move = handlePointerMove;
+    resizeHandlers.current.up = handlePointerUp;
+
+    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointerup', handlePointerUp);
+  };
+
+  return (
+    <motion.div
+      ref={windowRef}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ 
+        opacity: 1, 
+        scale: 1,
+        width: isMaximized ? '100vw' : currentWidth,
+        height: isMaximized ? 'calc(100vh - 28px)' : currentHeight,
+        x: isMaximized ? 0 : currentX,
+        y: isMaximized ? 28 : currentY,
+        transition: isResizing ? { duration: 0 } : {
+          type: "spring",
+          stiffness: 300,
+          damping: 30,
+          mass: 0.8
+        }
+      }}
+      drag={!isMaximized}
+      dragControls={dragControls}
+      dragListener={false} // Only drag using the header
+      dragMomentum={false}
+      onDragEnd={(e, info) => {
+        let newX = currentX + info.offset.x;
+        let newY = currentY + info.offset.y;
+        
+        let newWidth = currentWidth;
+        let newHeight = currentHeight;
+        
+        const screenW = window.innerWidth;
+        const screenH = window.innerHeight;
+        const headerSpace = 28;
+        
+        const pointerX = info.point.x;
+        const pointerY = info.point.y;
+        const pointerMargin = 20;
+        
+        if (pointerY < pointerMargin) {
+            // Snap to top -> Maximize
+            if (!isMaximized) maximizeWindow(id);
+            return;
+        }
+        
+        if (pointerX < pointerMargin) {
+            // Snap Left
+            newX = 0;
+            newY = headerSpace;
+            newWidth = screenW / 2;
+            newHeight = screenH - headerSpace;
+        } else if (pointerX > screenW - pointerMargin) {
+            // Snap Right
+            newX = screenW / 2;
+            newY = headerSpace;
+            newWidth = screenW / 2;
+            newHeight = screenH - headerSpace;
+        }
+
+        setLocalPosition({ x: newX, y: newY });
+        updateWindowDimensions(id, newX, newY, newWidth, newHeight);
+      }}
+      style={{ zIndex }}
+      onPointerDown={() => focusWindow(id)}
+      className={cn(
+        "absolute top-0 left-0 rounded-xl flex flex-col pointer-events-auto",
+        "border transition-colors duration-200",
+        // Avoid overflow-hidden during active drag due to clip-path recalculations? Overflow hidden is okay.
+        "overflow-hidden",
+        isActive 
+          ? [
+              "border-white/30",
+              performanceMode === 'heavy' 
+                ? "bg-black/70 backdrop-blur-2xl shadow-[0_4px_40px_rgba(0,240,255,0.05)]" 
+                : "bg-[#111] shadow-xl"
+            ]
+          : [
+              "border-white/10",
+              performanceMode === 'heavy'
+                ? "bg-black/40 backdrop-blur-md shadow-2xl"
+                : "bg-black shadow-md border-white/5"
+            ]
+      )}
+    >
+      {/* Window Header */}
+      <div 
+        className={cn(
+          "h-10 flex items-center justify-between px-3 shrink-0 rounded-t-xl",
+          isActive ? "bg-white/5" : "bg-transparent"
+        )}
+        onPointerDown={(e) => {
+           focusWindow(id);
+           dragControls.start(e);
+        }}
+        onDoubleClick={() => maximizeWindow(id)}
+      >
+        <div className="flex gap-2 items-center">
+          {/* Mac OS style window controls */}
+          <button 
+            onClick={(e) => { e.stopPropagation(); closeWindow(id); }}
+            className="w-3 h-3 rounded-full bg-slate-600 hover:bg-rose-500 transition-colors flex items-center justify-center group"
+          >
+            <X className="w-2 h-2 opacity-0 group-hover:opacity-100 text-black" />
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); minimizeWindow(id); }}
+            className="w-3 h-3 rounded-full bg-slate-600 hover:bg-amber-400 transition-colors flex items-center justify-center group"
+          >
+            <Minus className="w-2 h-2 opacity-0 group-hover:opacity-100 text-black" />
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); maximizeWindow(id); }}
+            className="w-3 h-3 rounded-full bg-slate-600 hover:bg-emerald-400 transition-colors flex items-center justify-center group"
+          >
+            <Maximize2 className="w-2 h-2 opacity-0 group-hover:opacity-100 text-black shrink-0" />
+          </button>
+        </div>
+        
+        <div className="font-display text-xs text-white/50 tracking-wider uppercase select-none pointer-events-none">
+          {title}
+        </div>
+        
+        <div className="w-[44px]" /* spacer for centering */ />
+      </div>
+
+      {/* Window Content */}
+      <div className="flex-1 overflow-hidden relative break-words bg-black/50">
+        {children}
+      </div>
+      
+      {/* Edge & Corner Resizers */}
+      {!isMaximized && (
+        <>
+          {/* Top Edge */}
+          <div className="absolute top-0 left-2 right-2 h-2 cursor-n-resize z-50" onPointerDown={(e) => startResize(e, { top: true })} />
+          {/* Bottom Edge */}
+          <div className="absolute bottom-0 left-2 right-2 h-2 cursor-s-resize z-50" onPointerDown={(e) => startResize(e, { bottom: true })} />
+          {/* Left Edge */}
+          <div className="absolute top-2 bottom-2 left-0 w-2 cursor-w-resize z-50" onPointerDown={(e) => startResize(e, { left: true })} />
+          {/* Right Edge */}
+          <div className="absolute top-2 bottom-2 right-0 w-2 cursor-e-resize z-50" onPointerDown={(e) => startResize(e, { right: true })} />
+          
+          {/* Top Left Corner */}
+          <div className="absolute top-0 left-0 w-3 h-3 cursor-nw-resize z-50" onPointerDown={(e) => startResize(e, { top: true, left: true })} />
+          {/* Top Right Corner */}
+          <div className="absolute top-0 right-0 w-3 h-3 cursor-ne-resize z-50" onPointerDown={(e) => startResize(e, { top: true, right: true })} />
+          {/* Bottom Left Corner */}
+          <div className="absolute bottom-0 left-0 w-3 h-3 cursor-sw-resize z-50" onPointerDown={(e) => startResize(e, { bottom: true, left: true })} />
+          
+          {/* Absolute Bottom Right Resizer (Visual Icon) */}
+          <div 
+            className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-end justify-end p-1.5 opacity-30 hover:opacity-100 z-50 bg-black/10 rounded-tl-lg transition-opacity"
+            onPointerDown={(e) => startResize(e, { bottom: true, right: true })}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-white">
+              <path d="M10 2V10H2" stroke="currentColor" strokeWidth="1" />
+              <path d="M6 6V10H2" stroke="currentColor" strokeWidth="1" />
+            </svg>
+          </div>
+        </>
+      )}
+    </motion.div>
+  );
+}

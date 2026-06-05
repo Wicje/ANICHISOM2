@@ -1,0 +1,6 @@
+{
+  "name": "ANICHISOM",
+  "description": "A browser-based operating system for creative dominance. A hybrid between a design studio, coding environment, and campaign war room.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,66 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile with roles",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "filmmaker", "technician"]
+        },
+        "status": {
+          "type": "string"
+        },
+        "avatarUrl": {
+          "type": "string"
+        }
+      },
+      "required": ["email", "role"]
+    },
+    "AppRegistry": {
+      "title": "App Registry Entry",
+      "description": "Information about external tools / apps for the OS",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "icon": { "type": "string" },
+        "color": { "type": "string" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["title", "url", "icon"]
+    },
+    "Workspace": {
+      "title": "Workspace",
+      "description": "Information about distinct workspaces",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "number", "description": "timestamp" }
+      },
+      "required": ["name", "ownerId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Main user collection"
+    },
+    "/apps/{appId}": {
+       "schema": "AppRegistry",
+       "description": "External company tools App registry"
+    },
+    "/workspaces/{workspaceId}": {
+       "schema": "Workspace",
+       "description": "User workspaces"
+    }
+  }
+}
