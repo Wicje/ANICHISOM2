@@ -1,0 +1,35 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --color-brand: #000000;
+  --color-neon-blue: #00f0ff;
+  --color-electric-purple: #8a2be2;
+  --color-acid-green: #ccff00;
+  
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-black/40 backdrop-blur-md border border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.1)];
+  }
+  .glass-panel-active {
+    @apply bg-black/60 backdrop-blur-xl border border-white/30 shadow-[0_4px_30px_rgba(0,0,0,0.3)];
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+}
+
+body {
+  overflow: hidden; /* Prevent scrolling on the desktop itself */
+  margin: 0;
+  padding: 0;
+}
