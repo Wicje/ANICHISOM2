@@ -3,8 +3,9 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, useDragControls } from 'motion/react';
 import { useOS, OSWindow } from '@/lib/os-context';
-import { X, Minus, Maximize2, Square } from 'lucide-react';
+import { X, Minus, Maximize2, Square, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getFileLockManager } from '@/lib/file-lock-manager';
 
 interface WindowFrameProps {
   osWindow: OSWindow;
@@ -22,6 +23,20 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
   const [isResizing, setIsResizing] = useState(false);
   const [localSize, setLocalSize] = useState({ w: width, h: height });
   const [localPosition, setLocalPosition] = useState({ x, y });
+  const [isFileLocked, setIsFileLocked] = useState(false);
+  const [lockedByUser, setLockedByUser] = useState<string | null>(null);
+
+  // Phase 2A: Check file lock status
+  useEffect(() => {
+    if (!osWindow.data?.fileId) return;
+    
+    const fileLockManager = getFileLockManager();
+    if (!fileLockManager) return;
+    
+    const lockStatus = fileLockManager.isLocked(osWindow.data.fileId);
+    setIsFileLocked(lockStatus.locked);
+    setLockedByUser(lockStatus.userId || null);
+  }, [osWindow.data?.fileId]);
 
   useEffect(() => {
     // Copy the ref to a variable to satisfy the linter and ensure safety
@@ -231,8 +246,15 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
           </button>
         </div>
         
-        <div className="font-display text-xs text-white/50 tracking-wider uppercase select-none pointer-events-none">
+        <div className="font-display text-xs text-white/50 tracking-wider uppercase select-none pointer-events-none flex items-center gap-2">
           {title}
+          {/* Phase 2A: Lock indicator */}
+          {isFileLocked && (
+            <Lock 
+              className="w-3 h-3 text-amber-400" 
+              title={`Locked by ${lockedByUser || 'another user'}`}
+            />
+          )}
         </div>
         
         <div className="w-[44px]" /* spacer for centering */ />

@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { get, set, clear, del } from 'idb-keyval';
 import { auth, db, doc, getDoc, onAuthStateChanged, signOut } from '@/lib/firebase';
+import { syncQueue } from '@/lib/sync-queue';
+import { Workspace, Event } from '@/lib/workspace-types';
 
 export type OSWindow = {
   id: string;
@@ -61,6 +63,14 @@ type OSContextType = {
   saveSnapshot: (name: string) => void;
   restoreSnapshot: (id: string) => void;
   wipeSession: () => Promise<void>;
+  // Phase 1: Workspace extensions
+  workspaceId: string;
+  setWorkspaceId: (id: string) => void;
+  workspaces: Workspace[];
+  setWorkspaces: (ws: Workspace[]) => void;
+  mode: 'create' | 'review' | 'present';
+  setMode: (mode: 'create' | 'review' | 'present') => void;
+  emitEvent: (event: Omit<Event, 'id' | 'timestamp'>) => void;
 };
 
 const OSContext = createContext<OSContextType | undefined>(undefined);
@@ -74,6 +84,10 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
   const [activeWorkspace, setActiveWorkspace] = useState(0);
   const highestZIndexRef = useRef(10);
   const isHydratedRef = useRef(false);
+  // Phase 1: Workspace state
+  const [workspaceId, setWorkspaceId] = useState<string>('personal');
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [mode, setMode] = useState<'create' | 'review' | 'present'>('create');
 
   useEffect(() => {
     // Load local snapshots
@@ -370,6 +384,16 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
       highestZIndexRef.current = nextZ;
     }, 100);
   }, [activeWorkspace]);
+  // Phase 1: Emit event to sync queue
+  const emitEvent = useCallback((eventData: Omit<Event, 'id' | 'timestamp'>) => {
+    const event: Event = {
+      ...eventData,
+      id: crypto.randomUUID(),
+      timestamp: new Date(),
+    };
+    syncQueue.enqueue(event);
+  }, []);
+
   const applyWorkspaceLayout = useCallback((layout: 'creative-split') => {
     if (layout === 'creative-split') {
       const padding = 40;
@@ -447,8 +471,16 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     loadProject,
     saveSnapshot,
     restoreSnapshot,
-    wipeSession
-  }), [currentUser, windows, snapshots, performanceMode, workspaceMode, activeWorkspace, openWindow, closeWindow, focusWindow, minimizeWindow, maximizeWindow, updateWindowDimensions, applyWorkspaceLayout, loadProject, saveSnapshot, restoreSnapshot, wipeSession]);
+    wipeSession,
+    // Phase 1: Workspace extensions
+    workspaceId,
+    setWorkspaceId,
+    workspaces,
+    setWorkspaces,
+    mode,
+    setMode,
+    emitEvent,
+  }), [currentUser, windows, snapshots, performanceMode, workspaceMode, activeWorkspace, openWindow, closeWindow, focusWindow, minimizeWindow, maximizeWindow, updateWindowDimensions, applyWorkspaceLayout, loadProject, saveSnapshot, restoreSnapshot, wipeSession, workspaceId, workspaces, mode, emitEvent]);
 
   return <OSContext.Provider value={value}>{children}</OSContext.Provider>;
 }
