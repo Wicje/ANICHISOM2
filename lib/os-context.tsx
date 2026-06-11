@@ -94,84 +94,63 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
       if (data) setSnapshots(data);
     });
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          const userDocRef = doc(db, 'users', user.uid);
-          const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            if (data.status === 'approved' || data.role === 'admin') {
-                const osUser: OSUser = {
-                  id: user.uid,
-                  name: data.name || user.displayName || user.email?.split('@')[0] || 'User',
-                  role: (data.role as OSRole) || 'filmmaker',
-                  avatarUrl: data.avatarUrl || user.photoURL || undefined
-                };
-                setCurrentUser(osUser);
-                set('anichisom_os_user_cache', osUser);
-                
-                // Cross-Device Resumé (Phase 4): Fetch serialized desktop state
-                if (data.desktopState && data.desktopState.windows && !isHydratedRef.current) {
-                   setWindows(data.desktopState.windows);
-                   if (data.desktopState.workspaceMode) setWorkspaceMode(data.desktopState.workspaceMode);
-                   isHydratedRef.current = true;
-                   
-                   // Restore z-index counter
-                   const highest = Math.max(10, ...data.desktopState.windows.map((w: any) => w.zIndex || 10));
-                   highestZIndexRef.current = highest;
-                } else if (!isHydratedRef.current) {
-                    // Fast path for returning or new user with no remote state, try local
-                    get('anichisom_os_desktop').then(localData => {
-                        if (localData && localData.windows) {
-                            setWindows(localData.windows);
-                            if (localData.workspaceMode) setWorkspaceMode(localData.workspaceMode);
-                        }
-                    });
-                    isHydratedRef.current = true;
-                }
-            } else {
-                // Not approved
-                setCurrentUser(null);
-                del('anichisom_os_user_cache'); // clear cache
-                signOut(auth);
-            }
-          } else {
-            setCurrentUser(null);
-            del('anichisom_os_user_cache');
+    // Check session via API endpoint (replaces Firebase auth)
+    const checkSession = async () => {
+      try {
+        const response = await fetch('/api/auth/session', {
+          method: 'GET',
+          credentials: 'include', // Include cookies
+        });
+
+        if (!response.ok) {
+          // Session invalid or expired
+          setCurrentUser(null);
+          del('anichisom_os_user_cache');
+          setWindows([]);
+          return;
+        }
+
+        const data = await response.json();
+        const osUser: OSUser = {
+          id: data.user.id,
+          name: data.user.uniqueId,
+          role: (data.user.role as OSRole) || 'user',
+        };
+
+        setCurrentUser(osUser);
+        set('anichisom_os_user_cache', osUser);
+
+        // Load local desktop state if not hydrated
+        if (!isHydratedRef.current) {
+          const localData = await get('anichisom_os_desktop');
+          if (localData && localData.windows) {
+            setWindows(localData.windows);
+            if (localData.workspaceMode) setWorkspaceMode(localData.workspaceMode);
+            const highest = Math.max(10, ...localData.windows.map((w: any) => w.zIndex || 10));
+            highestZIndexRef.current = highest;
           }
-        } catch (error) {
-          // Allow fallback login if offline
-          const cachedUser = await get('anichisom_os_user_cache');
-          if (cachedUser && cachedUser.id === user.uid) {
-             setCurrentUser(cachedUser);
-             if (!isHydratedRef.current) {
-               get('anichisom_os_desktop').then(localData => {
-                 if (localData && localData.windows) {
-                   setWindows(localData.windows);
-                   if (localData.workspaceMode) setWorkspaceMode(localData.workspaceMode);
-                 }
-                 isHydratedRef.current = true;
-               });
-             }
-          } else if (user.email?.toLowerCase() === 'anichisom4top@gmail.com') {
-             setCurrentUser({
-               id: user.uid,
-               name: user.email?.split('@')[0] || 'Admin',
-               role: 'admin'
-             });
-             isHydratedRef.current = true;
-          } else {
-             setCurrentUser(null);
+          isHydratedRef.current = true;
+        }
+      } catch (error) {
+        // Fallback to cached user if offline
+        const cachedUser = await get('anichisom_os_user_cache');
+        if (cachedUser) {
+          setCurrentUser(cachedUser);
+          if (!isHydratedRef.current) {
+            const localData = await get('anichisom_os_desktop');
+            if (localData && localData.windows) {
+              setWindows(localData.windows);
+              if (localData.workspaceMode) setWorkspaceMode(localData.workspaceMode);
+            }
+            isHydratedRef.current = true;
           }
         }
-      } else {
-        setCurrentUser(null);
-        setWindows([]); // Clear desktop on signout
-        del('anichisom_os_user_cache'); // Clear cached user
       }
-    });
-    return () => unsubscribe();
+    };
+
+    checkSession();
+    const interval = setInterval(checkSession, 5 * 60 * 1000); // Check every 5 minutes
+    return () => clearInterval(interval);
   }, []);
 
   // Global Desktop State Serialization (Phase 4)
@@ -184,14 +163,21 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
         // Save to IndexedDB (local fast path)
         await set('anichisom_os_desktop', { windows, workspaceMode });
         
-        // Sync to profile doc for Cross-Device Resumé (async)
-        // using setDoc with merge: true
-        const { setDoc } = await import('@/lib/firebase');
-        await setDoc(doc(db, 'users', currentUser.id), {
-          desktopState: { windows, workspaceMode, lastUpdated: Date.now() }
-        }, { merge: true });
+        // Sync to server for Cross-Device Resumé (async)
+        try {
+          await fetch('/api/workspaces/sync', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              desktopState: { windows, workspaceMode, lastUpdated: Date.now() }
+            }),
+          });
+        } catch (e) {
+          // Silently fail if offline
+        }
       } catch (e) {
-        console.warn('Failed to serialize desktop state', e);
+        // Silently fail if sync not available
       }
     }, 2000);
     
