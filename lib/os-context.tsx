@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { get, set, clear, del } from 'idb-keyval';
-import { auth, db, doc, getDoc, onAuthStateChanged, signOut } from '@/lib/firebase';
 import { syncQueue } from '@/lib/sync-queue';
 import { Workspace, Event } from '@/lib/workspace-types';
 

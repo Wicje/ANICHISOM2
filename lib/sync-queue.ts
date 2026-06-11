@@ -45,8 +45,6 @@ export class SyncQueue {
    */
   enqueue(event: Event): void {
     const id = event.id;
-    
-    console.log('[v0] Event queued:', id, event.type);
 
     this.queue.set(id, {
       id,
@@ -104,14 +102,11 @@ export class SyncQueue {
           // Remove from queue on success
           this.queue.delete(id);
           processed++;
-          
-          console.log('[v0] Event synced:', id);
         } catch (error: any) {
           queuedEvent.retries++;
 
           if (queuedEvent.retries >= MAX_RETRIES) {
             // Fail after max retries - still remove from queue to prevent hanging
-            console.error('[v0] Event failed after max retries:', id, error);
             this.queue.delete(id);
           } else {
             // Schedule next retry with exponential backoff
@@ -120,12 +115,6 @@ export class SyncQueue {
               MAX_DELAY_MS
             );
             queuedEvent.nextRetryAt = now + delay;
-
-            console.warn(
-              `[v0] Event retry scheduled (attempt ${queuedEvent.retries}/${MAX_RETRIES}):`,
-              id,
-              `Retry in ${(delay / 1000).toFixed(1)}s`
-            );
           }
         }
       }
@@ -142,8 +131,6 @@ export class SyncQueue {
    * Force flush all pending events
    */
   async flush(): Promise<number> {
-    console.log('[v0] Flushing sync queue...');
-    
     // Reset retry times to force immediate processing
     const now = Date.now();
     for (const queuedEvent of this.queue.values()) {
@@ -155,8 +142,6 @@ export class SyncQueue {
     await this.process();
 
     const remaining = this.queue.size;
-    console.log(`[v0] Sync queue flushed: ${initialSize - remaining} sent, ${remaining} pending`);
-    
     return remaining;
   }
 
@@ -178,7 +163,6 @@ export class SyncQueue {
    * Clear queue (use with caution)
    */
   clear(): void {
-    console.warn('[v0] Clearing sync queue');
     this.queue.clear();
     this.persistToIndexedDB();
   }
@@ -199,10 +183,9 @@ export class SyncQueue {
         for (const item of stored) {
           this.queue.set(item.id, item);
         }
-        console.log('[v0] Loaded', stored.length, 'pending events from IndexedDB');
       }
     } catch (error) {
-      console.warn('[v0] Failed to load sync queue from IndexedDB:', error);
+      // Silently fail if IndexedDB not available
     }
   }
 
@@ -215,7 +198,7 @@ export class SyncQueue {
       const items = Array.from(this.queue.values());
       await set('anichisom_sync_queue', items);
     } catch (error) {
-      console.warn('[v0] Failed to persist sync queue:', error);
+      // Silently fail if IndexedDB not available
     }
   }
 
@@ -256,20 +239,7 @@ export class SyncQueue {
    */
   logStatus(): void {
     const stats = this.getStats();
-    console.log('[v0] Sync Queue Status:', {
-      total: stats.total,
-      pending: stats.pending,
-      retryScheduled: stats.retryScheduled,
-      oldestEventAge: `${(stats.oldestEvent / 1000).toFixed(1)}s`,
-    });
-
-    if (this.queue.size > 0) {
-      console.log('[v0] Pending events:');
-      for (const [id, item] of this.queue) {
-        const waitTime = Math.max(0, item.nextRetryAt - Date.now());
-        console.log(`  - ${id} (retry ${item.retries}/${MAX_RETRIES}, wait ${(waitTime / 1000).toFixed(1)}s)`);
-      }
-    }
+    // Debug method for optional use - logging removed for production
   }
 }
 
@@ -282,7 +252,17 @@ export const syncQueue = new SyncQueue();
  * Hook for cleanup on page unload
  */
 if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => {
+  const cleanup = () => {
     syncQueue.stop();
-  });
+  };
+  
+  window.addEventListener('beforeunload', cleanup);
+  window.addEventListener('unload', cleanup);
+  
+  // Prevent listener accumulation if module reloads
+  if ((window as any).__anichisom_cleanup) {
+    window.removeEventListener('beforeunload', (window as any).__anichisom_cleanup);
+    window.removeEventListener('unload', (window as any).__anichisom_cleanup);
+  }
+  (window as any).__anichisom_cleanup = cleanup;
 }
