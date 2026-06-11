@@ -10,6 +10,20 @@ import { Storage } from '@/lib/storage';
 
 type AppType = 'word' | 'sheets' | 'slides' | 'pdf';
 
+/**
+ * Safely sanitize HTML using DOMPurify
+ * Always validates DOMPurify is available before use
+ */
+function sanitizeHTML(html: string): string {
+  if (!DOMPurify || typeof DOMPurify.sanitize !== 'function') {
+    // Fallback: escape HTML if DOMPurify not available
+    const div = document.createElement('div');
+    div.textContent = html;
+    return div.innerHTML;
+  }
+  return DOMPurify.sanitize(html);
+}
+
 export function ProductivitySuite({ window }: { window: OSWindow }) {
   const { performanceMode, currentUser, workspaceMode, setWorkspaceMode } = useOS();
   const [activeTab, setActiveTab] = useState<AppType>((window.data?.tab as AppType) || 'word');
@@ -216,7 +230,7 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser }: 
         contentEditable
         suppressContentEditableWarning
         onInput={handleInput}
-        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHTML(content) }}
       />
     </div>
   );
