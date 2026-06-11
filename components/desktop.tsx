@@ -5,6 +5,8 @@ import dynamic from 'next/dynamic';
 import { useOS, OSRole, OSUser } from '@/lib/os-context';
 import { WindowFrame } from '@/components/window-frame';
 import { CommandPalette } from '@/components/command-palette';
+import { WorkspaceSelector } from '@/components/workspace-selector';
+import { PresenceIndicator } from '@/components/presence-indicator';
 import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Code2, Search, LayoutTemplate, Clock, Save, Cloud, RefreshCw, ShieldCheck, Power, Figma, Framer, HardDrive, Github, BookOpen, Zap, ZapOff, Briefcase, Brain, User, AlertCircle, Play, Plus, Users, Server, Archive } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -165,6 +167,11 @@ export function Desktop() {
             {isSuperUser && <button className="hover:text-white cursor-default" onClick={() => applyWorkspaceLayout('creative-split')}>Multi-View Workspace</button>}
             <button className="hover:text-white cursor-default" onClick={() => setShowSnapshots(!showSnapshots)}>Time Machine</button>
             
+            {/* Phase 2A: Workspace Selector */}
+            <div className="border-l border-white/20 pl-4">
+              <WorkspaceSelector />
+            </div>
+            
             <div className="flex items-center gap-2 ml-4 pl-4 border-l border-white/20">
               {[0, 1, 2].map(ws => (
                 <button 
@@ -205,6 +212,10 @@ export function Desktop() {
           </div>
         </div>
         <div className="flex items-center gap-4 ml-auto">
+          {/* Phase 2A: Presence Indicator */}
+          <div className="flex items-center gap-2 border-r border-white/10 pr-4">
+            <PresenceIndicator />
+          </div>
           <div className="flex items-center gap-4 border-r border-white/10 pr-4">
             <button 
               onClick={() => setPerformanceMode(performanceMode === 'heavy' ? 'light' : 'heavy')}
