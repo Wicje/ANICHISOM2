@@ -8,13 +8,13 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { Project, ProjectDeliverable } from '@/lib/workspace-types';
+import { Project, Deliverable } from '@/lib/workspace-types';
 import { format, differenceInDays, isToday, isTomorrow, isThisWeek } from 'date-fns';
 import { Calendar, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 
 interface DeliverablesTimelineProps {
   project: Project;
-  onDeliverableClick?: (deliverable: ProjectDeliverable) => void;
+  onDeliverableClick?: (deliverable: Deliverable) => void;
 }
 
 export function DeliverablesTimeline({ project, onDeliverableClick }: DeliverablesTimelineProps) {
@@ -31,8 +31,8 @@ export function DeliverablesTimeline({ project, onDeliverableClick }: Deliverabl
     return format(date, 'MMM d');
   };
 
-  const getTimelineColor = (deliverable: ProjectDeliverable): string => {
-    if (deliverable.status === 'completed') return 'from-green-500 to-emerald-500';
+  const getTimelineColor = (deliverable: Deliverable): string => {
+    if (deliverable.status === 'delivered' || deliverable.status === 'approved') return 'from-green-500 to-emerald-500';
     const daysUntilDue = differenceInDays(deliverable.dueDate, new Date());
     if (daysUntilDue < 0) return 'from-red-500 to-rose-500';
     if (daysUntilDue <= 3) return 'from-amber-500 to-orange-500';
@@ -94,7 +94,7 @@ export function DeliverablesTimeline({ project, onDeliverableClick }: Deliverabl
                     {/* Content */}
                     <div
                       className={`flex-1 pb-4 p-3 rounded-lg transition-colors border ${
-                        deliverable.status === 'completed'
+                        deliverable.status === 'delivered' || deliverable.status === 'approved'
                           ? 'bg-green-900/20 border-green-700/50'
                           : differenceInDays(deliverable.dueDate, new Date()) < 0
                           ? 'bg-red-900/20 border-red-700/50'
@@ -107,7 +107,7 @@ export function DeliverablesTimeline({ project, onDeliverableClick }: Deliverabl
                         <div className="flex-1">
                           <h3
                             className={`font-medium ${
-                              deliverable.status === 'completed'
+                              deliverable.status === 'delivered' || deliverable.status === 'approved'
                                 ? 'line-through text-gray-400'
                                 : 'text-white'
                             }`}
@@ -119,7 +119,7 @@ export function DeliverablesTimeline({ project, onDeliverableClick }: Deliverabl
                           )}
                         </div>
 
-                        {deliverable.status === 'completed' ? (
+                        {deliverable.status === 'delivered' || deliverable.status === 'approved' ? (
                           <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 ml-2" />
                         ) : differenceInDays(deliverable.dueDate, new Date()) < 0 ? (
                           <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 ml-2" />
@@ -130,12 +130,12 @@ export function DeliverablesTimeline({ project, onDeliverableClick }: Deliverabl
 
                       {/* Meta Info */}
                       <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-                        {deliverable.assignedTo && (
+                        {deliverable.assigneeId && (
                           <span className="flex items-center gap-1">
                             👤 Assigned
                           </span>
                         )}
-                        {deliverable.approvedBy && (
+                        {deliverable.status === 'approved' && (
                           <span className="flex items-center gap-1 text-green-400">
                             ✓ Approved
                           </span>

@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "tsx server.ts",
     "lint": "eslint .",
-    "clean": "next clean"
+    "clean": "next clean",
+    "tauri": "tauri"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.69",
@@ -27,6 +28,7 @@
     "idb-keyval": "^6.2.4",
     "isomorphic-dompurify": "^3.15.0",
     "lucide-react": "^0.553.0",
+    "minio": "^8.0.7",
     "motion": "^12.23.24",
     "next": "^15.4.9",
     "perfect-cursors": "^1.0.5",
@@ -46,8 +48,10 @@
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.11",
     "@tailwindcss/typography": "^0.5.19",
+    "@tauri-apps/cli": "^2.11.4",
     "@types/express": "^5.0.6",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "9.39.1",

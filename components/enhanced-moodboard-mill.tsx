@@ -49,8 +49,33 @@ interface EnhancedMoodboardMillProps {
 
 export function EnhancedMoodboardMill({ projectId }: EnhancedMoodboardMillProps) {
   const { currentUser, workspaceId, emitEvent } = useOS();
-  const [moodboards, setMoodboards] = useState<Moodboard[]>([]);
-  const [selectedMoodboard, setSelectedMoodboard] = useState<Moodboard | null>(null);
+  const [moodboards, setMoodboards] = useState<Moodboard[]>(() => [
+    {
+      id: 'mood-1',
+      name: 'Brutalist Design',
+      description: 'Raw, minimalist aesthetic with bold typography',
+      assets: [],
+      tags: ['design', 'minimalist', 'typography'],
+      collaborators: [''],
+      isPublic: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: 'mood-2',
+      name: 'Modern Commerce',
+      description: 'Clean, accessible e-commerce designs',
+      assets: [],
+      tags: ['ecommerce', 'clean', 'accessible'],
+      collaborators: [''],
+      isPublic: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ]);
+  const [selectedMoodboardId, setSelectedMoodboardId] = useState<string | null>(null);
+  const selectedMoodboard = moodboards.find(m => m.id === (selectedMoodboardId || 'mood-1')) || moodboards[0] || null;
+
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -59,38 +84,6 @@ export function EnhancedMoodboardMill({ projectId }: EnhancedMoodboardMillProps)
   const [selectedAsset, setSelectedAsset] = useState<MoodboardAsset | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '' });
   const [assetData, setAssetData] = useState({ url: '', title: '', tags: '' });
-
-  // Initialize with sample moodboards
-  useEffect(() => {
-    const sampleMoodboards: Moodboard[] = [
-      {
-        id: 'mood-1',
-        name: 'Brutalist Design',
-        description: 'Raw, minimalist aesthetic with bold typography',
-        assets: [],
-        tags: ['design', 'minimalist', 'typography'],
-        collaborators: [currentUser?.id || ''],
-        isPublic: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        id: 'mood-2',
-        name: 'Modern Commerce',
-        description: 'Clean, accessible e-commerce designs',
-        assets: [],
-        tags: ['ecommerce', 'clean', 'accessible'],
-        collaborators: [currentUser?.id || ''],
-        isPublic: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ];
-    setMoodboards(sampleMoodboards);
-    if (sampleMoodboards.length > 0) {
-      setSelectedMoodboard(sampleMoodboards[0]);
-    }
-  }, [currentUser]);
 
   const handleCreateMoodboard = () => {
     if (!formData.name.trim()) return;
@@ -108,7 +101,7 @@ export function EnhancedMoodboardMill({ projectId }: EnhancedMoodboardMillProps)
     };
 
     setMoodboards([newMoodboard, ...moodboards]);
-    setSelectedMoodboard(newMoodboard);
+    setSelectedMoodboardId(newMoodboard.id);
     setFormData({ name: '', description: '' });
     setShowNewForm(false);
 
@@ -146,7 +139,6 @@ export function EnhancedMoodboardMill({ projectId }: EnhancedMoodboardMillProps)
     };
 
     setMoodboards(moodboards.map((m) => (m.id === selectedMoodboard.id ? updated : m)));
-    setSelectedMoodboard(updated);
     setAssetData({ url: '', title: '', tags: '' });
     setShowAssetForm(false);
 
@@ -169,7 +161,6 @@ export function EnhancedMoodboardMill({ projectId }: EnhancedMoodboardMillProps)
     };
 
     setMoodboards(moodboards.map((m) => (m.id === selectedMoodboard.id ? updated : m)));
-    setSelectedMoodboard(updated);
   };
 
   const handleLikeAsset = (assetId: string) => {
@@ -186,7 +177,6 @@ export function EnhancedMoodboardMill({ projectId }: EnhancedMoodboardMillProps)
     };
 
     setMoodboards(moodboards.map((m) => (m.id === selectedMoodboard.id ? updated : m)));
-    setSelectedMoodboard(updated);
   };
 
   const filteredAssets =
@@ -257,7 +247,7 @@ export function EnhancedMoodboardMill({ projectId }: EnhancedMoodboardMillProps)
             {moodboards.map((board) => (
               <button
                 key={board.id}
-                onClick={() => setSelectedMoodboard(board)}
+                onClick={() => setSelectedMoodboardId(board.id)}
                 className={`w-full text-left p-3 transition-colors ${
                   selectedMoodboard?.id === board.id
                     ? 'bg-blue-600/30 border-l-2 border-l-blue-500'
@@ -386,6 +376,7 @@ export function EnhancedMoodboardMill({ projectId }: EnhancedMoodboardMillProps)
                     >
                       {/* Image */}
                       <div className="aspect-square bg-gray-700 overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={asset.url}
                           alt={asset.title}

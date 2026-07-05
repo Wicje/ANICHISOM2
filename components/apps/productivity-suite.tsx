@@ -267,7 +267,6 @@ function SheetsEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
     });
 
     return () => unsub();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceMode, projectId, currentUser, roomId]);
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -376,7 +375,6 @@ function SlidesEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
     });
 
     return () => unsub();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceMode, projectId, currentUser, roomId]);
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);

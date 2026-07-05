@@ -36,53 +36,48 @@ interface ColorPalette {
 
 export function ColorPaletteManager() {
   const { currentUser, workspaceId, emitEvent } = useOS();
-  const [palettes, setPalettes] = useState<ColorPalette[]>([]);
-  const [selectedPalette, setSelectedPalette] = useState<ColorPalette | null>(null);
+  const [palettes, setPalettes] = useState<ColorPalette[]>(() => [
+    {
+      id: 'pal-1',
+      name: 'Brutalist Monochrome',
+      description: 'Black, white, and shades of gray for minimalist designs',
+      colors: [
+        { id: '1', name: 'Pure Black', hex: '#000000', rgb: 'rgb(0, 0, 0)' },
+        { id: '2', name: 'Dark Gray', hex: '#1F2937', rgb: 'rgb(31, 41, 55)' },
+        { id: '3', name: 'Medium Gray', hex: '#6B7280', rgb: 'rgb(107, 114, 128)' },
+        { id: '4', name: 'Light Gray', hex: '#E5E7EB', rgb: 'rgb(229, 231, 235)' },
+        { id: '5', name: 'Pure White', hex: '#FFFFFF', rgb: 'rgb(255, 255, 255)' },
+      ],
+      isPublic: false,
+      createdAt: new Date(),
+      createdBy: '',
+      tags: ['minimalist', 'monochrome'],
+    },
+    {
+      id: 'pal-2',
+      name: 'Vibrant Tech',
+      description: 'Bold and modern colors for tech products',
+      colors: [
+        { id: '1', name: 'Electric Blue', hex: '#0066FF', rgb: 'rgb(0, 102, 255)' },
+        { id: '2', name: 'Neon Pink', hex: '#FF0080', rgb: 'rgb(255, 0, 128)' },
+        { id: '3', name: 'Cyan', hex: '#00D9FF', rgb: 'rgb(0, 217, 255)' },
+        { id: '4', name: 'Dark Background', hex: '#0F0F23', rgb: 'rgb(15, 15, 35)' },
+        { id: '5', name: 'White Accent', hex: '#FFFFFF', rgb: 'rgb(255, 255, 255)' },
+      ],
+      isPublic: true,
+      createdAt: new Date(),
+      createdBy: '',
+      tags: ['tech', 'modern', 'bold'],
+    },
+  ]);
+  const [selectedPaletteId, setSelectedPaletteId] = useState<string | null>(null);
+  const selectedPalette = palettes.find(p => p.id === (selectedPaletteId || 'pal-1')) || palettes[0] || null;
+
   const [showNewForm, setShowNewForm] = useState(false);
   const [showColorForm, setShowColorForm] = useState(false);
   const [copiedColor, setCopiedColor] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '' });
   const [newColor, setNewColor] = useState({ name: '', hex: '#000000' });
-
-  // Initialize with sample palettes
-  useEffect(() => {
-    const samplePalettes: ColorPalette[] = [
-      {
-        id: 'pal-1',
-        name: 'Brutalist Monochrome',
-        description: 'Black, white, and shades of gray for minimalist designs',
-        colors: [
-          { id: '1', name: 'Pure Black', hex: '#000000', rgb: 'rgb(0, 0, 0)' },
-          { id: '2', name: 'Dark Gray', hex: '#1F2937', rgb: 'rgb(31, 41, 55)' },
-          { id: '3', name: 'Medium Gray', hex: '#6B7280', rgb: 'rgb(107, 114, 128)' },
-          { id: '4', name: 'Light Gray', hex: '#E5E7EB', rgb: 'rgb(229, 231, 235)' },
-          { id: '5', name: 'Pure White', hex: '#FFFFFF', rgb: 'rgb(255, 255, 255)' },
-        ],
-        isPublic: false,
-        createdAt: new Date(),
-        createdBy: currentUser?.id || '',
-        tags: ['minimalist', 'monochrome'],
-      },
-      {
-        id: 'pal-2',
-        name: 'Vibrant Tech',
-        description: 'Bold and modern colors for tech products',
-        colors: [
-          { id: '1', name: 'Electric Blue', hex: '#0066FF', rgb: 'rgb(0, 102, 255)' },
-          { id: '2', name: 'Neon Pink', hex: '#FF0080', rgb: 'rgb(255, 0, 128)' },
-          { id: '3', name: 'Cyan', hex: '#00D9FF', rgb: 'rgb(0, 217, 255)' },
-          { id: '4', name: 'Dark Background', hex: '#0F0F23', rgb: 'rgb(15, 15, 35)' },
-          { id: '5', name: 'White Accent', hex: '#FFFFFF', rgb: 'rgb(255, 255, 255)' },
-        ],
-        isPublic: true,
-        createdAt: new Date(),
-        createdBy: currentUser?.id || '',
-        tags: ['tech', 'modern', 'bold'],
-      },
-    ];
-    setPalettes(samplePalettes);
-    setSelectedPalette(samplePalettes[0]);
-  }, [currentUser]);
 
   const handleCreatePalette = () => {
     if (!formData.name.trim()) return;
@@ -99,7 +94,7 @@ export function ColorPaletteManager() {
     };
 
     setPalettes([newPalette, ...palettes]);
-    setSelectedPalette(newPalette);
+    setSelectedPaletteId(newPalette.id);
     setFormData({ name: '', description: '' });
     setShowNewForm(false);
 
@@ -128,7 +123,6 @@ export function ColorPaletteManager() {
     };
 
     setPalettes(palettes.map((p) => (p.id === selectedPalette.id ? updated : p)));
-    setSelectedPalette(updated);
     setNewColor({ name: '', hex: '#000000' });
     setShowColorForm(false);
   };
@@ -142,7 +136,6 @@ export function ColorPaletteManager() {
     };
 
     setPalettes(palettes.map((p) => (p.id === selectedPalette.id ? updated : p)));
-    setSelectedPalette(updated);
   };
 
   const handleCopyColor = (hex: string) => {
@@ -220,7 +213,7 @@ export function ColorPaletteManager() {
             {palettes.map((palette) => (
               <button
                 key={palette.id}
-                onClick={() => setSelectedPalette(palette)}
+                onClick={() => setSelectedPaletteId(palette.id)}
                 className={`w-full text-left p-3 transition-colors ${
                   selectedPalette?.id === palette.id
                     ? 'bg-blue-600/30 border-l-2 border-l-blue-500'

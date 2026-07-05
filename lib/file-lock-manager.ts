@@ -29,13 +29,14 @@ export class FileLockManager {
   private locks: Map<string, FileLockState> = new Map();
   private userId: string;
   private sessionId: string;
+  private cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
 
   constructor(userId: string) {
     this.userId = userId;
     this.sessionId = crypto.randomUUID();
     
     // Cleanup expired locks every minute
-    setInterval(() => this.cleanupExpiredLocks(), 60000);
+    this.cleanupIntervalId = setInterval(() => this.cleanupExpiredLocks(), 60000);
   }
 
   /**
@@ -46,11 +47,22 @@ export class FileLockManager {
       const currentLock = this.locks.get(fileId);
       const now = new Date();
 
-      // Check if lock exists and is expired
+      // Check if lock exists and is expired (local check)
       if (currentLock) {
         if (currentLock.expiresAt > now && currentLock.sessionId !== this.sessionId) {
           // Lock is held by someone else
-          console.log('[v0] File locked by another user:', fileId);
+          return false;
+        }
+      }
+
+      // Read current lock state from Firestore to reduce race window.
+      // NOTE: For production use, this should be a Firestore transaction
+      // (read + conditional write) to fully eliminate the race condition
+      // between multiple clients acquiring the same lock.
+      const remoteFile = await fileAdapter.get(fileId);
+      if (remoteFile) {
+        const remote = remoteFile as any;
+        if (remote.editingSessionId && remote.editingSessionId !== this.sessionId) {
           return false;
         }
       }
@@ -73,7 +85,6 @@ export class FileLockManager {
         editingSessionId: this.sessionId,
       } as any);
 
-      console.log('[v0] File lock acquired:', fileId);
       return true;
     } catch (error) {
       console.error('[v0] Failed to acquire lock:', error);
@@ -102,7 +113,6 @@ export class FileLockManager {
         editingSessionId: undefined,
       } as any);
 
-      console.log('[v0] File lock released:', fileId);
     } catch (error) {
       console.error('[v0] Failed to release lock:', error);
     }
@@ -153,22 +163,29 @@ export class FileLockManager {
         cleaned++;
       }
     }
-
-    if (cleaned > 0) {
-      console.log('[v0] Cleaned up', cleaned, 'expired locks');
-    }
   }
 
   /**
    * Release all locks (logout, tab close)
    */
   async releaseAllLocks(): Promise<void> {
-    console.log('[v0] Releasing all locks...');
     const fileIds = Array.from(this.locks.keys());
 
     for (const fileId of fileIds) {
       await this.releaseLock(fileId);
     }
+  }
+
+  /**
+   * Destroy this manager: clear the cleanup interval and release all locks.
+   * Call this before discarding the instance to prevent interval leaks.
+   */
+  async destroy(): Promise<void> {
+    if (this.cleanupIntervalId) {
+      clearInterval(this.cleanupIntervalId);
+      this.cleanupIntervalId = null;
+    }
+    await this.releaseAllLocks();
   }
 
   /**
@@ -201,7 +218,7 @@ let globalFileLockManager: FileLockManager | null = null;
 
 export function initFileLockManager(userId: string): FileLockManager {
   if (globalFileLockManager) {
-    globalFileLockManager.releaseAllLocks();
+    globalFileLockManager.destroy();
   }
   globalFileLockManager = new FileLockManager(userId);
   return globalFileLockManager;

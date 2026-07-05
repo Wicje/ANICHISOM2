@@ -15,7 +15,6 @@ import { Presence } from '@/lib/workspace-types';
 export function PresenceIndicator() {
   const { workspaceId, currentUser } = useOS();
   const [onlineUsers, setOnlineUsers] = useState<Presence[]>([]);
-  const [unsubscribe, setUnsubscribe] = useState<(() => void) | null>(null);
 
   // Subscribe to presence changes
   useEffect(() => {
@@ -28,8 +27,6 @@ export function PresenceIndicator() {
       );
       setOnlineUsers(filtered);
     });
-
-    setUnsubscribe(() => unsub);
 
     return () => {
       unsub();

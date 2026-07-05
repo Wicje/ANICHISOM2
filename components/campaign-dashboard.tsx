@@ -7,10 +7,10 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useOS } from '@/lib/os-context';
 import { projectAdapter } from '@/lib/firestore-adapter';
-import { Project, ProjectDeliverable } from '@/lib/workspace-types';
+import { Project, Deliverable } from '@/lib/workspace-types';
 import { 
   Calendar, CheckCircle, AlertCircle, Clock, Target, Users,
   Plus, Trash2, Edit2, GripVertical
@@ -25,19 +25,21 @@ interface CampaignDashboardProps {
 export function CampaignDashboard({ projectId }: CampaignDashboardProps) {
   const { workspaceId, currentUser, emitEvent } = useOS();
   const [project, setProject] = useState<Project | null>(null);
+  const now = useMemo(() => new Date(), []);
+  const threeDaysFromNow = useMemo(() => new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000), [now]);
   const [loading, setLoading] = useState(true);
   const [showDeliverableForm, setShowDeliverableForm] = useState(false);
-  const [deliverableForm, setDeliverableForm] = useState({
+  const [deliverableForm, setDeliverableForm] = useState(() => ({
     name: '',
     description: '',
     dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     assignee: '',
-  });
+  }));
 
   useEffect(() => {
     const loadProject = async () => {
       try {
-        const data = await projectAdapter.getById(projectId);
+        const data = await projectAdapter.get(projectId);
         if (data) setProject(data);
       } catch (error) {
         console.error('[v0] Failed to load project:', error);
@@ -52,16 +54,13 @@ export function CampaignDashboard({ projectId }: CampaignDashboardProps) {
   const handleAddDeliverable = async () => {
     if (!project || !deliverableForm.name.trim()) return;
 
-    const newDeliverable: ProjectDeliverable = {
+    const newDeliverable: Deliverable = {
       id: crypto.randomUUID(),
       name: deliverableForm.name,
       description: deliverableForm.description,
       dueDate: new Date(deliverableForm.dueDate),
       status: 'pending',
-      assignedTo: deliverableForm.assignee || currentUser?.id,
-      approvedBy: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      assigneeId: deliverableForm.assignee || currentUser?.id || 'unknown',
     };
 
     const updated = {
@@ -98,16 +97,16 @@ export function CampaignDashboard({ projectId }: CampaignDashboardProps) {
 
     const updated = {
       ...project,
-      deliverables: project.deliverables.map((d) =>
+      deliverables: project.deliverables.map((d): Deliverable =>
         d.id === deliverableId
-          ? { ...d, status: d.status === 'completed' ? 'pending' : 'completed', updatedAt: new Date() }
+          ? { ...d, status: d.status === 'delivered' ? 'pending' : 'delivered' }
           : d
       ),
       updatedAt: new Date(),
     };
 
     try {
-      await projectAdapter.update(projectId, updated);
+      await projectAdapter.update(projectId, { deliverables: updated.deliverables });
       setProject(updated);
     } catch (error) {
       console.error('[v0] Failed to update deliverable:', error);
@@ -124,7 +123,7 @@ export function CampaignDashboard({ projectId }: CampaignDashboardProps) {
     };
 
     try {
-      await projectAdapter.update(projectId, updated);
+      await projectAdapter.update(projectId, { deliverables: updated.deliverables });
       setProject(updated);
     } catch (error) {
       console.error('[v0] Failed to delete deliverable:', error);
@@ -133,17 +132,19 @@ export function CampaignDashboard({ projectId }: CampaignDashboardProps) {
 
   const getProgressPercentage = () => {
     if (project?.deliverables.length === 0) return 0;
-    const completed = project.deliverables.filter((d) => d.status === 'completed').length;
-    return Math.round((completed / project.deliverables.length) * 100);
+    if (!project) return 0;
+    const completed = project.deliverables.filter((d) => d.status === 'delivered').length;
+    return Math.round((completed / Math.max(1, project.deliverables.length)) * 100);
   };
 
-  const getUpcomingDeliverables = () => {
+  const activeDeliverables = useMemo(() => {
     if (!project) return [];
     return project.deliverables
-      .filter((d) => d.status !== 'completed')
+      .filter((d) => d.status !== 'delivered')
+      .filter((d) => d.status !== 'approved')
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
       .slice(0, 3);
-  };
+  }, [project]);
 
   if (loading) {
     return <div className="p-4 text-gray-400">Loading project...</div>;
@@ -154,9 +155,9 @@ export function CampaignDashboard({ projectId }: CampaignDashboardProps) {
   }
 
   const progress = getProgressPercentage();
-  const upcoming = getUpcomingDeliverables();
+  const upcoming = activeDeliverables;
   const overdue = project.deliverables.filter(
-    (d) => d.status !== 'completed' && d.dueDate < new Date()
+    (d) => d.status !== 'delivered' && d.status !== 'approved' && d.dueDate < new Date()
   );
 
   return (
@@ -194,7 +195,7 @@ export function CampaignDashboard({ projectId }: CampaignDashboardProps) {
           <div className="bg-green-900/30 p-3 rounded border border-green-700/50">
             <div className="text-xs text-green-400 mb-1">Completed</div>
             <div className="text-lg font-semibold">
-              {project.deliverables.filter((d) => d.status === 'completed').length}
+              {project.deliverables.filter((d) => d.status === 'delivered' || d.status === 'approved').length}
             </div>
           </div>
           <div className="bg-amber-900/30 p-3 rounded border border-amber-700/50">
@@ -276,17 +277,18 @@ export function CampaignDashboard({ projectId }: CampaignDashboardProps) {
               project.deliverables
                 .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
                 .map((deliverable) => {
-                  const isOverdue = deliverable.status !== 'completed' && deliverable.dueDate < new Date();
+                  const isOverdue = deliverable.status !== 'delivered' && deliverable.status !== 'approved' && deliverable.dueDate < now;
                   const isDueSoon =
-                    deliverable.status !== 'completed' &&
+                    deliverable.status !== 'delivered' &&
+                    deliverable.status !== 'approved' &&
                     !isOverdue &&
-                    deliverable.dueDate < new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+                    deliverable.dueDate < threeDaysFromNow;
 
                   return (
                     <div
                       key={deliverable.id}
                       className={`flex items-start gap-3 p-3 rounded border transition-colors ${
-                        deliverable.status === 'completed'
+                        deliverable.status === 'delivered' || deliverable.status === 'approved'
                           ? 'bg-gray-800/30 border-gray-700/50'
                           : isOverdue
                           ? 'bg-red-900/20 border-red-700/50'
@@ -299,7 +301,7 @@ export function CampaignDashboard({ projectId }: CampaignDashboardProps) {
                         onClick={() => handleToggleDeliverableStatus(deliverable.id)}
                         className="mt-1 transition-colors"
                       >
-                        {deliverable.status === 'completed' ? (
+                        {deliverable.status === 'delivered' || deliverable.status === 'approved' ? (
                           <CheckCircle className="w-5 h-5 text-green-500" />
                         ) : (
                           <AlertCircle className="w-5 h-5 text-gray-400 hover:text-gray-300" />
@@ -308,7 +310,7 @@ export function CampaignDashboard({ projectId }: CampaignDashboardProps) {
 
                       <div className="flex-1 min-w-0">
                         <div
-                          className={`font-medium text-sm ${deliverable.status === 'completed' ? 'line-through text-gray-500' : 'text-white'}`}
+                          className={`font-medium text-sm ${deliverable.status === 'delivered' || deliverable.status === 'approved' ? 'line-through text-gray-500' : 'text-white'}`}
                         >
                           {deliverable.name}
                         </div>

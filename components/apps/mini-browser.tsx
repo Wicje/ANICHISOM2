@@ -1,16 +1,24 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
-import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, ExternalLink, Search } from 'lucide-react';
+import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, ExternalLink, Search, Maximize2, Minimize2, Download } from 'lucide-react';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 export function MiniBrowser({ window }: { window: OSWindow }) {
   const [url, setUrl] = useState(window.data?.url || '');
   const [inputUrl, setInputUrl] = useState(window.data?.url || '');
-  const [isIframeLoaded, setIsIframeLoaded] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(window.data?.isFocusMode || false);
+  
+  const { performanceMode, updateWindowData, maximizeWindow } = useOS();
 
-  const { performanceMode } = useOS();
+  // Context Memory: Sync url changes to global window state so it persists
+  useEffect(() => {
+    if (url !== window.data?.url) {
+      updateWindowData(window.id, { url });
+    }
+  }, [url, window.id, window.data?.url, updateWindowData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,47 +36,75 @@ export function MiniBrowser({ window }: { window: OSWindow }) {
       }
     } else {
       // It's a search query. Use Google.
-      // Note: Google generally blocks iframing, but the `igu=1` parameter sometimes helps,
-      // or the user can click the external link button.
       finalUrl = `https://www.google.com/search?q=${encodeURIComponent(inputUrl)}&igu=1`;
     }
     
     setUrl(finalUrl);
   };
 
-  return (
-    <div className="w-full h-full flex flex-col bg-white text-black font-sans relative">
-      {/* Browser Chrome */}
-      <div className="h-12 border-b border-black/10 bg-slate-50 flex items-center justify-between px-4 gap-4 shrink-0 z-10">
-        <div className="flex items-center gap-2 text-slate-500">
-          <ArrowLeft className="w-4 h-4 cursor-pointer hover:text-black transition-colors" />
-          <ArrowRight className="w-4 h-4 text-slate-300" />
-          <RotateCw className="w-4 h-4 cursor-pointer hover:text-black transition-colors ml-2" />
-        </div>
-        
-        <form 
-          onSubmit={handleSubmit}
-          className="flex-1 max-w-xl mx-auto flex items-center gap-2 bg-white px-4 py-1.5 rounded-full border border-black/10 focus-within:border-neon-blue shadow-sm"
-        >
-          {url && !url.includes('search?q=') ? <Lock className="w-3 h-3 text-emerald-600" /> : <Search className="w-3 h-3 text-slate-400" />}
-          <input
-            type="text"
-            value={inputUrl}
-            onChange={(e) => setInputUrl(e.target.value)}
-            placeholder="Search Google or enter web address"
-            className="flex-1 bg-transparent border-none outline-none text-sm"
-          />
-        </form>
+  const toggleFocusMode = () => {
+    const nextMode = !isFocusMode;
+    setIsFocusMode(nextMode);
+    updateWindowData(window.id, { isFocusMode: nextMode });
+    
+    if (nextMode && !window.isMaximized) {
+      maximizeWindow(window.id);
+    }
+  };
 
-        <div className="flex items-center gap-4 text-slate-500">
-          <Home className="w-4 h-4 cursor-pointer hover:text-black transition-colors" onClick={() => setUrl('')}/>
-          {url && (
-            <a href={url} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors" title="Open in new tab">
-              <ExternalLink className="w-4 h-4" />
-            </a>
-          )}
+  return (
+    <div className="w-full h-full flex flex-col bg-white text-black font-sans relative group/browser">
+      {/* Floating Unfocus Button (Visible only in Focus Mode) */}
+      {isFocusMode && (
+        <button 
+          onClick={toggleFocusMode}
+          className="absolute top-4 right-4 z-[100] bg-black/80 hover:bg-black text-white p-2 rounded-full shadow-2xl backdrop-blur transition-all opacity-0 group-hover/browser:opacity-100"
+          title="Exit Focus Mode"
+        >
+          <Minimize2 className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* Browser Chrome */}
+      {!isFocusMode && (
+        <div className="h-12 border-b border-black/10 bg-slate-50 flex items-center justify-between px-4 gap-4 shrink-0 z-10 transition-all">
+          <div className="flex items-center gap-2 text-slate-500">
+            <ArrowLeft className="w-4 h-4 cursor-pointer hover:text-black transition-colors" />
+            <ArrowRight className="w-4 h-4 text-slate-300" />
+            <RotateCw className="w-4 h-4 cursor-pointer hover:text-black transition-colors ml-2" onClick={() => setUrl(url)} />
+          </div>
+          
+          <form 
+            onSubmit={handleSubmit}
+            className="flex-1 max-w-xl mx-auto flex items-center gap-2 bg-white px-4 py-1.5 rounded-full border border-black/10 focus-within:border-neon-blue shadow-sm transition-all"
+          >
+            {url && !url.includes('search?q=') ? <Lock className="w-3 h-3 text-emerald-600" /> : <Search className="w-3 h-3 text-slate-400" />}
+            <input
+              type="text"
+              value={inputUrl}
+              onChange={(e) => setInputUrl(e.target.value)}
+              placeholder="Search Google or enter web address"
+              className="flex-1 bg-transparent border-none outline-none text-sm"
+            />
+          </form>
+
+          <div className="flex items-center gap-3 text-slate-500">
+            <button className="hover:text-black transition-colors flex items-center justify-center p-1" title="Download to Files">
+              <Download className="w-4 h-4" />
+            </button>
+            <button className="hover:text-black transition-colors flex items-center justify-center p-1" title="Focus Mode" onClick={toggleFocusMode}>
+              <Maximize2 className="w-4 h-4" />
+            </button>
+            <div className="w-px h-4 bg-slate-300 mx-1" />
+            <Home className="w-4 h-4 cursor-pointer hover:text-black transition-colors" onClick={() => setUrl('')}/>
+            {url && (
+              <a href={url} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors p-1" title="Open in new tab">
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Browser Content */}
       <div className="flex-1 bg-slate-100 flex flex-col relative overflow-hidden">
@@ -131,7 +167,7 @@ export function MiniBrowser({ window }: { window: OSWindow }) {
          ) : (
            <div className="w-full h-full relative">
               {/* Optional overlay message if they complain about blocked iframes */}
-             {url && ['figma.com', 'framer.com', 'github.com', 'x.com', 'twitter.com', 'linkedin.com'].some(domain => {
+             {url && ['figma.com', 'framer.com', 'github.com', 'x.com', 'twitter.com', 'linkedin.com', 'claude.ai'].some(domain => {
                try {
                  const hostname = new URL(url).hostname;
                  return hostname === domain || hostname.endsWith(`.${domain}`);
@@ -141,12 +177,12 @@ export function MiniBrowser({ window }: { window: OSWindow }) {
              }) ? (
                <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-50 text-slate-800 p-8 text-center">
                  <Lock className="w-12 h-12 text-slate-400 mb-6" />
-                 <h2 className="text-2xl font-semibold mb-2">Can&apos;t Embed This Page</h2>
+                 <h2 className="text-2xl font-semibold mb-2">Web App Requires Native Tab</h2>
                  <p className="text-slate-500 max-w-md mb-8">
-                   For security reasons, this site does not allow itself to be embedded within other applications.
+                   For security and session persistence, this site must run in a secure context. Your OS will remember the URL and session state natively.
                  </p>
                  <a href={url} target="_blank" rel="noopener noreferrer" className="bg-black text-white px-6 py-3 rounded-full flex items-center gap-2 hover:bg-slate-800 transition-colors">
-                   Open in New Tab <ExternalLink className="w-4 h-4" />
+                   Open {new URL(url).hostname} <ExternalLink className="w-4 h-4" />
                  </a>
                </div>
              ) : (

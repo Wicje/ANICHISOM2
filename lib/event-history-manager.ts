@@ -7,6 +7,7 @@
 
 import { Event, EVENT_HISTORY_LIMIT } from './workspace-types';
 import { eventAdapter } from './firestore-adapter';
+import { limit as firestoreLimit } from 'firebase/firestore';
 
 export interface UndoRedoState {
   past: Event[];
@@ -53,7 +54,7 @@ export class EventHistoryManager {
       this.redoStack = []; // Clear redo stack when new action occurs
 
       // Persist to Firestore
-      await eventAdapter.create(fullEvent);
+      await eventAdapter.add(fullEvent);
 
       // Keep local cache size manageable
       if (this.events.length >= this.maxHistorySize) {
@@ -61,7 +62,6 @@ export class EventHistoryManager {
       }
       this.events.push(fullEvent);
 
-      console.log('[v0] Event recorded:', fullEvent.type);
       return fullEvent;
     } catch (error) {
       console.error('[v0] Failed to record event:', error);
@@ -92,11 +92,11 @@ export class EventHistoryManager {
         userId: this.userId,
         comment: `Undo: ${eventToUndo.comment || eventToUndo.type}`,
         entityId: eventToUndo.entityId,
+        timestamp: new Date(),
         createdAt: new Date(),
       };
 
-      await eventAdapter.create(undoEvent);
-      console.log('[v0] Undo executed:', eventToUndo.type);
+      await eventAdapter.add(undoEvent);
       return undoEvent;
     } catch (error) {
       console.error('[v0] Failed to undo:', error);
@@ -127,11 +127,11 @@ export class EventHistoryManager {
         userId: this.userId,
         comment: `Redo: ${eventToRedo.comment || eventToRedo.type}`,
         entityId: eventToRedo.entityId,
+        timestamp: new Date(),
         createdAt: new Date(),
       };
 
-      await eventAdapter.create(redoEvent);
-      console.log('[v0] Redo executed:', eventToRedo.type);
+      await eventAdapter.add(redoEvent);
       return redoEvent;
     } catch (error) {
       console.error('[v0] Failed to redo:', error);
@@ -142,9 +142,9 @@ export class EventHistoryManager {
   /**
    * Get all events for a workspace
    */
-  async getEvents(limit: number = 100): Promise<Event[]> {
+  async getEvents(limitVal: number = 100): Promise<Event[]> {
     try {
-      return await eventAdapter.getByWorkspace(this.workspaceId, limit);
+      return await eventAdapter.getByWorkspace(this.workspaceId, [firestoreLimit(limitVal)]);
     } catch (error) {
       console.error('[v0] Failed to fetch events:', error);
       return [];
@@ -156,7 +156,7 @@ export class EventHistoryManager {
    */
   async getEntityEvents(entityId: string): Promise<Event[]> {
     try {
-      return await eventAdapter.getByEntity(entityId);
+      return await eventAdapter.getByEntity(this.workspaceId, entityId);
     } catch (error) {
       console.error('[v0] Failed to fetch entity events:', error);
       return [];
@@ -195,9 +195,10 @@ export class EventHistoryManager {
   async getEventsByDateRange(startDate: Date, endDate: Date): Promise<Event[]> {
     try {
       const events = await eventAdapter.getByWorkspace(this.workspaceId);
-      return events.filter(
-        (e) => e.createdAt >= startDate && e.createdAt <= endDate
-      );
+      return events.filter((e) => {
+        const eventTime = e.createdAt || e.timestamp;
+        return eventTime >= startDate && eventTime <= endDate;
+      });
     } catch (error) {
       console.error('[v0] Failed to fetch events by date range:', error);
       return [];
@@ -236,7 +237,6 @@ export class EventHistoryManager {
     this.undoStack = [];
     this.redoStack = [];
     this.events = [];
-    console.log('[v0] History cleared');
   }
 
   /**
@@ -263,7 +263,7 @@ export class EventHistoryManager {
         totalEvents: events.length,
         userCount: userSet.size,
         eventTypes,
-        lastEventTime: events.length > 0 ? events[events.length - 1].createdAt : null,
+        lastEventTime: events.length > 0 ? (events[events.length - 1].createdAt || events[events.length - 1].timestamp) : null,
       };
     } catch (error) {
       console.error('[v0] Failed to get activity stats:', error);

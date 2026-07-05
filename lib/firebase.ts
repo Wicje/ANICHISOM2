@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, updateProfile, signOut } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, setLogLevel, onSnapshot, limit } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, setLogLevel, onSnapshot, limit, orderBy } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Silence firestore warnings about offline mode
@@ -28,7 +28,8 @@ export {
   where,
   getDocs,
   onSnapshot,
-  limit
+  limit,
+  orderBy
 };
 
 const provider = new GoogleAuthProvider();

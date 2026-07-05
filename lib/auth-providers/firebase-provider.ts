@@ -13,10 +13,17 @@ export class FirebaseAuthProvider implements AuthProvider {
   constructor() {
     // Lazy-load Firebase to avoid errors if not configured
     try {
-      const { auth, db } = require('./firebase-config');
+      const { auth, db } = require('../firebase');
       this.auth = auth;
       this.db = db;
     } catch {
+      // If Firebase is the explicitly chosen auth provider, this is a fatal misconfiguration.
+      if (process.env.NEXT_PUBLIC_AUTH_PROVIDER === 'firebase') {
+        throw new Error(
+          'Firebase is configured as the auth provider (NEXT_PUBLIC_AUTH_PROVIDER=firebase) '
+          + 'but firebase-config could not be loaded. Ensure NEXT_PUBLIC_FIREBASE_* env vars are set.'
+        );
+      }
       console.warn('Firebase not configured. Using Firebase provider requires NEXT_PUBLIC_FIREBASE_* env vars');
     }
   }
@@ -29,7 +36,8 @@ export class FirebaseAuthProvider implements AuthProvider {
       }
 
       const { onAuthStateChanged } = require('firebase/auth');
-      onAuthStateChanged(this.auth, async (user: any) => {
+      const unsubscribe = onAuthStateChanged(this.auth, (user: any) => {
+        unsubscribe();
         if (user) {
           resolve({
             id: user.uid,
@@ -72,8 +80,8 @@ export class FirebaseAuthProvider implements AuthProvider {
   }
 
   async isSessionValid(): Promise<boolean> {
-    const user = await this.getCurrentUser();
-    return user !== null;
+    // Use auth.currentUser directly to avoid registering a new onAuthStateChanged listener
+    return this.auth?.currentUser !== null && this.auth?.currentUser !== undefined;
   }
 
   onAuthStateChanged(callback: (user: AuthUser | null) => void): () => void {

@@ -23,6 +23,18 @@ import { getAuthProvider } from '@/lib/auth-providers/provider-factory';
 
 export async function POST(request: NextRequest) {
   try {
+    // CSRF Protection: Validate Origin/Host headers
+    const origin = request.headers.get('origin');
+    const host = request.headers.get('host');
+    if (origin && host) {
+      const parsedOrigin = new URL(origin);
+      if (parsedOrigin.host !== host) {
+        return NextResponse.json(
+          { error: 'Forbidden: CSRF check failed' },
+          { status: 403 }
+        );
+      }
+    }
     // Parse request body
     let body: unknown;
     try {
@@ -90,21 +102,25 @@ export async function POST(request: NextRequest) {
     const authProvider = getAuthProvider();
 
     // Attempt login
-    const result = await authProvider.login(uniqueId);
-
-    if (!result.success) {
+    let result;
+    try {
+      result = await authProvider.login({ uniqueId });
+    } catch (err: any) {
       return NextResponse.json(
-        { error: result.error || 'Login failed' },
+        { error: err?.message || 'Login failed' },
         { status: 401 }
       );
     }
 
-    if (!result.sessionToken || !result.user) {
+    if (!result || !result.user) {
       return NextResponse.json(
         { error: 'Session creation failed' },
         { status: 500 }
       );
     }
+
+    // Use token from provider if available, otherwise fallback to uniqueId
+    const sessionToken = result.token || uniqueId;
 
     // Create response with secure session cookie
     const response = NextResponse.json(
@@ -112,7 +128,7 @@ export async function POST(request: NextRequest) {
         success: true,
         user: {
           id: result.user.id,
-          uniqueId: result.user.uniqueId || uniqueId,
+          uniqueId: result.user.name || uniqueId,
           role: result.user.role || 'user',
         },
       },
@@ -123,7 +139,7 @@ export async function POST(request: NextRequest) {
     const isProduction = process.env.NODE_ENV === 'production';
     response.cookies.set({
       name: 'anichisom_session',
-      value: result.sessionToken,
+      value: sessionToken,
       httpOnly: true,
       secure: isProduction, // Only send over HTTPS in production
       sameSite: 'strict',

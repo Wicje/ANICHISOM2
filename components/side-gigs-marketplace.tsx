@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useOS } from '@/lib/os-context';
 import {
   Briefcase, Plus, Search, Filter, Clock, DollarSign, Users, Star,
@@ -43,8 +43,53 @@ interface UserApplication {
 
 export function SideGigsMarketplace() {
   const { currentUser, workspaceId, emitEvent } = useOS();
-  const [gigs, setGigs] = useState<SideGig[]>([]);
-  const [filteredGigs, setFilteredGigs] = useState<SideGig[]>([]);
+  const [gigs, setGigs] = useState<SideGig[]>(() => [
+    {
+      id: 'gig-1',
+      title: 'Brand Identity Design for Tech Startup',
+      description: 'Complete brand identity including logo, color palette, typography, and guidelines.',
+      budget: { min: 8000, max: 15000, currency: 'USD' },
+      skills: ['logo design', 'branding', 'typography', 'figma'],
+      timeline: { start: new Date(), end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+      status: 'open',
+      postedBy: { id: 'user-1', name: 'TechVentures Inc', avatar: '🏢' },
+      applicants: 23,
+      rating: 4.8,
+      location: 'Remote',
+      remote: true,
+      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    },
+    {
+      id: 'gig-2',
+      title: 'E-commerce Website Redesign',
+      description: 'Modernize existing e-commerce platform with improved UX and conversion optimization.',
+      budget: { min: 12000, max: 25000, currency: 'USD' },
+      skills: ['ux design', 'web design', 'conversion optimization', 'figma'],
+      timeline: { start: new Date(), end: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) },
+      status: 'open',
+      postedBy: { id: 'user-2', name: 'ShopHub', avatar: '🛍️' },
+      applicants: 17,
+      rating: 4.9,
+      location: 'Remote',
+      remote: true,
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+    },
+    {
+      id: 'gig-3',
+      title: 'Motion Graphics for Product Demo',
+      description: 'Create engaging motion graphics video for SaaS product demonstration.',
+      budget: { min: 3000, max: 8000, currency: 'USD' },
+      skills: ['motion graphics', 'after effects', 'video editing'],
+      timeline: { start: new Date(), end: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000) },
+      status: 'open',
+      postedBy: { id: 'user-3', name: 'CloudTools', avatar: '☁️' },
+      applicants: 12,
+      rating: 4.7,
+      location: 'Remote',
+      remote: true,
+      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+    },
+  ]);
   const [selectedGig, setSelectedGig] = useState<SideGig | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSkills, setFilterSkills] = useState<string[]>([]);
@@ -63,62 +108,8 @@ export function SideGigsMarketplace() {
   const [proposalData, setProposalData] = useState({ budget: 5000, message: '' });
   const [savedGigs, setSavedGigs] = useState<string[]>([]);
 
-  // Initialize with sample gigs
-  useEffect(() => {
-    const sampleGigs: SideGig[] = [
-      {
-        id: 'gig-1',
-        title: 'Brand Identity Design for Tech Startup',
-        description: 'Complete brand identity including logo, color palette, typography, and guidelines.',
-        budget: { min: 8000, max: 15000, currency: 'USD' },
-        skills: ['logo design', 'branding', 'typography', 'figma'],
-        timeline: { start: new Date(), end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
-        status: 'open',
-        postedBy: { id: 'user-1', name: 'TechVentures Inc', avatar: '🏢' },
-        applicants: 23,
-        rating: 4.8,
-        location: 'Remote',
-        remote: true,
-        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-      },
-      {
-        id: 'gig-2',
-        title: 'E-commerce Website Redesign',
-        description: 'Modernize existing e-commerce platform with improved UX and conversion optimization.',
-        budget: { min: 12000, max: 25000, currency: 'USD' },
-        skills: ['ux design', 'web design', 'conversion optimization', 'figma'],
-        timeline: { start: new Date(), end: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) },
-        status: 'open',
-        postedBy: { id: 'user-2', name: 'ShopHub', avatar: '🛍️' },
-        applicants: 17,
-        rating: 4.9,
-        location: 'Remote',
-        remote: true,
-        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      },
-      {
-        id: 'gig-3',
-        title: 'Motion Graphics for Product Demo',
-        description: 'Create engaging motion graphics video for SaaS product demonstration.',
-        budget: { min: 3000, max: 8000, currency: 'USD' },
-        skills: ['motion graphics', 'after effects', 'video editing'],
-        timeline: { start: new Date(), end: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000) },
-        status: 'open',
-        postedBy: { id: 'user-3', name: 'CloudTools', avatar: '☁️' },
-        applicants: 12,
-        rating: 4.7,
-        location: 'Remote',
-        remote: true,
-        createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-      },
-    ];
-
-    setGigs(sampleGigs);
-    setFilteredGigs(sampleGigs);
-  }, []);
-
-  // Filter gigs
-  useEffect(() => {
+  // Filter gigs (derived purely using useMemo)
+  const filteredGigs = useMemo(() => {
     let filtered = gigs;
 
     // Search filter
@@ -146,7 +137,7 @@ export function SideGigsMarketplace() {
         g.budget.max <= filterBudget.max
     );
 
-    setFilteredGigs(filtered);
+    return filtered;
   }, [searchQuery, filterSkills, filterBudget, gigs]);
 
   const handleCreateGig = () => {

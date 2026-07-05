@@ -96,6 +96,8 @@ export interface ProjectFile {
 // EVENT TYPES (for audit trail and event sourcing)
 // ============================================================================
 
+export const EVENT_HISTORY_LIMIT = 100;
+
 export type EventType =
   | 'file_edited'
   | 'comment_added'
@@ -109,7 +111,24 @@ export type EventType =
   | 'file_locked'
   | 'file_unlocked'
   | 'snapshot_created'
-  | 'snapshot_restored';
+  | 'snapshot_restored'
+  | 'ai_analysis_generated'
+  | 'proposal_saved'
+  | 'approval_comment'
+  | 'approval_granted'
+  | 'approval_rejected'
+  | 'undo'
+  | 'redo'
+  | 'deliverable_created'
+  | 'palette_created'
+  | 'moodboard_created'
+  | 'asset_added'
+  | 'gig_posted'
+  | 'proposal_submitted'
+  | 'case_created'
+  | 'evidence_logged'
+  | 'hash_verified'
+  | 'chain_of_custody_updated';
 
 export interface Event {
   id: string;
@@ -121,6 +140,7 @@ export interface Event {
   newValue?: any; // New value (for diffs)
   comment?: string; // Human-readable description
   timestamp: Date;
+  createdAt?: Date; // Compatibility alias
   metadata?: {
     ipAddress?: string;
     userAgent?: string;

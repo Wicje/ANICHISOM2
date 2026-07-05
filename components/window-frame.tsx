@@ -34,8 +34,10 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
     if (!fileLockManager) return;
     
     const lockStatus = fileLockManager.isLocked(osWindow.data.fileId);
-    setIsFileLocked(lockStatus.locked);
-    setLockedByUser(lockStatus.userId || null);
+    Promise.resolve().then(() => {
+      setIsFileLocked(lockStatus.locked);
+      setLockedByUser(lockStatus.userId || null);
+    });
   }, [osWindow.data?.fileId]);
 
   useEffect(() => {
@@ -250,10 +252,9 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
           {title}
           {/* Phase 2A: Lock indicator */}
           {isFileLocked && (
-            <Lock 
-              className="w-3 h-3 text-amber-400" 
-              title={`Locked by ${lockedByUser || 'another user'}`}
-            />
+            <span title={`Locked by ${lockedByUser || 'another user'}`}>
+              <Lock className="w-3 h-3 text-amber-400" />
+            </span>
           )}
         </div>
         

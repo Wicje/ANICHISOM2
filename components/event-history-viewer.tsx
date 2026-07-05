@@ -7,15 +7,16 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useOS } from '@/lib/os-context';
 import { getEventHistoryManager } from '@/lib/event-history-manager';
 import { eventAdapter } from '@/lib/firestore-adapter';
 import { Event } from '@/lib/workspace-types';
 import {
-  ArrowUturnLeft, ArrowUturnRight, Clock, Filter, Search,
+  Undo2, Redo2, Clock, Filter, Search,
   FileText, Users, Settings, Zap, Trash2, Archive, CheckCircle
 } from 'lucide-react';
+import { limit as firestoreLimit } from 'firebase/firestore';
 import { format, formatDistance } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -26,7 +27,6 @@ interface EventHistoryViewerProps {
 export function EventHistoryViewer({ workspaceId }: EventHistoryViewerProps) {
   const { currentUser } = useOS();
   const [events, setEvents] = useState<Event[]>([]);
-  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<string | null>(null);
@@ -38,9 +38,8 @@ export function EventHistoryViewer({ workspaceId }: EventHistoryViewerProps) {
     const loadEvents = async () => {
       try {
         setLoading(true);
-        const data = await eventAdapter.getByWorkspace(workspaceId, 200);
+        const data = await eventAdapter.getByWorkspace(workspaceId, [firestoreLimit(200)]);
         setEvents(data.reverse()); // Newest first
-        setFilteredEvents(data.reverse());
       } catch (error) {
         console.error('[v0] Failed to load events:', error);
       } finally {
@@ -53,13 +52,15 @@ export function EventHistoryViewer({ workspaceId }: EventHistoryViewerProps) {
     // Update undo/redo status
     const historyManager = getEventHistoryManager();
     if (historyManager) {
-      setCanUndo(historyManager.canUndo());
-      setCanRedo(historyManager.canRedo());
+      Promise.resolve().then(() => {
+        setCanUndo(historyManager.canUndo());
+        setCanRedo(historyManager.canRedo());
+      });
     }
   }, [workspaceId]);
 
-  // Filter events
-  useEffect(() => {
+  // Filter events (derived purely using useMemo)
+  const filteredEvents = useMemo(() => {
     let filtered = events;
 
     if (searchQuery) {
@@ -76,7 +77,7 @@ export function EventHistoryViewer({ workspaceId }: EventHistoryViewerProps) {
       filtered = filtered.filter((e) => e.type === selectedType);
     }
 
-    setFilteredEvents(filtered);
+    return filtered;
   }, [searchQuery, selectedType, events]);
 
   const handleUndo = async () => {
@@ -108,9 +109,9 @@ export function EventHistoryViewer({ workspaceId }: EventHistoryViewerProps) {
       case 'workspace_settings':
         return <Settings className="w-4 h-4" />;
       case 'undo':
-        return <ArrowUturnLeft className="w-4 h-4" />;
+        return <Undo2 className="w-4 h-4" />;
       case 'redo':
-        return <ArrowUturnRight className="w-4 h-4" />;
+        return <Redo2 className="w-4 h-4" />;
       case 'project_created':
       case 'project_updated':
         return <Archive className="w-4 h-4" />;
@@ -153,7 +154,7 @@ export function EventHistoryViewer({ workspaceId }: EventHistoryViewerProps) {
               }`}
               title="Undo (Ctrl+Z)"
             >
-              <ArrowUturnLeft className="w-4 h-4" />
+              <Undo2 className="w-4 h-4" />
               Undo
             </button>
             <button
@@ -166,7 +167,7 @@ export function EventHistoryViewer({ workspaceId }: EventHistoryViewerProps) {
               }`}
               title="Redo (Ctrl+Y)"
             >
-              <ArrowUturnRight className="w-4 h-4" />
+              <Redo2 className="w-4 h-4" />
               Redo
             </button>
           </div>
@@ -224,16 +225,18 @@ export function EventHistoryViewer({ workspaceId }: EventHistoryViewerProps) {
           <div className="divide-y divide-gray-700">
             {filteredEvents.map((event, idx) => {
               const prevEvent = idx > 0 ? filteredEvents[idx - 1] : null;
+              const eventDate = event.createdAt || event.timestamp;
+              const prevEventDate = prevEvent ? (prevEvent.createdAt || prevEvent.timestamp) : null;
               const showDateDivider =
-                !prevEvent ||
-                format(event.createdAt, 'yyyy-MM-dd') !==
-                  format(prevEvent.createdAt, 'yyyy-MM-dd');
+                !prevEvent || !prevEventDate ||
+                format(eventDate, 'yyyy-MM-dd') !==
+                  format(prevEventDate, 'yyyy-MM-dd');
 
               return (
                 <div key={event.id}>
                   {showDateDivider && (
                     <div className="px-4 py-2 bg-gray-800/50 text-xs font-semibold text-gray-400 sticky top-0 z-10">
-                      {format(event.createdAt, 'MMMM d, yyyy')}
+                      {format(eventDate, 'MMMM d, yyyy')}
                     </div>
                   )}
                   <div className="px-4 py-3 hover:bg-gray-800/50 transition-colors">
@@ -248,7 +251,7 @@ export function EventHistoryViewer({ workspaceId }: EventHistoryViewerProps) {
                               event.type.replace(/_/g, ' ').slice(1)}
                           </span>
                           <span className="text-xs text-gray-400">
-                            {formatDistance(event.createdAt, new Date(), {
+                            {formatDistance(eventDate, new Date(), {
                               addSuffix: true,
                             })}
                           </span>

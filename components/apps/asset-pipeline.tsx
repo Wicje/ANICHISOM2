@@ -6,32 +6,37 @@ import { get, set, entries, keys } from 'idb-keyval';
 import { PerfectCursor } from 'perfect-cursors';
 
 function BlobViewer({ asset, onClose }: { asset: any, onClose: () => void }) {
-  const [src, setSrc] = useState<string>('');
-  const [textContent, setTextContent] = useState<string>('');
+  const [asyncSrc, setAsyncSrc] = useState<string>('');
+  const [asyncTextContent, setAsyncTextContent] = useState<string>('');
 
   useEffect(() => {
     if (!asset || !asset.data) return;
     const isText = asset.data.type?.startsWith('text/') || asset.metadata.name.endsWith('.ts') || asset.metadata.name.endsWith('.js') || asset.metadata.name.endsWith('.tsx');
-    if (isText) {
-      if (asset.data instanceof Blob) {
-         asset.data.text().then(setTextContent);
-      } else {
-         setTextContent(asset.data.toString());
-      }
-    } else {
-      if (asset.data instanceof Blob) {
-         const url = URL.createObjectURL(asset.data);
-         setSrc(url);
-         return () => URL.revokeObjectURL(url);
-      }
+    
+    if (isText && asset.data instanceof Blob) {
+      let active = true;
+      asset.data.text().then((text: string) => {
+        if (active) setAsyncTextContent(text);
+      });
+      return () => { active = false; };
+    } else if (!isText && asset.data instanceof Blob) {
+      const url = URL.createObjectURL(asset.data);
+      Promise.resolve().then(() => {
+        setAsyncSrc(url);
+      });
+      return () => URL.revokeObjectURL(url);
     }
   }, [asset]);
+
+  const isText = asset?.data?.type?.startsWith('text/') || asset?.metadata?.name?.endsWith('.ts') || asset?.metadata?.name?.endsWith('.js') || asset?.metadata?.name?.endsWith('.tsx');
+  const textContent = isText ? (asset?.data instanceof Blob ? asyncTextContent : asset?.data?.toString() || '') : '';
+  const src = !isText ? (asset?.data instanceof Blob ? asyncSrc : asset?.data?.toString() || '') : '';
 
   return (
     <div className="absolute inset-0 z-50 bg-[#0a0a0a]/90 backdrop-blur-md flex flex-col items-center justify-center p-8">
       <div className="absolute top-4 right-4">
          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/70 hover:text-white">
-           <X className="w-6 h-6" />
+            <X className="w-6 h-6" />
          </button>
       </div>
       <h3 className="text-xl font-bold text-white mb-6 text-center">{asset.metadata.name}</h3>
@@ -66,11 +71,7 @@ export function AssetPipeline({ window: osWindow }: { window: OSWindow }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
 
-  useEffect(() => {
-    loadAssets();
-  }, [activeTab]);
-
-  const loadAssets = async () => {
+  const loadAssets = React.useCallback(async () => {
     setIsRefreshing(true);
     try {
       const allEntries = await entries();
@@ -83,7 +84,13 @@ export function AssetPipeline({ window: osWindow }: { window: OSWindow }) {
     } finally {
       setIsRefreshing(false);
     }
-  };
+  }, [activeTab]);
+
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      loadAssets();
+    });
+  }, [loadAssets]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

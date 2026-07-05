@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
 import { motion, useDragControls } from 'motion/react';
-import { MousePointer2, GripHorizontal, Type, Image as ImageIcon, Trash2, Video, Link as LinkIcon, Upload, MessageSquare } from 'lucide-react';
+import { MousePointer2, GripHorizontal, Type, Image as ImageIcon, Trash2, Video, Link as LinkIcon, Upload, MessageSquare, Heart, X as XIcon, CheckCircle } from 'lucide-react';
 import { get, set } from 'idb-keyval';
 import { cn } from '@/lib/utils';
 import { db, doc, onSnapshot, setDoc } from '@/lib/firebase';
@@ -45,22 +45,27 @@ function CursorOverlay({ state }: { state: any }) {
 }
 
 function BlobMedia({ content, type, className }: { content: string, type: 'image' | 'video', className?: string }) {
-  const [src, setSrc] = useState<string>('');
+  const [blobSrc, setBlobSrc] = useState<string>('');
 
   useEffect(() => {
     if (content.startsWith('local-blob:')) {
       const id = content.split(':')[1];
+      let active = true;
+      let url = '';
       get(`blob_${id}`).then((blob: any) => {
-        if (blob instanceof Blob) {
-           const url = URL.createObjectURL(blob);
-           setSrc(url);
-           return () => URL.revokeObjectURL(url);
+        if (active && blob instanceof Blob) {
+           url = URL.createObjectURL(blob);
+           setBlobSrc(url);
         }
       });
-    } else {
-      setSrc(content);
+      return () => {
+        active = false;
+        if (url) URL.revokeObjectURL(url);
+      };
     }
   }, [content]);
+
+  const src = content.startsWith('local-blob:') ? blobSrc : content;
 
   if (!src) return <div className="w-[400px] h-[300px] bg-slate-100 animate-pulse rounded flex items-center justify-center text-xs text-black/50">Loading Media...</div>;
 
@@ -115,7 +120,7 @@ function getEmbedDetails(url: string) {
 
 const isImageUrl = (url: string) => /\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i.test(url);
 
-export function Moodboard({ window }: { window: OSWindow }) {
+export function Moodboard({ window: osWindow }: { window: OSWindow }) {
   const { currentUser, workspaceMode } = useOS();
   const [nodes, setNodes] = useState<BoardNode[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -124,11 +129,13 @@ export function Moodboard({ window }: { window: OSWindow }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [camera, setCamera] = useState({ x: 0, y: 0, z: 1 });
   const [isPanning, setIsPanning] = useState(false);
+  const [voteMode, setVoteMode] = useState(false);
+  const [currentVoteIndex, setCurrentVoteIndex] = useState(0);
   
   const colorRef = useRef<string>('#000');
   const isSyncingRef = useRef(false);
 
-  const projectId = window.data?.projectId || 'global';
+  const projectId = osWindow.data?.projectId || 'global';
   const roomId = `moodboard-${workspaceMode}-${projectId}`;
   
   // Realtime Cursors and Local-First CRDT (Yjs) (Phase 2 & 3)
@@ -185,38 +192,38 @@ export function Moodboard({ window }: { window: OSWindow }) {
                    });
                    
                    // Store on window object to update cursors easily
-                   (window as any)[`webrtc_${window.id}`] = webrtcProvider;
+                   (globalThis.window as any)[`webrtc_${osWindow.id}`] = webrtcProvider;
                 });
             }
 
             // Sync down to our state setter refs mapping (to mock React's setState behavior)
-            (window as any)[`ydoc_${window.id}`] = yNodes;
+            (globalThis.window as any)[`ydoc_${osWindow.id}`] = yNodes;
 
             return () => {
                 provider.destroy();
                 if (webrtcProvider) {
                    webrtcProvider.destroy();
                 }
-                delete (window as any)[`webrtc_${window.id}`];
-                delete (window as any)[`ydoc_${window.id}`];
+                delete (globalThis.window as any)[`webrtc_${osWindow.id}`];
+                delete (globalThis.window as any)[`ydoc_${osWindow.id}`];
             };
         });
     });
-  }, [roomId, workspaceMode, currentUser, projectId, window.id]);
+  }, [roomId, workspaceMode, currentUser, projectId, osWindow.id]);
 
   // Handle inject data from window param on first load
   useEffect(() => {
-     if (isLoaded && window.data?.url) {
-        const yNodes = (window as any)[`ydoc_${window.id}`];
+     if (isLoaded && osWindow.data?.url) {
+        const yNodes = (globalThis.window as any)[`ydoc_${osWindow.id}`];
         if (yNodes) {
-           const existing = Array.from(yNodes.values()).find((n: any) => n.content === window.data?.url);
+           const existing = Array.from(yNodes.values()).find((n: any) => n.content === osWindow.data?.url);
            if (!existing) {
               const newId = crypto.randomUUID();
-              yNodes.set(newId, { id: newId, type: 'image', x: 200, y: 200, width: 400, content: window.data.url });
+              yNodes.set(newId, { id: newId, type: 'image', x: 200, y: 200, width: 400, content: osWindow.data.url });
            }
         }
      }
-  }, [window.data?.url, isLoaded, window.id]);
+  }, [osWindow.data?.url, isLoaded, osWindow.id]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -254,7 +261,7 @@ export function Moodboard({ window }: { window: OSWindow }) {
 
   // Update helper for Yjs writes
   const _updateYNode = (newVals: Partial<BoardNode> & { id: string }) => {
-     const yNodes = (window as any)[`ydoc_${window.id}`];
+     const yNodes = (globalThis.window as any)[`ydoc_${osWindow.id}`];
      if (yNodes) {
         const existing = yNodes.get(newVals.id) || {};
         yNodes.set(newVals.id, { ...existing, ...newVals });
@@ -262,8 +269,8 @@ export function Moodboard({ window }: { window: OSWindow }) {
   };
 
   const addText = () => {
-    const x = (window.width / 2 - camera.x) / camera.z;
-    const y = (window.height / 2 - camera.y) / camera.z;
+    const x = (osWindow.width / 2 - camera.x) / camera.z;
+    const y = (osWindow.height / 2 - camera.y) / camera.z;
     const newId = crypto.randomUUID();
     _updateYNode({ id: newId, type: 'text', x, y, content: 'New Text' });
   };
@@ -275,8 +282,8 @@ export function Moodboard({ window }: { window: OSWindow }) {
     const fileId = crypto.randomUUID();
     await set(`blob_${fileId}`, file);
 
-    const x = (window.width / 2 - camera.x) / camera.z;
-    const y = (window.height / 2 - camera.y) / camera.z;
+    const x = (osWindow.width / 2 - camera.x) / camera.z;
+    const y = (osWindow.height / 2 - camera.y) / camera.z;
     const type = file.type.startsWith('video/') ? 'video' : 'image';
     const newId = crypto.randomUUID();
     _updateYNode({ id: newId, type, x, y, content: `local-blob:${fileId}` });
@@ -292,8 +299,8 @@ export function Moodboard({ window }: { window: OSWindow }) {
   };
 
   const processUrl = (url: string) => {
-    const x = (window.width / 2 - camera.x) / camera.z;
-    const y = (window.height / 2 - camera.y) / camera.z;
+    const x = (osWindow.width / 2 - camera.x) / camera.z;
+    const y = (osWindow.height / 2 - camera.y) / camera.z;
     
     let type: BoardNode['type'] = 'embed';
     if (isImageUrl(url)) {
@@ -306,7 +313,7 @@ export function Moodboard({ window }: { window: OSWindow }) {
   };
 
   const deleteNode = (id: string) => {
-    const yNodes = (window as any)[`ydoc_${window.id}`];
+    const yNodes = (globalThis.window as any)[`ydoc_${osWindow.id}`];
     if (yNodes) yNodes.delete(id);
   };
   
@@ -317,7 +324,7 @@ export function Moodboard({ window }: { window: OSWindow }) {
   const updateNodeContent = (id: string, content: string) => {
     _updateYNode({ id, content });
   };
-
+  
   const updateNodeSize = (id: string, width: number, height: number) => {
      _updateYNode({ id, width, height });
   };
@@ -335,8 +342,8 @@ export function Moodboard({ window }: { window: OSWindow }) {
         if (file) {
           const reader = new FileReader();
           reader.onload = async (event) => {
-            const x = (window.width / 2 - camera.x) / camera.z;
-            const y = (window.height / 2 - camera.y) / camera.z;
+            const x = (osWindow.width / 2 - camera.x) / camera.z;
+            const y = (osWindow.height / 2 - camera.y) / camera.z;
             const fileId = crypto.randomUUID();
             await set(`blob_${fileId}`, file);
             _updateYNode({ id: crypto.randomUUID(), type: 'image', x, y, content: `local-blob:${fileId}` });
@@ -353,8 +360,8 @@ export function Moodboard({ window }: { window: OSWindow }) {
         if (/^https?:\/\//.test(text.trim())) {
            processUrl(text.trim());
         } else {
-           const x = (window.width / 2 - camera.x) / camera.z;
-           const y = (window.height / 2 - camera.y) / camera.z;
+           const x = (osWindow.width / 2 - camera.x) / camera.z;
+           const y = (osWindow.height / 2 - camera.y) / camera.z;
            _updateYNode({ id: crypto.randomUUID(), type: 'text', x, y, content: text });
         }
     }
@@ -396,7 +403,7 @@ export function Moodboard({ window }: { window: OSWindow }) {
     }
     
     // Broadcast WebRTC cursor (Phase 3)
-    const webrtc = (window as any)[`webrtc_${window.id}`];
+    const webrtc = (globalThis.window as any)[`webrtc_${osWindow.id}`];
     if (webrtc && webrtc.awareness) {
       const rect = containerRef.current?.getBoundingClientRect();
       if (rect) {
@@ -462,6 +469,10 @@ export function Moodboard({ window }: { window: OSWindow }) {
         <button onClick={handleAddLink} className="w-8 h-8 rounded flex items-center justify-center text-black/60 hover:bg-slate-100 hover:text-black transition-colors" title="Add Link (YouTube, Instagram, etc.)">
           <LinkIcon className="w-4 h-4" />
         </button>
+        <div className="w-px h-4 bg-black/10 mx-2" />
+        <button onClick={() => { setVoteMode(true); setCurrentVoteIndex(0); }} className="px-3 h-8 rounded flex items-center justify-center bg-rose-50 text-rose-500 font-bold text-xs hover:bg-rose-100 transition-colors gap-1" title="Moodboard Mill (Voting)">
+          <Heart className="w-3.5 h-3.5" /> Mill
+        </button>
         <input 
           type="file" 
           ref={fileInputRef} 
@@ -518,6 +529,65 @@ export function Moodboard({ window }: { window: OSWindow }) {
           return <CursorOverlay key={state.clientId} state={state} />;
         })}
       </div>
+
+      {/* Moodboard Mill Voting Overlay */}
+      {voteMode && (
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-xl z-[100] flex flex-col items-center justify-center p-8">
+          <button onClick={() => setVoteMode(false)} className="absolute top-6 right-6 text-white/50 hover:text-white bg-white/10 p-2 rounded-full transition-colors">
+            <XIcon className="w-6 h-6" />
+          </button>
+          
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold text-white flex items-center justify-center gap-2 mb-2">
+              <Heart className="w-6 h-6 text-rose-500 fill-rose-500" /> Moodboard Mill
+            </h2>
+            <p className="text-white/50 text-sm max-w-md">Client Voting Mode: Approve or reject items to generate a precise taste profile for this campaign.</p>
+          </div>
+
+          {nodes.filter(n => n.type === 'image' || n.type === 'embed').length > 0 ? (
+            currentVoteIndex < nodes.filter(n => n.type === 'image' || n.type === 'embed').length ? (
+              <div className="relative w-full max-w-sm aspect-[3/4] bg-[#111] rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col items-center justify-center group">
+                <div className="absolute inset-0 p-4 flex items-center justify-center bg-black/50 pointer-events-none">
+                  {(() => {
+                     const voteNodes = nodes.filter(n => n.type === 'image' || n.type === 'embed');
+                     const node = voteNodes[currentVoteIndex];
+                     if (node.type === 'image') return <BlobMedia content={node.content} type="image" className="max-w-full max-h-full object-contain rounded" />;
+                     return <div className="text-white/50 bg-black/50 p-4 rounded text-center">Video/Embed Item<br/><span className="text-xs break-all">{node.content}</span></div>;
+                  })()}
+                </div>
+                
+                <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-6 px-6">
+                  <button 
+                    onClick={() => setCurrentVoteIndex(c => c + 1)}
+                    className="w-16 h-16 rounded-full bg-white/10 backdrop-blur border border-white/20 text-white flex items-center justify-center hover:bg-rose-500 hover:border-rose-500 hover:text-white transition-all shadow-xl"
+                  >
+                    <XIcon className="w-8 h-8" />
+                  </button>
+                  <button 
+                    onClick={() => setCurrentVoteIndex(c => c + 1)}
+                    className="w-16 h-16 rounded-full bg-white/10 backdrop-blur border border-white/20 text-emerald-400 flex items-center justify-center hover:bg-emerald-500 hover:border-emerald-500 hover:text-white transition-all shadow-xl"
+                  >
+                    <Heart className="w-8 h-8 fill-current" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center bg-white/5 border border-white/10 p-8 rounded-2xl max-w-md w-full">
+                <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-white mb-2">Voting Complete</h3>
+                <p className="text-white/60 text-sm mb-6">Taste profile successfully generated and logged to the Campaign Lab.</p>
+                <button onClick={() => setVoteMode(false)} className="px-6 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-medium rounded-lg transition-colors">
+                  Return to Canvas
+                </button>
+              </div>
+            )
+          ) : (
+             <div className="text-center text-white/50 bg-white/5 border border-white/10 p-8 rounded-2xl">
+               Add images or media to the board first to start voting.
+             </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -578,22 +648,23 @@ function DraggableNode({ node, cameraScale, onDelete, onPositionChange, onConten
         </div>
       )}
 
-      {node.type === 'embed' && (
-        <div 
-          className="p-2"
-          style={{ 
-            width: getEmbedDetails(node.content).w + 16, 
-            height: getEmbedDetails(node.content).h + 16 
-          }}
-        >
-          <iframe 
-            src={getEmbedDetails(node.content).url} 
-            className="w-full h-full border-none rounded pointer-events-auto"
-            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
-            onPointerDown={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
-    </motion.div>
-  );
-}
+        {node.type === 'embed' && (
+          <div 
+            className="p-2"
+            style={{ 
+              width: getEmbedDetails(node.content).w + 16, 
+              height: getEmbedDetails(node.content).h + 16 
+            }}
+          >
+            <iframe 
+              src={getEmbedDetails(node.content).url} 
+              className="w-full h-full border-none rounded pointer-events-auto"
+              sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+              onPointerDown={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
+      </motion.div>
+    );
+  }
+

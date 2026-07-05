@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ziklag-os-cache-v1';
+const CACHE_NAME = 'anichisom-os-cache-v1';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

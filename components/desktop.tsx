@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { useOS, OSRole, OSUser } from '@/lib/os-context';
+import { useOS, OSRole, OSUser, OSWindow } from '@/lib/os-context';
 import { WindowFrame } from '@/components/window-frame';
 import { CommandPalette } from '@/components/command-palette';
 import { WorkspaceSelector } from '@/components/workspace-selector';
 import { PresenceIndicator } from '@/components/presence-indicator';
-import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Code2, Search, LayoutTemplate, Clock, Save, Cloud, RefreshCw, ShieldCheck, Power, Figma, Framer, HardDrive, Github, BookOpen, Zap, ZapOff, Briefcase, Brain, User, AlertCircle, Play, Plus, Users, Server, Archive } from 'lucide-react';
+import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Code2, Search, LayoutTemplate, Clock, Save, Cloud, RefreshCw, ShieldCheck, Power, Figma, Framer, HardDrive, Github, BookOpen, Zap, ZapOff, Briefcase, Brain, User, AlertCircle, Play, Plus, Users, Server, Archive, FileText, Video, Store, Shirt, Cpu, Camera, Code } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { LoginScreen } from '@/components/login-screen';
@@ -22,9 +22,19 @@ const ProductivitySuite = dynamic(() => import('@/components/apps/productivity-s
 const AIGateway = dynamic(() => import('@/components/apps/ai-gateway').then(mod => mod.AIGateway), { ssr: false });
 const AdminPanel = dynamic(() => import('@/components/apps/admin-panel').then(mod => mod.AdminPanel), { ssr: false });
 const ZiklagTools = dynamic(() => import('@/components/apps/ziklag-tools').then(mod => mod.ZiklagTools), { ssr: false });
-
+const ClothingBrandPack = dynamic(() => import('@/components/apps/clothing-brand-pack').then(mod => mod.ClothingBrandPack), { ssr: false });
+const HardwarePack = dynamic(() => import('@/components/apps/hardware-pack').then(mod => mod.HardwarePack), { ssr: false });
+const DeveloperPack = dynamic(() => import('@/components/apps/developer-pack').then(mod => mod.DeveloperPack), { ssr: false });
+const PhotographyPack = dynamic(() => import('@/components/apps/photography-pack').then(mod => mod.PhotographyPack), { ssr: false });
 
 const AssetPipeline = dynamic(() => import('@/components/apps/asset-pipeline').then(mod => mod.AssetPipeline), { ssr: false });
+const Notes = dynamic(() => import('@/components/apps/notes').then(mod => mod.Notes), { ssr: false });
+const PdfReader = dynamic(() => import('@/components/apps/pdf-reader').then(mod => mod.PdfReader), { ssr: false });
+const HistoryApp = dynamic(() => import('@/components/apps/history').then(mod => mod.HistoryApp), { ssr: false });
+const CallsApp = dynamic(() => import('@/components/apps/calls').then(mod => mod.CallsApp), { ssr: false });
+const Marketplace = dynamic(() => import('@/components/apps/marketplace').then(mod => mod.Marketplace), { ssr: false });
+const SideGigsApp = dynamic(() => import('@/components/apps/side-gigs').then(mod => mod.SideGigsApp), { ssr: false });
+const ProposalGenerator = dynamic(() => import('@/components/apps/proposal-generator').then(mod => mod.ProposalGenerator), { ssr: false });
 
 const APPS = {
   'terminal': { component: TerminalBox, icon: Terminal, title: 'Terminal', roles: ['admin', 'technician'] },
@@ -34,10 +44,21 @@ const APPS = {
   'moodboard': { component: Moodboard, icon: ImageIcon, title: 'Moodboard', roles: ['admin', 'filmmaker'] },
   'assets': { component: AssetPipeline, icon: Archive, title: 'Asset Pipeline', roles: ['admin', 'filmmaker', 'technician'] },
   'code': { component: CodeEditor, icon: Code2, title: 'Code', roles: ['admin', 'technician'] },
+  'notes': { component: Notes, icon: BookOpen, title: 'Notes', roles: ['admin', 'filmmaker', 'technician'] },
+  'pdf': { component: PdfReader, icon: FileText, title: 'PDF Reader', roles: ['admin', 'filmmaker', 'technician'] },
   'office': { component: ProductivitySuite, icon: Briefcase, title: 'Office Suite', roles: ['admin', 'filmmaker'] },
+  'calls': { component: CallsApp, icon: Video, title: 'Calls', roles: ['admin', 'filmmaker'] },
+  'sidegigs': { component: SideGigsApp, icon: Briefcase, title: 'Side-Gigs', roles: ['admin', 'filmmaker'] },
+  'proposals': { component: ProposalGenerator, icon: FileText, title: 'Proposals', roles: ['admin'] },
+  'marketplace': { component: Marketplace, icon: Store, title: 'Ecosystem', roles: ['admin'] },
   'ai-gateway': { component: AIGateway, icon: Brain, title: 'AI Gateway', roles: ['admin', 'technician'] },
+  'history': { component: HistoryApp, icon: Clock, title: 'Event History', roles: ['admin', 'filmmaker', 'technician'] },
   'admin': { component: AdminPanel, icon: ShieldCheck, title: 'Access Control', roles: ['admin'] },
   'ziklag': { component: ZiklagTools, icon: Server, title: 'Ziklag Diagnostics', roles: ['admin', 'technician'] },
+  'clothing': { component: ClothingBrandPack, icon: Shirt, title: 'Clothing Brand', roles: ['admin'] },
+  'hardware': { component: HardwarePack, icon: Cpu, title: 'Hardware', roles: ['admin'] },
+  'developer': { component: DeveloperPack, icon: Code, title: 'DevOps', roles: ['admin', 'technician'] },
+  'photography': { component: PhotographyPack, icon: Camera, title: 'Photography', roles: ['admin', 'filmmaker'] },
 };
 
 const PROJECTS = {
@@ -101,8 +122,38 @@ function OsSyncStatus() {
 import { collection, onSnapshot, addDoc, query, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
+interface DesktopWindowProps {
+  win: OSWindow;
+  AppComponent: React.ComponentType<any>;
+}
+
+const DesktopWindow = React.memo(
+  function DesktopWindow({ win, AppComponent }: DesktopWindowProps) {
+    return (
+      <WindowFrame osWindow={win}>
+        <AppComponent window={win} />
+      </WindowFrame>
+    );
+  },
+  (prev, next) => {
+    return (
+      prev.win.id === next.win.id &&
+      prev.win.title === next.win.title &&
+      prev.win.isMaximized === next.win.isMaximized &&
+      prev.win.isMinimized === next.win.isMinimized &&
+      prev.win.zIndex === next.win.zIndex &&
+      prev.win.x === next.win.x &&
+      prev.win.y === next.win.y &&
+      prev.win.width === next.win.width &&
+      prev.win.height === next.win.height &&
+      prev.win.workspace === next.win.workspace &&
+      prev.win.data?.fileId === next.win.data?.fileId
+    );
+  }
+);
+
 export function Desktop() {
-  const { currentUser, setCurrentUser, windows, snapshots, performanceMode, setPerformanceMode, workspaceMode, setWorkspaceMode, activeWorkspace, setActiveWorkspace, openWindow, minimizeWindow, focusWindow, applyWorkspaceLayout, loadProject, saveSnapshot, restoreSnapshot, wipeSession } = useOS();
+  const { currentUser, setCurrentUser, logout, windows, snapshots, performanceMode, setPerformanceMode, workspaceMode, setWorkspaceMode, activeWorkspace, setActiveWorkspace, openWindow, minimizeWindow, focusWindow, applyWorkspaceLayout, loadProject, saveSnapshot, restoreSnapshot, wipeSession } = useOS();
   const [showSnapshots, setShowSnapshots] = useState(false);
   const [showActionCenter, setShowActionCenter] = useState(false);
   const [customApps, setCustomApps] = useState<any[]>([]);
@@ -248,7 +299,7 @@ export function Desktop() {
                <Search className="w-4 h-4" />
             </button>
             <div className="group relative flex items-center justify-center">
-              <Power onClick={() => setCurrentUser(null)} className="w-4 h-4 text-rose-500/80 hover:text-rose-500 cursor-pointer transition-colors" />
+              <Power onClick={() => logout()} className="w-4 h-4 text-rose-500/80 hover:text-rose-500 cursor-pointer transition-colors" />
               <div className="absolute top-full right-0 mt-2 scale-0 group-hover:scale-100 transition-transform px-3 py-2 bg-rose-500/20 backdrop-blur-xl border border-rose-500/30 text-white text-xs font-medium rounded shadow-xl whitespace-nowrap z-[100]">
                  Sign Out
               </div>
@@ -382,16 +433,17 @@ export function Desktop() {
         {windows
           .filter(win => win.workspace === activeWorkspace || win.workspace === undefined)
           .map(win => {
-          const AppConfig = APPS[win.appId as keyof typeof APPS];
-          if (!AppConfig) return null;
-          const AppComponent = AppConfig.component;
+            const AppConfig = APPS[win.appId as keyof typeof APPS];
+            if (!AppConfig) return null;
 
-          return (
-            <WindowFrame key={win.id} osWindow={win}>
-               <AppComponent window={win} />
-            </WindowFrame>
-          );
-        })}
+            return (
+              <DesktopWindow 
+                key={win.id} 
+                win={win} 
+                AppComponent={AppConfig.component} 
+              />
+            );
+          })}
 
         {/* Action Center */}
         {showActionCenter && (

@@ -81,12 +81,8 @@ export const FS = {
     
     const allKeys = await keys();
     const fileKeys = allKeys.filter(k => typeof k === 'string' && k.startsWith('file_'));
-    const files: LocalFile[] = [];
-    for (const k of fileKeys) {
-      const f = await get(k as string);
-      if (f) files.push(f);
-    }
-    return files; // In a real scenario, filter by directory tree.
+    const files = await Promise.all(fileKeys.map(k => get(k as string)));
+    return files.filter((f): f is LocalFile => f !== null && f !== undefined);
   },
 
   // Delete a file conditionally

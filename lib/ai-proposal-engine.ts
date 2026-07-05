@@ -167,7 +167,7 @@ Only include fonts available on Google Fonts.
         temperature: 0.7,
       });
 
-      const jsonMatch = text.match(/\[.*\]/s);
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error('Invalid response format');
 
       return JSON.parse(jsonMatch[0]);

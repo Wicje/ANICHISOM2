@@ -43,6 +43,7 @@ export type WorkspaceMode = 'private' | 'agency';
 type OSContextType = {
   currentUser: OSUser | null;
   setCurrentUser: (user: OSUser | null) => void;
+  logout: () => Promise<void>;
   windows: OSWindow[];
   snapshots: Snapshot[];
   performanceMode: PerformanceMode;
@@ -57,6 +58,7 @@ type OSContextType = {
   minimizeWindow: (id: string) => void;
   maximizeWindow: (id: string) => void;
   updateWindowDimensions: (id: string, x: number, y: number, width: number, height: number) => void;
+  updateWindowData: (id: string, data: any) => void;
   applyWorkspaceLayout: (layout: 'creative-split') => void;
   loadProject: (projectId: string) => void;
   saveSnapshot: (name: string) => void;
@@ -207,6 +209,17 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     }
   }, [snapshots]);
 
+  const logout = useCallback(async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
+    setCurrentUser(null);
+    await del('anichisom_os_user_cache');
+    setWindows([]);
+  }, []);
+
   const wipeSession = useCallback(async () => {
     // Leave no trace - clear indexdb and local storage
     await clear();
@@ -284,6 +297,10 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
 
   const updateWindowDimensions = useCallback((id: string, x: number, y: number, width: number, height: number) => {
     setWindows((curr) => curr.map((w) => w.id === id ? { ...w, x, y, width, height } : w));
+  }, []);
+
+  const updateWindowData = useCallback((id: string, data: any) => {
+    setWindows((curr) => curr.map((w) => w.id === id ? { ...w, data: { ...w.data, ...data } } : w));
   }, []);
 
   const loadProject = useCallback((projectId: string) => {
@@ -438,6 +455,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(() => ({
     currentUser,
     setCurrentUser,
+    logout,
     windows,
     snapshots,
     performanceMode,
@@ -452,6 +470,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     minimizeWindow,
     maximizeWindow,
     updateWindowDimensions,
+    updateWindowData,
     applyWorkspaceLayout,
     loadProject,
     saveSnapshot,
@@ -465,7 +484,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     mode,
     setMode,
     emitEvent,
-  }), [currentUser, windows, snapshots, performanceMode, workspaceMode, activeWorkspace, openWindow, closeWindow, focusWindow, minimizeWindow, maximizeWindow, updateWindowDimensions, applyWorkspaceLayout, loadProject, saveSnapshot, restoreSnapshot, wipeSession, workspaceId, workspaces, mode, emitEvent]);
+  }), [currentUser, logout, windows, snapshots, performanceMode, workspaceMode, activeWorkspace, openWindow, closeWindow, focusWindow, minimizeWindow, maximizeWindow, updateWindowDimensions, updateWindowData, applyWorkspaceLayout, loadProject, saveSnapshot, restoreSnapshot, wipeSession, workspaceId, workspaces, mode, emitEvent]);
 
   return <OSContext.Provider value={value}>{children}</OSContext.Provider>;
 }

@@ -7,10 +7,11 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useOS } from '@/lib/os-context';
 import { eventAdapter } from '@/lib/firestore-adapter';
 import { Event } from '@/lib/workspace-types';
+import { limit as firestoreLimit } from 'firebase/firestore';
 import {
   Clock, ChevronLeft, ChevronRight, Play, Pause, RotateCcw,
   Calendar as CalendarIcon, Activity
@@ -36,8 +37,12 @@ export function TimeMachine({ workspaceId }: TimeMachineProps) {
     const loadEvents = async () => {
       try {
         setLoading(true);
-        const data = await eventAdapter.getByWorkspace(workspaceId, 500);
-        setEvents(data.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()));
+        const data = await eventAdapter.getByWorkspace(workspaceId, [firestoreLimit(500)]);
+        setEvents(data.sort((a, b) => {
+          const aTime = (a.createdAt || a.timestamp).getTime();
+          const bTime = (b.createdAt || b.timestamp).getTime();
+          return aTime - bTime;
+        }));
       } catch (error) {
         console.error('[v0] Failed to load events:', error);
       } finally {
@@ -47,6 +52,11 @@ export function TimeMachine({ workspaceId }: TimeMachineProps) {
 
     loadEvents();
   }, [workspaceId]);
+
+  const eventsOnSelectedDate = useMemo(() => events.filter(
+    (e) =>
+      format(e.createdAt || e.timestamp, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')
+  ), [events, selectedDate]);
 
   // Auto-play animation
   useEffect(() => {
@@ -63,12 +73,7 @@ export function TimeMachine({ workspaceId }: TimeMachineProps) {
     }, 800);
 
     return () => clearInterval(interval);
-  }, [playing, selectedDate, events]);
-
-  const eventsOnSelectedDate = events.filter(
-    (e) =>
-      format(e.createdAt, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')
-  );
+  }, [playing, eventsOnSelectedDate]);
 
   const getEventColor = (type: string) => {
     if (type.includes('created')) return 'from-green-600 to-emerald-600';
@@ -99,14 +104,13 @@ export function TimeMachine({ workspaceId }: TimeMachineProps) {
   const handleRestore = () => {
     if (currentEventIndex >= eventsOnSelectedDate.length) return;
     const event = eventsOnSelectedDate[currentEventIndex];
-    console.log('[v0] Would restore to event:', event);
     // Implementation would actually restore the state
   };
 
   // Calculate activity heatmap
   const getActivityForDate = (date: Date): number => {
     return events.filter(
-      (e) => format(e.createdAt, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
+      (e) => format(e.createdAt || e.timestamp, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
     ).length;
   };
 
@@ -249,7 +253,7 @@ export function TimeMachine({ workspaceId }: TimeMachineProps) {
             </div>
           ) : (
             <div className="space-y-2">
-              {eventsOnSelectedDate.map((event, idx) => (
+              {eventsOnSelectedDate.map((event: Event, idx: number) => (
                 <div
                   key={event.id}
                   className={cn(
@@ -269,7 +273,7 @@ export function TimeMachine({ workspaceId }: TimeMachineProps) {
                         <div className="text-xs text-gray-300 mt-1">{event.comment}</div>
                       )}
                       <div className="text-xs text-gray-400 mt-2">
-                        {format(event.createdAt, 'HH:mm:ss')} • {event.userId}
+                        {format(event.createdAt || event.timestamp, 'HH:mm:ss')} • {event.userId}
                       </div>
                     </div>
                     {idx === currentEventIndex && (

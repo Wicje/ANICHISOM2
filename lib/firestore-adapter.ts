@@ -19,10 +19,10 @@ import {
   limit,
   onSnapshot,
   Timestamp,
-  QueryConstraint,
+  type QueryConstraint,
   writeBatch,
-  CollectionReference,
-} from '@/lib/firebase';
+  type CollectionReference,
+} from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import {
   Workspace,

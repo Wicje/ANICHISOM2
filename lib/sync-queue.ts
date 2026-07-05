@@ -32,12 +32,10 @@ const MAX_DELAY_MS = 60000; // 1 minute
 export class SyncQueue {
   private queue: Map<string, QueuedEvent> = new Map();
   private processing = false;
-  private processInterval: NodeJS.Timeout | null = null;
-  private persisted = false;
+  private timeoutId: NodeJS.Timeout | null = null;
 
   constructor() {
     this.loadFromIndexedDB();
-    this.startProcessing();
   }
 
   /**
@@ -45,6 +43,14 @@ export class SyncQueue {
    */
   enqueue(event: Event): void {
     const id = event.id;
+
+    // Implement queue size limit (max 1000 events)
+    if (this.queue.size >= 1000) {
+      const oldestId = Array.from(this.queue.keys())[0];
+      if (oldestId) {
+        this.queue.delete(oldestId);
+      }
+    }
 
     this.queue.set(id, {
       id,
@@ -55,25 +61,52 @@ export class SyncQueue {
     });
 
     this.persistToIndexedDB();
-    this.process(); // Try immediately
+    this.triggerProcessing();
   }
 
   /**
-   * Start background processing
+   * Trigger processing using adaptive delay instead of polling
    */
-  private startProcessing(): void {
-    // Process queue every 500ms
-    this.processInterval = setInterval(() => {
+  private triggerProcessing(): void {
+    if (this.processing) return;
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+      this.timeoutId = null;
+    }
+
+    if (this.queue.size === 0) return;
+
+    const now = Date.now();
+    let nextRunDelay = -1;
+
+    for (const queuedEvent of this.queue.values()) {
+      if (queuedEvent.nextRetryAt <= now) {
+        nextRunDelay = 0;
+        break;
+      } else {
+        const delay = queuedEvent.nextRetryAt - now;
+        if (nextRunDelay === -1 || delay < nextRunDelay) {
+          nextRunDelay = delay;
+        }
+      }
+    }
+
+    if (nextRunDelay === 0) {
       this.process();
-    }, 500);
+    } else if (nextRunDelay > 0) {
+      this.timeoutId = setTimeout(() => {
+        this.process();
+      }, nextRunDelay);
+    }
   }
 
   /**
    * Stop processing (cleanup)
    */
   stop(): void {
-    if (this.processInterval) {
-      clearInterval(this.processInterval);
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+      this.timeoutId = null;
     }
   }
 
@@ -81,7 +114,7 @@ export class SyncQueue {
    * Process the queue: send events to Firestore
    */
   private async process(): Promise<void> {
-    if (this.processing) return; // Prevent concurrent processing
+    if (this.processing) return;
     
     this.processing = true;
 
@@ -90,26 +123,20 @@ export class SyncQueue {
       let processed = 0;
 
       for (const [id, queuedEvent] of Array.from(this.queue)) {
-        // Skip if not ready for retry
         if (queuedEvent.nextRetryAt > now) {
           continue;
         }
 
         try {
-          // Send to Firestore
           await eventAdapter.add(queuedEvent.event);
-          
-          // Remove from queue on success
           this.queue.delete(id);
           processed++;
         } catch (error: any) {
           queuedEvent.retries++;
 
           if (queuedEvent.retries >= MAX_RETRIES) {
-            // Fail after max retries - still remove from queue to prevent hanging
             this.queue.delete(id);
           } else {
-            // Schedule next retry with exponential backoff
             const delay = Math.min(
               INITIAL_DELAY_MS * Math.pow(2, queuedEvent.retries - 1),
               MAX_DELAY_MS
@@ -124,6 +151,7 @@ export class SyncQueue {
       }
     } finally {
       this.processing = false;
+      this.triggerProcessing();
     }
   }
 
@@ -131,18 +159,13 @@ export class SyncQueue {
    * Force flush all pending events
    */
   async flush(): Promise<number> {
-    // Reset retry times to force immediate processing
     const now = Date.now();
     for (const queuedEvent of this.queue.values()) {
       queuedEvent.nextRetryAt = now;
     }
 
-    // Process until queue is empty or all retries exhausted
-    const initialSize = this.queue.size;
     await this.process();
-
-    const remaining = this.queue.size;
-    return remaining;
+    return this.queue.size;
   }
 
   /**
@@ -165,6 +188,10 @@ export class SyncQueue {
   clear(): void {
     this.queue.clear();
     this.persistToIndexedDB();
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+      this.timeoutId = null;
+    }
   }
 
   // ============================================================================
@@ -184,6 +211,7 @@ export class SyncQueue {
           this.queue.set(item.id, item);
         }
       }
+      this.triggerProcessing();
     } catch (error) {
       // Silently fail if IndexedDB not available
     }
