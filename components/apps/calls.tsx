@@ -13,6 +13,8 @@ export function CallsApp({ window: osWindow }: { window: OSWindow }) {
   const [videoOff, setVideoOff] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
 
   // Derived from context or defaults
   const projectId = osWindow.data?.projectId || 'global';
@@ -22,11 +24,34 @@ export function CallsApp({ window: osWindow }: { window: OSWindow }) {
     let timer: NodeJS.Timeout;
     if (inCall) {
       timer = setInterval(() => setCallDuration(c => c + 1), 1000);
+      
+      // Request media stream
+      if (!videoOff || !micMuted) {
+        navigator.mediaDevices.getUserMedia({ 
+          video: !videoOff, 
+          audio: !micMuted 
+        }).then(s => {
+          setStream(s);
+          if (videoRef.current) {
+            videoRef.current.srcObject = s;
+          }
+        }).catch(err => {
+          console.error('Failed to get media devices', err);
+        });
+      }
     }
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [inCall]);
+  }, [inCall, videoOff, micMuted]);
+
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+      }
+    };
+  }, [stream]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -56,6 +81,10 @@ export function CallsApp({ window: osWindow }: { window: OSWindow }) {
         projectId, 
         content: `# Meeting Notes: ${projectId}\n\n**Date:** ${format(new Date(), 'PPpp')}\n**Attendees:** ${currentUser?.name}\n**Duration:** ${formatTime(callDuration)}\n**Recording:** Saved to Files (/campaign/${projectId}/recordings)\n\n## Action Items\n- [ ] \n` 
       });
+    }
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      setStream(null);
     }
     emitEvent({
       workspaceId: 'global',
@@ -124,17 +153,21 @@ export function CallsApp({ window: osWindow }: { window: OSWindow }) {
           {/* Main Video Area (Mock) */}
           <div className="flex-1 bg-black relative p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
              {/* Local User */}
-             <div className="relative rounded-2xl overflow-hidden bg-[#1a1a1a] border border-white/10 flex items-center justify-center">
-                {videoOff ? (
-                   <div className="w-24 h-24 rounded-full bg-blue-500/20 flex items-center justify-center text-3xl font-medium text-blue-400">
-                      {currentUser?.name?.charAt(0) || 'U'}
-                   </div>
-                ) : (
-                   <div className="absolute inset-0 bg-gradient-to-br from-blue-900/40 to-black flex items-center justify-center">
-                     <p className="text-white/30 font-mono text-sm">(Camera Stream)</p>
-                   </div>
-                )}
-                <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2">
+              <div className="relative rounded-2xl overflow-hidden bg-[#1a1a1a] border border-white/10 flex items-center justify-center">
+                 {videoOff ? (
+                    <div className="w-24 h-24 rounded-full bg-blue-500/20 flex items-center justify-center text-3xl font-medium text-blue-400 z-10">
+                       {currentUser?.name?.charAt(0) || 'U'}
+                    </div>
+                 ) : (
+                    <video 
+                      ref={videoRef} 
+                      autoPlay 
+                      playsInline 
+                      muted 
+                      className="absolute inset-0 w-full h-full object-cover transform -scale-x-100" 
+                    />
+                 )}
+                 <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 z-10">
                    {currentUser?.name || 'You'} {micMuted && <MicOff className="w-3 h-3 text-rose-400" />}
                 </div>
              </div>

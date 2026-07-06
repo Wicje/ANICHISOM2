@@ -54,7 +54,7 @@ export function FileManager({ window }: { window: OSWindow }) {
   };
 
   const [activeTab, setActiveTab] = useState('Unified Explorer');
-  const tabs = ['Unified Explorer', 'Ziklag NAS (Local)', 'Google Drive', 'Dropbox', 'Shared With Me'];
+  const tabs = ['Unified Explorer', 'Ziklag NAS (Local)', 'Nextcloud (Self-Hosted)', 'Custom VPS (SFTP)', 'Google Drive', 'Dropbox', 'Shared With Me'];
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
 
@@ -122,7 +122,6 @@ export function FileManager({ window }: { window: OSWindow }) {
       ]);
     }, 1000);
   };
-
   useEffect(() => {
     if (activeTab === 'Google Drive' && !needsAuth) fetchDriveFiles();
     if (activeTab === 'Ziklag NAS (Local)') fetchLocalFiles();
@@ -276,7 +275,7 @@ export function FileManager({ window }: { window: OSWindow }) {
   else if (activeTab === 'Dropbox') currentFiles = dropboxFiles.filter(searchFilter);
   else if (activeTab === 'Ziklag NAS (Local)') currentFiles = ziklagFiles.filter(searchFilter);
   else if (activeTab === 'Unified Explorer') currentFiles = [...files, ...driveFiles, ...dropboxFiles, ...ziklagFiles].filter(searchFilter);
-  else currentFiles = files.filter(searchFilter);
+  else currentFiles = files.filter(searchFilter); // Default for Nextcloud/VPS mocks
 
   if (!isLoaded) return null;
 
@@ -321,13 +320,22 @@ export function FileManager({ window }: { window: OSWindow }) {
             />
           </div>
           
-          <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" multiple />
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="h-8 w-8 flex items-center justify-center rounded-md bg-white text-black hover:bg-white/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => alert("Mock: Analyzing active directory using Local Llama 3 or Cloud GPT-4o...")}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-purple-600/20 text-purple-400 border border-purple-500/30 hover:bg-purple-600/40 transition-colors text-sm font-medium"
+              title="AI File Analysis (Local/Cloud)"
+            >
+              <Search className="w-4 h-4" /> AI Analysis
+            </button>
+            <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" multiple />
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              className="h-8 w-8 flex items-center justify-center rounded-md bg-white text-black hover:bg-white/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
@@ -354,14 +362,30 @@ export function FileManager({ window }: { window: OSWindow }) {
                   </div>
                </button>
              </div>
-          ) : activeTab === 'Dropbox' && needsDropboxAuth ? (
+           ) : activeTab === 'Dropbox' && needsDropboxAuth ? (
              <div className="h-full flex flex-col items-center justify-center gap-4 text-white/60">
                <p className="max-w-md text-center text-sm font-medium">Connect your Dropbox account to bridge your external client folders into the OS.</p>
                <button className="mt-2 bg-[#0061FE] hover:bg-[#0050d2] text-white px-6 py-2.5 rounded shadow font-medium transition-colors" onClick={handleDropboxLogin}>
                   Connect Dropbox
                </button>
              </div>
-          ) : activeTab === 'Google Drive' && isLoadingDrive ? (
+           ) : activeTab === 'Nextcloud (Self-Hosted)' ? (
+             <div className="h-full flex flex-col items-center justify-center gap-4 text-white/60">
+               <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center mb-2"><Cloud className="w-8 h-8 text-blue-400" /></div>
+               <p className="max-w-md text-center text-sm font-medium">Connect your self-hosted Nextcloud instance via WebDAV. Your data stays 100% on your own hardware.</p>
+               <button className="mt-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded shadow font-medium transition-colors" onClick={() => alert("Mock: Opening Nextcloud WebDAV configuration...")}>
+                  Configure WebDAV
+               </button>
+             </div>
+           ) : activeTab === 'Custom VPS (SFTP)' ? (
+             <div className="h-full flex flex-col items-center justify-center gap-4 text-white/60">
+               <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mb-2"><HardDrive className="w-8 h-8 text-emerald-400" /></div>
+               <p className="max-w-md text-center text-sm font-medium">Mount a remote Linux VPS securely over SFTP. Perfect for self-hosting workflows.</p>
+               <button className="mt-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded shadow font-medium transition-colors" onClick={() => alert("Mock: Opening SSH/SFTP Credentials Modal...")}>
+                  Add SSH Key & Mount
+               </button>
+             </div>
+           ) : activeTab === 'Google Drive' && isLoadingDrive ? (
              <div className="h-full flex items-center justify-center text-white/40 font-mono text-sm animate-pulse">Loading drive files...</div>
           ) : currentFiles.length === 0 ? (
             <div className="h-full flex items-center justify-center text-white/40 font-mono text-sm">No files found.</div>

@@ -45,6 +45,12 @@ export function CodeEditor({ window }: { window: OSWindow }) {
   const [expandedFolders, setExpandedFolders] = useState<string[]>(['src', 'root']);
   const [isDeploying, setIsDeploying] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [terminalOpen, setTerminalOpen] = useState(false);
+  const [agentOpen, setAgentOpen] = useState(false);
+  const [agentInput, setAgentInput] = useState('');
+  const [agentHistory, setAgentHistory] = useState<{role: 'user'|'agent', content: string}[]>([
+    { role: 'agent', content: 'I am your Agentic Copilot. I can generate code, debug, or refactor entire modules natively.' }
+  ]);
   const isSyncingRef = useRef(false);
 
   const roomId = `code-${projectId}-${activeFileId}`;
@@ -105,7 +111,13 @@ export function CodeEditor({ window }: { window: OSWindow }) {
 
   const saveCodeRef = useRef<NodeJS.Timeout | null>(null);
   const handleCodeChange = (newCode: string | undefined) => {
-    const val = newCode || '';
+    let val = newCode || '';
+    
+    // Secret Redaction Logic: Mask simple tokens/keys
+    if (val.match(/sk-[a-zA-Z0-9]{20,}/)) {
+       val = val.replace(/sk-[a-zA-Z0-9]{20,}/g, 'sk-***REDACTED***');
+    }
+    
     setCode(val);
     
     if (isSyncingRef.current) {
@@ -197,7 +209,14 @@ export function CodeEditor({ window }: { window: OSWindow }) {
 
           <button className="flex items-center gap-1 px-2 py-1 bg-blue-600/80 hover:bg-blue-500 rounded text-white text-xs font-sans transition-colors" title="Deploy to Localhost Virtualizer" onClick={handleDeploy} disabled={isDeploying}>
             {isDeploying ? <RefreshCcw className="w-3 h-3 animate-spin" /> : <Server className="w-3 h-3" />}
-            <span>{isDeploying ? 'Deploying...' : 'Live Preview & Sandbox'}</span>
+            <span>{isDeploying ? 'Deploying...' : 'Live Preview'}</span>
+          </button>
+          <button onClick={() => setAgentOpen(!agentOpen)} className={cn("flex items-center gap-1 px-2 py-1 rounded text-white text-xs font-sans transition-colors", agentOpen ? "bg-purple-600" : "bg-white/10 hover:bg-white/20")} title="Agentic AI Copilot">
+            <Search className="w-3 h-3" />
+            <span>Copilot</span>
+          </button>
+          <button onClick={() => setTerminalOpen(!terminalOpen)} className={cn("flex items-center gap-1 px-2 py-1 rounded text-white text-xs font-sans transition-colors", terminalOpen ? "bg-white/20" : "bg-white/10 hover:bg-white/20")} title="Inline Terminal">
+            <TerminalIcon className="w-3 h-3" />
           </button>
           <button className="flex items-center gap-1 px-2 py-1 bg-green-700/80 hover:bg-green-600 rounded text-white text-xs font-sans transition-colors" title="Run Code">
             <Play className="w-3 h-3" />
@@ -282,7 +301,67 @@ export function CodeEditor({ window }: { window: OSWindow }) {
               automaticLayout: true,
             }}
          />
+
+           {/* Inline Terminal */}
+           {terminalOpen && (
+             <div className="h-48 bg-[#1e1e1e] border-t border-[#3c3c3c] flex flex-col font-mono text-[13px]">
+                <div className="flex items-center justify-between px-4 py-1 bg-[#252526] border-b border-[#3c3c3c] text-white/50 text-xs uppercase tracking-wider">
+                   <span>Web Terminal (sh)</span>
+                   <button onClick={() => setTerminalOpen(false)}>✖</button>
+                </div>
+                <div className="p-2 flex-1 overflow-y-auto">
+                   <div className="text-white/40 italic mb-2">ANICHISOM WebContainer Node.js Engine</div>
+                   <div className="flex items-center gap-2">
+                     <span className="text-green-500">➜</span>
+                     <span className="text-blue-400">workspace</span>
+                     <input type="text" className="flex-1 bg-transparent border-none outline-none text-white focus:ring-0 p-0 m-0" placeholder="npm run dev..." onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                           alert('Mock: Executing inline terminal command in WebContainer.');
+                           e.currentTarget.value = '';
+                        }
+                     }} />
+                   </div>
+                </div>
+             </div>
+           )}
         </div>
+
+        {/* Agentic Copilot Panel */}
+        {agentOpen && (
+           <div className="w-80 shrink-0 bg-[#252526] border-l border-[#3c3c3c] flex flex-col z-20 shadow-[-10px_0_20px_rgba(0,0,0,0.2)]">
+              <div className="p-3 border-b border-[#3c3c3c] flex items-center justify-between text-white/80 font-sans">
+                 <div className="flex items-center gap-2 font-semibold">
+                    <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" /> Agentic Copilot
+                 </div>
+                 <button onClick={() => setAgentOpen(false)} className="text-white/50 hover:text-white">✖</button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar">
+                 {agentHistory.map((msg, i) => (
+                   <div key={i} className={cn("text-[13px] leading-relaxed p-3 rounded-lg font-sans", msg.role === 'agent' ? "bg-[#37373d] text-white/90" : "bg-blue-600/20 text-white border border-blue-500/20 self-end max-w-[85%]")}>
+                      {msg.content}
+                   </div>
+                 ))}
+              </div>
+              <div className="p-3 border-t border-[#3c3c3c]">
+                 <input 
+                   type="text" 
+                   value={agentInput}
+                   onChange={e => setAgentInput(e.target.value)}
+                   onKeyDown={e => {
+                     if (e.key === 'Enter' && agentInput.trim()) {
+                       setAgentHistory(prev => [...prev, { role: 'user', content: agentInput }]);
+                       setAgentInput('');
+                       setTimeout(() => {
+                         setAgentHistory(prev => [...prev, { role: 'agent', content: 'Analyzing your codebase... generating diff implementation for that request.' }]);
+                       }, 500);
+                     }
+                   }}
+                   placeholder="Ask copilot to edit..." 
+                   className="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded px-3 py-2 text-xs text-white outline-none focus:border-purple-500 transition-colors"
+                 />
+              </div>
+           </div>
+        )}
       </div>
       
       {/* Status Bar */}
