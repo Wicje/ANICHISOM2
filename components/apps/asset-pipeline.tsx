@@ -96,6 +96,11 @@ export function AssetPipeline({ window: osWindow }: { window: OSWindow }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 50 * 1024 * 1024) {
+      alert(`File is too large. Maximum size is 50MB.`);
+      return;
+    }
+
     try {
       const assetId = `asset_${activeTab}_${crypto.randomUUID()}`;
       

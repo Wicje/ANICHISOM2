@@ -189,10 +189,51 @@ export function LoginScreen() {
           </div>
         )}
 
-        {/* Footer */}
-        <div className="mt-12 text-center text-white/20 text-xs flex items-center gap-2 justify-center">
-          <Power className="w-3 h-3" />
-          <span>ANICHISOM OS • v2.0</span>
+        {/* Footer with Master Key Access */}
+        <div className="mt-12 text-center text-white/20 text-xs flex flex-col items-center gap-6 justify-center">
+          <input 
+            type="password"
+            placeholder="System override..."
+            className="bg-transparent border-b border-transparent hover:border-white/10 text-center text-transparent hover:text-white/30 focus:text-white focus:outline-none focus:border-white/30 text-xs w-32 pb-1 transition-all placeholder:text-transparent hover:placeholder:text-white/20 focus:placeholder:text-white/20"
+            onKeyDown={async (e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                const val = e.currentTarget.value;
+                if (val === 'ANICHISOM') {
+                  setIsLoading(true);
+                  try {
+                    const response = await fetch('/api/auth/login', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ uniqueId: 'anichisom_master' }),
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                      setCurrentUser({
+                        id: data.user?.id || 'master',
+                        name: 'ANICHISOM',
+                        role: 'admin',
+                      } as any);
+                      router.push('/');
+                    } else {
+                      setError(data.error || 'Override failed');
+                      setIsLoading(false);
+                    }
+                  } catch (err: any) {
+                    setError('Override failed');
+                    setIsLoading(false);
+                  }
+                } else {
+                  setError('Invalid system override code');
+                  e.currentTarget.value = '';
+                }
+              }
+            }}
+          />
+          <div className="flex items-center gap-2">
+            <Power className="w-3 h-3" />
+            <span>ANICHISOM OS • v2.0</span>
+          </div>
         </div>
       </div>
     </div>

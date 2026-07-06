@@ -21,10 +21,13 @@ app.prepare().then(async () => {
     }
   });
 
+  let pubClient: any = null;
+  let subClient: any = null;
+
   if (process.env.REDIS_URL) {
     console.log('Connecting to Redis for WebSockets...');
-    const pubClient = createClient({ url: process.env.REDIS_URL });
-    const subClient = pubClient.duplicate();
+    pubClient = createClient({ url: process.env.REDIS_URL });
+    subClient = pubClient.duplicate();
     await Promise.all([pubClient.connect(), subClient.connect()]);
     io.adapter(createAdapter(pubClient, subClient));
     console.log('Redis connected and adapter initialized.');
@@ -34,15 +37,30 @@ app.prepare().then(async () => {
   const rooms = new Map<string, any>();
 
   io.on('connection', (socket) => {
-    socket.on('join-room', (roomId) => {
+    socket.on('join-room', async (roomId) => {
       socket.join(roomId);
-      if (rooms.has(roomId)) {
-        socket.emit('sync-state', rooms.get(roomId));
+      if (pubClient) {
+        const stateStr = await pubClient.get(`room:${roomId}`);
+        if (stateStr) {
+          try {
+            socket.emit('sync-state', JSON.parse(stateStr));
+          } catch (e) {
+            console.error('Error parsing room state', e);
+          }
+        }
+      } else {
+        if (rooms.has(roomId)) {
+          socket.emit('sync-state', rooms.get(roomId));
+        }
       }
     });
 
-    socket.on('update-state', ({ roomId, state }) => {
-      rooms.set(roomId, state);
+    socket.on('update-state', async ({ roomId, state }) => {
+      if (pubClient) {
+        await pubClient.set(`room:${roomId}`, JSON.stringify(state));
+      } else {
+        rooms.set(roomId, state);
+      }
       socket.to(roomId).emit('sync-state', state);
     });
 

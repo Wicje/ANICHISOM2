@@ -171,6 +171,19 @@ export function FileManager({ window }: { window: OSWindow }) {
       else if (file.type.startsWith('text/') || file.name.endsWith('.md')) type = 'doc';
       else if (file.name.endsWith('.fig') || file.name.endsWith('.sketch')) type = 'design';
 
+      const isLocal = activeTab === 'Ziklag NAS (Local)' || activeTab === 'Unified Explorer';
+      const isFirebase = activeTab !== 'Google Drive' && !isLocal;
+      
+      // Validate file size to prevent memory leaks and API rejections
+      if (isFirebase && file.size > 500 * 1024) {
+         alert(`File ${file.name} is too large for Cloud Sync. Maximum size is 500KB. Use Ziklag NAS for larger files.`);
+         return;
+      }
+      if (isLocal && file.size > 50 * 1024 * 1024) {
+         alert(`File ${file.name} is too large for Local Storage. Maximum size is 50MB.`);
+         return;
+      }
+
       const fileId = crypto.randomUUID();
       const newFile = {
         id: fileId, name: file.name, type,

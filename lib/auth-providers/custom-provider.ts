@@ -13,6 +13,8 @@ export class CustomAuthProvider implements AuthProvider {
   constructor() {
     this.pool = new Pool({
       connectionString: process.env.DATABASE_URL,
+      max: 20, // max number of clients in the pool
+      idleTimeoutMillis: 30000, // how long a client is allowed to remain idle before being closed
     });
   }
 

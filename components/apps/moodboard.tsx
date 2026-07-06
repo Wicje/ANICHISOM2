@@ -279,6 +279,11 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 50 * 1024 * 1024) {
+      alert(`File is too large. Maximum size is 50MB.`);
+      return;
+    }
+
     const fileId = crypto.randomUUID();
     await set(`blob_${fileId}`, file);
 
@@ -405,11 +410,15 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     // Broadcast WebRTC cursor (Phase 3)
     const webrtc = (globalThis.window as any)[`webrtc_${osWindow.id}`];
     if (webrtc && webrtc.awareness) {
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (rect) {
-        const x = (e.clientX - rect.left - camera.x) / camera.z;
-        const y = (e.clientY - rect.top - camera.y) / camera.z;
-        webrtc.awareness.setLocalStateField('cursor', { x, y });
+      const now = Date.now();
+      if (!webrtc.lastCursorUpdate || now - webrtc.lastCursorUpdate > 50) {
+        webrtc.lastCursorUpdate = now;
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (rect) {
+          const x = (e.clientX - rect.left - camera.x) / camera.z;
+          const y = (e.clientY - rect.top - camera.y) / camera.z;
+          webrtc.awareness.setLocalStateField('cursor', { x, y });
+        }
       }
     }
   };
