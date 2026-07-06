@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
-import { Store, Download, CheckCircle, Trash2, Box, Sparkles, Server, ShoppingBag, Cpu, Code2, Camera, Star, Code, UploadCloud, FileText } from 'lucide-react';
+import { Store, Download, CheckCircle, Trash2, Box, Sparkles, Server, ShoppingBag, Cpu, Code2, Camera, Star, Code, UploadCloud, FileText, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { get, set } from 'idb-keyval';
 

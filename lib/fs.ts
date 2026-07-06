@@ -25,7 +25,7 @@ export const FS = {
   // Read a file using OPFS or fallback to IndexedDB.
   read: async (path: string): Promise<LocalFile | null> => {
     try {
-      if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.getDirectory) {
+      if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
         const { dir, name } = await FS._resolvePath(path);
         const handle = await dir.getFileHandle(name);
         const file = await handle.getFile();
@@ -58,7 +58,7 @@ export const FS = {
   // Write a file to OPFS or IndexedDB
   write: async (path: string, content: string | Blob | File, mimeType?: string): Promise<void> => {
     try {
-      if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.getDirectory) {
+      if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
         const { dir, name } = await FS._resolvePath(path, true);
         const handle = await dir.getFileHandle(name, { create: true });
         
@@ -91,7 +91,7 @@ export const FS = {
   readDir: async (dirPath: string = ''): Promise<LocalFile[]> => {
     const files: LocalFile[] = [];
     try {
-      if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.getDirectory) {
+      if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
         
         const traverse = async (currentDir: any, currentPath: string) => {
            for await (const [name, handle] of currentDir.entries()) {
@@ -142,7 +142,7 @@ export const FS = {
   // Delete a file or directory
   delete: async (path: string): Promise<void> => {
     try {
-      if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.getDirectory) {
+      if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
         const { dir, name } = await FS._resolvePath(path);
         await dir.removeEntry(name, { recursive: true });
         return;

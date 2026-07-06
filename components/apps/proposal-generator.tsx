@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
 import { Sparkles, FileText, Download, Send, CheckCircle2, Bot, Layers, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';

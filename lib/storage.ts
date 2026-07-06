@@ -2,7 +2,7 @@ import { get, set, del } from 'idb-keyval';
 import { db, doc, getDoc, setDoc, onSnapshot } from '@/lib/firebase';
 import { Unsubscribe } from 'firebase/firestore';
 
-export interface StorageAdapter {
+export interface IStorageAdapter {
   getDoc: <T>(collection: string, id: string) => Promise<T | null>;
   setDoc: <T>(collection: string, id: string, data: Partial<T>) => Promise<void>;
   subscribe: <T>(collection: string, id: string, onUpdate: (data: T | null) => void) => () => void;
@@ -10,7 +10,7 @@ export interface StorageAdapter {
 }
 
 // 1. Firebase Adapter
-export const FirebaseAdapter: StorageAdapter = {
+export const FirebaseAdapter: IStorageAdapter = {
   getDoc: async <T,>(collectionName: string, id: string) => {
     try {
       const snap = await getDoc(doc(db, collectionName, id));
@@ -39,7 +39,7 @@ export const FirebaseAdapter: StorageAdapter = {
 };
 
 // 2. Local IndexedDB Adapter (Offline-First/Private Mode)
-export const LocalAdapter: StorageAdapter = {
+export const LocalAdapter: IStorageAdapter = {
   getDoc: async <T,>(collectionName: string, id: string) => {
     const key = `anichisom_os_${collectionName}_${id}`;
     return (await get(key)) as T | null;
@@ -80,9 +80,9 @@ export const LocalAdapter: StorageAdapter = {
 // 3. Provider Factory
 // Allows components to just say Storage.getDoc('code', 'roomId', 'private')
 export const Storage = {
-  getDoc: (collection: string, id: string, mode: 'private' | 'agency') => {
+  getDoc: <T = any>(collection: string, id: string, mode: 'private' | 'agency'): Promise<T | null> => {
     const adapter = mode === 'agency' ? FirebaseAdapter : LocalAdapter;
-    return adapter.getDoc(collection, id);
+    return adapter.getDoc<T>(collection, id);
   },
   setDoc: (collection: string, id: string, data: any, mode: 'private' | 'agency') => {
     const adapter = mode === 'agency' ? FirebaseAdapter : LocalAdapter;
@@ -97,3 +97,30 @@ export const Storage = {
     return adapter.deleteDoc(collection, id);
   }
 };
+
+export class StorageAdapter {
+  collection: string;
+  mode: 'private' | 'agency';
+  
+  constructor(collection: string, mode: 'private' | 'agency') {
+    this.collection = collection;
+    this.mode = mode;
+  }
+  
+  async get<T = any>(id: string): Promise<T | null> {
+    return Storage.getDoc<T>(this.collection, id, this.mode);
+  }
+  
+  async set(id: string, data: any) {
+    return Storage.setDoc(this.collection, id, data, this.mode);
+  }
+  
+  subscribe(id: string, callback: (data: any) => void) {
+    return Storage.subscribe(this.collection, id, this.mode, callback);
+  }
+  
+  async delete(id: string) {
+    return Storage.deleteDoc(this.collection, id, this.mode);
+  }
+}
+

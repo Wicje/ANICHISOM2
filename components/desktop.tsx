@@ -35,13 +35,13 @@ const Marketplace = dynamic(() => import('@/components/apps/marketplace').then(m
 const SideGigsApp = dynamic(() => import('@/components/apps/side-gigs').then(mod => mod.SideGigsApp), { ssr: false });
 const ProposalGenerator = dynamic(() => import('@/components/apps/proposal-generator').then(mod => mod.ProposalGenerator), { ssr: false });
 
-const APPS = {
+export const APPS = {
   'terminal': { component: TerminalBox, icon: Terminal, title: 'Terminal', roles: ['admin', 'technician'], isCore: true },
   'files': { component: FileManager, icon: Folder, title: 'Files', roles: ['admin', 'filmmaker', 'technician'], isCore: true },
   'browser': { component: MiniBrowser, icon: Globe, title: 'Browser', roles: ['admin', 'filmmaker', 'technician'], isCore: true },
   'moodboard': { component: Moodboard, icon: ImageIcon, title: 'Moodboard', roles: ['admin', 'filmmaker'], isCore: true },
   'assets': { component: AssetPipeline, icon: Archive, title: 'Asset Pipeline', roles: ['admin', 'filmmaker', 'technician'], isCore: false },
-  'workspace': { component: CampaignLab, icon: BookOpen, title: 'Workspace', roles: ['admin', 'designer', 'client', 'filmmaker', 'technician'], isCore: true },
+  'workspace': { component: CampaignLab, icon: BookOpen, title: 'Notes & Campaigns', roles: ['admin', 'designer', 'client', 'filmmaker', 'technician'], isCore: true },
   'code': { component: CodeEditor, icon: Code2, title: 'Code', roles: ['admin', 'technician'], isCore: true },
   'pdf': { component: PdfReader, icon: FileText, title: 'PDF Reader', roles: ['admin', 'filmmaker', 'technician'], isCore: false },
   'office': { component: ProductivitySuite, icon: Briefcase, title: 'Office Suite', roles: ['admin', 'filmmaker'], isCore: true },

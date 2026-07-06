@@ -9,6 +9,7 @@ import DOMPurify from 'isomorphic-dompurify';
 import { Storage } from '@/lib/storage';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+// @ts-ignore
 import { Parser } from 'hot-formula-parser';
 
 type AppType = 'word' | 'sheets' | 'slides' | 'pdf';
@@ -202,7 +203,7 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser }: 
              if (editor) {
                // Get cursor position before update
                const { from, to } = editor.state.selection;
-               editor.commands.setContent(remoteData, false);
+               editor.commands.setContent(remoteData, { emitUpdate: false });
                // Restore cursor
                editor.commands.setTextSelection({ from, to });
              }

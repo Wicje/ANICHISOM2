@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
-import { FileCode, Play, Settings, RefreshCcw, Server, Users, ChevronRight, ChevronDown, Folder, File as FileIcon, Search, Plus } from 'lucide-react';
+import { FileCode, Play, Settings, RefreshCcw, Server, Users, ChevronRight, ChevronDown, Folder, File as FileIcon, Search, Plus, Terminal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Storage } from '@/lib/storage';
 import Editor, { useMonaco } from '@monaco-editor/react';
@@ -216,7 +216,7 @@ export function CodeEditor({ window }: { window: OSWindow }) {
             <span>Copilot</span>
           </button>
           <button onClick={() => setTerminalOpen(!terminalOpen)} className={cn("flex items-center gap-1 px-2 py-1 rounded text-white text-xs font-sans transition-colors", terminalOpen ? "bg-white/20" : "bg-white/10 hover:bg-white/20")} title="Inline Terminal">
-            <TerminalIcon className="w-3 h-3" />
+            <Terminal className="w-3 h-3" />
           </button>
           <button className="flex items-center gap-1 px-2 py-1 bg-green-700/80 hover:bg-green-600 rounded text-white text-xs font-sans transition-colors" title="Run Code">
             <Play className="w-3 h-3" />

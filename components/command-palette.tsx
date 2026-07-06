@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useOS } from '@/lib/os-context';
-import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Search, Archive, Clipboard, Window as WindowIcon } from 'lucide-react';
+import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Search, Archive, Clipboard, AppWindow } from 'lucide-react';
 import { APPS } from '@/components/desktop';
 
 export function CommandPalette() {
@@ -65,7 +65,7 @@ export function CommandPalette() {
         id: `win-${win.id}`,
         name: `Switch to ${win.title}`,
         type: 'Open Window',
-        icon: WindowIcon,
+        icon: AppWindow,
         action: () => focusWindow(win.id)
      });
   });
