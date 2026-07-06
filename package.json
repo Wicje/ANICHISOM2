@@ -1,6 +1,7 @@
 {
-  "name": "ai-studio-applet",
-  "version": "0.1.0",
+  "name": "anichisom-os",
+  "version": "1.0.0",
+  "description": "A fully persistent, multi-user Web OS built with Next.js",
   "private": true,
   "scripts": {
     "dev": "tsx server.ts",
