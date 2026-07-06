@@ -2,18 +2,19 @@
 
 import React, { useState } from 'react';
 import { useOS, OSRole } from '@/lib/os-context';
-import { Power, Key, Loader2, AlertCircle, User as UserIcon } from 'lucide-react';
+import { Power, Key, Loader2, AlertCircle, Terminal } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 const AVATARS = [
-  { id: 'founder', name: 'Founder', role: 'admin', color: 'bg-blue-500', initials: 'FD' },
-  { id: 'creative-dir', name: 'Creative Director', role: 'admin', color: 'bg-purple-500', initials: 'CD' },
-  { id: 'designer', name: 'UI/UX Designer', role: 'admin', color: 'bg-pink-500', initials: 'UX' },
-  { id: 'frontend-dev', name: 'Frontend Developer', role: 'technician', color: 'bg-emerald-500', initials: 'FE' },
-  { id: 'filmmaker', name: 'Filmmaker', role: 'filmmaker', color: 'bg-amber-500', initials: 'FM' },
-  { id: 'copywriter', name: 'Copywriter', role: 'user', color: 'bg-indigo-500', initials: 'CW' },
-  { id: 'forensics', name: 'Data Recovery', role: 'technician', color: 'bg-red-500', initials: 'DR' },
+  { id: 'founder', name: 'Founder', role: 'admin', avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&q=80' },
+  { id: 'creative-dir', name: 'Creative Director', role: 'admin', avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&h=150&fit=crop&q=80' },
+  { id: 'designer', name: 'UI/UX Designer', role: 'admin', avatarUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&q=80' },
+  { id: 'frontend-dev', name: 'Frontend Developer', role: 'technician', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&q=80' },
+  { id: 'filmmaker', name: 'Filmmaker', role: 'filmmaker', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&q=80' },
+  { id: 'copywriter', name: 'Copywriter', role: 'user', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&q=80' },
+  { id: 'forensics', name: 'Data Recovery', role: 'technician', avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&q=80' },
 ];
 
 export function LoginScreen() {
@@ -24,10 +25,8 @@ export function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [passkey, setPasskey] = useState('');
+  const [showOverride, setShowOverride] = useState(false);
 
-  /**
-   * Login with selected avatar and passkey
-   */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -36,8 +35,6 @@ export function LoginScreen() {
       return;
     }
 
-    // Passkey verification would happen here in a real implementation
-    // For MVP, any passkey works for the selected uniqueId
     setIsLoading(true);
     setError('');
 
@@ -56,15 +53,13 @@ export function LoginScreen() {
         return;
       }
 
-      // Update OS context with user info
       setCurrentUser({
         id: data.user.id,
         name: selectedUser.name,
         role: data.user.role as OSRole,
-        // Optional: add a real avatar URL later
+        avatarUrl: selectedUser.avatarUrl,
       } as any);
 
-      // Redirect to main app
       router.push('/');
     } catch (err: any) {
       setError(err.message || 'Failed to login. Please try again.');
@@ -74,34 +69,29 @@ export function LoginScreen() {
   };
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-slate-950 via-black to-slate-900 flex items-center justify-center p-4">
-      {/* Subtle background animation */}
-      <div className="absolute inset-0 z-0 opacity-30">
-        <div className="absolute top-20 left-20 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse" />
-        <div className="absolute -bottom-8 right-20 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse" />
-      </div>
-
-      <div className="absolute inset-0 z-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+    <div className="fixed inset-0 bg-[#0a0a0a] flex items-center justify-center p-4 selection:bg-white selection:text-black font-sans">
+      {/* Black and white noise/texture background */}
+      <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
 
       <div className="relative z-10 w-full max-w-2xl flex flex-col items-center">
         {/* Logo & Title */}
-        <div className="flex flex-col items-center gap-4 mb-10 text-center">
-          <div className="flex items-center gap-2 justify-center">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-600 rounded-xl flex items-center justify-center shadow-xl shadow-blue-500/20">
-              <Key className="w-6 h-6 text-white" />
+        <div className="flex flex-col items-center gap-4 mb-12 text-center">
+          <div className="flex items-center gap-3 justify-center">
+            <div className="w-12 h-12 bg-white rounded-none flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.15)]">
+              <Key className="w-6 h-6 text-black" />
             </div>
-            <div className="font-mono text-xl font-bold text-white tracking-widest ml-2">
-              ANICHISOM OS
+            <div className="font-mono text-2xl font-bold text-white tracking-[0.2em] ml-2 uppercase">
+              Anichisom OS
             </div>
           </div>
-          <p className="text-white/50 text-sm max-w-xs font-medium">
-            Select your workspace profile to continue
+          <p className="text-white/40 text-xs max-w-xs font-mono uppercase tracking-widest">
+            Select identity to authenticate
           </p>
         </div>
 
         {error && (
-          <div className="w-full max-w-md bg-red-500/10 border border-red-500/30 text-red-400 text-sm p-4 rounded-xl flex items-start gap-3 mb-6 backdrop-blur-md">
-            <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
+          <div className="w-full max-w-md bg-white/5 border border-white/20 text-white text-xs p-4 flex items-start gap-3 mb-8 backdrop-blur-md font-mono uppercase tracking-wide">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
             <span>{error}</span>
           </div>
         )}
@@ -113,45 +103,49 @@ export function LoginScreen() {
               <button
                 key={user.id}
                 onClick={() => setSelectedUser(user)}
-                className="flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-white/5 transition-colors group focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                className="flex flex-col items-center gap-4 p-4 hover:bg-white/5 transition-all group focus:outline-none"
               >
-                <div className={cn(
-                  "w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-transform group-hover:scale-105 border-2 border-white/10 group-hover:border-white/30",
-                  user.color
-                )}>
-                  <span className="text-2xl font-bold text-white shadow-sm">{user.initials}</span>
+                <div className="relative w-20 h-20 rounded-full overflow-hidden border border-white/20 group-hover:border-white transition-colors">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img 
+                    src={user.avatarUrl} 
+                    alt={user.name}
+                    className="w-full h-full object-cover grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
+                  />
                 </div>
                 <div className="text-center">
-                  <div className="text-white font-medium text-sm drop-shadow-sm">{user.name}</div>
-                  <div className="text-white/40 text-[10px] uppercase tracking-wider mt-1">{user.role}</div>
+                  <div className="text-white font-medium text-xs tracking-wider uppercase">{user.name}</div>
+                  <div className="text-white/40 text-[9px] uppercase tracking-[0.2em] mt-1">{user.role}</div>
                 </div>
               </button>
             ))}
           </div>
         ) : (
           /* Passkey Login Card */
-          <div className="w-full max-w-sm flex flex-col gap-6 p-8 rounded-3xl bg-black/40 border border-white/10 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex flex-col items-center gap-4 mb-4">
-              <div className={cn(
-                "w-24 h-24 rounded-full flex items-center justify-center shadow-2xl border-4 border-black",
-                selectedUser.color
-              )}>
-                <span className="text-3xl font-bold text-white">{selectedUser.initials}</span>
+          <div className="w-full max-w-sm flex flex-col gap-8 p-10 bg-black border border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] animate-in fade-in zoom-in-95 duration-300">
+            <div className="flex flex-col items-center gap-5 mb-2">
+              <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-white">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img 
+                  src={selectedUser.avatarUrl} 
+                  alt={selectedUser.name}
+                  className="w-full h-full object-cover grayscale"
+                />
               </div>
               <div className="text-center">
-                <h2 className="text-xl font-bold text-white">{selectedUser.name}</h2>
-                <p className="text-white/50 text-xs uppercase tracking-wider mt-1">{selectedUser.role}</p>
+                <h2 className="text-lg font-bold text-white uppercase tracking-widest">{selectedUser.name}</h2>
+                <p className="text-white/40 text-[10px] uppercase tracking-[0.2em] mt-2">{selectedUser.role}</p>
               </div>
             </div>
 
-            <form onSubmit={handleLogin} className="flex flex-col gap-4">
+            <form onSubmit={handleLogin} className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">
                 <input
                   type="password"
                   value={passkey}
                   onChange={(e) => setPasskey(e.target.value)}
-                  placeholder="Enter Passkey"
-                  className="w-full bg-white/5 border border-white/10 hover:border-white/20 focus:border-blue-400/50 rounded-xl px-4 py-3.5 text-center text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400/20 transition-colors text-lg tracking-widest font-mono"
+                  placeholder="AUTHORIZATION KEY"
+                  className="w-full bg-transparent border-b border-white/20 hover:border-white/50 focus:border-white px-2 py-3 text-center text-white placeholder-white/20 focus:outline-none transition-colors text-sm tracking-[0.3em] font-mono"
                   autoFocus
                 />
               </div>
@@ -159,17 +153,17 @@ export function LoginScreen() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl px-4 py-3.5 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
+                className="w-full bg-white hover:bg-neutral-200 text-black disabled:opacity-50 disabled:cursor-not-allowed font-bold py-4 transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs"
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Logging in...
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Authenticating
                   </>
                 ) : (
                   <>
-                    <Key className="w-5 h-5" />
-                    Unlock Workspace
+                    <Key className="w-4 h-4" />
+                    Enter System
                   </>
                 )}
               </button>
@@ -181,58 +175,80 @@ export function LoginScreen() {
                   setPasskey('');
                   setError('');
                 }}
-                className="text-white/40 hover:text-white/80 text-sm font-medium transition-colors mt-2"
+                className="text-white/30 hover:text-white text-[10px] uppercase tracking-widest transition-colors mt-2"
               >
-                Not {selectedUser.name}? Back to profiles
+                Switch Identity
               </button>
             </form>
           </div>
         )}
 
-        {/* Footer with Master Key Access */}
-        <div className="mt-12 text-center text-white/20 text-xs flex flex-col items-center gap-6 justify-center">
-          <input 
-            type="password"
-            placeholder="System override..."
-            className="bg-transparent border-b border-transparent hover:border-white/10 text-center text-transparent hover:text-white/30 focus:text-white focus:outline-none focus:border-white/30 text-xs w-32 pb-1 transition-all placeholder:text-transparent hover:placeholder:text-white/20 focus:placeholder:text-white/20"
-            onKeyDown={async (e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                const val = e.currentTarget.value;
-                if (val === 'ANICHISOM') {
-                  setIsLoading(true);
-                  try {
-                    const response = await fetch('/api/auth/login', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ uniqueId: 'anichisom_master' }),
-                    });
-                    const data = await response.json();
-                    if (response.ok) {
-                      setCurrentUser({
-                        id: data.user?.id || 'master',
-                        name: 'ANICHISOM',
-                        role: 'admin',
-                      } as any);
-                      router.push('/');
+        {/* Footer & Override Menu */}
+        <div className="mt-16 text-center text-white/30 text-xs flex flex-col items-center gap-6 justify-center">
+          
+          {showOverride ? (
+            <div className="flex flex-col items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <input 
+                type="password"
+                placeholder="INPUT OVERRIDE KEY"
+                className="bg-transparent border-b border-white text-center text-white focus:outline-none text-xs w-48 pb-2 tracking-[0.2em] font-mono uppercase"
+                autoFocus
+                onKeyDown={async (e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = e.currentTarget.value;
+                    if (val === 'ANICHISOM') {
+                      setIsLoading(true);
+                      try {
+                        const response = await fetch('/api/auth/login', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ uniqueId: 'anichisom_master' }),
+                        });
+                        const data = await response.json();
+                        if (response.ok) {
+                          setCurrentUser({
+                            id: data.user?.id || 'master',
+                            name: 'ANICHISOM',
+                            role: 'admin',
+                            avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&q=80',
+                          } as any);
+                          router.push('/');
+                        } else {
+                          setError(data.error || 'Override failed');
+                          setIsLoading(false);
+                          setShowOverride(false);
+                        }
+                      } catch (err: any) {
+                        setError('Override failed');
+                        setIsLoading(false);
+                        setShowOverride(false);
+                      }
                     } else {
-                      setError(data.error || 'Override failed');
-                      setIsLoading(false);
+                      setError('Access Denied');
+                      setShowOverride(false);
                     }
-                  } catch (err: any) {
-                    setError('Override failed');
-                    setIsLoading(false);
+                  } else if (e.key === 'Escape') {
+                    setShowOverride(false);
                   }
-                } else {
-                  setError('Invalid system override code');
-                  e.currentTarget.value = '';
-                }
-              }
-            }}
-          />
-          <div className="flex items-center gap-2">
+                }}
+                onBlur={() => setShowOverride(false)}
+              />
+              <span className="text-[9px] uppercase tracking-widest text-white/40">Press ESC to cancel</span>
+            </div>
+          ) : (
+            <button 
+              onClick={() => setShowOverride(true)}
+              className="text-white/20 hover:text-white flex items-center gap-2 text-[10px] uppercase tracking-widest transition-colors font-mono"
+            >
+              <Terminal className="w-3 h-3" />
+              <span>System Override</span>
+            </button>
+          )}
+
+          <div className="flex items-center gap-2 font-mono uppercase tracking-widest text-[9px] text-white/20">
             <Power className="w-3 h-3" />
-            <span>ANICHISOM OS • v2.0</span>
+            <span>OS Kernel v2.0 • Monochrome</span>
           </div>
         </div>
       </div>
