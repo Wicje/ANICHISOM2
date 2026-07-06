@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useOS, OSWindow } from '@/lib/os-context';
+import { StorageAdapter } from '@/lib/storage';
 import { HardDrive, Activity, AlertTriangle, CheckCircle, Clock, Server, Download, Upload, RefreshCcw, Search, Shield, Zap, Terminal, Plus, FileSearch, Link2, Hash } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -88,13 +89,15 @@ const DUMMY_HASHES: HashVerification[] = [
 ];
 
 export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
-  const { currentUser, emitEvent } = useOS();
+  const { currentUser, emitEvent, workspaceMode } = useOS();
+  const [storage] = useState(() => new StorageAdapter('ziklag-tools', workspaceMode));
   const [activeTab, setActiveTab] = useState<'overview' | 'disks' | 'cases' | 'evidence' | 'chain' | 'hash' | 'hex' | 'terminal'>('overview');
-  const [disks, setDisks] = useState<DiskScan[]>(DUMMY_DISKS);
-  const [cases, setCases] = useState<ForensicCase[]>(DUMMY_CASES);
-  const [evidence, setEvidence] = useState<Evidence[]>(DUMMY_EVIDENCE);
-  const [chainOfCustody, setChainOfCustody] = useState<ChainOfCustodyEvent[]>(DUMMY_CHAIN);
-  const [hashVerifications, setHashVerifications] = useState<HashVerification[]>(DUMMY_HASHES);
+  const [disks, setDisks] = useState<DiskScan[]>([]);
+  const [cases, setCases] = useState<ForensicCase[]>([]);
+  const [evidence, setEvidence] = useState<Evidence[]>([]);
+  const [chainOfCustody, setChainOfCustody] = useState<ChainOfCustodyEvent[]>([]);
+  const [hashVerifications, setHashVerifications] = useState<HashVerification[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hexData, setHexData] = useState<{ address: string, bytes: string, ascii: string }[]>(() => {
     return Array.from({ length: 64 }).map((_, i) => {
@@ -121,26 +124,52 @@ export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
 
   const [verifyHashInput, setVerifyHashInput] = useState('');
 
+  useEffect(() => {
+    Promise.all([
+      storage.get('disks'),
+      storage.get('cases'),
+      storage.get('evidence'),
+      storage.get('chainOfCustody'),
+      storage.get('hashVerifications')
+    ]).then(([d, c, e, ch, h]) => {
+      setDisks(d || DUMMY_DISKS);
+      setCases(c || DUMMY_CASES);
+      setEvidence(e || DUMMY_EVIDENCE);
+      setChainOfCustody(ch || DUMMY_CHAIN);
+      setHashVerifications(h || DUMMY_HASHES);
+      setIsLoaded(true);
+    });
+  }, [storage]);
+
   const handleRefresh = () => {
     setIsRefreshing(true);
     setTimeout(() => {
-      setDisks([...DUMMY_DISKS].map(d => ({
-        ...d,
-        temperature: d.temperature + Math.floor(Math.random() * 5) - 2,
-      })));
+      setDisks(prev => {
+        const next = prev.map(d => ({
+          ...d,
+          temperature: d.temperature + Math.floor(Math.random() * 5) - 2,
+        }));
+        storage.set('disks', next);
+        return next;
+      });
       setIsRefreshing(false);
     }, 1500);
   };
   
   useEffect(() => {
+    if (!isLoaded) return;
     const interval = setInterval(() => {
-      setDisks(prev => prev.map(d => ({
-        ...d,
-        temperature: d.temperature + (Math.random() > 0.5 ? 1 : -1),
-      })));
+      setDisks(prev => {
+        const next = prev.map(d => ({
+          ...d,
+          temperature: d.temperature + (Math.random() > 0.5 ? 1 : -1),
+        }));
+        storage.set('disks', next);
+        return next;
+      });
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isLoaded, storage]);
 
   const handleVerifyHash = () => {
     if (!verifyHashInput) return;
@@ -156,7 +185,9 @@ export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
       match: true
     };
     
-    setHashVerifications(prev => [newHash, ...prev]);
+    const newHashes = [newHash, ...hashVerifications];
+    setHashVerifications(newHashes);
+    storage.set('hashVerifications', newHashes);
     setVerifyHashInput('');
     
     emitEvent({
@@ -175,6 +206,10 @@ export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
     if (health === 'critical') return 'text-rose-500 bg-rose-500/10 border-rose-500/20';
     return 'text-neon-blue bg-neon-blue/10 border-neon-blue/20';
   };
+
+  if (!isLoaded) {
+    return <div className="w-full h-full bg-[#050505] flex items-center justify-center text-white/50 animate-pulse">Initializing Ziklag Core...</div>;
+  }
 
   return (
     <div className="w-full h-full flex flex-col bg-[#050505] text-white font-sans overflow-hidden">

@@ -7,6 +7,9 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import DOMPurify from 'isomorphic-dompurify';
 import { Storage } from '@/lib/storage';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { Parser } from 'hot-formula-parser';
 
 type AppType = 'word' | 'sheets' | 'slides' | 'pdf';
 
@@ -163,18 +166,30 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser }: 
   const roomId = `word-${projectId}`;
   const storageKey = `anichisom_os_word_${projectId}`;
 
+  const editor = useEditor({
+    extensions: [StarterKit],
+    content: '',
+    onUpdate: ({ editor }) => {
+       const newContent = editor.getHTML();
+       handleInput(newContent);
+    },
+  });
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoaded(false);
 
     Storage.getDoc('docs', roomId, workspaceMode).then((saved: any) => {
+        let initialContent = `<h1>Manifesto for the Edge</h1><p>The future of software is not centralized. It is distributed, local-first, and owned by the user.</p><h2>Self-Hostable Infrastructure</h2><p>Users who prefer data independence can pull the open-source code via Docker.</p>`;
+        
         if (workspaceMode === 'private' && saved && typeof saved === 'string') {
-          setContent(saved);
+          initialContent = saved;
         } else if (saved && saved.content !== undefined) {
-          setContent(saved.content);
-        } else if (!saved) {
-          setContent(`<h1>Manifesto for the Edge</h1><p>The future of software is not centralized. It is distributed, local-first, and owned by the user.</p><h2>Self-Hostable Infrastructure</h2><p>Users who prefer data independence can pull the open-source code via Docker.</p>`);
+          initialContent = saved.content;
         }
+        
+        setContent(initialContent);
+        if (editor) editor.commands.setContent(initialContent);
         setLoaded(true);
     });
 
@@ -184,18 +199,24 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser }: 
          if (remoteData !== undefined && remoteData !== content) {
              isSyncingRef.current = true;
              setContent(remoteData);
+             if (editor) {
+               // Get cursor position before update
+               const { from, to } = editor.state.selection;
+               editor.commands.setContent(remoteData, false);
+               // Restore cursor
+               editor.commands.setTextSelection({ from, to });
+             }
          }
        }
     });
 
     return () => unsub();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceMode, projectId, currentUser, roomId]);
+  }, [workspaceMode, projectId, currentUser, roomId, editor]);
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
-    const newContent = e.currentTarget.innerHTML;
+  const handleInput = (newContent: string) => {
     setContent(newContent);
     if (isSyncingRef.current) {
         isSyncingRef.current = false;
@@ -224,14 +245,18 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser }: 
     <div className="w-full h-full overflow-auto p-4 md:p-8 flex justify-center custom-scrollbar">
       <div 
         className={cn(
-          "w-full max-w-[816px] min-h-[1056px] bg-white outline-none p-12 lg:p-24 transition-all duration-300 prose prose-slate max-w-none",
+          "w-full max-w-[816px] min-h-[1056px] bg-white outline-none p-12 lg:p-24 transition-all duration-300 prose prose-slate max-w-none tiptap-editor",
           performanceMode === 'heavy' ? "shadow-2xl border border-slate-200" : "shadow-sm border border-slate-100"
         )}
-        contentEditable
-        suppressContentEditableWarning
-        onInput={handleInput}
-        dangerouslySetInnerHTML={{ __html: sanitizeHTML(content) }}
-      />
+      >
+        <EditorContent editor={editor} />
+      </div>
+      <style dangerouslySetInnerHTML={{__html: `
+        .tiptap-editor .ProseMirror:focus { outline: none; }
+        .tiptap-editor .ProseMirror > * + * { margin-top: 0.75em; }
+        .tiptap-editor .ProseMirror ul, .tiptap-editor .ProseMirror ol { padding: 0 1rem; }
+        .tiptap-editor .ProseMirror blockquote { border-left: 3px solid rgba(13, 13, 13, 0.1); padding-left: 1rem; }
+      `}} />
     </div>
   );
 }
@@ -239,7 +264,27 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser }: 
 function SheetsEditor({ workspaceMode, projectId, currentUser }: { workspaceMode: 'private' | 'agency', projectId: string, currentUser: any }) {
   const [data, setData] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(false);
+  const [activeCell, setActiveCell] = useState<string | null>(null);
   const isSyncingRef = useRef(false);
+  
+  const parser = useRef(new Parser()).current;
+
+  // Configure formula parser to resolve cell coordinates (e.g. A1, B2) to values from data state
+  useEffect(() => {
+    parser.on('callCellValue', (cellCoord: any, done: any) => {
+       const col = cellCoord.column.index;
+       const row = cellCoord.row.index + 1;
+       const cellId = `${String.fromCharCode(65 + col)}${row}`;
+       
+       let val = data[cellId];
+       if (val && val.startsWith('=')) {
+          // nested evaluation is risky but simple for basic usage
+          const res = parser.parse(val.substring(1));
+          val = res.error ? res.error : res.result;
+       }
+       done(val || '');
+    });
+  }, [data, parser]);
 
   const roomId = `sheets-${projectId}`;
 
@@ -319,11 +364,21 @@ function SheetsEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
             </div>
             {cols.map(c => {
               const cellId = `${c}${r}`;
+              const rawValue = data[cellId] !== undefined ? data[cellId] : (r === 1 ? `Header ${c}` : r === 2 && c === 'A' ? '1250.00' : '');
+              
+              let displayValue = rawValue;
+              if (activeCell !== cellId && typeof rawValue === 'string' && rawValue.startsWith('=')) {
+                 const res = parser.parse(rawValue.substring(1));
+                 displayValue = res.error ? res.error : res.result?.toString() || '';
+              }
+              
               return (
               <div key={c} className="w-24 h-6 shrink-0 border-r border-slate-100 relative">
                 <input 
-                  value={data[cellId] !== undefined ? data[cellId] : (r === 1 ? `Header ${c}` : r === 2 && c === 'A' ? '1250.00' : '')}
+                  value={activeCell === cellId ? rawValue : displayValue}
                   onChange={(e) => handleChange(cellId, e.target.value)}
+                  onFocus={() => setActiveCell(cellId)}
+                  onBlur={() => setActiveCell(null)}
                   className={cn(
                      "w-full h-full outline-none px-1 py-0.5 text-slate-700 focus:bg-blue-50/50 focus:ring-1 focus:ring-blue-500 focus:ring-inset",
                      r === 1 ? 'font-bold bg-slate-50' : 'bg-transparent'
@@ -341,6 +396,7 @@ function SheetsEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
 function SlidesEditor({ workspaceMode, projectId, currentUser }: { workspaceMode: 'private' | 'agency', projectId: string, currentUser: any }) {
   const [title, setTitle] = useState("Project \"Edge\"");
   const [subtitle, setSubtitle] = useState("An infrastructure presentation explaining local-first architecture and node scaling.");
+  const [positions, setPositions] = useState({ title: { x: 0, y: -40 }, subtitle: { x: 0, y: 40 } });
   const [loaded, setLoaded] = useState(false);
   const isSyncingRef = useRef(false);
 
@@ -354,9 +410,11 @@ function SlidesEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
         if (workspaceMode === 'private' && saved) {
           setTitle(saved.title || "");
           setSubtitle(saved.subtitle || "");
+          if (saved.positions) setPositions(saved.positions);
         } else if (saved && (saved.title !== undefined || saved.subtitle !== undefined)) {
           if (saved.title !== undefined) setTitle(saved.title);
           if (saved.subtitle !== undefined) setSubtitle(saved.subtitle);
+          if (saved.positions !== undefined) setPositions(saved.positions);
         }
         setLoaded(true);
     });
@@ -364,13 +422,10 @@ function SlidesEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
     const unsub = Storage.subscribe('docs', roomId, workspaceMode, (state: any) => {
        if (state) {
           isSyncingRef.current = true;
-          if (workspaceMode === 'private') {
-             if (state.title !== undefined) setTitle(state.title);
-             if (state.subtitle !== undefined) setSubtitle(state.subtitle);
-          } else {
-             if (state.title !== undefined) setTitle(state.title);
-             if (state.subtitle !== undefined) setSubtitle(state.subtitle);
-          }
+          const target = workspaceMode === 'private' ? state : state;
+          if (target.title !== undefined) setTitle(target.title);
+          if (target.subtitle !== undefined) setSubtitle(target.subtitle);
+          if (target.positions !== undefined) setPositions(target.positions);
        }
     });
 
@@ -379,7 +434,7 @@ function SlidesEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const saveContent = (t: string, s: string) => {
+  const saveContent = (t: string, s: string, p: any) => {
     if (isSyncingRef.current) {
         isSyncingRef.current = false;
         return;
@@ -388,9 +443,9 @@ function SlidesEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
         if (workspaceMode === 'private') {
-           Storage.setDoc('docs', roomId, { title: t, subtitle: s }, workspaceMode);
+           Storage.setDoc('docs', roomId, { title: t, subtitle: s, positions: p }, workspaceMode);
         } else {
-           Storage.setDoc('docs', roomId, { title: t, subtitle: s, workspaceMode: 'agency' }, workspaceMode);
+           Storage.setDoc('docs', roomId, { title: t, subtitle: s, positions: p, workspaceMode: 'agency' }, workspaceMode);
         }
     }, 500);
   };
@@ -404,13 +459,22 @@ function SlidesEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
   const handleTitleChange = (e: React.FormEvent<HTMLHeadingElement>) => {
     const t = e.currentTarget.innerText;
     setTitle(t);
-    saveContent(t, subtitle);
+    saveContent(t, subtitle, positions);
   };
 
   const handleSubtitleChange = (e: React.FormEvent<HTMLParagraphElement>) => {
     const s = e.currentTarget.innerText;
     setSubtitle(s);
-    saveContent(title, s);
+    saveContent(title, s, positions);
+  };
+
+  const handleDragEnd = (element: 'title' | 'subtitle', info: any) => {
+    const newPositions = {
+      ...positions,
+      [element]: { x: positions[element].x + info.offset.x, y: positions[element].y + info.offset.y }
+    };
+    setPositions(newPositions);
+    saveContent(title, subtitle, newPositions);
   };
 
   if (!loaded) return <div className="p-8 text-slate-500">Loading slides...</div>;
@@ -437,23 +501,31 @@ function SlidesEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
       
       {/* Main Canvas */}
       <div className="flex-1 overflow-auto bg-slate-100 flex items-center justify-center p-8">
-         <div className="w-full max-w-3xl aspect-video bg-white shadow-xl flex flex-col p-12 justify-center items-center text-center">
-            <h1 
-              className="text-5xl font-bold text-slate-800 mb-6 focus:outline-none" 
+         <div className="w-full max-w-3xl aspect-video bg-white shadow-xl flex flex-col p-12 justify-center items-center text-center relative overflow-hidden ring-1 ring-slate-200">
+            <motion.h1 
+              drag
+              dragMomentum={false}
+              onDragEnd={(_, info) => handleDragEnd('title', info)}
+              animate={{ x: positions.title.x, y: positions.title.y }}
+              className="text-5xl font-bold text-slate-800 mb-6 focus:outline-none cursor-move hover:ring-2 hover:ring-amber-400 absolute px-4 py-2 rounded" 
               contentEditable 
               suppressContentEditableWarning
               onInput={handleTitleChange}
             >
               {title}
-            </h1>
-            <p 
-              className="text-xl text-slate-500 focus:outline-none max-w-lg" 
+            </motion.h1>
+            <motion.p 
+              drag
+              dragMomentum={false}
+              onDragEnd={(_, info) => handleDragEnd('subtitle', info)}
+              animate={{ x: positions.subtitle.x, y: positions.subtitle.y }}
+              className="text-xl text-slate-500 focus:outline-none max-w-lg cursor-move hover:ring-2 hover:ring-amber-400 absolute px-4 py-2 rounded" 
               contentEditable 
               suppressContentEditableWarning
               onInput={handleSubtitleChange}
             >
               {subtitle}
-            </p>
+            </motion.p>
          </div>
       </div>
     </div>

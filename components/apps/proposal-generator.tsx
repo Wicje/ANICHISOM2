@@ -4,20 +4,42 @@ import React, { useState } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
 import { Sparkles, FileText, Download, Send, CheckCircle2, Bot, Layers, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
+import { StorageAdapter } from '@/lib/storage';
 
 export function ProposalGenerator({ window: osWindow }: { window: OSWindow }) {
-  const { emitEvent, currentUser } = useOS();
+  const { emitEvent, currentUser, workspaceMode } = useOS();
+  const [storage] = useState(() => new StorageAdapter('proposal-generator', workspaceMode));
   const [isGenerating, setIsGenerating] = useState(false);
   const [generated, setGenerated] = useState(false);
   const [clientName, setClientName] = useState('Acme Corp');
   const [projectScope, setProjectScope] = useState('Q3 Brand Campaign & Digital Experience');
   const [budget, setBudget] = useState('25,000');
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    storage.get('current-proposal').then(data => {
+      if (data) {
+        setClientName(data.clientName || '');
+        setProjectScope(data.projectScope || '');
+        setBudget(data.budget || '');
+        if (data.generated) setGenerated(true);
+      }
+      setIsLoaded(true);
+    });
+  }, [storage]);
+
+  const saveState = (newState: any) => {
+    storage.set('current-proposal', {
+      clientName, projectScope, budget, generated, ...newState
+    });
+  };
 
   const handleGenerate = () => {
     setIsGenerating(true);
     setTimeout(() => {
       setIsGenerating(false);
       setGenerated(true);
+      saveState({ generated: true });
       emitEvent({
         workspaceId: 'global',
         type: 'project_updated',
@@ -39,6 +61,8 @@ export function ProposalGenerator({ window: osWindow }: { window: OSWindow }) {
     alert(`Proposal sent to ${clientName}!`);
   };
 
+  if (!isLoaded) return <div className="w-full h-full bg-[#111] flex items-center justify-center text-white/50 animate-pulse">Loading Proposal Engine...</div>;
+
   return (
     <div className="w-full h-full flex bg-[#111] text-white font-sans overflow-hidden">
       {/* Editor Side */}
@@ -55,7 +79,10 @@ export function ProposalGenerator({ window: osWindow }: { window: OSWindow }) {
               <input 
                 type="text" 
                 value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
+                onChange={(e) => {
+                  setClientName(e.target.value);
+                  saveState({ clientName: e.target.value });
+                }}
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-purple-500/50 transition-colors"
               />
             </div>
@@ -64,7 +91,10 @@ export function ProposalGenerator({ window: osWindow }: { window: OSWindow }) {
               <label className="text-xs text-white/50 font-bold uppercase tracking-wider mb-2 block">Project Scope</label>
               <textarea 
                 value={projectScope}
-                onChange={(e) => setProjectScope(e.target.value)}
+                onChange={(e) => {
+                  setProjectScope(e.target.value);
+                  saveState({ projectScope: e.target.value });
+                }}
                 rows={3}
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-purple-500/50 transition-colors resize-none"
               />
@@ -75,7 +105,10 @@ export function ProposalGenerator({ window: osWindow }: { window: OSWindow }) {
               <input 
                 type="text" 
                 value={budget}
-                onChange={(e) => setBudget(e.target.value)}
+                onChange={(e) => {
+                  setBudget(e.target.value);
+                  saveState({ budget: e.target.value });
+                }}
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-purple-500/50 transition-colors"
               />
             </div>

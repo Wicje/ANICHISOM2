@@ -6,11 +6,11 @@ import {
   Plus, MoreHorizontal, Smile, Menu, PanelLeftClose, PanelLeft, 
   GripVertical, ChevronRight, CheckSquare, Square, Heading1, 
   Heading2, Heading3, List, Type, Image as ImageIcon, Link as LinkIcon, Database, Trash2,
-  Calendar, LayoutList, Share2, AtSign, Columns, Clock, Copy, Globe, Lock
+  Calendar, LayoutList, Share2, AtSign, Columns, Clock, Copy, Globe, Lock, Code
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type BlockType = 'p' | 'h1' | 'h2' | 'h3' | 'todo' | 'bullet' | 'image' | 'database';
+type BlockType = 'p' | 'h1' | 'h2' | 'h3' | 'todo' | 'bullet' | 'image' | 'database' | 'code';
 
 type Block = {
   id: string;
@@ -71,6 +71,7 @@ const SLASH_COMMANDS = [
   { id: 'bullet', label: 'Bulleted List', icon: List },
   { id: 'image', label: 'Image', icon: ImageIcon },
   { id: 'database', label: 'Database', icon: Database },
+  { id: 'code', label: 'Code Snippet', icon: Code },
 ];
 
 const TEAM_MEMBERS = ['@Founder', '@CreativeDir', '@Designer', '@Developer', '@Filmmaker', '@Copywriter', '@DataRecovery'];
@@ -146,6 +147,8 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [awarenessInfo, setAwarenessInfo] = useState<any[]>([]);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [clipperOpen, setClipperOpen] = useState(false);
+  const [formsOpen, setFormsOpen] = useState(false);
   
   const projectId = osWindow.data?.projectId || 'global';
   const roomId = `campaign-${workspaceMode}-${projectId}`;
@@ -314,8 +317,8 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
         <div className="w-64 shrink-0 bg-[#f7f7f5] border-r border-black/5 flex flex-col h-full overflow-hidden transition-all duration-300">
           <div className="p-3 flex items-center justify-between hover:bg-black/5 cursor-pointer text-sm font-medium">
             <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded bg-orange-500 font-bold text-white flex items-center justify-center text-xs">C</div>
-              <span>Campaign Lab</span>
+              <div className="w-5 h-5 rounded bg-blue-500 font-bold text-white flex items-center justify-center text-xs">W</div>
+              <span>Workspace</span>
             </div>
             <button onClick={() => setSidebarOpen(false)} className="p-1 hover:bg-black/5 rounded text-[#37352f]/50 hover:text-[#37352f]">
               <PanelLeftClose className="w-4 h-4" />
@@ -348,6 +351,18 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                     <span>{t.name}</span>
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="mt-6 px-3 border-t border-black/5 pt-4">
+              <div className="text-xs font-semibold text-[#37352f]/50 uppercase tracking-wider mb-2">Tools</div>
+              <div className="flex flex-col gap-1">
+                <button onClick={() => setClipperOpen(true)} className="flex items-center gap-2 text-xs text-[#37352f]/70 hover:bg-black/5 p-2 rounded text-left">
+                  <span>✂️</span> Web Clipper & Imports
+                </button>
+                <button onClick={() => setFormsOpen(true)} className="flex items-center gap-2 text-xs text-[#37352f]/70 hover:bg-black/5 p-2 rounded text-left">
+                  <span>📝</span> Forms & Submissions
+                </button>
               </div>
             </div>
           </div>
@@ -492,6 +507,112 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      {clipperOpen && (
+        <div className="absolute inset-0 z-[100] bg-white/80 backdrop-blur-sm flex items-center justify-center p-8">
+          <div className="bg-white border border-black/10 shadow-2xl rounded-2xl w-full max-w-md p-6 relative">
+            <button onClick={() => setClipperOpen(false)} className="absolute top-4 right-4 p-2 hover:bg-black/5 rounded-full"><Plus className="w-5 h-5 rotate-45" /></button>
+            <h2 className="text-xl font-bold mb-2">Web Clipper & Imports</h2>
+            <p className="text-sm text-[#37352f]/60 mb-6">Save web pages directly to your workspace or import existing data.</p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-[#37352f]/50 mb-2 block">Clip from Web</label>
+                <div className="flex gap-2">
+                  <input id="clip-url" type="text" placeholder="https://..." className="flex-1 border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+                  <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors" onClick={() => {
+                     const url = (document.getElementById('clip-url') as HTMLInputElement)?.value;
+                     if (!url || !activePage) return;
+                     const newBlocks = [
+                       ...activePage.blocks,
+                       { id: crypto.randomUUID(), type: 'h2' as const, content: `Clipped: ${url}` },
+                       { id: crypto.randomUUID(), type: 'p' as const, content: 'This content was imported via the Web Clipper.' }
+                     ];
+                     updateBlocks(activePage.id, newBlocks);
+                     setClipperOpen(false);
+                  }}>Clip</button>
+                </div>
+              </div>
+              
+              <div className="pt-4 border-t border-black/5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-[#37352f]/50 mb-2 block">Import from</label>
+                <div className="grid grid-cols-2 gap-2">
+                   {['Evernote', 'Word', 'Google Docs', 'Notion'].map((source) => (
+                     <button 
+                       key={source}
+                       onClick={() => {
+                         if (!activePage) return;
+                         const newBlocks = [
+                           ...activePage.blocks,
+                           { id: crypto.randomUUID(), type: 'h2' as const, content: `Imported from ${source}` },
+                           { id: crypto.randomUUID(), type: 'p' as const, content: `Document content extracted from ${source} archive.` }
+                         ];
+                         updateBlocks(activePage.id, newBlocks);
+                         setClipperOpen(false);
+                       }}
+                       className="border border-black/10 hover:bg-black/5 rounded-lg p-3 text-sm flex items-center gap-2 transition-colors"
+                     >
+                       <div className="w-5 h-5 bg-black rounded flex items-center justify-center text-white font-bold text-[10px]">{source[0]}</div>
+                       {source}
+                     </button>
+                   ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {formsOpen && (
+        <div className="absolute inset-0 z-[100] bg-white/80 backdrop-blur-sm flex items-center justify-center p-8">
+          <div className="bg-white border border-black/10 shadow-2xl rounded-2xl w-full max-w-lg p-6 relative">
+            <button onClick={() => setFormsOpen(false)} className="absolute top-4 right-4 p-2 hover:bg-black/5 rounded-full"><Plus className="w-5 h-5 rotate-45" /></button>
+            <h2 className="text-xl font-bold mb-2">Workspace Forms</h2>
+            <p className="text-sm text-[#37352f]/60 mb-6">Build easy-to-use forms that pipe submissions directly into your databases.</p>
+            
+            <div className="bg-[#f7f7f5] border border-black/5 rounded-xl p-4 mb-4">
+              <div className="text-sm font-semibold mb-3">Target Database</div>
+              <select className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white">
+                 <option>Deliverables (Current Page)</option>
+                 <option>Supplier Contacts</option>
+                 <option>BOM Tracker</option>
+              </select>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              <div className="text-sm font-semibold">Form Fields</div>
+              <div className="flex items-center gap-3 bg-white border border-black/10 p-3 rounded-lg shadow-sm">
+                 <Type className="w-4 h-4 text-[#37352f]/40" />
+                 <span className="text-sm flex-1">Name</span>
+                 <span className="text-xs text-[#37352f]/40">Short Text</span>
+              </div>
+              <div className="flex items-center gap-3 bg-white border border-black/10 p-3 rounded-lg shadow-sm">
+                 <AtSign className="w-4 h-4 text-[#37352f]/40" />
+                 <span className="text-sm flex-1">Email</span>
+                 <span className="text-xs text-[#37352f]/40">Email</span>
+              </div>
+              <button className="w-full border border-dashed border-black/20 hover:border-black/40 hover:bg-black/5 rounded-lg p-3 text-sm flex items-center justify-center gap-2 text-[#37352f]/60 transition-colors">
+                <Plus className="w-4 h-4" /> Add Field
+              </button>
+            </div>
+
+            <div className="flex gap-3">
+              <button className="flex-1 bg-black hover:bg-black/80 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors" onClick={() => {
+                 if (!activePage) return;
+                 const newBlocks = [
+                   ...activePage.blocks,
+                   { id: crypto.randomUUID(), type: 'h2' as const, content: `Form Submissions` },
+                   { id: crypto.randomUUID(), type: 'database' as const, content: '' }
+                 ];
+                 updateBlocks(activePage.id, newBlocks);
+                 setFormsOpen(false);
+              }}>Publish Form (Insert Database)</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -664,13 +785,12 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (blocks:
     const slashMatch = val.match(/(?:\s|^)\/([a-zA-Z0-9]*)$/);
     const mentionMatch = val.match(/(?:\s|^)@([a-zA-Z0-9]*)$/);
     
-    const parentRect = document.getElementById('campaign-scroll-container')?.getBoundingClientRect();
     const rect = e.target.getBoundingClientRect();
     
-    if (slashMatch && parentRect) {
+    if (slashMatch) {
       setSlashMenu({ index, x: rect.left, y: rect.bottom, query: slashMatch[1] || '' });
       setMentionMenu(null);
-    } else if (mentionMatch && parentRect) {
+    } else if (mentionMatch) {
       setMentionMenu({ index, x: rect.left + 50, y: rect.bottom, query: mentionMatch[1] || '' });
       setSlashMenu(null);
     } else {
@@ -738,6 +858,7 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (blocks:
           block.type === 'p' && "text-base text-[#37352f] min-h-[24px]",
           block.type === 'todo' && "text-base text-[#37352f]",
           block.type === 'bullet' && "text-base text-[#37352f]",
+          block.type === 'code' && "text-sm font-mono bg-[#f7f7f5] border border-black/5 p-4 rounded-lg text-[#37352f] min-h-[80px] my-2 w-full",
           block.type === 'image' && "hidden",
           block.type === 'database' && "hidden"
         );
@@ -966,13 +1087,75 @@ function DatabaseView({ block }: { block: Block }) {
           </div>
         )}
 
-        {(view === 'calendar' || view === 'timeline') && (
-          <div className="h-64 flex flex-col items-center justify-center bg-slate-50 border-t border-black/5">
-            <ViewIcon className="w-8 h-8 text-slate-300 mb-3" />
-            <div className="text-sm font-medium text-slate-500">
-              {view === 'calendar' ? 'Monthly Calendar View' : 'Gantt Timeline View'}
+        {view === 'calendar' && (
+          <div className="p-4 bg-white border-t border-black/5 min-h-[400px]">
+             <div className="grid grid-cols-7 gap-px bg-black/5 border border-black/5 rounded-lg overflow-hidden">
+               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                 <div key={day} className="bg-slate-50 p-2 text-center text-xs font-semibold text-black/50 uppercase tracking-wider">{day}</div>
+               ))}
+               {Array.from({length: 35}).map((_, i) => {
+                 const dayNum = i - 2 > 0 && i - 2 <= 31 ? i - 2 : null;
+                 const dayItems = d.rows.filter(r => r.Date.includes(dayNum?.toString() || 'xx'));
+                 
+                 return (
+                   <div key={i} className="bg-white min-h-[100px] p-2 hover:bg-slate-50 transition-colors">
+                     {dayNum && <div className="text-sm text-black/40 font-medium mb-1">{dayNum}</div>}
+                     <div className="flex flex-col gap-1">
+                       {dayItems.map(r => (
+                         <div key={r.id} className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-1 rounded font-medium truncate cursor-pointer hover:bg-blue-200">
+                           {r.Name}
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                 );
+               })}
+             </div>
+          </div>
+        )}
+
+        {view === 'timeline' && (
+          <div className="p-4 bg-white border-t border-black/5 overflow-x-auto">
+            <div className="min-w-[800px]">
+              {/* Timeline Header */}
+              <div className="flex border-b border-black/5 pb-2 mb-4">
+                <div className="w-48 shrink-0 font-medium text-xs text-black/50 uppercase tracking-wider pl-2">Task</div>
+                <div className="flex-1 flex justify-between text-xs text-black/40 font-medium px-4">
+                  <span>Oct 15</span>
+                  <span>Oct 20</span>
+                  <span>Oct 25</span>
+                  <span>Oct 30</span>
+                </div>
+              </div>
+              
+              {/* Timeline Rows */}
+              <div className="flex flex-col gap-3">
+                {d.rows.map((r, i) => {
+                  // Fake date parsing for visual effect
+                  const startPercent = 10 + (i * 20);
+                  const widthPercent = 15 + (i * 10);
+                  
+                  return (
+                    <div key={r.id} className="flex items-center group cursor-pointer">
+                      <div className="w-48 shrink-0 text-sm font-medium text-[#37352f] truncate pr-4 pl-2 group-hover:text-blue-600 transition-colors">
+                        {r.Name}
+                      </div>
+                      <div className="flex-1 relative h-8 bg-slate-50 rounded-lg overflow-hidden border border-black/5">
+                        <div 
+                          className={cn(
+                            "absolute top-1 bottom-1 rounded-md flex items-center px-2 text-[10px] font-bold text-white shadow-sm transition-transform hover:scale-[1.02]",
+                            r.Status === 'Done' ? "bg-emerald-500" : r.Status === 'In Progress' ? "bg-blue-500" : "bg-slate-400"
+                          )}
+                          style={{ left: `${startPercent}%`, width: `${widthPercent}%` }}
+                        >
+                          <span className="truncate">{r.Assignee}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div className="text-xs text-slate-400 mt-1">This specific view rendering is scheduled for Phase 3</div>
           </div>
         )}
       </div>

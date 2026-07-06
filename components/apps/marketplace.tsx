@@ -19,7 +19,7 @@ interface PluginPack {
 
 const AVAILABLE_PACKS: PluginPack[] = [
   {
-    id: 'pack-anichisom',
+    id: 'proposals',
     name: 'ANICHISOM Creative Pack',
     description: 'The ultimate agency toolkit. Moodboard Mill, Proposal Generator, Client Portal, and Brand Guides.',
     developer: 'ANICHISOM',
@@ -29,7 +29,7 @@ const AVAILABLE_PACKS: PluginPack[] = [
     isFirstParty: true
   },
   {
-    id: 'pack-ziklag',
+    id: 'ziklag',
     name: 'Ziklag Forensics Pack',
     description: 'Data recovery and forensics toolkit. Case Management, Chain of Custody, and Evidence Logs.',
     developer: 'ANICHISOM',
@@ -39,7 +39,7 @@ const AVAILABLE_PACKS: PluginPack[] = [
     isFirstParty: true
   },
   {
-    id: 'pack-clothing',
+    id: 'clothing',
     name: 'Clothing Brand Pack',
     description: 'End-to-end fashion venture management. Lookbooks, inventory, and Shopify integration.',
     developer: 'ANICHISOM',
@@ -49,7 +49,7 @@ const AVAILABLE_PACKS: PluginPack[] = [
     isFirstParty: true
   },
   {
-    id: 'pack-hardware',
+    id: 'hardware',
     name: 'Hardware Pack',
     description: 'Electronics venture management. BOMs, firmware tracking, and component libraries.',
     developer: 'ANICHISOM',
@@ -59,7 +59,7 @@ const AVAILABLE_PACKS: PluginPack[] = [
     isFirstParty: true
   },
   {
-    id: 'pack-developer',
+    id: 'developer',
     name: 'Developer Pack',
     description: 'Freelance developer environment. Deployment tracking, code review logs, and CI bridge.',
     developer: 'ANICHISOM',
@@ -69,7 +69,7 @@ const AVAILABLE_PACKS: PluginPack[] = [
     isFirstParty: true
   },
   {
-    id: 'pack-photography',
+    id: 'photography',
     name: 'Photography Pack',
     description: 'Freelance photography toolkit. Galleries, client delivery, and print orders.',
     developer: 'ANICHISOM',
@@ -77,39 +77,28 @@ const AVAILABLE_PACKS: PluginPack[] = [
     icon: Camera,
     features: ['Gallery Manager', 'Client Delivery', 'Watermarking', 'Print Orders'],
     isFirstParty: true
+  },
+  {
+    id: 'sidegigs',
+    name: 'Side Gigs Pack',
+    description: 'Manage multiple side hustles easily. Income tracking, client CRM, and task boards.',
+    developer: 'ANICHISOM',
+    price: '$5/mo',
+    icon: Briefcase,
+    features: ['Income Tracker', 'Client CRM', 'Task Boards', 'Tax Export'],
+    isFirstParty: true
   }
 ];
 
 export function Marketplace({ window: osWindow }: { window: OSWindow }) {
-  const { emitEvent, currentUser } = useOS();
-  const [installedPlugins, setInstalledPlugins] = useState<string[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const { emitEvent, currentUser, installedApps, installApp, uninstallApp } = useOS();
   const [selectedPack, setSelectedPack] = useState<PluginPack | null>(null);
   const [viewMode, setViewMode] = useState<'store' | 'developer'>('store');
   const [submitForm, setSubmitForm] = useState({ name: '', description: '', price: '', githubUrl: '' });
   const [submitted, setSubmitted] = useState(false);
 
-  useEffect(() => {
-    // Load installed plugins from IndexedDB (mocking private registry state)
-    const loadPlugins = async () => {
-      try {
-        const stored = await get('anichisom_installed_plugins');
-        if (stored && Array.isArray(stored)) {
-          setInstalledPlugins(stored);
-        }
-      } catch (e) {
-        console.error('Failed to load plugins:', e);
-      } finally {
-        setIsLoaded(true);
-      }
-    };
-    loadPlugins();
-  }, []);
-
   const handleInstall = async (pack: PluginPack) => {
-    const newInstalled = [...installedPlugins, pack.id];
-    setInstalledPlugins(newInstalled);
-    await set('anichisom_installed_plugins', newInstalled);
+    await installApp(pack.id);
     
     emitEvent({
       workspaceId: 'global',
@@ -121,9 +110,7 @@ export function Marketplace({ window: osWindow }: { window: OSWindow }) {
   };
 
   const handleUninstall = async (packId: string) => {
-    const newInstalled = installedPlugins.filter(id => id !== packId);
-    setInstalledPlugins(newInstalled);
-    await set('anichisom_installed_plugins', newInstalled);
+    await uninstallApp(packId);
     
     emitEvent({
       workspaceId: 'global',
@@ -133,10 +120,6 @@ export function Marketplace({ window: osWindow }: { window: OSWindow }) {
       comment: `Uninstalled plugin pack: ${packId}`
     });
   };
-
-  if (!isLoaded) {
-    return <div className="w-full h-full bg-[#0a0a0a] flex items-center justify-center text-white/50 animate-pulse">Loading Ecosystem...</div>;
-  }
 
   return (
     <div className="w-full h-full flex bg-[#0a0a0a] text-white font-sans overflow-hidden">
@@ -166,7 +149,7 @@ export function Marketplace({ window: osWindow }: { window: OSWindow }) {
         <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
           {viewMode === 'store' ? AVAILABLE_PACKS.map(pack => {
             const Icon = pack.icon;
-            const isInstalled = installedPlugins.includes(pack.id);
+            const isInstalled = installedApps.includes(pack.id);
             const isSelected = selectedPack?.id === pack.id;
             
             return (
@@ -294,7 +277,7 @@ export function Marketplace({ window: osWindow }: { window: OSWindow }) {
                 <p className="text-white/60 text-sm mb-4 leading-relaxed">{selectedPack.description}</p>
                 <div className="text-xs text-white/40 mb-6">By {selectedPack.developer}</div>
                 
-                {installedPlugins.includes(selectedPack.id) ? (
+                {installedApps.includes(selectedPack.id) ? (
                   <div className="flex gap-3">
                     <button className="px-6 py-2 bg-white/10 text-white rounded-lg text-sm font-medium flex items-center gap-2 cursor-default">
                       <CheckCircle className="w-4 h-4 text-emerald-400" /> Installed

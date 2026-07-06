@@ -52,6 +52,10 @@ type OSContextType = {
   activeWorkspace: number;
   setActiveWorkspace: (id: number) => void;
   setPerformanceMode: (mode: PerformanceMode) => void;
+  installedApps: string[];
+  recentApps: string[];
+  installApp: (appId: string) => Promise<void>;
+  uninstallApp: (appId: string) => Promise<void>;
   openWindow: (appId: string, title?: string, data?: any) => void;
   closeWindow: (id: string) => void;
   focusWindow: (id: string) => void;
@@ -83,6 +87,8 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
   const [performanceMode, setPerformanceMode] = useState<PerformanceMode>('heavy');
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('private');
   const [activeWorkspace, setActiveWorkspace] = useState(0);
+  const [installedApps, setInstalledApps] = useState<string[]>([]);
+  const [recentApps, setRecentApps] = useState<string[]>([]);
   const highestZIndexRef = useRef(10);
   const isHydratedRef = useRef(false);
   // Phase 1: Workspace state
@@ -128,6 +134,8 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
           if (localData && localData.windows) {
             setWindows(localData.windows);
             if (localData.workspaceMode) setWorkspaceMode(localData.workspaceMode);
+            if (localData.installedApps) setInstalledApps(localData.installedApps);
+            if (localData.recentApps) setRecentApps(localData.recentApps);
             const highest = Math.max(10, ...localData.windows.map((w: any) => w.zIndex || 10));
             highestZIndexRef.current = highest;
           }
@@ -143,6 +151,8 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
             if (localData && localData.windows) {
               setWindows(localData.windows);
               if (localData.workspaceMode) setWorkspaceMode(localData.workspaceMode);
+              if (localData.installedApps) setInstalledApps(localData.installedApps);
+              if (localData.recentApps) setRecentApps(localData.recentApps);
             }
             isHydratedRef.current = true;
           }
@@ -163,7 +173,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     const t = setTimeout(async () => {
       try {
         // Save to IndexedDB (local fast path)
-        await set('anichisom_os_desktop', { windows, workspaceMode });
+        await set('anichisom_os_desktop', { windows, workspaceMode, installedApps, recentApps });
         
         // Sync to server for Cross-Device Resumé (async)
         try {
@@ -172,7 +182,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              desktopState: { windows, workspaceMode, lastUpdated: Date.now() }
+              desktopState: { windows, workspaceMode, installedApps, recentApps, lastUpdated: Date.now() }
             }),
           });
         } catch (e) {
@@ -209,6 +219,24 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     }
   }, [snapshots]);
 
+  const installApp = useCallback(async (appId: string) => {
+    setInstalledApps(prev => {
+      const next = prev.includes(appId) ? prev : [...prev, appId];
+      set('anichisom_os_desktop', { windows, workspaceMode, installedApps: next });
+      return next;
+    });
+  }, [windows, workspaceMode]);
+
+  const uninstallApp = useCallback(async (appId: string) => {
+    setInstalledApps(prev => {
+      const next = prev.filter(id => id !== appId);
+      set('anichisom_os_desktop', { windows, workspaceMode, installedApps: next });
+      return next;
+    });
+    // Also close the app if it's open
+    setWindows(curr => curr.filter(w => w.appId !== appId));
+  }, [windows, workspaceMode]);
+
   const logout = useCallback(async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
@@ -237,6 +265,13 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const openWindow = useCallback((appId: string, title?: string, data?: any) => {
+    // Add to recent apps
+    setRecentApps(prev => {
+      const next = [appId, ...prev.filter(id => id !== appId)].slice(0, 5); // Keep top 5 recent
+      set('anichisom_os_desktop', { windows, workspaceMode, installedApps, recentApps: next });
+      return next;
+    });
+
     const defaultTitles: Record<string, string> = {
       'terminal': 'Terminal',
       'browser': 'Mini Browser',
@@ -464,6 +499,10 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     setActiveWorkspace,
     setWorkspaceMode,
     setPerformanceMode,
+    installedApps,
+    recentApps,
+    installApp,
+    uninstallApp,
     openWindow,
     closeWindow,
     focusWindow,
@@ -484,7 +523,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     mode,
     setMode,
     emitEvent,
-  }), [currentUser, logout, windows, snapshots, performanceMode, workspaceMode, activeWorkspace, openWindow, closeWindow, focusWindow, minimizeWindow, maximizeWindow, updateWindowDimensions, updateWindowData, applyWorkspaceLayout, loadProject, saveSnapshot, restoreSnapshot, wipeSession, workspaceId, workspaces, mode, emitEvent]);
+  }), [currentUser, logout, windows, snapshots, performanceMode, workspaceMode, activeWorkspace, installedApps, recentApps, installApp, uninstallApp, openWindow, closeWindow, focusWindow, minimizeWindow, maximizeWindow, updateWindowDimensions, updateWindowData, applyWorkspaceLayout, loadProject, saveSnapshot, restoreSnapshot, wipeSession, workspaceId, workspaces, mode, emitEvent]);
 
   return <OSContext.Provider value={value}>{children}</OSContext.Provider>;
 }

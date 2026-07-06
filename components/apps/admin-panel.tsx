@@ -3,16 +3,27 @@
 import React, { useState, useEffect } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
 import { db, doc, updateDoc, collection, getDocs, setDoc, deleteDoc, sendPasswordResetEmail, auth, onSnapshot, query, limit } from '@/lib/firebase';
-import { ShieldCheck, UserCheck, UserX, Key, RefreshCw, Loader2, AppWindow, Plus, Trash2 } from 'lucide-react';
+import { ShieldCheck, UserCheck, UserX, Key, RefreshCw, Loader2, AppWindow, Plus, Trash2, Activity, HardDrive, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from 'recharts';
 
 export function AdminPanel({ window }: { window: OSWindow }) {
   const { currentUser } = useOS();
-  const [activeTab, setActiveTab] = useState<'users'|'apps'>('users');
+  const [activeTab, setActiveTab] = useState<'dashboard'|'users'|'apps'>('dashboard');
   
   const [users, setUsers] = useState<any[]>([]);
   const [apps, setApps] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const analyticsData = [
+    { time: '00:00', load: 12, users: 4 },
+    { time: '04:00', load: 15, users: 2 },
+    { time: '08:00', load: 45, users: 18 },
+    { time: '12:00', load: 82, users: 42 },
+    { time: '16:00', load: 60, users: 35 },
+    { time: '20:00', load: 30, users: 15 },
+    { time: '24:00', load: 20, users: 8 },
+  ];
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -110,6 +121,7 @@ export function AdminPanel({ window }: { window: OSWindow }) {
               OS Configuration
            </h2>
            <div className="flex items-center gap-2 text-sm bg-white/5 p-1 rounded-lg">
+             <button onClick={() => setActiveTab('dashboard')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'dashboard' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>Dashboard</button>
              <button onClick={() => setActiveTab('users')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'users' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>Users</button>
              <button onClick={() => setActiveTab('apps')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'apps' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>App Registry</button>
            </div>
@@ -126,6 +138,52 @@ export function AdminPanel({ window }: { window: OSWindow }) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+         {activeTab === 'dashboard' && (
+           <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                 <div className="bg-[#111] border border-white/10 rounded-xl p-5 shadow-lg">
+                    <div className="flex items-center gap-2 text-white/50 mb-2 text-sm"><Activity className="w-4 h-4 text-emerald-400" /> System Load</div>
+                    <div className="text-3xl font-bold">42%</div>
+                    <div className="text-xs text-emerald-400 mt-2">Optimal performance</div>
+                 </div>
+                 <div className="bg-[#111] border border-white/10 rounded-xl p-5 shadow-lg">
+                    <div className="flex items-center gap-2 text-white/50 mb-2 text-sm"><HardDrive className="w-4 h-4 text-blue-400" /> Database I/O</div>
+                    <div className="text-3xl font-bold">12.4k</div>
+                    <div className="text-xs text-blue-400 mt-2">Operations / minute</div>
+                 </div>
+                 <div className="bg-[#111] border border-white/10 rounded-xl p-5 shadow-lg">
+                    <div className="flex items-center gap-2 text-white/50 mb-2 text-sm"><Cpu className="w-4 h-4 text-purple-400" /> Active Sessions</div>
+                    <div className="text-3xl font-bold">84</div>
+                    <div className="text-xs text-purple-400 mt-2">Across 3 regions</div>
+                 </div>
+              </div>
+              
+              <div className="bg-[#111] border border-white/10 rounded-xl p-6 shadow-lg h-80 flex flex-col mt-2">
+                 <h3 className="font-bold mb-4 text-white/80">Compute Usage & Session Load</h3>
+                 <div className="flex-1 min-h-0">
+                   <ResponsiveContainer width="100%" height="100%">
+                     <AreaChart data={analyticsData}>
+                       <defs>
+                         <linearGradient id="colorLoad" x1="0" y1="0" x2="0" y2="1">
+                           <stop offset="5%" stopColor="#34d399" stopOpacity={0.3}/>
+                           <stop offset="95%" stopColor="#34d399" stopOpacity={0}/>
+                         </linearGradient>
+                       </defs>
+                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333" />
+                       <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#666' }} dy={10} />
+                       <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#666' }} />
+                       <Tooltip 
+                         contentStyle={{ backgroundColor: '#111', borderRadius: '8px', border: '1px solid #333', color: '#fff' }}
+                         itemStyle={{ color: '#fff' }}
+                       />
+                       <Area type="monotone" dataKey="load" stroke="#34d399" strokeWidth={3} fillOpacity={1} fill="url(#colorLoad)" name="Compute Load (%)" />
+                       <Area type="monotone" dataKey="users" stroke="#60a5fa" strokeWidth={2} fill="transparent" name="Active Users" />
+                     </AreaChart>
+                   </ResponsiveContainer>
+                 </div>
+              </div>
+           </div>
+         )}
          {activeTab === 'users' && (
            <>
              {loading ? (

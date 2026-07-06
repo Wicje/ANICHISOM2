@@ -193,11 +193,8 @@ export function FileManager({ window }: { window: OSWindow }) {
       };
       
       if (activeTab === 'Ziklag NAS (Local)' || activeTab === 'Unified Explorer') {
-        import('idb-keyval').then(({ set }) => {
-          set(`file_blob_${fileId}`, file).then(() => {
-             FS.write(file.name, `blob://${fileId}`, file.type).then(() => fetchLocalFiles());
-          });
-        });
+        // Stream directly to OPFS without caching in RAM or IndexedDB
+        FS.write(file.name, file, file.type).then(() => fetchLocalFiles());
       } else if (activeTab === 'Google Drive') {
         alert('Direct upload to Google Drive requires full OAuth scopes. Supported via Firebase API in prod.');
       } else {

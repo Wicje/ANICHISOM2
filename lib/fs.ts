@@ -10,24 +10,44 @@ export interface LocalFile {
 }
 
 export const FS = {
-  // Read a file conditionally using Tauri Native FS if available, else IndexedDB.
+  // Helper to resolve nested directories in OPFS
+  _resolvePath: async (path: string, createDirs = false) => {
+     const parts = path.split('/').filter(Boolean);
+     const fileName = parts.pop() || '';
+     let current = await navigator.storage.getDirectory();
+     
+     for (const part of parts) {
+        current = await current.getDirectoryHandle(part, { create: createDirs });
+     }
+     return { dir: current, name: fileName };
+  },
+
+  // Read a file using OPFS or fallback to IndexedDB.
   read: async (path: string): Promise<LocalFile | null> => {
     try {
-      // @ts-ignore
-      if (window.__TAURI__) {
-        /*
-        // UNCOMMENT FOR PHASE 3
-        const { readTextFile } = await import('@tauri-apps/api/fs');
-        const content = await readTextFile(path);
+      if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.getDirectory) {
+        const { dir, name } = await FS._resolvePath(path);
+        const handle = await dir.getFileHandle(name);
+        const file = await handle.getFile();
+        
+        let content = '';
+        // Use Object URLs for large binaries to prevent RAM exhaustion. Text files use raw strings.
+        if (file.type.startsWith('image/') || file.type.startsWith('video/') || file.type.includes('pdf') || file.type.includes('octet-stream')) {
+           content = URL.createObjectURL(file);
+        } else {
+           content = await file.text(); 
+        }
+        
         return {
           id: path,
-          name: path.split('/').pop() || 'unknown',
+          name: file.name,
           content,
+          size: file.size,
+          mimeType: file.type
         };
-        */
       }
     } catch (e) {
-      console.log('Tauri not found, falling back to IndexedDB');
+      console.warn(`OPFS read failed for ${path}, falling back to IndexedDB`, e);
     }
     
     // IndexedDB Fallback
@@ -35,70 +55,100 @@ export const FS = {
     return file || null;
   },
 
-  // Write a file conditionally
-  write: async (path: string, content: string, mimeType?: string): Promise<void> => {
+  // Write a file to OPFS or IndexedDB
+  write: async (path: string, content: string | Blob | File, mimeType?: string): Promise<void> => {
     try {
-      // @ts-ignore
-      if (window.__TAURI__) {
-        /*
-        // UNCOMMENT FOR PHASE 3
-        const { writeTextFile } = await import('@tauri-apps/api/fs');
-        await writeTextFile(path, content);
+      if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.getDirectory) {
+        const { dir, name } = await FS._resolvePath(path, true);
+        const handle = await dir.getFileHandle(name, { create: true });
+        
+        // @ts-ignore
+        const writable = await handle.createWritable();
+        await writable.write(content);
+        await writable.close();
         return;
-        */
       }
     } catch (e) {
-      // Fallback
+      console.warn(`OPFS write failed for ${path}, falling back to IndexedDB`, e);
     }
     
+    // IndexedDB Fallback (Does not support massive Blobs efficiently without crashing)
+    let stringContent = typeof content === 'string' ? content : '';
+    if (content instanceof Blob && !stringContent) {
+       stringContent = 'blob:unsupported-in-idb'; // Avoid RAM crash on legacy
+    }
+
     await set(`file_${path}`, {
       id: path,
       name: path.split('/').pop() || 'unknown',
-      content,
-      mimeType,
-      size: content.length,
+      content: stringContent,
+      mimeType: mimeType || (content instanceof Blob ? content.type : 'text/plain'),
+      size: typeof content === 'string' ? content.length : content.size,
     });
   },
 
-  // List directory conditionally
-  readDir: async (dir: string = ''): Promise<LocalFile[]> => {
+  // List directory contents recursively
+  readDir: async (dirPath: string = ''): Promise<LocalFile[]> => {
+    const files: LocalFile[] = [];
     try {
-      // @ts-ignore
-      if (window.__TAURI__) {
-        /*
-        // UNCOMMENT FOR PHASE 3
-        const { readDir } = await import('@tauri-apps/api/fs');
-        const entries = await readDir(dir);
-        return entries.map((e: any) => ({
-          id: e.path,
-          name: e.name,
-        }));
-        */
+      if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.getDirectory) {
+        
+        const traverse = async (currentDir: any, currentPath: string) => {
+           for await (const [name, handle] of currentDir.entries()) {
+              const fullPath = currentPath ? `${currentPath}/${name}` : name;
+              if (handle.kind === 'file') {
+                 try {
+                    const file = await handle.getFile();
+                    // Generate Object URLs so apps can instantly render images/videos in grids without fetching payloads
+                    let contentUrl = '';
+                    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+                       contentUrl = URL.createObjectURL(file);
+                    }
+                    files.push({
+                      id: fullPath,
+                      name: name,
+                      size: file.size,
+                      mimeType: file.type,
+                      content: contentUrl
+                    });
+                 } catch (err) {
+                    // Ignore unreadable files
+                 }
+              } else if (handle.kind === 'directory') {
+                 await traverse(handle, fullPath);
+              }
+           }
+        };
+
+        let rootDir = await navigator.storage.getDirectory();
+        if (dirPath) {
+           const { dir, name } = await FS._resolvePath(dirPath);
+           rootDir = await dir.getDirectoryHandle(name);
+        }
+        await traverse(rootDir, dirPath);
+        
+        if (files.length > 0) return files;
       }
     } catch (e) {
-      // Fallback
+      console.warn('OPFS readDir failed, falling back to IndexedDB', e);
     }
     
     const allKeys = await keys();
     const fileKeys = allKeys.filter(k => typeof k === 'string' && k.startsWith('file_'));
-    const files = await Promise.all(fileKeys.map(k => get(k as string)));
-    return files.filter((f): f is LocalFile => f !== null && f !== undefined);
+    const idbFiles = await Promise.all(fileKeys.map(k => get(k as string)));
+    return idbFiles.filter((f): f is LocalFile => f !== null && f !== undefined);
   },
 
-  // Delete a file conditionally
+  // Delete a file or directory
   delete: async (path: string): Promise<void> => {
     try {
-      // @ts-ignore
-      if (window.__TAURI__) {
-        /*
-        // UNCOMMENT FOR PHASE 3
-        const { removeFile } = await import('@tauri-apps/api/fs');
-        await removeFile(path);
+      if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.getDirectory) {
+        const { dir, name } = await FS._resolvePath(path);
+        await dir.removeEntry(name, { recursive: true });
         return;
-        */
       }
     } catch (e) {
-      // Fallback
+      console.warn(`OPFS delete failed for ${path}, falling back to IndexedDB`, e);
     }
     await del(`file_${path}`);
   }

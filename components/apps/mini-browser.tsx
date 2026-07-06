@@ -1,24 +1,47 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
-import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, ExternalLink, Search, Maximize2, Minimize2, Download } from 'lucide-react';
+import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, ExternalLink, Search, Maximize2, Minimize2, Download, Plus, X, Star, Bookmark } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
+type BrowserTab = {
+  id: string;
+  url: string;
+  title: string;
+  history: string[];
+  historyIndex: number;
+};
+
 export function MiniBrowser({ window }: { window: OSWindow }) {
-  const [url, setUrl] = useState(window.data?.url || '');
-  const [inputUrl, setInputUrl] = useState(window.data?.url || '');
-  const [isFocusMode, setIsFocusMode] = useState(window.data?.isFocusMode || false);
-  
   const { performanceMode, updateWindowData, maximizeWindow } = useOS();
 
-  // Context Memory: Sync url changes to global window state so it persists
+  // Tab State
+  const [tabs, setTabs] = useState<BrowserTab[]>(
+    window.data?.tabs || [
+      { id: '1', url: window.data?.url || '', title: 'New Tab', history: [window.data?.url || ''], historyIndex: 0 }
+    ]
+  );
+  const [activeTabId, setActiveTabId] = useState<string>(window.data?.activeTabId || tabs[0].id);
+  const [isFocusMode, setIsFocusMode] = useState(window.data?.isFocusMode || false);
+  
+  const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
+  const [inputUrl, setInputUrl] = useState(activeTab.url);
+
+  // Keep input bar in sync when switching tabs or history changes
   useEffect(() => {
-    if (url !== window.data?.url) {
-      updateWindowData(window.id, { url });
-    }
-  }, [url, window.id, window.data?.url, updateWindowData]);
+    setInputUrl(activeTab.url);
+  }, [activeTab.url, activeTabId]);
+
+  // Context Memory: Sync tabs to global window state
+  useEffect(() => {
+    updateWindowData(window.id, { tabs, activeTabId });
+  }, [tabs, activeTabId, window.id, updateWindowData]);
+
+  const updateActiveTab = (updates: Partial<BrowserTab>) => {
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, ...updates } : t));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +62,67 @@ export function MiniBrowser({ window }: { window: OSWindow }) {
       finalUrl = `https://www.google.com/search?q=${encodeURIComponent(inputUrl)}&igu=1`;
     }
     
-    setUrl(finalUrl);
+    // Navigate
+    const newHistory = activeTab.history.slice(0, activeTab.historyIndex + 1);
+    newHistory.push(finalUrl);
+    
+    updateActiveTab({ 
+      url: finalUrl, 
+      title: getDomainTitle(finalUrl),
+      history: newHistory,
+      historyIndex: newHistory.length - 1
+    });
+  };
+
+  const getDomainTitle = (urlStr: string) => {
+    try {
+      if (!urlStr) return 'New Tab';
+      const hostname = new URL(urlStr).hostname;
+      return hostname.replace('www.', '');
+    } catch {
+      return 'Search';
+    }
+  };
+
+  const navigateBack = () => {
+    if (activeTab.historyIndex > 0) {
+      const newIndex = activeTab.historyIndex - 1;
+      updateActiveTab({ url: activeTab.history[newIndex], historyIndex: newIndex });
+    }
+  };
+
+  const navigateForward = () => {
+    if (activeTab.historyIndex < activeTab.history.length - 1) {
+      const newIndex = activeTab.historyIndex + 1;
+      updateActiveTab({ url: activeTab.history[newIndex], historyIndex: newIndex });
+    }
+  };
+
+  const reload = () => {
+    // Force iframe reload by updating URL with a dummy param briefly or just updating state
+    const current = activeTab.url;
+    updateActiveTab({ url: '' });
+    setTimeout(() => updateActiveTab({ url: current }), 50);
+  };
+
+  const addNewTab = () => {
+    const newId = crypto.randomUUID();
+    setTabs(prev => [...prev, { id: newId, url: '', title: 'New Tab', history: [''], historyIndex: 0 }]);
+    setActiveTabId(newId);
+  };
+
+  const closeTab = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (tabs.length === 1) {
+      // If closing last tab, just reset it
+      setTabs([{ id: crypto.randomUUID(), url: '', title: 'New Tab', history: [''], historyIndex: 0 }]);
+      return;
+    }
+    const newTabs = tabs.filter(t => t.id !== id);
+    setTabs(newTabs);
+    if (activeTabId === id) {
+      setActiveTabId(newTabs[newTabs.length - 1].id);
+    }
   };
 
   const toggleFocusMode = () => {
@@ -65,50 +148,112 @@ export function MiniBrowser({ window }: { window: OSWindow }) {
         </button>
       )}
 
-      {/* Browser Chrome */}
+      {/* Tab Bar */}
       {!isFocusMode && (
-        <div className="h-12 border-b border-black/10 bg-slate-50 flex items-center justify-between px-4 gap-4 shrink-0 z-10 transition-all">
-          <div className="flex items-center gap-2 text-slate-500">
-            <ArrowLeft className="w-4 h-4 cursor-pointer hover:text-black transition-colors" />
-            <ArrowRight className="w-4 h-4 text-slate-300" />
-            <RotateCw className="w-4 h-4 cursor-pointer hover:text-black transition-colors ml-2" onClick={() => setUrl(url)} />
-          </div>
-          
-          <form 
-            onSubmit={handleSubmit}
-            className="flex-1 max-w-xl mx-auto flex items-center gap-2 bg-white px-4 py-1.5 rounded-full border border-black/10 focus-within:border-neon-blue shadow-sm transition-all"
-          >
-            {url && !url.includes('search?q=') ? <Lock className="w-3 h-3 text-emerald-600" /> : <Search className="w-3 h-3 text-slate-400" />}
-            <input
-              type="text"
-              value={inputUrl}
-              onChange={(e) => setInputUrl(e.target.value)}
-              placeholder="Search Google or enter web address"
-              className="flex-1 bg-transparent border-none outline-none text-sm"
-            />
-          </form>
+        <div className="h-10 bg-slate-200 flex items-end px-2 pt-2 gap-1 overflow-x-auto shrink-0 custom-scrollbar">
+          {tabs.map(tab => (
+            <div 
+              key={tab.id}
+              onClick={() => setActiveTabId(tab.id)}
+              className={cn(
+                "group flex items-center justify-between min-w-[120px] max-w-[200px] h-8 px-3 rounded-t-lg text-xs transition-colors cursor-pointer border border-b-0 select-none",
+                activeTabId === tab.id 
+                  ? "bg-slate-50 border-black/10 text-black shadow-[0_4px_0_0_#f8fafc]" 
+                  : "bg-transparent border-transparent text-slate-500 hover:bg-slate-300"
+              )}
+            >
+              <div className="flex items-center gap-2 overflow-hidden">
+                 {tab.url ? (
+                    <img src={`https://www.google.com/s2/favicons?domain=${tab.url}`} alt="" className="w-3.5 h-3.5 shrink-0 grayscale opacity-70" onError={(e) => e.currentTarget.style.display = 'none'} />
+                 ) : (
+                    <Search className="w-3 h-3 shrink-0" />
+                 )}
+                 <span className="truncate">{tab.title}</span>
+              </div>
+              <button 
+                onClick={(e) => closeTab(e, tab.id)}
+                className={cn("p-1 rounded-full hover:bg-black/10 ml-2 transition-colors", activeTabId === tab.id ? "opacity-100" : "opacity-0 group-hover:opacity-100")}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+          <button onClick={addNewTab} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-300 rounded-t-lg transition-colors ml-1">
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
-          <div className="flex items-center gap-3 text-slate-500">
-            <button className="hover:text-black transition-colors flex items-center justify-center p-1" title="Download to Files">
-              <Download className="w-4 h-4" />
-            </button>
-            <button className="hover:text-black transition-colors flex items-center justify-center p-1" title="Focus Mode" onClick={toggleFocusMode}>
-              <Maximize2 className="w-4 h-4" />
-            </button>
-            <div className="w-px h-4 bg-slate-300 mx-1" />
-            <Home className="w-4 h-4 cursor-pointer hover:text-black transition-colors" onClick={() => setUrl('')}/>
-            {url && (
-              <a href={url} target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors p-1" title="Open in new tab">
-                <ExternalLink className="w-4 h-4" />
-              </a>
-            )}
+      {/* Browser Chrome & Address Bar */}
+      {!isFocusMode && (
+        <div className="flex flex-col border-b border-black/10 bg-slate-50 shrink-0 z-10 transition-all shadow-sm">
+          <div className="h-12 flex items-center justify-between px-4 gap-4">
+            <div className="flex items-center gap-2 text-slate-500">
+              <button disabled={activeTab.historyIndex <= 0} onClick={navigateBack} className="p-1.5 rounded-full hover:bg-black/5 disabled:opacity-30 disabled:hover:bg-transparent transition-colors">
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <button disabled={activeTab.historyIndex >= activeTab.history.length - 1} onClick={navigateForward} className="p-1.5 rounded-full hover:bg-black/5 disabled:opacity-30 disabled:hover:bg-transparent transition-colors">
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <button onClick={reload} className="p-1.5 rounded-full hover:bg-black/5 transition-colors ml-1">
+                <RotateCw className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <form 
+              onSubmit={handleSubmit}
+              className="flex-1 max-w-2xl mx-auto flex items-center gap-2 bg-white px-4 py-1.5 rounded-full border border-black/10 focus-within:border-black/30 focus-within:shadow-sm transition-all"
+            >
+              {activeTab.url && !activeTab.url.includes('search?q=') ? <Lock className="w-3 h-3 text-emerald-600 shrink-0" /> : <Search className="w-3 h-3 text-slate-400 shrink-0" />}
+              <input
+                type="text"
+                value={inputUrl}
+                onChange={(e) => setInputUrl(e.target.value)}
+                placeholder="Search Google or enter web address"
+                className="flex-1 bg-transparent border-none outline-none text-sm text-slate-700"
+              />
+              <button type="button" className="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                 <Star className="w-3.5 h-3.5" />
+              </button>
+            </form>
+
+            <div className="flex items-center gap-2 text-slate-500">
+              <button className="hover:text-black hover:bg-black/5 rounded p-1.5 transition-colors" title="Download to Files">
+                <Download className="w-4 h-4" />
+              </button>
+              <button className="hover:text-black hover:bg-black/5 rounded p-1.5 transition-colors" title="Focus Mode" onClick={toggleFocusMode}>
+                <Maximize2 className="w-4 h-4" />
+              </button>
+              <div className="w-px h-4 bg-slate-300 mx-1" />
+              {activeTab.url && (
+                <a href={activeTab.url} target="_blank" rel="noopener noreferrer" className="hover:text-black hover:bg-black/5 rounded p-1.5 transition-colors" title="Open in new window">
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              )}
+            </div>
+          </div>
+
+          {/* Bookmarks Bar */}
+          <div className="h-8 bg-slate-50 px-4 flex items-center gap-4 text-xs font-medium text-slate-600 overflow-x-auto border-t border-black/5">
+             <button onClick={() => updateActiveTab({ url: 'https://github.com' })} className="flex items-center gap-1.5 hover:bg-black/5 px-2 py-1 rounded transition-colors"><Bookmark className="w-3 h-3 text-slate-400"/> GitHub</button>
+             <button onClick={() => updateActiveTab({ url: 'https://figma.com' })} className="flex items-center gap-1.5 hover:bg-black/5 px-2 py-1 rounded transition-colors"><Bookmark className="w-3 h-3 text-slate-400"/> Figma</button>
+             <button onClick={() => updateActiveTab({ url: 'https://vercel.com' })} className="flex items-center gap-1.5 hover:bg-black/5 px-2 py-1 rounded transition-colors"><Bookmark className="w-3 h-3 text-slate-400"/> Vercel</button>
+             <button onClick={() => updateActiveTab({ url: 'https://news.ycombinator.com' })} className="flex items-center gap-1.5 hover:bg-black/5 px-2 py-1 rounded transition-colors"><Bookmark className="w-3 h-3 text-slate-400"/> HackerNews</button>
           </div>
         </div>
       )}
 
-      {/* Browser Content */}
-      <div className="flex-1 bg-slate-100 flex flex-col relative overflow-hidden">
-         {!url ? (
+      {/* Browser Content Layers */}
+      <div className="flex-1 bg-slate-100 relative overflow-hidden">
+        {tabs.map(tab => (
+          <div 
+            key={tab.id} 
+            className={cn(
+              "absolute inset-0 flex flex-col transition-opacity duration-200",
+              activeTabId === tab.id ? "opacity-100 z-10" : "opacity-0 pointer-events-none -z-10"
+            )}
+          >
+           {!tab.url ? (
        <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white relative z-10 overflow-y-auto">
          {window.data?.projectId === 'nike-campaign' && (
            <div className="max-w-4xl w-full flex flex-col gap-6 pt-12">
@@ -166,10 +311,10 @@ export function MiniBrowser({ window }: { window: OSWindow }) {
        </div>
          ) : (
            <div className="w-full h-full relative">
-              {/* Optional overlay message if they complain about blocked iframes */}
-             {url && ['figma.com', 'framer.com', 'github.com', 'x.com', 'twitter.com', 'linkedin.com', 'claude.ai'].some(domain => {
+              {/* Overlay message if sites block iframes via headers */}
+             {tab.url && ['figma.com', 'framer.com', 'github.com', 'x.com', 'twitter.com', 'linkedin.com', 'claude.ai', 'youtube.com'].some(domain => {
                try {
-                 const hostname = new URL(url).hostname;
+                 const hostname = new URL(tab.url).hostname;
                  return hostname === domain || hostname.endsWith(`.${domain}`);
                } catch (e) {
                  return false;
@@ -179,22 +324,25 @@ export function MiniBrowser({ window }: { window: OSWindow }) {
                  <Lock className="w-12 h-12 text-slate-400 mb-6" />
                  <h2 className="text-2xl font-semibold mb-2">Web App Requires Native Tab</h2>
                  <p className="text-slate-500 max-w-md mb-8">
-                   For security and session persistence, this site must run in a secure context. Your OS will remember the URL and session state natively.
+                   For security and session persistence (X-Frame-Options), this site must run in a native browser context. Your OS will remember the URL and session state natively.
                  </p>
-                 <a href={url} target="_blank" rel="noopener noreferrer" className="bg-black text-white px-6 py-3 rounded-full flex items-center gap-2 hover:bg-slate-800 transition-colors">
-                   Open {new URL(url).hostname} <ExternalLink className="w-4 h-4" />
+                 <a href={tab.url} target="_blank" rel="noopener noreferrer" className="bg-black text-white px-6 py-3 rounded-full flex items-center gap-2 hover:bg-slate-800 transition-colors">
+                   Open {new URL(tab.url).hostname} <ExternalLink className="w-4 h-4" />
                  </a>
                </div>
              ) : (
                <iframe 
-                 src={url} 
+                 src={tab.url} 
                  className="w-full h-full border-none bg-white absolute inset-0 z-20" 
-                 title="Browser Content"
-                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups" loading={performanceMode === 'light' ? 'lazy' : 'eager'}
+                 title={`Browser Tab ${tab.id}`}
+                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups" 
+                 loading={performanceMode === 'light' ? 'lazy' : 'eager'}
                />
              )}
            </div>
          )}
+          </div>
+        ))}
       </div>
     </div>
   );

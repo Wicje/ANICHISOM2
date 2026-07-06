@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
+import { StorageAdapter } from '@/lib/storage';
 import { Briefcase, Clock, Play, Square, DollarSign, FileText, Plus, ChevronRight, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -15,16 +16,31 @@ interface TimeEntry {
 }
 
 export function SideGigsApp({ window: osWindow }: { window: OSWindow }) {
-  const { emitEvent, currentUser } = useOS();
+  const { emitEvent, currentUser, workspaceMode } = useOS();
+  const [storage] = useState(() => new StorageAdapter('side-gigs', workspaceMode));
   const [activeTimer, setActiveTimer] = useState<number | null>(null);
   const [timerSeconds, setTimerSeconds] = useState(0);
-  const [entries, setEntries] = useState<TimeEntry[]>([
-    { id: '1', projectId: 'Freelance UI/UX', description: 'Homepage redesign concepts', duration: 3600 * 2.5, date: new Date(Date.now() - 86400000) },
-    { id: '2', projectId: 'Logo Design', description: 'Vector polishing', duration: 3600 * 1.25, date: new Date() }
-  ]);
+  const [entries, setEntries] = useState<TimeEntry[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [currentProject, setCurrentProject] = useState('Freelance UI/UX');
   const [currentTask, setCurrentTask] = useState('');
   const [rate, setRate] = useState(85);
+
+  useEffect(() => {
+    storage.get('entries').then((data) => {
+      if (data && Array.isArray(data)) {
+        // Hydrate dates since JSON stringifies them
+        const hydrated = data.map(d => ({ ...d, date: new Date(d.date) }));
+        setEntries(hydrated);
+      }
+      setIsLoaded(true);
+    });
+  }, [storage]);
+
+  const saveEntries = (newEntries: TimeEntry[]) => {
+    setEntries(newEntries);
+    storage.set('entries', newEntries);
+  };
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -48,7 +64,7 @@ export function SideGigsApp({ window: osWindow }: { window: OSWindow }) {
         duration: timerSeconds,
         date: new Date()
       };
-      setEntries([newEntry, ...entries]);
+      saveEntries([newEntry, ...entries]);
       setActiveTimer(null);
       setTimerSeconds(0);
       setCurrentTask('');
@@ -78,6 +94,10 @@ export function SideGigsApp({ window: osWindow }: { window: OSWindow }) {
   
   const totalBillable = entries.reduce((acc, curr) => acc + curr.duration, 0);
   const totalAmount = (totalBillable / 3600) * rate;
+
+  if (!isLoaded) {
+    return <div className="w-full h-full bg-[#111] flex items-center justify-center text-white/50 animate-pulse">Loading Workspace...</div>;
+  }
 
   return (
     <div className="w-full h-full flex bg-[#111] text-white font-sans overflow-hidden">

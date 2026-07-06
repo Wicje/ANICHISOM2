@@ -2,10 +2,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
-import { FileCode, Play, Settings, RefreshCcw, Server, Users } from 'lucide-react';
+import { FileCode, Play, Settings, RefreshCcw, Server, Users, ChevronRight, ChevronDown, Folder, File as FileIcon, Search, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Storage } from '@/lib/storage';
-import Editor from '@monaco-editor/react';
+import Editor, { useMonaco } from '@monaco-editor/react';
+import * as Y from 'yjs';
+import { WebrtcProvider } from 'y-webrtc';
+import { MonacoBinding } from 'y-monaco';
 
 export function CodeEditor({ window }: { window: OSWindow }) {
   const { openWindow, currentUser, workspaceMode, setWorkspaceMode } = useOS();
@@ -25,12 +28,52 @@ export function CodeEditor({ window }: { window: OSWindow }) {
     }
   };
 
+  const [files] = useState([
+    { id: '1', name: 'app.tsx', type: 'file', folder: 'src' },
+    { id: '2', name: 'kernel.ts', type: 'file', folder: 'src' },
+    { id: '3', name: 'ui.tsx', type: 'file', folder: 'src' },
+    { id: '4', name: 'package.json', type: 'file', folder: 'root' },
+    { id: '5', name: 'README.md', type: 'file', folder: 'root' },
+  ]);
+  const [activeFileId, setActiveFileId] = useState(
+    projectId === 'portfolio-v3' ? '2' : projectId === 'tesla-redesign' ? '3' : '1'
+  );
+  const activeFile = files.find(f => f.id === activeFileId);
+  const fileName = activeFile?.name || 'app.tsx';
+
   const [code, setCode] = useState(getInitialCode(projectId, window.data?.content));
+  const [expandedFolders, setExpandedFolders] = useState<string[]>(['src', 'root']);
   const [isDeploying, setIsDeploying] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const isSyncingRef = useRef(false);
 
-  const roomId = `code-${projectId}`;
+  const roomId = `code-${projectId}-${activeFileId}`;
+  
+  const editorRef = useRef<any>(null);
+  const bindingRef = useRef<any>(null);
+  const providerRef = useRef<any>(null);
+
+  const handleEditorDidMount = (editor: any) => {
+    editorRef.current = editor;
+    
+    if (workspaceMode === 'agency') {
+       const ydoc = new Y.Doc();
+       const provider = new WebrtcProvider(roomId, ydoc, { signaling: ['wss://signaling.yjs.dev'] });
+       const type = ydoc.getText('monaco');
+       
+       const binding = new MonacoBinding(type, editor.getModel(), new Set([editor]), provider.awareness);
+       
+       providerRef.current = provider;
+       bindingRef.current = binding;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (bindingRef.current) bindingRef.current.destroy();
+      if (providerRef.current) providerRef.current.destroy();
+    };
+  }, [roomId, workspaceMode]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -79,8 +122,6 @@ export function CodeEditor({ window }: { window: OSWindow }) {
         }
     }, 500);
   };
-  
-  const fileName = window.data?.filename || (projectId === 'portfolio-v3' ? 'kernel.ts' : projectId === 'tesla-redesign' ? 'ui.tsx' : 'app.tsx');
 
   useEffect(() => {
     return () => {
@@ -139,9 +180,8 @@ export function CodeEditor({ window }: { window: OSWindow }) {
 
       {/* Top Bar */}
       <div className="flex items-center justify-between p-2 bg-[#252526] border-b border-[#3c3c3c]">
-        <div className="flex items-center gap-2 text-[#cccccc]">
-          <FileCode className="w-4 h-4 text-blue-400" />
-          <span>{fileName}</span>
+        <div className="flex items-center gap-4 text-[#cccccc] pl-2">
+          <span className="font-bold text-xs uppercase tracking-wider text-white/50">{projectId}</span>
         </div>
         <div className="flex items-center gap-2">
           <button 
@@ -166,14 +206,71 @@ export function CodeEditor({ window }: { window: OSWindow }) {
         </div>
       </div>
       
-      {/* Editor Area */}
+      {/* Main Layout */}
       <div className="flex-1 flex overflow-hidden relative">
-         <Editor
+        
+        {/* File Tree Sidebar */}
+        <div className="w-56 shrink-0 bg-[#252526] border-r border-[#3c3c3c] flex flex-col custom-scrollbar overflow-y-auto">
+           <div className="p-2 flex items-center justify-between text-[#cccccc] text-xs font-semibold uppercase tracking-wider">
+             <span>Explorer</span>
+             <div className="flex items-center gap-1">
+               <button className="p-0.5 hover:bg-[#3c3c3c] rounded"><Plus className="w-3.5 h-3.5" /></button>
+               <button className="p-0.5 hover:bg-[#3c3c3c] rounded"><RefreshCcw className="w-3.5 h-3.5" /></button>
+             </div>
+           </div>
+           
+           <div className="flex flex-col mt-2">
+             {/* SRC Folder */}
+             <div 
+               className="flex items-center gap-1 px-2 py-1 cursor-pointer hover:bg-[#2a2d2e] text-[#cccccc] text-sm"
+               onClick={() => setExpandedFolders(prev => prev.includes('src') ? prev.filter(f => f !== 'src') : [...prev, 'src'])}
+             >
+               {expandedFolders.includes('src') ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+               <Folder className="w-4 h-4 text-blue-400" />
+               <span>src</span>
+             </div>
+             {expandedFolders.includes('src') && files.filter(f => f.folder === 'src').map(file => (
+               <div 
+                 key={file.id} 
+                 onClick={() => { setActiveFileId(file.id); setCode(getInitialCode(projectId, '')); }}
+                 className={cn("flex items-center gap-2 pl-8 pr-2 py-1 cursor-pointer text-sm", activeFileId === file.id ? "bg-[#37373d] text-white" : "text-[#cccccc] hover:bg-[#2a2d2e]")}
+               >
+                 <FileIcon className={cn("w-4 h-4", file.name.endsWith('.tsx') || file.name.endsWith('.ts') ? "text-blue-500" : "text-yellow-500")} />
+                 <span>{file.name}</span>
+               </div>
+             ))}
+             
+             {/* Root Files */}
+             {files.filter(f => f.folder === 'root').map(file => (
+               <div 
+                 key={file.id} 
+                 onClick={() => { setActiveFileId(file.id); setCode(getInitialCode(projectId, '')); }}
+                 className={cn("flex items-center gap-2 pl-6 pr-2 py-1 cursor-pointer text-sm mt-1", activeFileId === file.id ? "bg-[#37373d] text-white" : "text-[#cccccc] hover:bg-[#2a2d2e]")}
+               >
+                 <FileIcon className={cn("w-4 h-4", file.name.endsWith('.json') ? "text-yellow-400" : "text-blue-400")} />
+                 <span>{file.name}</span>
+               </div>
+             ))}
+           </div>
+        </div>
+        
+        {/* Editor Area */}
+        <div className="flex-1 flex flex-col relative bg-[#1e1e1e]">
+           {/* Editor Tabs */}
+           <div className="flex bg-[#2d2d2d] border-b border-[#3c3c3c]">
+             <div className="flex items-center gap-2 px-4 py-2 bg-[#1e1e1e] border-t-2 border-blue-500 text-white text-sm cursor-pointer min-w-[120px]">
+               <FileIcon className={cn("w-4 h-4", fileName.endsWith('.tsx') || fileName.endsWith('.ts') ? "text-blue-500" : "text-yellow-500")} />
+               <span>{fileName}</span>
+             </div>
+           </div>
+           
+           <Editor
             height="100%"
             defaultLanguage={fileName.endsWith('.tsx') || fileName.endsWith('.ts') ? 'typescript' : 'javascript'}
             theme="vs-dark"
             value={code}
             onChange={handleCodeChange}
+            onMount={handleEditorDidMount}
             options={{
               minimap: { enabled: false },
               fontSize: 13,
@@ -185,6 +282,7 @@ export function CodeEditor({ window }: { window: OSWindow }) {
               automaticLayout: true,
             }}
          />
+        </div>
       </div>
       
       {/* Status Bar */}

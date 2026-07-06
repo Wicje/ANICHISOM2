@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useOS } from '@/lib/os-context';
-import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Search, Archive } from 'lucide-react';
+import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Search, Archive, Clipboard, Window as WindowIcon } from 'lucide-react';
+import { APPS } from '@/components/desktop';
 
 export function CommandPalette() {
-  const { openWindow } = useOS();
+  const { openWindow, windows, focusWindow, installedApps, currentUser } = useOS();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [clipboardText, setClipboardText] = useState('');
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -29,19 +31,66 @@ export function CommandPalette() {
     };
   }, []);
 
+  useEffect(() => {
+     if (isOpen) {
+        navigator.clipboard.readText().then(text => {
+           if (text && text.length < 100) setClipboardText(text);
+        }).catch(() => {});
+     }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  const commands = [
-    { id: 'terminal', name: 'Open Terminal', icon: Terminal, action: () => openWindow('terminal') },
-    { id: 'files', name: 'Open File Manager', icon: Folder, action: () => openWindow('files') },
-    { id: 'browser', name: 'Open Research Browser', icon: Globe, action: () => openWindow('browser') },
-    { id: 'search', name: `Search Google for "${query}"`, icon: Search, action: () => openWindow('browser', 'Google Search', { url: `https://www.google.com/search?q=${encodeURIComponent(query)}&igu=1`}), hideOnEmpty: true },
-    { id: 'campaign', name: 'Open Campaign Lab', icon: Sparkles, action: () => openWindow('campaign') },
-    { id: 'moodboard', name: 'Open Moodboard', icon: ImageIcon, action: () => openWindow('moodboard') },
-    { id: 'assets', name: 'Open Asset Pipeline', icon: Archive, action: () => openWindow('assets') },
-  ];
+  // Dynamically pull all allowed apps from the system
+  const allowedApps = Object.entries(APPS).filter(([appId, config]) => 
+    config.roles.includes(currentUser?.role || 'user') && (config.isCore || installedApps.includes(appId))
+  );
 
-  // We want to always show the Search Google option if query is not empty
+  const commands = [];
+
+  // Add all apps to search
+  allowedApps.forEach(([appId, config]) => {
+     commands.push({
+        id: `app-${appId}`,
+        name: `Open ${config.title}`,
+        type: 'Application',
+        icon: config.icon,
+        action: () => openWindow(appId)
+     });
+  });
+
+  // Add currently open windows (to switch to them)
+  windows.forEach(win => {
+     commands.push({
+        id: `win-${win.id}`,
+        name: `Switch to ${win.title}`,
+        type: 'Open Window',
+        icon: WindowIcon,
+        action: () => focusWindow(win.id)
+     });
+  });
+
+  // Add Clipboard Search
+  if (clipboardText) {
+     commands.push({
+        id: 'clipboard',
+        name: `Search Clipboard: "${clipboardText}"`,
+        type: 'Clipboard',
+        icon: Clipboard,
+        action: () => openWindow('browser', 'Google Search', { url: `https://www.google.com/search?q=${encodeURIComponent(clipboardText)}&igu=1`})
+     });
+  }
+
+  // Add general Search fallback
+  commands.push({ 
+    id: 'search', 
+    name: `Search Google for "${query}"`, 
+    type: 'Web Search',
+    icon: Search, 
+    action: () => openWindow('browser', 'Google Search', { url: `https://www.google.com/search?q=${encodeURIComponent(query)}&igu=1`}), 
+    hideOnEmpty: true 
+  });
+
   let filtered = commands.filter(c => {
     if (c.hideOnEmpty && !query) return false;
     if (c.id === 'search' && query) return true;
@@ -90,10 +139,13 @@ export function CommandPalette() {
                     setIsOpen(false);
                     setQuery('');
                   }}
-                  className={`w-full flex items-center px-4 py-3 rounded-xl transition-colors text-left ${i === 0 ? 'bg-white/10' : 'hover:bg-white/5'}`}
+                  className={`w-full flex items-center px-4 py-3 rounded-xl transition-colors text-left group ${i === 0 ? 'bg-white/10' : 'hover:bg-white/5'}`}
                 >
                   <Icon className="w-5 h-5 mr-4 text-neon-blue" />
-                  <span className="text-white text-sm font-medium">{cmd.name}</span>
+                  <div className="flex flex-col">
+                    <span className="text-white text-sm font-medium">{cmd.name}</span>
+                    <span className="text-white/40 text-[10px]">{cmd.type}</span>
+                  </div>
                   {i === 0 && <span className="ml-auto text-[10px] text-white/40 font-mono">↵ Return</span>}
                 </button>
               )

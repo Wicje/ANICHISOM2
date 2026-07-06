@@ -28,7 +28,6 @@ const DeveloperPack = dynamic(() => import('@/components/apps/developer-pack').t
 const PhotographyPack = dynamic(() => import('@/components/apps/photography-pack').then(mod => mod.PhotographyPack), { ssr: false });
 
 const AssetPipeline = dynamic(() => import('@/components/apps/asset-pipeline').then(mod => mod.AssetPipeline), { ssr: false });
-const Notes = dynamic(() => import('@/components/apps/notes').then(mod => mod.Notes), { ssr: false });
 const PdfReader = dynamic(() => import('@/components/apps/pdf-reader').then(mod => mod.PdfReader), { ssr: false });
 const HistoryApp = dynamic(() => import('@/components/apps/history').then(mod => mod.HistoryApp), { ssr: false });
 const CallsApp = dynamic(() => import('@/components/apps/calls').then(mod => mod.CallsApp), { ssr: false });
@@ -37,28 +36,27 @@ const SideGigsApp = dynamic(() => import('@/components/apps/side-gigs').then(mod
 const ProposalGenerator = dynamic(() => import('@/components/apps/proposal-generator').then(mod => mod.ProposalGenerator), { ssr: false });
 
 const APPS = {
-  'terminal': { component: TerminalBox, icon: Terminal, title: 'Terminal', roles: ['admin', 'technician'] },
-  'files': { component: FileManager, icon: Folder, title: 'Files', roles: ['admin', 'filmmaker', 'technician'] },
-  'browser': { component: MiniBrowser, icon: Globe, title: 'Browser', roles: ['admin', 'filmmaker', 'technician'] },
-  'campaign': { component: CampaignLab, icon: Sparkles, title: 'Campaign Lab', roles: ['admin'] },
-  'moodboard': { component: Moodboard, icon: ImageIcon, title: 'Moodboard', roles: ['admin', 'filmmaker'] },
-  'assets': { component: AssetPipeline, icon: Archive, title: 'Asset Pipeline', roles: ['admin', 'filmmaker', 'technician'] },
-  'code': { component: CodeEditor, icon: Code2, title: 'Code', roles: ['admin', 'technician'] },
-  'notes': { component: Notes, icon: BookOpen, title: 'Notes', roles: ['admin', 'filmmaker', 'technician'] },
-  'pdf': { component: PdfReader, icon: FileText, title: 'PDF Reader', roles: ['admin', 'filmmaker', 'technician'] },
-  'office': { component: ProductivitySuite, icon: Briefcase, title: 'Office Suite', roles: ['admin', 'filmmaker'] },
-  'calls': { component: CallsApp, icon: Video, title: 'Calls', roles: ['admin', 'filmmaker'] },
-  'sidegigs': { component: SideGigsApp, icon: Briefcase, title: 'Side-Gigs', roles: ['admin', 'filmmaker'] },
-  'proposals': { component: ProposalGenerator, icon: FileText, title: 'Proposals', roles: ['admin'] },
-  'marketplace': { component: Marketplace, icon: Store, title: 'Ecosystem', roles: ['admin'] },
-  'ai-gateway': { component: AIGateway, icon: Brain, title: 'AI Gateway', roles: ['admin', 'technician'] },
-  'history': { component: HistoryApp, icon: Clock, title: 'Event History', roles: ['admin', 'filmmaker', 'technician'] },
-  'admin': { component: AdminPanel, icon: ShieldCheck, title: 'Access Control', roles: ['admin'] },
-  'ziklag': { component: ZiklagTools, icon: Server, title: 'Ziklag Diagnostics', roles: ['admin', 'technician'] },
-  'clothing': { component: ClothingBrandPack, icon: Shirt, title: 'Clothing Brand', roles: ['admin'] },
-  'hardware': { component: HardwarePack, icon: Cpu, title: 'Hardware', roles: ['admin'] },
-  'developer': { component: DeveloperPack, icon: Code, title: 'DevOps', roles: ['admin', 'technician'] },
-  'photography': { component: PhotographyPack, icon: Camera, title: 'Photography', roles: ['admin', 'filmmaker'] },
+  'terminal': { component: TerminalBox, icon: Terminal, title: 'Terminal', roles: ['admin', 'technician'], isCore: true },
+  'files': { component: FileManager, icon: Folder, title: 'Files', roles: ['admin', 'filmmaker', 'technician'], isCore: true },
+  'browser': { component: MiniBrowser, icon: Globe, title: 'Browser', roles: ['admin', 'filmmaker', 'technician'], isCore: true },
+  'moodboard': { component: Moodboard, icon: ImageIcon, title: 'Moodboard', roles: ['admin', 'filmmaker'], isCore: true },
+  'assets': { component: AssetPipeline, icon: Archive, title: 'Asset Pipeline', roles: ['admin', 'filmmaker', 'technician'], isCore: false },
+  'workspace': { component: CampaignLab, icon: BookOpen, title: 'Workspace', roles: ['admin', 'designer', 'client', 'filmmaker', 'technician'], isCore: true },
+  'code': { component: CodeEditor, icon: Code2, title: 'Code', roles: ['admin', 'technician'], isCore: true },
+  'pdf': { component: PdfReader, icon: FileText, title: 'PDF Reader', roles: ['admin', 'filmmaker', 'technician'], isCore: false },
+  'office': { component: ProductivitySuite, icon: Briefcase, title: 'Office Suite', roles: ['admin', 'filmmaker'], isCore: true },
+  'calls': { component: CallsApp, icon: Video, title: 'Calls', roles: ['admin', 'filmmaker'], isCore: false },
+  'sidegigs': { component: SideGigsApp, icon: Briefcase, title: 'Side-Gigs', roles: ['admin', 'filmmaker'], isCore: false },
+  'proposals': { component: ProposalGenerator, icon: FileText, title: 'Proposals', roles: ['admin'], isCore: false },
+  'marketplace': { component: Marketplace, icon: Store, title: 'Ecosystem', roles: ['admin'], isCore: true },
+  'ai-gateway': { component: AIGateway, icon: Brain, title: 'AI Gateway', roles: ['admin', 'technician'], isCore: true },
+  'history': { component: HistoryApp, icon: Clock, title: 'Event History', roles: ['admin', 'filmmaker', 'technician'], isCore: true },
+  'admin': { component: AdminPanel, icon: ShieldCheck, title: 'Access Control', roles: ['admin'], isCore: true },
+  'ziklag': { component: ZiklagTools, icon: Server, title: 'Ziklag Diagnostics', roles: ['admin', 'technician'], isCore: false },
+  'clothing': { component: ClothingBrandPack, icon: Shirt, title: 'Clothing Brand', roles: ['admin'], isCore: false },
+  'hardware': { component: HardwarePack, icon: Cpu, title: 'Hardware', roles: ['admin'], isCore: false },
+  'developer': { component: DeveloperPack, icon: Code, title: 'DevOps', roles: ['admin', 'technician'], isCore: false },
+  'photography': { component: PhotographyPack, icon: Camera, title: 'Photography', roles: ['admin', 'filmmaker'], isCore: false },
 };
 
 const PROJECTS = {
@@ -153,7 +151,7 @@ const DesktopWindow = React.memo(
 );
 
 export function Desktop() {
-  const { currentUser, setCurrentUser, logout, windows, snapshots, performanceMode, setPerformanceMode, workspaceMode, setWorkspaceMode, activeWorkspace, setActiveWorkspace, openWindow, minimizeWindow, focusWindow, applyWorkspaceLayout, loadProject, saveSnapshot, restoreSnapshot, wipeSession } = useOS();
+  const { currentUser, setCurrentUser, logout, windows, snapshots, performanceMode, setPerformanceMode, workspaceMode, setWorkspaceMode, activeWorkspace, setActiveWorkspace, installedApps, recentApps, openWindow, minimizeWindow, focusWindow, applyWorkspaceLayout, loadProject, saveSnapshot, restoreSnapshot, wipeSession } = useOS();
   const [showSnapshots, setShowSnapshots] = useState(false);
   const [showActionCenter, setShowActionCenter] = useState(false);
   const [customApps, setCustomApps] = useState<any[]>([]);
@@ -185,7 +183,9 @@ export function Desktop() {
     return <LoginScreen />;
   }
 
-  const allowedApps = Object.entries(APPS).filter(([_, config]) => config.roles.includes(currentUser.role));
+  const allowedApps = Object.entries(APPS).filter(([appId, config]) => 
+    config.roles.includes(currentUser.role) && (config.isCore || installedApps.includes(appId))
+  );
   const isSuperUser = currentUser.role === 'admin';
 
   return (
@@ -236,6 +236,18 @@ export function Desktop() {
                   Desktop {ws + 1}
                 </button>
               ))}
+            </div>
+
+            {/* Spotlight Search Toggle */}
+            <div className="flex items-center ml-4 pl-4 border-l border-white/20">
+              <button 
+                onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
+                className="flex items-center gap-2 px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-colors cursor-pointer"
+                title="Search (Cmd+K)"
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span className="text-xs opacity-50 font-mono">⌘K</span>
+              </button>
             </div>
 
             {/* Workspace Context Toggle (Private vs Agency) */}
@@ -511,7 +523,11 @@ export function Desktop() {
       {/* macOS Style Dock */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
         <div className="flex items-end gap-3 px-3 py-2 bg-white/20 backdrop-blur-3xl border border-white/20 rounded-3xl shadow-2xl pointer-events-auto">
-          {allowedApps.map(([appId, config]) => {
+          {allowedApps.filter(([appId, config]) => {
+             const activeWindows = windows.filter(win => win.workspace === activeWorkspace || win.workspace === undefined);
+             const isOpen = activeWindows.some(w => w.appId === appId);
+             return config.isCore || isOpen || recentApps.includes(appId);
+          }).map(([appId, config]) => {
             const Icon = config.icon;
             const activeWindows = windows.filter(win => win.workspace === activeWorkspace || win.workspace === undefined);
             const isOpen = activeWindows.some(w => w.appId === appId);
