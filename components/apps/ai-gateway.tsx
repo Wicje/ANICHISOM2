@@ -25,6 +25,7 @@ export function AIGateway({ window }: { window: OSWindow }) {
 
   // Config state
   const [model, setModel] = useState('gemini-3.5-flash');
+  const [apiKey, setApiKey] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export function AIGateway({ window }: { window: OSWindow }) {
       get('anichisom_os_ai_config').then((config) => {
         if (config) {
           if (config.model) setModel(config.model);
+          if (config.apiKey) setApiKey(config.apiKey);
         }
         setIsLoaded(true);
       });
@@ -46,7 +48,7 @@ export function AIGateway({ window }: { window: OSWindow }) {
 
   const saveConfig = () => {
     import('idb-keyval').then(({ set }) => {
-      set('anichisom_os_ai_config', { model });
+      set('anichisom_os_ai_config', { model, apiKey });
       alert("AI Configuration saved locally.");
     });
   };
@@ -58,7 +60,7 @@ export function AIGateway({ window }: { window: OSWindow }) {
     setInput('');
     setLoading(true);
 
-    const res = await generateChatResponse(userMessage.content, "You are Ziklag OS's internal AI Gateway assistant. Be helpful, concise, and futuristic.");
+    const res = await generateChatResponse(userMessage.content, "You are Ziklag OS's internal AI Gateway assistant. Be helpful, concise, and futuristic.", model, apiKey);
     
     setMessages(prev => [...prev, {
       id: crypto.randomUUID(), 
@@ -210,8 +212,23 @@ export function AIGateway({ window }: { window: OSWindow }) {
                          ))}
                       </div>
                    </div>
-
-                   <div className="pt-6">
+                   
+                   <div className="space-y-1 mt-6">
+                      <label className="text-xs text-[#888] font-medium">Gemini API Key</label>
+                      <div className="relative mt-1">
+                        <Lock className="w-4 h-4 text-[#888] absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input 
+                          type="password" 
+                          value={apiKey}
+                          onChange={(e) => setApiKey(e.target.value)}
+                          placeholder="AIzaSy..." 
+                          className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                        />
+                      </div>
+                      <p className="text-[10px] text-[#555] mt-2">Your key is stored locally in your browser's IndexedDB. If left blank, it falls back to the server environment variable.</p>
+                   </div>
+                   
+                   <div className="pt-6 border-t border-[#222] mt-6">
                       <button onClick={saveConfig} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
                          <Save className="w-4 h-4" /> Save Preferences
                       </button>

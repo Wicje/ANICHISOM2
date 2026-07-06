@@ -2,11 +2,13 @@
 
 import { GoogleGenAI } from '@google/genai';
 
-export async function generateChatResponse(prompt: string, customSystemPrompt: string = 'You are a helpful AI assistant.') {
+export async function generateChatResponse(prompt: string, customSystemPrompt: string = 'You are a helpful AI assistant.', model: string = 'gemini-3.5-flash', apiKey?: string) {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const key = apiKey || process.env.GEMINI_API_KEY;
+    if (!key) throw new Error('API Key is missing.');
+    const ai = new GoogleGenAI({ apiKey: key });
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: model,
       contents: [
         {
           role: 'user',
@@ -25,11 +27,13 @@ export async function generateChatResponse(prompt: string, customSystemPrompt: s
   }
 }
 
-export async function generateTerminalResponse(prompt: string) {
+export async function generateTerminalResponse(prompt: string, model: string = 'gemini-3.5-flash', apiKey?: string) {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const key = apiKey || process.env.GEMINI_API_KEY;
+    if (!key) throw new Error('API Key is missing.');
+    const ai = new GoogleGenAI({ apiKey: key });
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: model,
       contents: [
         {
           role: 'user',

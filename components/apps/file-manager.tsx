@@ -136,7 +136,11 @@ export function FileManager({ window }: { window: OSWindow }) {
 
   // Firebase Realtime
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      setFiles(initialFiles);
+      setIsLoaded(true);
+      return;
+    }
     const q = query(collection(db, 'files'), where('ownerId', '==', currentUser.id), limit(200));
     const unsub = onSnapshot(q, (snap) => {
       const dbFiles: FileItem[] = [];
