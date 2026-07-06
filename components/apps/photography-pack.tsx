@@ -91,7 +91,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
          
          // Apply watermark styling
          const fontSize = Math.floor(canvas.width / 10);
-         ctx.font = \`bold \${fontSize}px sans-serif\`;
+         ctx.font = `bold ${fontSize}px sans-serif`;
          ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
          ctx.textAlign = "center";
          ctx.textBaseline = "middle";
@@ -110,7 +110,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
          const res = await fetch(dataUrl);
          const blob = await res.blob();
          
-         await FS.write(\`WM_\${img.name}\`, new File([blob], \`WM_\${img.name}\`, { type: 'image/jpeg' }));
+         await FS.write(`WM_${img.name}`, new File([blob], `WM_${img.name}`, { type: 'image/jpeg' }));
      }
      
      await loadImages();
@@ -238,7 +238,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                                  className="p-1.5 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors" 
                                  title="Copy Link"
                                  onClick={() => {
-                                    navigator.clipboard.writeText(\`https://delivery.anichisom.com/g/\${gallery.id}\`);
+                                    navigator.clipboard.writeText(`https://delivery.anichisom.com/g/${gallery.id}`);
                                     alert('Delivery link copied to clipboard!');
                                  }}
                                >

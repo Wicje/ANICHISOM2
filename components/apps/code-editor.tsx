@@ -11,9 +11,9 @@ import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from 'y-monaco';
 
-export function CodeEditor({ window }: { window: OSWindow }) {
+export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
   const { openWindow, currentUser, workspaceMode, setWorkspaceMode } = useOS();
-  const projectId = window.data?.projectId || 'default';
+  const projectId = osWindow.data?.projectId || 'default';
   
   const getInitialCode = (id: string, content?: string) => {
     if (content) return content;
@@ -51,7 +51,7 @@ export function CodeEditor({ window }: { window: OSWindow }) {
   const activeFile = files.find(f => f.id === activeFileId);
   const fileName = activeFile?.name || activeFileId || 'app.tsx';
 
-  const [code, setCode] = useState(getInitialCode(projectId, window.data?.content));
+  const [code, setCode] = useState(getInitialCode(projectId, osWindow.data?.content));
   const [expandedFolders, setExpandedFolders] = useState<string[]>(['src', 'root']);
   const [isDeploying, setIsDeploying] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -122,7 +122,7 @@ export function CodeEditor({ window }: { window: OSWindow }) {
              } else if (saved && saved.code !== undefined) {
                 setCode(saved.code);
              } else {
-                setCode(getInitialCode(projectId, window.data?.content));
+                setCode(getInitialCode(projectId, osWindow.data?.content));
              }
              setLoaded(true);
           });

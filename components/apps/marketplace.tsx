@@ -94,7 +94,7 @@ const AVAILABLE_PACKS: PluginPack[] = [
 ];
 
 export function Marketplace({ window: osWindow }: { window: OSWindow }) {
-  const { emitEvent, currentUser, installedApps, installApp, uninstallApp } = useOS();
+  const { emitEvent, currentUser, installedApps, installApp, uninstallApp, openWindow } = useOS();
   const [packs, setPacks] = useState<PluginPack[]>(AVAILABLE_PACKS);
   const [selectedPack, setSelectedPack] = useState<PluginPack | null>(null);
   const [viewMode, setViewMode] = useState<'store' | 'developer'>('store');

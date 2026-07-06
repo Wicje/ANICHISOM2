@@ -6,7 +6,7 @@ import {
   Plus, MoreHorizontal, Smile, Menu, PanelLeftClose, PanelLeft, 
   GripVertical, ChevronRight, CheckSquare, Square, Heading1, 
   Heading2, Heading3, List, Type, Image as ImageIcon, Link as LinkIcon, Database, Trash2,
-  Calendar, LayoutList, Share2, AtSign, Columns, Clock, Copy, Globe, Lock, Code, Search, Image, Palette, Layout
+  Calendar, LayoutList, Share2, AtSign, Columns, Clock, Copy, Globe, Lock, Code, Search, Image, Palette, Layout, CheckCircle, Send
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
