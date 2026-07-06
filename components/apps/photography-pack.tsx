@@ -16,6 +16,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
      { id: 2, name: "Corporate Headshots - Acme Corp", date: "Oct 15, 2026", status: "Reviewing", expires: "14 days", pin: "1124" },
   ]);
   const [newGalleryName, setNewGalleryName] = useState('');
+  const [viewedGallery, setViewedGallery] = useState<any>(null);
 
   // Watermark State
   const [isWatermarking, setIsWatermarking] = useState(false);
@@ -239,13 +240,78 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                          </div>
                       </div>
                       <div className="flex items-center gap-2">
-                         <button className="px-4 py-2 text-xs font-bold text-zinc-600 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors flex items-center gap-2">
+                         <button onClick={() => setViewedGallery(gallery)} className="px-4 py-2 text-xs font-bold text-zinc-600 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors flex items-center gap-2">
                             <Eye className="w-4 h-4" /> View Portal
                          </button>
                       </div>
                    </div>
                 </div>
              ))}
+          </div>
+        )}
+
+        {/* Client Portal Modal Overlay */}
+        {viewedGallery && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 bg-zinc-900/40 backdrop-blur-sm">
+             <div className="bg-white rounded-3xl w-full max-w-5xl h-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl relative">
+                {/* Header */}
+                <div className="h-20 border-b border-zinc-100 flex items-center justify-between px-8 bg-white shrink-0">
+                   <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
+                         <Camera className="w-5 h-5 text-indigo-600" />
+                      </div>
+                      <div>
+                         <h2 className="font-bold text-lg">{viewedGallery.name}</h2>
+                         <p className="text-xs text-zinc-500 font-medium">Prepared by ANICHISOM Studios</p>
+                      </div>
+                   </div>
+                   <button onClick={() => setViewedGallery(null)} className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded-full text-sm font-bold transition-colors">Close Portal</button>
+                </div>
+                
+                {/* Cover Image */}
+                <div className="h-64 sm:h-80 bg-zinc-900 w-full relative shrink-0">
+                   {images.length > 0 ? (
+                      <img src={images[0].content as string} className="w-full h-full object-cover opacity-60" />
+                   ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-700">No images available</div>
+                   )}
+                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-8">
+                      <div className="text-white">
+                         <h1 className="text-4xl font-bold mb-2">{viewedGallery.name}</h1>
+                         <p className="text-white/70 font-medium">{images.length} High-Resolution Photos • Expires in {viewedGallery.expires}</p>
+                      </div>
+                   </div>
+                </div>
+                
+                {/* Masonry Grid */}
+                <div className="flex-1 overflow-y-auto p-8 bg-zinc-50">
+                   <div className="flex justify-between items-center mb-6">
+                      <h3 className="font-bold text-xl">Gallery</h3>
+                      <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center gap-2">
+                         <Download className="w-4 h-4" /> Download All
+                      </button>
+                   </div>
+                   
+                   <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
+                      {images.length === 0 ? (
+                         <div className="col-span-full py-12 text-center text-zinc-500 font-medium bg-white rounded-2xl border border-zinc-200 border-dashed">
+                            Gallery is empty. Watermark and assign photos to this gallery to display them here.
+                         </div>
+                      ) : (
+                         images.map((img, i) => (
+                            <div key={img.id} className="relative rounded-xl overflow-hidden group cursor-pointer border border-zinc-200 bg-white">
+                               <img src={img.content as string} className="w-full h-auto" />
+                               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                  <button className="w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center text-white hover:bg-white hover:text-indigo-600 transition-colors">
+                                     <Download className="w-5 h-5" />
+                                  </button>
+                               </div>
+                            </div>
+                         ))
+                      )}
+                   </div>
+                </div>
+             </div>
           </div>
         )}
 

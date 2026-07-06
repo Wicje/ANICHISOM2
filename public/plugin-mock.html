@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Third Party Plugin</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f8fafc;
+      color: #334155;
+    }
+    .card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    }
+    button {
+      background: #8b5cf6;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 10px;
+    }
+    button:hover {
+      background: #7c3aed;
+    }
+    .log {
+      margin-top: 20px;
+      padding: 10px;
+      background: #1e293b;
+      color: #a7f3d0;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Ecosystem Plugin Sandbox</h2>
+    <p>This is an external HTML application loaded securely via an iframe. It uses <code>postMessage</code> to communicate with the host OS.</p>
+    
+    <div id="userInfo" style="margin-bottom: 15px; font-weight: 600; color: #8b5cf6;">Waiting for OS Context...</div>
+
+    <button onclick="sendNotification()">Trigger OS Notification</button>
+    <button onclick="openBrowser()">Tell OS to Open Browser</button>
+    
+    <div class="log" id="log">Logs will appear here...</div>
+  </div>
+
+  <script>
+    function logMessage(msg) {
+      document.getElementById('log').innerText += '\n> ' + msg;
+    }
+
+    // Listen for messages from the host OS
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+      if (data.type === 'INIT_CONTEXT') {
+        const payload = data.payload;
+        document.getElementById('userInfo').innerText = `Hello, ${payload.userName || 'User'}! Connected to OS.`;
+        logMessage('Received OS Context: ' + JSON.stringify(payload));
+      }
+    });
+
+    // Notify OS that we are ready
+    window.parent.postMessage({ type: 'OS_READY' }, '*');
+    logMessage('Sent OS_READY to host.');
+
+    function sendNotification() {
+      window.parent.postMessage({
+        type: 'NOTIFY',
+        payload: { message: 'Hello from the sandboxed iframe plugin!' }
+      }, '*');
+      logMessage('Sent NOTIFY event.');
+    }
+
+    function openBrowser() {
+      window.parent.postMessage({
+        type: 'OPEN_APP',
+        payload: { appId: 'browser', title: 'Opened by Plugin' }
+      }, '*');
+      logMessage('Sent OPEN_APP (browser) event.');
+    }
+  </script>
+</body>
+</html>

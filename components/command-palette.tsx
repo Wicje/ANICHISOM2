@@ -2,14 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { useOS } from '@/lib/os-context';
-import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Search, Archive, Clipboard, AppWindow } from 'lucide-react';
+import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Search, Archive, Clipboard, AppWindow, File } from 'lucide-react';
 import { APPS } from '@/components/desktop';
+import { FS } from '@/lib/fs';
 
 export function CommandPalette() {
   const { openWindow, windows, focusWindow, installedApps, currentUser } = useOS();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [clipboardText, setClipboardText] = useState('');
+  const [localFiles, setLocalFiles] = useState<{name: string, id: string}[]>([]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -35,6 +37,10 @@ export function CommandPalette() {
      if (isOpen) {
         navigator.clipboard.readText().then(text => {
            if (text && text.length < 100) setClipboardText(text);
+        }).catch(() => {});
+        
+        FS.readDir('').then(files => {
+           setLocalFiles(files);
         }).catch(() => {});
      }
   }, [isOpen]);
@@ -67,6 +73,17 @@ export function CommandPalette() {
         type: 'Open Window',
         icon: AppWindow,
         action: () => focusWindow(win.id)
+     });
+  });
+
+  // Add Local Files
+  localFiles.forEach(file => {
+     commands.push({
+        id: `file-${file.id}`,
+        name: file.name,
+        type: 'Local File',
+        icon: File,
+        action: () => openWindow('code', `Editing: ${file.name}`, { filename: file.name })
      });
   });
 

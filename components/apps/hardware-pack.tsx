@@ -400,34 +400,81 @@ function BomTab({ bomData }: { bomData: any[] }) {
 // 5. Firmware Deployment (WebSerial / WebUSB) - Kept intact
 // ---------------------------------------------------------
 function FirmwareTab() {
+  const [logs, setLogs] = useState<string[]>([]);
+  const [isConnected, setIsConnected] = useState(false);
+  const [port, setPort] = useState<any>(null);
+
+  const connectSerial = async () => {
+    try {
+      const p = await (navigator as any).serial.requestPort();
+      await p.open({ baudRate: 115200 });
+      setPort(p);
+      setIsConnected(true);
+      setLogs(prev => [...prev, '> WebSerial Port Opened at 115200 baud. Waiting for data...']);
+      
+      const decoder = new TextDecoderStream();
+      const inputDone = p.readable.pipeTo(decoder.writable);
+      const inputStream = decoder.readable;
+      const reader = inputStream.getReader();
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (value) {
+          setLogs(prev => [...prev, value]);
+        }
+        if (done) {
+          reader.releaseLock();
+          break;
+        }
+      }
+    } catch (e: any) {
+      setLogs(prev => [...prev, `> Serial Connection failed: ${e.message || e}`]);
+    }
+  };
+
+  const disconnectSerial = async () => {
+    if (port) {
+      try {
+        await port.close();
+        setPort(null);
+        setIsConnected(false);
+        setLogs(prev => [...prev, '> WebSerial Port Closed.']);
+      } catch (e: any) {
+        setLogs(prev => [...prev, `> Failed to close port: ${e.message}`]);
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4 h-full p-6 font-sans">
       <div className="flex items-center justify-between">
          <div>
             <h2 className="text-2xl font-bold text-emerald-400 tracking-tight">Firmware Deployment</h2>
-            <p className="text-sm text-white/50">Flash compiled binaries directly to physical hardware via browser APIs.</p>
+            <p className="text-sm text-white/50">Flash compiled binaries and monitor serial output directly via browser APIs.</p>
          </div>
          <div className="flex gap-2">
-           <button 
-             onClick={async () => {
-               try {
-                  const port = await (navigator as any).serial.requestPort();
-                  alert(`Connected to WebSerial Port! Proceeding with firmware flash...`);
-               } catch (e) {
-                  alert(`Serial Connection failed: ${e}`);
-               }
-             }}
-             className="px-4 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-sm font-bold hover:bg-emerald-500/30 transition-colors"
-           >
-             Connect WebSerial
-           </button>
+           {!isConnected ? (
+             <button 
+               onClick={connectSerial}
+               className="px-4 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-sm font-bold hover:bg-emerald-500/30 transition-colors"
+             >
+               Connect WebSerial
+             </button>
+           ) : (
+             <button 
+               onClick={disconnectSerial}
+               className="px-4 py-2 bg-rose-500/20 text-rose-500 border border-rose-500/30 rounded-lg text-sm font-bold hover:bg-rose-500/30 transition-colors"
+             >
+               Disconnect
+             </button>
+           )}
            <button 
              onClick={async () => {
                try {
                   const device = await (navigator as any).usb.requestDevice({ filters: [] });
-                  alert(`Connected to WebUSB Device: ${device.productName}`);
+                  setLogs(prev => [...prev, `> Connected to WebUSB Device: ${device.productName}`]);
                } catch (e) {
-                  alert(`USB Connection failed: ${e}`);
+                  setLogs(prev => [...prev, `> USB Connection failed: ${e}`]);
                }
              }}
              className="px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-sm font-bold hover:bg-blue-500/30 transition-colors"
@@ -436,11 +483,18 @@ function FirmwareTab() {
            </button>
          </div>
       </div>
-      <div className="flex-1 bg-[#0a0a0a] rounded-xl border border-white/10 p-5 font-mono text-sm text-white/70 overflow-auto shadow-inner">
-         <div className="text-emerald-500 mb-6 font-bold">{`> Awaiting hardware connection...`} <br/>{`> Use the buttons above to grant WebUSB or WebSerial access to physical boards.`}</div>
-         <div className="mb-3"><span className="text-blue-400 font-bold">[v1.2.4]</span> - OTA deployed to 1,204 devices successfully.</div>
-         <div className="mb-3"><span className="text-blue-400 font-bold">[v1.2.3]</span> - Fixed I2C clock stretching issue on BME280.</div>
-         <div className="mb-3 text-white/40">Ready to write to flash at 0x10000...</div>
+      <div className="flex-1 bg-[#0a0a0a] rounded-xl border border-white/10 p-5 font-mono text-sm text-white/70 overflow-auto shadow-inner flex flex-col gap-1 whitespace-pre-wrap">
+         {!isConnected && logs.length === 0 && (
+           <>
+             <div className="text-emerald-500 mb-6 font-bold">{`> Awaiting hardware connection...`} <br/>{`> Use the buttons above to grant WebUSB or WebSerial access to physical boards.`}</div>
+             <div className="mb-3"><span className="text-blue-400 font-bold">[v1.2.4]</span> - OTA deployed to 1,204 devices successfully.</div>
+             <div className="mb-3"><span className="text-blue-400 font-bold">[v1.2.3]</span> - Fixed I2C clock stretching issue on BME280.</div>
+             <div className="mb-3 text-white/40">Ready to write to flash at 0x10000...</div>
+           </>
+         )}
+         {logs.map((log, i) => (
+           <div key={i}>{log}</div>
+         ))}
       </div>
     </div>
   );

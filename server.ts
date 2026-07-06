@@ -5,6 +5,9 @@ import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import { parse } from 'url';
+import { WebSocketServer } from 'ws';
+// @ts-ignore
+import { setupWSConnection } from 'y-websocket/bin/utils';
 
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
@@ -13,6 +16,12 @@ const handle = app.getRequestHandler();
 app.prepare().then(async () => {
   const server = express();
   const httpServer = createServer(server);
+  
+  // y-websocket server for real-time collaboration
+  const wss = new WebSocketServer({ port: 1234 });
+  wss.on('connection', setupWSConnection);
+  console.log('Yjs WebSocket Server listening on ws://localhost:1234');
+  
   
   const io = new Server(httpServer, {
     cors: {
@@ -70,6 +79,17 @@ app.prepare().then(async () => {
     
     socket.on('add-comment', ({ roomId, comment }) => {
       socket.to(roomId).emit('comment-added', comment);
+    });
+
+    // --- MCP Bridge ---
+    socket.on('mcp-request', (data) => {
+      // Broadcast from MCP Server -> OS Host
+      socket.broadcast.emit('mcp-request', data);
+    });
+    
+    socket.on('mcp-response', (data) => {
+      // Broadcast from OS Host -> MCP Server
+      socket.broadcast.emit('mcp-response', data);
     });
 
     socket.on('disconnect', () => {

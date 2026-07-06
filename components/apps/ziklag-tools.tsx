@@ -123,6 +123,7 @@ export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
   const [hexMode, setHexMode] = useState<'hex' | 'telemetry'>('hex');
 
   const [verifyHashInput, setVerifyHashInput] = useState('');
+  const [isHashingFile, setIsHashingFile] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -205,6 +206,52 @@ export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
       newValue: { match: newHash.match, evidenceId: newHash.evidenceId, computed: computedHash },
       comment: `Verified WebCrypto hash for ${newHash.evidenceId}`
     });
+  };
+
+  const handleFileDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      setIsHashingFile(true);
+      try {
+        const buffer = await file.arrayBuffer();
+        const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const computedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+        
+        const newHash: HashVerification = {
+          id: `HV-${Math.floor(Math.random() * 1000)}`,
+          evidenceId: file.name,
+          timestamp: new Date().toISOString(),
+          algorithm: 'SHA-256',
+          originalHash: verifyHashInput || 'N/A',
+          verifiedHash: computedHash,
+          match: verifyHashInput ? verifyHashInput.toUpperCase() === computedHash : false
+        };
+        
+        const newHashes = [newHash, ...hashVerifications];
+        setHashVerifications(newHashes);
+        storage.set('hashVerifications', newHashes);
+        setVerifyHashInput('');
+        
+        emitEvent({
+          workspaceId: 'global',
+          type: 'hash_verified',
+          entityId: newHash.id,
+          userId: currentUser?.id || 'unknown',
+          newValue: { match: newHash.match, evidenceId: newHash.evidenceId, computed: computedHash },
+          comment: `Verified WebCrypto hash for file ${newHash.evidenceId}`
+        });
+      } catch (err) {
+        console.error("Hashing failed", err);
+      } finally {
+        setIsHashingFile(false);
+      }
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
   };
 
   const getHealthColor = (health: DiskHealth) => {
@@ -486,6 +533,24 @@ export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
                 >
                   Verify
                 </button>
+              </div>
+              <div 
+                className={cn("mt-4 border-2 border-dashed border-white/20 rounded-xl p-8 flex flex-col items-center justify-center transition-colors", isHashingFile ? "bg-white/5 border-neon-blue" : "hover:border-white/40 hover:bg-white/5")}
+                onDrop={handleFileDrop}
+                onDragOver={handleDragOver}
+              >
+                {isHashingFile ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <RefreshCcw className="w-8 h-8 text-neon-blue animate-spin" />
+                    <span className="text-sm font-mono text-white/70">Hashing File via WebCrypto...</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 pointer-events-none">
+                    <Upload className="w-8 h-8 text-white/30" />
+                    <span className="text-sm font-mono text-white/50">Drag & Drop a local file here to compute its SHA-256 hash</span>
+                    <span className="text-[10px] text-white/30 uppercase tracking-widest mt-1">100% Client-Side. Zero Uploads.</span>
+                  </div>
+                )}
               </div>
             </div>
             

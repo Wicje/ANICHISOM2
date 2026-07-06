@@ -15,7 +15,7 @@ type BrowserTab = {
 };
 
 export function MiniBrowser({ window }: { window: OSWindow }) {
-  const { performanceMode, updateWindowData, maximizeWindow } = useOS();
+  const { performanceMode, updateWindowData, maximizeWindow, currentUser } = useOS();
 
   // Tab State
   const [tabs, setTabs] = useState<BrowserTab[]>(
@@ -135,6 +135,24 @@ export function MiniBrowser({ window }: { window: OSWindow }) {
     }
   };
 
+  const pinToDesktop = async () => {
+    if (!activeTab.url) return;
+    try {
+      const { addDoc, collection } = await import('firebase/firestore');
+      const { db } = await import('@/lib/firebase');
+      await addDoc(collection(db, 'apps'), {
+        title: activeTab.title || 'New App',
+        url: activeTab.url,
+        icon: 'Globe',
+        ownerId: currentUser?.id || 'unknown',
+        color: 'text-neon-blue'
+      });
+      alert(`Pinned ${activeTab.title} to Workspace Desktop!`);
+    } catch (e: any) {
+      alert("Failed to pin app: " + e.message);
+    }
+  };
+
   return (
     <div className="w-full h-full flex flex-col bg-white text-black font-sans relative group/browser">
       {/* Floating Unfocus Button (Visible only in Focus Mode) */}
@@ -212,8 +230,8 @@ export function MiniBrowser({ window }: { window: OSWindow }) {
                 placeholder="Search Google or enter web address"
                 className="flex-1 bg-transparent border-none outline-none text-sm text-slate-700"
               />
-              <button type="button" className="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
-                 <Star className="w-3.5 h-3.5" />
+              <button type="button" onClick={pinToDesktop} className="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-400 group relative" title="Pin to Workspace Desktop">
+                 <Star className="w-3.5 h-3.5 group-hover:text-amber-400 transition-colors" />
               </button>
             </form>
 

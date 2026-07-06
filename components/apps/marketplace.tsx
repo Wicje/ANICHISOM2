@@ -225,9 +225,18 @@ export function Marketplace({ window: osWindow }: { window: OSWindow }) {
                </div>
              ) : (
                <div className="bg-black/40 border border-white/10 rounded-2xl p-8">
-                 <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                   <UploadCloud className="w-5 h-5 text-white/50" />
-                   Submit New Plugin Pack
+                 <h3 className="text-lg font-bold text-white mb-6 flex items-center justify-between">
+                   <div className="flex items-center gap-2">
+                     <UploadCloud className="w-5 h-5 text-white/50" />
+                     Submit New Plugin Pack
+                   </div>
+                   <button 
+                     onClick={() => openWindow('plugin', 'Sandboxed Plugin Preview', { pluginUrl: '/plugin-mock.html' })}
+                     className="px-3 py-1 bg-white/10 hover:bg-white/20 text-xs font-medium rounded-lg transition-colors border border-white/10 flex items-center gap-2"
+                   >
+                     <Box className="w-3.5 h-3.5" />
+                     Test Local Sandbox
+                   </button>
                  </h3>
                  <div className="space-y-4">
                    <div>

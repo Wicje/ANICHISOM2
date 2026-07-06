@@ -8,7 +8,7 @@ import { Storage } from '@/lib/storage';
 import { FS } from '@/lib/fs';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import * as Y from 'yjs';
-import { WebrtcProvider } from 'y-webrtc';
+import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from 'y-monaco';
 
 export function CodeEditor({ window }: { window: OSWindow }) {
@@ -85,7 +85,10 @@ export function CodeEditor({ window }: { window: OSWindow }) {
     // YJS Bindings
     if (workspaceMode === 'agency') {
        const ydoc = new Y.Doc();
-       const provider = new WebrtcProvider(roomId, ydoc, { signaling: ['wss://signaling.yjs.dev'] });
+       const wsUrl = typeof window !== 'undefined' && window.location.protocol === 'https:' 
+          ? `wss://${window.location.hostname}:1234` 
+          : 'ws://localhost:1234';
+       const provider = new WebsocketProvider(wsUrl, roomId, ydoc);
        const type = ydoc.getText('monaco');
        
        const binding = new MonacoBinding(type, editor.getModel(), new Set([editor]), provider.awareness);
@@ -106,13 +109,24 @@ export function CodeEditor({ window }: { window: OSWindow }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoaded(false);
     
-    Storage.getDoc('codes', roomId, workspaceMode).then((saved: any) => {
-       if (workspaceMode === 'private' && saved && typeof saved === 'string') {
-          setCode(saved);
-       } else if (saved && saved.code !== undefined) {
-          setCode(saved.code);
+    // First try OPFS natively
+    FS.read(activeFileId).then(localFile => {
+       if (localFile && typeof localFile.content === 'string') {
+          setCode(localFile.content);
+          setLoaded(true);
+       } else {
+          // Fallback to legacy cloud storage or templates
+          Storage.getDoc('codes', roomId, workspaceMode).then((saved: any) => {
+             if (workspaceMode === 'private' && saved && typeof saved === 'string') {
+                setCode(saved);
+             } else if (saved && saved.code !== undefined) {
+                setCode(saved.code);
+             } else {
+                setCode(getInitialCode(projectId, window.data?.content));
+             }
+             setLoaded(true);
+          });
        }
-       setLoaded(true);
     });
 
     const unsub = Storage.subscribe('codes', roomId, workspaceMode, (state: any) => {
@@ -146,6 +160,10 @@ export function CodeEditor({ window }: { window: OSWindow }) {
     
     if (saveCodeRef.current) clearTimeout(saveCodeRef.current);
     saveCodeRef.current = setTimeout(() => {
+        // Save to native OPFS for local offline access and FileManager visibility
+        FS.write(activeFileId, val).catch(e => console.warn('FS write failed', e));
+        
+        // Sync to legacy/cloud storage
         if (workspaceMode === 'private') {
            Storage.setDoc('codes', roomId, val, workspaceMode);
         } else {
@@ -272,7 +290,7 @@ export function CodeEditor({ window }: { window: OSWindow }) {
                  <span>Explorer</span>
                  <div className="flex items-center gap-1">
                    <button onClick={async () => {
-                     const name = prompt("Enter file name:");
+                     const name = prompt("Enter file path (e.g. src/app.tsx):");
                      if (name) { await FS.write(name, '// new file\\n'); await refreshFiles(); }
                    }} className="p-0.5 hover:bg-[#3c3c3c] rounded"><Plus className="w-3.5 h-3.5" /></button>
                    <button onClick={refreshFiles} className="p-0.5 hover:bg-[#3c3c3c] rounded"><RefreshCcw className="w-3.5 h-3.5" /></button>
@@ -280,23 +298,51 @@ export function CodeEditor({ window }: { window: OSWindow }) {
                </div>
                
                <div className="flex flex-col mt-1">
-                 <div 
-                   className="flex items-center gap-1 px-2 py-1 cursor-pointer hover:bg-[#2a2d2e] text-[#cccccc] text-sm font-semibold"
-                   onClick={() => setExpandedFolders(prev => prev.includes('src') ? prev.filter(f => f !== 'src') : [...prev, 'src'])}
-                 >
-                   {expandedFolders.includes('src') ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                   <Folder className="w-4 h-4 text-blue-400" />
-                   <span>{projectId.toUpperCase()}</span>
-                 </div>
-                 {expandedFolders.includes('src') && files.map(file => (
-                   <div 
-                     key={file.id} 
-                     onClick={() => { setActiveFileId(file.id); setCode(getInitialCode(projectId, '')); }}
-                     className={cn("flex items-center gap-2 pl-8 pr-2 py-1 cursor-pointer text-[13px]", activeFileId === file.id ? "bg-[#37373d] text-white" : "text-[#cccccc] hover:bg-[#2a2d2e]")}
-                   >
-                     <FileIcon className={cn("w-4 h-4 shrink-0", file.name.endsWith('.tsx') || file.name.endsWith('.ts') || file.name.endsWith('.js') ? "text-[#e3c14a]" : "text-[#519aba]")} />
-                     <span className="truncate">{file.name}</span>
-                   </div>
+                 {Object.entries(
+                   files.reduce((acc, file) => {
+                      const parts = file.id.split('/');
+                      const folder = parts.length > 1 ? parts[0] : 'root';
+                      if (!acc[folder]) acc[folder] = [];
+                      acc[folder].push(file);
+                      return acc;
+                   }, {} as Record<string, typeof files>)
+                 ).map(([folderName, folderFiles]) => (
+                   <React.Fragment key={folderName}>
+                     <div 
+                       className="flex items-center gap-1 px-2 py-1 cursor-pointer hover:bg-[#2a2d2e] text-[#cccccc] text-sm font-semibold"
+                       onClick={() => setExpandedFolders(prev => prev.includes(folderName) ? prev.filter(f => f !== folderName) : [...prev, folderName])}
+                     >
+                       {expandedFolders.includes(folderName) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                       <Folder className="w-4 h-4 text-blue-400" />
+                       <span>{folderName.toUpperCase()}</span>
+                     </div>
+                     {expandedFolders.includes(folderName) && folderFiles.map(file => (
+                       <div 
+                         key={file.id} 
+                         onClick={async () => { 
+                           setActiveFileId(file.id); 
+                           const localFile = await FS.read(file.id);
+                           setCode(localFile?.content || getInitialCode(projectId, '')); 
+                         }}
+                         className={cn("flex items-center justify-between pl-8 pr-2 py-1 cursor-pointer text-[13px] group", activeFileId === file.id ? "bg-[#37373d] text-white" : "text-[#cccccc] hover:bg-[#2a2d2e]")}
+                       >
+                         <div className="flex items-center gap-2 overflow-hidden">
+                           <FileIcon className={cn("w-4 h-4 shrink-0", file.name.endsWith('.tsx') || file.name.endsWith('.ts') || file.name.endsWith('.js') ? "text-[#e3c14a]" : "text-[#519aba]")} />
+                           <span className="truncate">{file.id.includes('/') ? file.id.substring(file.id.indexOf('/') + 1) : file.name}</span>
+                         </div>
+                         <button 
+                           className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-white/10 rounded text-rose-400"
+                           onClick={async (e) => {
+                              e.stopPropagation();
+                              if (confirm(`Delete ${file.id}?`)) {
+                                 await FS.delete(file.id);
+                                 await refreshFiles();
+                              }
+                           }}
+                         >✖</button>
+                       </div>
+                     ))}
+                   </React.Fragment>
                  ))}
                </div>
              </>

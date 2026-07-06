@@ -7,7 +7,7 @@ import { WindowFrame } from '@/components/window-frame';
 import { CommandPalette } from '@/components/command-palette';
 import { WorkspaceSelector } from '@/components/workspace-selector';
 import { PresenceIndicator } from '@/components/presence-indicator';
-import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Code2, Search, LayoutTemplate, Clock, Save, Cloud, RefreshCw, ShieldCheck, Power, Figma, Framer, HardDrive, Github, BookOpen, Zap, ZapOff, Briefcase, Brain, User, AlertCircle, Play, Plus, Users, Server, Archive, FileText, Video, Store, Shirt, Cpu, Camera, Code } from 'lucide-react';
+import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Code2, Search, LayoutTemplate, Clock, Save, Cloud, RefreshCw, ShieldCheck, Power, Figma, Framer, HardDrive, Github, BookOpen, Zap, ZapOff, Briefcase, Brain, User, AlertCircle, Play, Plus, Users, Server, Archive, FileText, Video, Store, Shirt, Cpu, Camera, Code, Box } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { LoginScreen } from '@/components/login-screen';
@@ -34,6 +34,7 @@ const CallsApp = dynamic(() => import('@/components/apps/calls').then(mod => mod
 const Marketplace = dynamic(() => import('@/components/apps/marketplace').then(mod => mod.Marketplace), { ssr: false });
 const SideGigsApp = dynamic(() => import('@/components/apps/side-gigs').then(mod => mod.SideGigsApp), { ssr: false });
 const ProposalGenerator = dynamic(() => import('@/components/apps/proposal-generator').then(mod => mod.ProposalGenerator), { ssr: false });
+const PluginSandbox = dynamic(() => import('@/components/apps/plugin-sandbox').then(mod => mod.PluginSandbox), { ssr: false });
 
 export const APPS = {
   'terminal': { component: TerminalBox, icon: Terminal, title: 'Terminal', roles: ['admin', 'technician'], isCore: true },
@@ -57,6 +58,7 @@ export const APPS = {
   'hardware': { component: HardwarePack, icon: Cpu, title: 'Hardware', roles: ['admin'], isCore: false },
   'developer': { component: DeveloperPack, icon: Code, title: 'DevOps', roles: ['admin', 'technician'], isCore: false },
   'photography': { component: PhotographyPack, icon: Camera, title: 'Photography', roles: ['admin', 'filmmaker'], isCore: false },
+  'plugin': { component: PluginSandbox, icon: Box, title: 'Plugin Sandbox', roles: ['admin'], isCore: false },
 };
 
 const PROJECTS = {
@@ -163,7 +165,35 @@ export function Desktop() {
       const apps = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setCustomApps(apps);
     });
-    return () => unsub();
+    
+    // --- MCP Bridge Listener ---
+    let mcpSocket: any = null;
+    import('socket.io-client').then(({ io }) => {
+      mcpSocket = io({ path: '/api/socketio' });
+      mcpSocket.on('mcp-request', async (req: any) => {
+        try {
+          if (req.method === 'openWindow') {
+            openWindow(req.params.appId, req.params.title, req.params.data);
+            mcpSocket.emit('mcp-response', { id: req.id, success: true });
+          } else if (req.method === 'readFS') {
+            const { FS } = await import('@/lib/fs');
+            const file = await FS.read(req.params.path);
+            mcpSocket.emit('mcp-response', { id: req.id, success: true, result: file?.content || '' });
+          } else if (req.method === 'writeFS') {
+            const { FS } = await import('@/lib/fs');
+            await FS.write(req.params.path, req.params.content);
+            mcpSocket.emit('mcp-response', { id: req.id, success: true });
+          }
+        } catch (err: any) {
+          mcpSocket.emit('mcp-response', { id: req.id, success: false, error: err.message });
+        }
+      });
+    });
+
+    return () => {
+       unsub();
+       if (mcpSocket) mcpSocket.disconnect();
+    };
   }, [currentUser]);
 
   const handleAddApp = async () => {
