@@ -41,7 +41,18 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                 </div>
                 <div className="flex gap-2">
                    <button className="px-4 py-2 bg-white border border-zinc-200 shadow-sm rounded-lg text-sm font-medium hover:bg-zinc-50">Filter</button>
-                   <button className="px-4 py-2 bg-indigo-500 text-white shadow-sm rounded-lg text-sm font-medium hover:bg-indigo-600">Import Files</button>
+                   <label className="px-4 py-2 bg-indigo-500 text-white shadow-sm rounded-lg text-sm font-medium hover:bg-indigo-600 cursor-pointer">
+                      Import Files
+                      <input type="file" multiple accept="image/*" className="hidden" onChange={async (e) => {
+                         if (!e.target.files) return;
+                         for (let i = 0; i < e.target.files.length; i++) {
+                            const file = e.target.files[i];
+                            await FS.write(file.name, file, file.type);
+                         }
+                         const files = await FS.readDir('');
+                         setImages(files.filter(f => f.mimeType?.startsWith('image/')));
+                      }} />
+                   </label>
                 </div>
              </div>
              <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">

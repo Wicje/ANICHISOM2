@@ -171,18 +171,25 @@ export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
     return () => clearInterval(interval);
   }, [isLoaded, storage]);
 
-  const handleVerifyHash = () => {
+  const handleVerifyHash = async () => {
     if (!verifyHashInput) return;
     
-    // Simulate hash verification
+    // Convert input string to actual buffer for real hashing using WebCrypto
+    const encoder = new TextEncoder();
+    const data = encoder.encode(verifyHashInput);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const computedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+    
+    // Simulate hash verification against the typed input just to show the real WebCrypto result
     const newHash: HashVerification = {
       id: `HV-${Math.floor(Math.random() * 1000)}`,
-      evidenceId: 'EV-001', // Mock default
+      evidenceId: 'EV-001',
       timestamp: new Date().toISOString(),
       algorithm: 'SHA-256',
-      originalHash: verifyHashInput,
-      verifiedHash: verifyHashInput, // Mock match
-      match: true
+      originalHash: verifyHashInput, // The raw string provided
+      verifiedHash: computedHash, // The actual computed WebCrypto hash of the string!
+      match: verifyHashInput.toUpperCase() === computedHash // Checks if they typed the hash itself
     };
     
     const newHashes = [newHash, ...hashVerifications];
@@ -195,8 +202,8 @@ export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
       type: 'hash_verified',
       entityId: newHash.id,
       userId: currentUser?.id || 'unknown',
-      newValue: { match: newHash.match, evidenceId: newHash.evidenceId },
-      comment: `Verified hash for evidence ${newHash.evidenceId}`
+      newValue: { match: newHash.match, evidenceId: newHash.evidenceId, computed: computedHash },
+      comment: `Verified WebCrypto hash for ${newHash.evidenceId}`
     });
   };
 

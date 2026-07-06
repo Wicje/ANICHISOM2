@@ -5,6 +5,7 @@ import { OSWindow, useOS } from '@/lib/os-context';
 import { FileCode, Play, Settings, RefreshCcw, Server, Users, ChevronRight, ChevronDown, Folder, File as FileIcon, Search, Plus, Terminal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Storage } from '@/lib/storage';
+import { FS } from '@/lib/fs';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
@@ -28,18 +29,27 @@ export function CodeEditor({ window }: { window: OSWindow }) {
     }
   };
 
-  const [files] = useState([
-    { id: '1', name: 'app.tsx', type: 'file', folder: 'src' },
-    { id: '2', name: 'kernel.ts', type: 'file', folder: 'src' },
-    { id: '3', name: 'ui.tsx', type: 'file', folder: 'src' },
-    { id: '4', name: 'package.json', type: 'file', folder: 'root' },
-    { id: '5', name: 'README.md', type: 'file', folder: 'root' },
+  const [files, setFiles] = useState<{ id: string, name: string, type: string, folder: string }[]>([
+    { id: 'app.tsx', name: 'app.tsx', type: 'file', folder: 'src' },
+    { id: 'package.json', name: 'package.json', type: 'file', folder: 'root' },
   ]);
+  
+  const refreshFiles = async () => {
+      const localFiles = await FS.readDir('');
+      if (localFiles && localFiles.length > 0) {
+         setFiles(localFiles.map(f => ({ id: f.id, name: f.name, type: 'file', folder: f.id.includes('/') ? f.id.split('/')[0] : 'root' })));
+      }
+  };
+
+  useEffect(() => {
+     refreshFiles();
+  }, []);
+
   const [activeFileId, setActiveFileId] = useState(
-    projectId === 'portfolio-v3' ? '2' : projectId === 'tesla-redesign' ? '3' : '1'
+    projectId === 'portfolio-v3' ? 'app.tsx' : projectId === 'tesla-redesign' ? 'ui.tsx' : 'app.tsx'
   );
   const activeFile = files.find(f => f.id === activeFileId);
-  const fileName = activeFile?.name || 'app.tsx';
+  const fileName = activeFile?.name || activeFileId || 'app.tsx';
 
   const [code, setCode] = useState(getInitialCode(projectId, window.data?.content));
   const [expandedFolders, setExpandedFolders] = useState<string[]>(['src', 'root']);
@@ -233,8 +243,11 @@ export function CodeEditor({ window }: { window: OSWindow }) {
            <div className="p-2 flex items-center justify-between text-[#cccccc] text-xs font-semibold uppercase tracking-wider">
              <span>Explorer</span>
              <div className="flex items-center gap-1">
-               <button className="p-0.5 hover:bg-[#3c3c3c] rounded"><Plus className="w-3.5 h-3.5" /></button>
-               <button className="p-0.5 hover:bg-[#3c3c3c] rounded"><RefreshCcw className="w-3.5 h-3.5" /></button>
+               <button onClick={async () => {
+                 const name = prompt("Enter file name:");
+                 if (name) { await FS.write(name, '// new file\\n'); await refreshFiles(); }
+               }} className="p-0.5 hover:bg-[#3c3c3c] rounded"><Plus className="w-3.5 h-3.5" /></button>
+               <button onClick={refreshFiles} className="p-0.5 hover:bg-[#3c3c3c] rounded"><RefreshCcw className="w-3.5 h-3.5" /></button>
              </div>
            </div>
            

@@ -95,12 +95,41 @@ export function HardwarePack({ window: osWindow }: { window: OSWindow }) {
         )}
         {activeTab === 'firmware' && (
           <div className="flex flex-col gap-4 h-full">
-            <h2 className="text-xl font-bold text-emerald-400">Firmware Version Tracker</h2>
+            <div className="flex items-center justify-between">
+               <h2 className="text-xl font-bold text-emerald-400">Firmware Deployment</h2>
+               <div className="flex gap-2">
+                 <button 
+                   onClick={async () => {
+                     try {
+                        const port = await (navigator as any).serial.requestPort();
+                        alert(`Connected to WebSerial Port! Proceeding with firmware flash...`);
+                     } catch (e) {
+                        alert(`Serial Connection failed: ${e}`);
+                     }
+                   }}
+                   className="px-4 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-xs uppercase tracking-widest font-bold hover:bg-emerald-500/30 transition-colors"
+                 >
+                   Connect WebSerial
+                 </button>
+                 <button 
+                   onClick={async () => {
+                     try {
+                        const device = await (navigator as any).usb.requestDevice({ filters: [] });
+                        alert(`Connected to WebUSB Device: ${device.productName}`);
+                     } catch (e) {
+                        alert(`USB Connection failed: ${e}`);
+                     }
+                   }}
+                   className="px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded text-xs uppercase tracking-widest font-bold hover:bg-blue-500/30 transition-colors"
+                 >
+                   Connect WebUSB
+                 </button>
+               </div>
+            </div>
             <div className="flex-1 bg-[#0a0a0a] rounded-lg border border-white/10 p-4 font-mono text-xs text-white/70 overflow-auto">
-               <div className="text-emerald-500 mb-4">{`> Connecting to serial port...`} <br/>{`> Device found: /dev/tty.usbmodem1101`} <br/>{`> Reading flash... OK`}</div>
+               <div className="text-emerald-500 mb-4">{`> Awaiting hardware connection...`} <br/>{`> Use the buttons above to grant WebUSB or WebSerial access.`}</div>
                <div className="mb-2"><span className="text-blue-400">[v1.2.4]</span> - OTA deployed to 1,204 devices successfully.</div>
                <div className="mb-2"><span className="text-blue-400">[v1.2.3]</span> - Fixed I2C clock stretching issue on BME280.</div>
-               <div className="mb-2"><span className="text-blue-400">[v1.2.2]</span> - Implemented deep sleep mode (12uA standby).</div>
             </div>
           </div>
         )}

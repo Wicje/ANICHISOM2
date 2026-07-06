@@ -29,6 +29,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.3.0",
     "express": "^5.2.1",
+    "fabric": "^7.4.0",
     "firebase": "^12.14.0",
     "hot-formula-parser": "^4.0.0",
     "idb-keyval": "^6.2.4",

@@ -163,6 +163,7 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser }: 
   const [content, setContent] = useState<string>("Loading document...");
   const [loaded, setLoaded] = useState(false);
   const isSyncingRef = useRef(false);
+  const latestContentRef = useRef("Loading document...");
 
   const roomId = `word-${projectId}`;
   const storageKey = `anichisom_os_word_${projectId}`;
@@ -190,6 +191,7 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser }: 
         }
         
         setContent(initialContent);
+        latestContentRef.current = initialContent;
         if (editor) editor.commands.setContent(initialContent);
         setLoaded(true);
     });
@@ -197,9 +199,10 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser }: 
     const unsub = Storage.subscribe('docs', roomId, workspaceMode, (state: any) => {
        if (state) {
          const remoteData = workspaceMode === 'private' ? state : state.content;
-         if (remoteData !== undefined && remoteData !== content) {
+         if (remoteData !== undefined && remoteData !== latestContentRef.current) {
              isSyncingRef.current = true;
              setContent(remoteData);
+             latestContentRef.current = remoteData;
              if (editor) {
                // Get cursor position before update
                const { from, to } = editor.state.selection;
@@ -219,6 +222,7 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser }: 
 
   const handleInput = (newContent: string) => {
     setContent(newContent);
+    latestContentRef.current = newContent;
     if (isSyncingRef.current) {
         isSyncingRef.current = false;
         return;
@@ -267,6 +271,7 @@ function SheetsEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
   const [loaded, setLoaded] = useState(false);
   const [activeCell, setActiveCell] = useState<string | null>(null);
   const isSyncingRef = useRef(false);
+  const latestDataRef = useRef<Record<string, string>>({});
   
   const parser = useRef(new Parser()).current;
 
@@ -296,8 +301,10 @@ function SheetsEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
     Storage.getDoc('docs', roomId, workspaceMode).then((saved: any) => {
         if (workspaceMode === 'private' && saved) {
           setData(saved);
+          latestDataRef.current = saved;
         } else if (saved && saved.data !== undefined) {
           setData(saved.data);
+          latestDataRef.current = saved.data;
         }
         setLoaded(true);
     });
@@ -305,9 +312,10 @@ function SheetsEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
     const unsub = Storage.subscribe('docs', roomId, workspaceMode, (state: any) => {
        if (state) {
          const remoteData = workspaceMode === 'private' ? state : state.data;
-         if (remoteData !== undefined) {
+         if (remoteData !== undefined && JSON.stringify(remoteData) !== JSON.stringify(latestDataRef.current)) {
              isSyncingRef.current = true;
              setData(remoteData);
+             latestDataRef.current = remoteData;
          }
        }
     });
@@ -320,6 +328,7 @@ function SheetsEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
   const handleChange = (cell: string, value: string) => {
     const newData = { ...data, [cell]: value };
     setData(newData);
+    latestDataRef.current = newData;
     if (isSyncingRef.current) {
         isSyncingRef.current = false;
         return;
@@ -395,90 +404,121 @@ function SheetsEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
 }
 
 function SlidesEditor({ workspaceMode, projectId, currentUser }: { workspaceMode: 'private' | 'agency', projectId: string, currentUser: any }) {
-  const [title, setTitle] = useState("Project \"Edge\"");
-  const [subtitle, setSubtitle] = useState("An infrastructure presentation explaining local-first architecture and node scaling.");
-  const [positions, setPositions] = useState({ title: { x: 0, y: -40 }, subtitle: { x: 0, y: 40 } });
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fabricCanvasRef = useRef<any>(null);
   const [loaded, setLoaded] = useState(false);
   const isSyncingRef = useRef(false);
 
-  const roomId = `slides-${projectId}`;
+  const roomId = `slides-fabric-${projectId}`;
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoaded(false);
+    let active = true;
+    let unsub = () => {};
 
-    Storage.getDoc('docs', roomId, workspaceMode).then((saved: any) => {
-        if (workspaceMode === 'private' && saved) {
-          setTitle(saved.title || "");
-          setSubtitle(saved.subtitle || "");
-          if (saved.positions) setPositions(saved.positions);
-        } else if (saved && (saved.title !== undefined || saved.subtitle !== undefined)) {
-          if (saved.title !== undefined) setTitle(saved.title);
-          if (saved.subtitle !== undefined) setSubtitle(saved.subtitle);
-          if (saved.positions !== undefined) setPositions(saved.positions);
-        }
-        setLoaded(true);
-    });
+    import('fabric').then((fabric) => {
+      if (!active || !canvasRef.current) return;
+      
+      const canvas = new fabric.Canvas(canvasRef.current, {
+         width: 768,
+         height: 432,
+         backgroundColor: '#ffffff'
+      });
+      fabricCanvasRef.current = canvas;
 
-    const unsub = Storage.subscribe('docs', roomId, workspaceMode, (state: any) => {
-       if (state) {
-          isSyncingRef.current = true;
-          const target = workspaceMode === 'private' ? state : state;
-          if (target.title !== undefined) setTitle(target.title);
-          if (target.subtitle !== undefined) setSubtitle(target.subtitle);
-          if (target.positions !== undefined) setPositions(target.positions);
-       }
-    });
+      const setupDefault = () => {
+         const title = new fabric.IText('Project "Edge"', {
+            left: 384,
+            top: 150,
+            originX: 'center',
+            originY: 'center',
+            fontFamily: 'sans-serif',
+            fontSize: 48,
+            fontWeight: 'bold',
+            fill: '#1e293b'
+         });
+         const subtitle = new fabric.IText('An infrastructure presentation explaining local-first architecture and node scaling.', {
+            left: 384,
+            top: 250,
+            originX: 'center',
+            originY: 'center',
+            fontFamily: 'sans-serif',
+            fontSize: 20,
+            fill: '#64748b',
+            textAlign: 'center'
+         });
+         canvas.add(title, subtitle);
+         canvas.renderAll();
+      };
 
-    return () => unsub();
-  }, [workspaceMode, projectId, currentUser, roomId]);
-
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const saveContent = (t: string, s: string, p: any) => {
-    if (isSyncingRef.current) {
-        isSyncingRef.current = false;
-        return;
-    }
-    
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => {
-        if (workspaceMode === 'private') {
-           Storage.setDoc('docs', roomId, { title: t, subtitle: s, positions: p }, workspaceMode);
+      Storage.getDoc('docs', roomId, workspaceMode).then((saved: any) => {
+        if (!active) return;
+        const target = workspaceMode === 'private' ? saved : (saved?.canvasState ? saved : null);
+        if (target && target.canvasState) {
+           const p = canvas.loadFromJSON(target.canvasState, () => {
+               if (!p || !p.then) {
+                  canvas.renderAll();
+                  setLoaded(true);
+               }
+           });
+           if (p && p.then) {
+              p.then(() => {
+                 canvas.renderAll();
+                 setLoaded(true);
+              });
+           }
         } else {
-           Storage.setDoc('docs', roomId, { title: t, subtitle: s, positions: p, workspaceMode: 'agency' }, workspaceMode);
+           setupDefault();
+           setLoaded(true);
         }
-    }, 500);
-  };
+      });
 
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      unsub = Storage.subscribe('docs', roomId, workspaceMode, (state: any) => {
+         if (state) {
+            const target = workspaceMode === 'private' ? state : state;
+            if (target.canvasState && !isSyncingRef.current) {
+               isSyncingRef.current = true;
+               const p = canvas.loadFromJSON(target.canvasState, () => {
+                   if (!p || !p.then) {
+                      canvas.renderAll();
+                      setTimeout(() => { isSyncingRef.current = false; }, 100);
+                   }
+               });
+               if (p && p.then) {
+                  p.then(() => {
+                     canvas.renderAll();
+                     setTimeout(() => { isSyncingRef.current = false; }, 100);
+                  });
+               }
+            }
+         }
+      });
+
+      const handleModify = () => {
+         if (isSyncingRef.current) return;
+         isSyncingRef.current = true;
+         const state = canvas.toJSON();
+         
+         if (workspaceMode === 'private') {
+            Storage.setDoc('docs', roomId, { canvasState: state }, workspaceMode);
+         } else {
+            Storage.setDoc('docs', roomId, { canvasState: state, workspaceMode: 'agency' }, workspaceMode);
+         }
+         
+         setTimeout(() => { isSyncingRef.current = false; }, 100);
+      };
+
+      canvas.on('object:modified', handleModify);
+      canvas.on('text:changed', handleModify);
+    });
+    
+    return () => { 
+      active = false; 
+      unsub();
+      if (fabricCanvasRef.current) {
+        fabricCanvasRef.current.dispose();
+      }
     };
-  }, []);
-
-  const handleTitleChange = (e: React.FormEvent<HTMLHeadingElement>) => {
-    const t = e.currentTarget.innerText;
-    setTitle(t);
-    saveContent(t, subtitle, positions);
-  };
-
-  const handleSubtitleChange = (e: React.FormEvent<HTMLParagraphElement>) => {
-    const s = e.currentTarget.innerText;
-    setSubtitle(s);
-    saveContent(title, s, positions);
-  };
-
-  const handleDragEnd = (element: 'title' | 'subtitle', info: any) => {
-    const newPositions = {
-      ...positions,
-      [element]: { x: positions[element].x + info.offset.x, y: positions[element].y + info.offset.y }
-    };
-    setPositions(newPositions);
-    saveContent(title, subtitle, newPositions);
-  };
-
-  if (!loaded) return <div className="p-8 text-slate-500">Loading slides...</div>;
+  }, [workspaceMode, projectId, roomId]);
 
   return (
     <div className="w-full h-full flex overflow-hidden">
@@ -501,32 +541,14 @@ function SlidesEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
       </div>
       
       {/* Main Canvas */}
-      <div className="flex-1 overflow-auto bg-slate-100 flex items-center justify-center p-8">
-         <div className="w-full max-w-3xl aspect-video bg-white shadow-xl flex flex-col p-12 justify-center items-center text-center relative overflow-hidden ring-1 ring-slate-200">
-            <motion.h1 
-              drag
-              dragMomentum={false}
-              onDragEnd={(_, info) => handleDragEnd('title', info)}
-              animate={{ x: positions.title.x, y: positions.title.y }}
-              className="text-5xl font-bold text-slate-800 mb-6 focus:outline-none cursor-move hover:ring-2 hover:ring-amber-400 absolute px-4 py-2 rounded" 
-              contentEditable 
-              suppressContentEditableWarning
-              onInput={handleTitleChange}
-            >
-              {title}
-            </motion.h1>
-            <motion.p 
-              drag
-              dragMomentum={false}
-              onDragEnd={(_, info) => handleDragEnd('subtitle', info)}
-              animate={{ x: positions.subtitle.x, y: positions.subtitle.y }}
-              className="text-xl text-slate-500 focus:outline-none max-w-lg cursor-move hover:ring-2 hover:ring-amber-400 absolute px-4 py-2 rounded" 
-              contentEditable 
-              suppressContentEditableWarning
-              onInput={handleSubtitleChange}
-            >
-              {subtitle}
-            </motion.p>
+      <div className="flex-1 overflow-auto bg-slate-100 flex items-center justify-center p-8 relative">
+         {!loaded && (
+             <div className="absolute inset-0 flex items-center justify-center bg-slate-100/80 z-10">
+                <div className="text-slate-500 animate-pulse">Loading canvas engine...</div>
+             </div>
+         )}
+         <div className="shadow-2xl bg-white ring-1 ring-slate-200 flex items-center justify-center overflow-hidden">
+            <canvas ref={canvasRef} />
          </div>
       </div>
     </div>

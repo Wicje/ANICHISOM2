@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { get, set } from 'idb-keyval';
 import { generateTerminalResponse } from '@/app/actions';
 import { db, doc, onSnapshot, setDoc } from '@/lib/firebase';
+import { FS } from '@/lib/fs';
 
 type TerminalEntry = {
   id: string;
@@ -135,6 +136,10 @@ export function TerminalBox({ window }: { window: OSWindow }) {
   pwd                       Print working directory
   cd [dir]                  Change directory
   ls                        List directory contents
+  mkdir [dir]               Create a directory (creates .keep file)
+  touch [file]              Create an empty file
+  rm [file]                 Delete a file or directory
+  cat [file]                Read file contents
   date                      Show current date and time
   echo [text]               Print text to terminal
   theme [light|heavy]       Switch OS performance mode
@@ -177,21 +182,41 @@ APP & CREATIVE COMMANDS:
              setCwd(cwd === '/' ? `/${targetDir}` : `${cwd}/${targetDir}`);
           }
           break;
+        case 'mkdir':
+          if (!args[0]) throw new Error('mkdir: missing operand');
+          await FS.write(`${cwd === '/' ? '' : cwd}/${args[0]}/.keep`, '');
+          result = { type: 'output', content: `Created directory: ${args[0]}` };
+          break;
+        case 'touch':
+          if (!args[0]) throw new Error('touch: missing operand');
+          await FS.write(`${cwd === '/' ? '' : cwd}/${args[0]}`, '');
+          result = { type: 'output', content: `Created file: ${args[0]}` };
+          break;
+        case 'rm':
+          if (!args[0]) throw new Error('rm: missing operand');
+          await FS.delete(`${cwd === '/' ? '' : cwd}/${args[0]}`);
+          result = { type: 'output', content: `Deleted: ${args[0]}` };
+          break;
+        case 'cat':
+          if (!args[0]) throw new Error('cat: missing operand');
+          const fileData = await FS.read(`${cwd === '/' ? '' : cwd}/${args[0]}`);
+          if (fileData && fileData.content) result = { type: 'output', content: fileData.content };
+          else result = { type: 'output', content: `cat: ${args[0]}: No such file or directory` };
+          break;
         case 'ls':
-          if (cwd === '/home/user' || cwd === '/') {
-            const savedFiles: any[] = await get('anichisom_os_files') || [];
-            if (savedFiles.length > 0) {
-              const fileList = savedFiles.map(f => {
-                const color = f.type === 'folder' || f.type === 'project' ? '\x1b[34m' : ''; // Blue-ish output mock if we had ANSI
-                const icon = f.type === 'folder' || f.type === 'project' ? '📁' : '📄';
-                return `${icon} ${f.name.padEnd(20)} ${f.size || '--'}  ${f.date || '--'}`;
+          try {
+            const files = await FS.readDir(cwd === '/' ? '' : cwd);
+            if (files && files.length > 0) {
+              const fileList = files.map(f => {
+                const icon = f.mimeType?.startsWith('image') ? '🖼️' : (f.name.includes('.') ? '📄' : '📁');
+                return `${icon} ${f.name.padEnd(20)} ${f.size || '--'}`;
               }).join('\n');
               result = { type: 'output', content: fileList };
             } else {
               result = { type: 'output', content: 'Empty directory.' };
             }
-          } else {
-            result = { type: 'output', content: 'ls: cannot access directory: No such file or directory' };
+          } catch (e) {
+            result = { type: 'output', content: 'ls: cannot access directory' };
           }
           break;
         case 'theme':
