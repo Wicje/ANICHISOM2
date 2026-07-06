@@ -164,6 +164,7 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser }: 
   const [loaded, setLoaded] = useState(false);
   const isSyncingRef = useRef(false);
   const latestContentRef = useRef("Loading document...");
+  const lastSavedContentRef = useRef<string | null>(null);
 
   const roomId = `word-${projectId}`;
   const storageKey = `anichisom_os_word_${projectId}`;
@@ -199,7 +200,7 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser }: 
     const unsub = Storage.subscribe('docs', roomId, workspaceMode, (state: any) => {
        if (state) {
          const remoteData = workspaceMode === 'private' ? state : state.content;
-         if (remoteData !== undefined && remoteData !== latestContentRef.current) {
+         if (remoteData !== undefined && remoteData !== latestContentRef.current && remoteData !== lastSavedContentRef.current) {
              isSyncingRef.current = true;
              setContent(remoteData);
              latestContentRef.current = remoteData;
@@ -230,6 +231,7 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser }: 
     
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
+       lastSavedContentRef.current = newContent;
        if (workspaceMode === 'private') {
            Storage.setDoc('docs', roomId, newContent, workspaceMode);
        } else {
@@ -272,6 +274,7 @@ function SheetsEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
   const [activeCell, setActiveCell] = useState<string | null>(null);
   const isSyncingRef = useRef(false);
   const latestDataRef = useRef<Record<string, string>>({});
+  const lastSavedDataRef = useRef<string | null>(null);
   
   const parser = useRef(new Parser()).current;
 
@@ -312,7 +315,8 @@ function SheetsEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
     const unsub = Storage.subscribe('docs', roomId, workspaceMode, (state: any) => {
        if (state) {
          const remoteData = workspaceMode === 'private' ? state : state.data;
-         if (remoteData !== undefined && JSON.stringify(remoteData) !== JSON.stringify(latestDataRef.current)) {
+         const remoteDataStr = JSON.stringify(remoteData);
+         if (remoteData !== undefined && remoteDataStr !== JSON.stringify(latestDataRef.current) && remoteDataStr !== lastSavedDataRef.current) {
              isSyncingRef.current = true;
              setData(remoteData);
              latestDataRef.current = remoteData;
@@ -336,6 +340,7 @@ function SheetsEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
     
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
+        lastSavedDataRef.current = JSON.stringify(newData);
         if (workspaceMode === 'private') {
            Storage.setDoc('docs', roomId, newData, workspaceMode);
         } else {

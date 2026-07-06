@@ -149,6 +149,8 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [clipperOpen, setClipperOpen] = useState(false);
   const [formsOpen, setFormsOpen] = useState(false);
+  const [campaignPhase, setCampaignPhase] = useState<'discovery' | 'design' | 'delivery'>('design');
+
   
   const projectId = osWindow.data?.projectId || 'global';
   const roomId = `campaign-${workspaceMode}-${projectId}`;
@@ -379,7 +381,11 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
 
       {/* Main Content */}
       <div 
-        className="flex-1 h-full overflow-y-auto flex flex-col relative bg-white" 
+        className={cn("flex-1 h-full overflow-y-auto flex flex-col relative transition-colors duration-500",
+           campaignPhase === 'discovery' ? 'bg-amber-50/40' : 
+           campaignPhase === 'delivery' ? 'bg-emerald-50/40' : 
+           'bg-white'
+        )} 
         id={`campaign-scroll-container-${osWindow.id}`}
         onPointerMove={handlePointerMove}
       >
@@ -388,7 +394,11 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
           return <CursorOverlay key={state.clientId} state={state} />;
         })}
         
-        <div className="sticky top-0 z-40 w-full flex items-center justify-between p-3 bg-white/80 backdrop-blur-md border-b border-transparent">
+        <div className={cn("sticky top-0 z-40 w-full flex items-center justify-between p-3 border-b backdrop-blur-md transition-colors duration-500", 
+            campaignPhase === 'discovery' ? 'bg-amber-50/80 border-amber-200/50' : 
+            campaignPhase === 'delivery' ? 'bg-emerald-50/80 border-emerald-200/50' : 
+            'bg-white/80 border-transparent'
+        )}>
           <div className="flex items-center gap-2 text-sm font-medium text-[#37352f]/70">
             {!sidebarOpen && (
               <button onClick={() => setSidebarOpen(true)} className="p-1 hover:bg-black/5 rounded">
@@ -409,6 +419,12 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
           </div>
           
           <div className="flex items-center gap-2 relative">
+            {/* Phase Selector */}
+            <div className="flex bg-black/5 p-1 rounded-lg text-xs font-semibold mr-2 border border-black/5">
+              <button onClick={() => setCampaignPhase('discovery')} className={cn("px-3 py-1 rounded transition-colors", campaignPhase === 'discovery' ? "bg-amber-100 text-amber-800 shadow-sm" : "hover:bg-black/5 text-[#37352f]/60")}>Discovery</button>
+              <button onClick={() => setCampaignPhase('design')} className={cn("px-3 py-1 rounded transition-colors", campaignPhase === 'design' ? "bg-white text-[#37352f] shadow-sm" : "hover:bg-black/5 text-[#37352f]/60")}>Design</button>
+              <button onClick={() => setCampaignPhase('delivery')} className={cn("px-3 py-1 rounded transition-colors", campaignPhase === 'delivery' ? "bg-emerald-100 text-emerald-800 shadow-sm" : "hover:bg-black/5 text-[#37352f]/60")}>Delivery</button>
+            </div>
             <button 
               onClick={() => openWindow('moodboard', `Moodboard: ${activePage?.title || 'Campaign'}`, { projectId })}
               className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded transition-colors"
@@ -460,6 +476,28 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
         {activePage ? (
           <div className="max-w-4xl w-full mx-auto px-12 py-8 flex-1 flex flex-col focus-within:ring-0 pb-32">
             <div className="group relative">
+               {/* Phase Indicator */}
+               {campaignPhase === 'discovery' && (
+                 <div className="mb-6 bg-amber-100 text-amber-800 p-4 rounded-xl border border-amber-200 flex items-start gap-3">
+                    <span className="text-xl mt-1">🔍</span>
+                    <div>
+                      <h4 className="font-bold text-sm">Discovery Phase Active</h4>
+                      <p className="text-xs mt-1 opacity-80">Focus on the brief, competitive analysis, and AI proposals. Build the strategic foundation.</p>
+                      <button className="mt-3 bg-amber-800 text-white px-3 py-1.5 rounded text-xs font-bold shadow-sm" onClick={() => openWindow('ai-gateway', 'AI Proposals')}>Generate AI Proposals</button>
+                    </div>
+                 </div>
+               )}
+               {campaignPhase === 'delivery' && (
+                 <div className="mb-6 bg-emerald-100 text-emerald-800 p-4 rounded-xl border border-emerald-200 flex items-start gap-3">
+                    <span className="text-xl mt-1">📦</span>
+                    <div>
+                      <h4 className="font-bold text-sm">Delivery Phase Active</h4>
+                      <p className="text-xs mt-1 opacity-80">The campaign is ready for client handoff. The interface is optimized for read-only sharing and exports.</p>
+                      <button className="mt-3 bg-emerald-800 text-white px-3 py-1.5 rounded text-xs font-bold shadow-sm" onClick={() => setShareMenuOpen(true)}>Open Client Portal</button>
+                    </div>
+                 </div>
+               )}
+
                <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity mb-4">
                  <button 
                   className="flex items-center gap-1 text-sm text-[#37352f]/50 hover:bg-black/5 px-2 py-1 rounded transition-colors"
