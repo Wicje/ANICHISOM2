@@ -11,16 +11,29 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
   const [images, setImages] = useState<LocalFile[]>([]);
 
   // Delivery Portal State
-  const [galleries, setGalleries] = useState<any[]>([
-     { id: 1, name: "Wedding - Sarah & John", date: "Oct 24, 2026", status: "Delivered", expires: "30 days", pin: "8492" },
-     { id: 2, name: "Corporate Headshots - Acme Corp", date: "Oct 15, 2026", status: "Reviewing", expires: "14 days", pin: "1124" },
-  ]);
+  const [galleries, setGalleries] = useState<any[]>([]);
   const [newGalleryName, setNewGalleryName] = useState('');
   const [viewedGallery, setViewedGallery] = useState<any>(null);
 
   // Watermark State
   const [isWatermarking, setIsWatermarking] = useState(false);
   const [watermarkText, setWatermarkText] = useState('PROOF ONLY');
+
+  const loadGalleries = async () => {
+      try {
+         const file = await FS.read('galleries.json');
+         if (file?.content) {
+            setGalleries(JSON.parse(file.content as string));
+         }
+      } catch (e) {
+         // No galleries file yet
+      }
+  };
+
+  const saveGalleries = async (newGalleries: any[]) => {
+      setGalleries(newGalleries);
+      await FS.write('galleries.json', JSON.stringify(newGalleries));
+  };
 
   const loadImages = async () => {
       const files = await FS.readDir('');
@@ -30,6 +43,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
 
   useEffect(() => {
      loadImages();
+     loadGalleries();
   }, []);
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,7 +65,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
         expires: '30 days',
         pin: Math.floor(1000 + Math.random() * 9000).toString()
      };
-     setGalleries([newGal, ...galleries]);
+     saveGalleries([newGal, ...galleries]);
      setNewGalleryName('');
   };
 

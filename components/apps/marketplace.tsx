@@ -5,6 +5,8 @@ import { OSWindow, useOS } from '@/lib/os-context';
 import { Store, Download, CheckCircle, Trash2, Box, Sparkles, Server, ShoppingBag, Cpu, Code2, Camera, Star, Code, UploadCloud, FileText, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { get, set } from 'idb-keyval';
+import { collection, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface PluginPack {
   id: string;
@@ -12,9 +14,10 @@ interface PluginPack {
   description: string;
   developer: string;
   price: string;
-  icon: React.ElementType;
+  icon: any;
   features: string[];
   isFirstParty: boolean;
+  githubUrl?: string;
 }
 
 const AVAILABLE_PACKS: PluginPack[] = [
@@ -92,10 +95,32 @@ const AVAILABLE_PACKS: PluginPack[] = [
 
 export function Marketplace({ window: osWindow }: { window: OSWindow }) {
   const { emitEvent, currentUser, installedApps, installApp, uninstallApp } = useOS();
+  const [packs, setPacks] = useState<PluginPack[]>(AVAILABLE_PACKS);
   const [selectedPack, setSelectedPack] = useState<PluginPack | null>(null);
   const [viewMode, setViewMode] = useState<'store' | 'developer'>('store');
   const [submitForm, setSubmitForm] = useState({ name: '', description: '', price: '', githubUrl: '' });
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+     const unsub = onSnapshot(collection(db, 'plugins'), (snap) => {
+        const dbPacks = snap.docs.map(doc => {
+           const data = doc.data();
+           return {
+              id: doc.id,
+              name: data.name,
+              description: data.description,
+              developer: data.developer || 'Community',
+              price: data.price ? `$${data.price}/mo` : 'Free',
+              icon: Box, // Default icon for third party
+              features: ['Sandboxed Execution', 'Third-Party Verification'],
+              isFirstParty: false,
+              githubUrl: data.githubUrl
+           } as PluginPack;
+        });
+        setPacks([...AVAILABLE_PACKS, ...dbPacks]);
+     });
+     return () => unsub();
+  }, []);
 
   const handleInstall = async (pack: PluginPack) => {
     await installApp(pack.id);
@@ -147,7 +172,7 @@ export function Marketplace({ window: osWindow }: { window: OSWindow }) {
         </div>
         
         <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
-          {viewMode === 'store' ? AVAILABLE_PACKS.map(pack => {
+          {viewMode === 'store' ? packs.map(pack => {
             const Icon = pack.icon;
             const isInstalled = installedApps.includes(pack.id);
             const isSelected = selectedPack?.id === pack.id;
@@ -191,7 +216,7 @@ export function Marketplace({ window: osWindow }: { window: OSWindow }) {
              <div className="flex items-center justify-between mb-8 pb-8 border-b border-white/10">
                <div>
                  <h1 className="text-3xl font-bold text-white mb-2">Developer Portal</h1>
-                 <p className="text-white/60">Submit your plugins to the ANICHISOM OS Public Marketplace (Phase 6).</p>
+                 <p className="text-white/60">Submit your plugins to the ANICHISOM OS Public Marketplace.</p>
                </div>
                <Code className="w-16 h-16 text-purple-500/20" />
              </div>
@@ -220,7 +245,7 @@ export function Marketplace({ window: osWindow }: { window: OSWindow }) {
                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-10 flex flex-col items-center text-center">
                  <CheckCircle className="w-12 h-12 text-emerald-400 mb-4" />
                  <h2 className="text-xl font-bold text-white mb-2">Submission Received!</h2>
-                 <p className="text-white/60">Your plugin is now in the review queue. Our team will contact you within 48-72 hours.</p>
+                 <p className="text-white/60">Your plugin has been stored in the database. It will appear live in the Marketplace immediately.</p>
                  <button onClick={() => setSubmitted(false)} className="mt-6 text-sm text-emerald-400 hover:text-emerald-300">Submit another</button>
                </div>
              ) : (
@@ -258,11 +283,22 @@ export function Marketplace({ window: osWindow }: { window: OSWindow }) {
                      </div>
                    </div>
                    <button 
-                     onClick={() => setSubmitted(true)}
+                     onClick={async () => {
+                       try {
+                         await addDoc(collection(db, 'plugins'), { 
+                           ...submitForm, 
+                           developer: currentUser?.name || 'Unknown', 
+                           createdAt: serverTimestamp() 
+                         });
+                         setSubmitted(true);
+                       } catch (err: any) {
+                         alert(err.message);
+                       }
+                     }}
                      disabled={!submitForm.name || !submitForm.githubUrl}
                      className="mt-4 px-6 py-3 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold rounded-lg w-full transition-colors"
                    >
-                     Submit for Review
+                     Submit & Publish
                    </button>
                  </div>
                </div>
