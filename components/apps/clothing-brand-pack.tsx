@@ -59,7 +59,7 @@ function SketchingTab({ windowId }: { windowId: string }) {
   useEffect(() => {
     let canvas: any = null;
     import('fabric').then((fabricModule) => {
-      const fabric = fabricModule.fabric || fabricModule;
+      const fabric = (fabricModule as any).fabric || fabricModule;
       if (!canvasRef.current || !containerRef.current) return;
       
       canvas = new fabric.Canvas(canvasRef.current, {
