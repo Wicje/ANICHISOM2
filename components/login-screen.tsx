@@ -8,13 +8,13 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
 const AVATARS = [
-  { id: 'founder', name: 'Founder', role: 'admin', avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&q=80' },
-  { id: 'creative-dir', name: 'Creative Director', role: 'admin', avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&h=150&fit=crop&q=80' },
-  { id: 'designer', name: 'UI/UX Designer', role: 'admin', avatarUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&q=80' },
-  { id: 'frontend-dev', name: 'Frontend Developer', role: 'technician', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&q=80' },
-  { id: 'filmmaker', name: 'Filmmaker', role: 'filmmaker', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&q=80' },
-  { id: 'copywriter', name: 'Copywriter', role: 'user', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&q=80' },
-  { id: 'forensics', name: 'Data Recovery', role: 'technician', avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&q=80' },
+  { id: 'founder', name: 'Founder', role: 'admin', avatarUrl: 'https://api.dicebear.com/9.x/micah/svg?seed=Founder&backgroundColor=transparent' },
+  { id: 'creative-dir', name: 'Creative Director', role: 'admin', avatarUrl: 'https://api.dicebear.com/9.x/micah/svg?seed=Director&backgroundColor=transparent' },
+  { id: 'designer', name: 'UI/UX Designer', role: 'admin', avatarUrl: 'https://api.dicebear.com/9.x/micah/svg?seed=Designer&backgroundColor=transparent' },
+  { id: 'frontend-dev', name: 'Frontend Developer', role: 'technician', avatarUrl: 'https://api.dicebear.com/9.x/micah/svg?seed=Developer&backgroundColor=transparent' },
+  { id: 'filmmaker', name: 'Filmmaker', role: 'filmmaker', avatarUrl: 'https://api.dicebear.com/9.x/micah/svg?seed=Filmmaker&backgroundColor=transparent' },
+  { id: 'copywriter', name: 'Copywriter', role: 'user', avatarUrl: 'https://api.dicebear.com/9.x/micah/svg?seed=Copywriter&backgroundColor=transparent' },
+  { id: 'forensics', name: 'Data Recovery', role: 'technician', avatarUrl: 'https://api.dicebear.com/9.x/micah/svg?seed=Recovery&backgroundColor=transparent' },
 ];
 
 export function LoginScreen() {
@@ -105,7 +105,7 @@ export function LoginScreen() {
                 onClick={() => setSelectedUser(user)}
                 className="flex flex-col items-center gap-4 p-4 hover:bg-white/5 transition-all group focus:outline-none"
               >
-                <div className="relative w-20 h-20 rounded-full overflow-hidden border border-white/20 group-hover:border-white transition-colors">
+                <div className="relative w-20 h-20 rounded-full overflow-hidden border border-white/20 group-hover:border-white transition-colors bg-white/10">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img 
                     src={user.avatarUrl} 
@@ -124,7 +124,7 @@ export function LoginScreen() {
           /* Passkey Login Card */
           <div className="w-full max-w-sm flex flex-col gap-8 p-10 bg-black border border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] animate-in fade-in zoom-in-95 duration-300">
             <div className="flex flex-col items-center gap-5 mb-2">
-              <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-white">
+              <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-white bg-white/10">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img 
                   src={selectedUser.avatarUrl} 
@@ -203,7 +203,7 @@ export function LoginScreen() {
                         const response = await fetch('/api/auth/login', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ uniqueId: 'anichisom_master' }),
+                          body: JSON.stringify({ uniqueId: 'ANICHISOM' }),
                         });
                         const data = await response.json();
                         if (response.ok) {
@@ -211,7 +211,7 @@ export function LoginScreen() {
                             id: data.user?.id || 'master',
                             name: 'ANICHISOM',
                             role: 'admin',
-                            avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&q=80',
+                            avatarUrl: 'https://api.dicebear.com/9.x/micah/svg?seed=Master&backgroundColor=transparent',
                           } as any);
                           router.push('/');
                         } else {

