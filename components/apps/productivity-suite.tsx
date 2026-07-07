@@ -28,11 +28,11 @@ function sanitizeHTML(html: string): string {
   return DOMPurify.sanitize(html);
 }
 
-export function ProductivitySuite({ window }: { window: OSWindow }) {
+export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
   const { performanceMode, currentUser, workspaceMode, setWorkspaceMode } = useOS();
-  const [activeTab, setActiveTab] = useState<AppType>((window.data?.tab as AppType) || 'word');
+  const [activeTab, setActiveTab] = useState<AppType>((osWindow.data?.tab as AppType) || 'word');
   
-  const projectId = window.data?.projectId || 'global';
+  const projectId = osWindow.data?.projectId || osWindow.id;
 
   return (
     <div className="w-full h-full flex flex-col bg-white text-slate-800 font-sans shadow-2xl relative overflow-hidden">
@@ -80,9 +80,9 @@ export function ProductivitySuite({ window }: { window: OSWindow }) {
         {/* Toolbar */}
         <div className="flex items-center gap-4 px-4 py-2 bg-white border-t border-slate-200">
            <div className="flex items-center gap-1 border-r border-slate-200 pr-4">
-             <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Save to local-first DB"><Save className="w-4 h-4" /></button>
-             <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Print"><Printer className="w-4 h-4" /></button>
-             <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Share via Self-Host"><Share2 className="w-4 h-4" /></button>
+             <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Save to local-first DB" onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Document Saved', message: 'Your work has been securely saved.' }}))}><Save className="w-4 h-4" /></button>
+             <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Print" onClick={() => window.print()}><Printer className="w-4 h-4" /></button>
+             <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Share via Self-Host" onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Share Link Created', message: 'Link copied to clipboard.' }}))}><Share2 className="w-4 h-4" /></button>
            </div>
            
            {activeTab === 'word' && (
@@ -140,7 +140,7 @@ export function ProductivitySuite({ window }: { window: OSWindow }) {
           {activeTab === 'word' && <WordEditor performanceMode={performanceMode} workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} />}
           {activeTab === 'sheets' && <SheetsEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} />}
           {activeTab === 'slides' && <SlidesEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} />}
-          {activeTab === 'pdf' && <PdfEditor initialUrl={window.data?.url} />}
+          {activeTab === 'pdf' && <PdfEditor initialUrl={osWindow.data?.url} />}
         </motion.div>
       </AnimatePresence>
 

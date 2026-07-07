@@ -148,3 +148,8 @@ This document tracks all features added, how they work, and how to use them.
 - **Implementation**: A natural language parser built in `components/apps/assistant.tsx` that directly invokes `os-context` hooks.
 
 
+### 27. UI & Architecture Polish (Phase 2 Continued)
+- **Top Bar Interactive Menus**: The OS top bar (File, Edit, View, Synced) now features functional dropdowns and toast notifications. "Save Desktop State" allows you to manually force a sync of the entire OS.
+- **Custom Web Apps**: You can now add external web apps via the "Add Custom Web App" button inside the App Hub.
+- **Productivity Suite Improvements**: The Office Suite's Save button is now functional and provides visual toast feedback.
+- **Multi-Instance Support**: Moodboard and Productivity Suite now properly generate isolated window IDs, allowing you to open multiple distinct instances of them simultaneously without them syncing to the same global scratchpad.

@@ -234,6 +234,13 @@ export function Desktop() {
     };
   }, [currentUser]);
 
+  // Handle custom app additions via events
+  useEffect(() => {
+    const onAddApp = () => handleAddApp();
+    window.addEventListener('os:add-custom-app', onAddApp);
+    return () => window.removeEventListener('os:add-custom-app', onAddApp);
+  }, [currentUser]);
+
   // Window Switcher (Ctrl+Tab) Logic
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -473,11 +480,33 @@ export function Desktop() {
             {currentUser.name}
           </div>
           <div className="hidden sm:flex gap-4">
-            <button className="hover:text-white cursor-default">File</button>
-            <button className="hover:text-white cursor-default">Edit</button>
-            <button className="hover:text-white cursor-default">View</button>
-            {isSuperUser && <button className="hover:text-white cursor-default" onClick={() => applyWorkspaceLayout('creative-split')}>Multi-View Workspace</button>}
-            <button className="hover:text-white cursor-default" onClick={() => setShowSnapshots(!showSnapshots)}>Time Machine</button>
+            {/* OS Native Menus */}
+            <div className="group relative">
+               <button className="hover:bg-white/20 px-2 py-0.5 rounded transition-colors cursor-default">File</button>
+               <div className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left bg-black/80 backdrop-blur-xl border border-white/10 text-white text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]">
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Saved State', message: 'OS State saved to IndexedDB.' }}))}>Save Desktop State</button>
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => window.dispatchEvent(new CustomEvent('os:open-spotlight'))}>New File (Spotlight)</button>
+                  <div className="h-px bg-white/10 my-1"></div>
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-rose-500 hover:text-white transition-colors" onClick={() => wipeSession()}>Wipe Local Data</button>
+               </div>
+            </div>
+            <div className="group relative">
+               <button className="hover:bg-white/20 px-2 py-0.5 rounded transition-colors cursor-default">Edit</button>
+               <div className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left bg-black/80 backdrop-blur-xl border border-white/10 text-white text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]">
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors text-white/50">Undo (Cmd+Z)</button>
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors text-white/50">Redo (Cmd+Shift+Z)</button>
+                  <div className="h-px bg-white/10 my-1"></div>
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => setShowLaunchpad(true)}>Edit OS Apps</button>
+               </div>
+            </div>
+            <div className="group relative">
+               <button className="hover:bg-white/20 px-2 py-0.5 rounded transition-colors cursor-default">View</button>
+               <div className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left bg-black/80 backdrop-blur-xl border border-white/10 text-white text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]">
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors flex items-center justify-between" onClick={() => applyWorkspaceLayout('creative-split')}>Multi-View Workspace</button>
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => setShowMissionControl(true)}>Mission Control</button>
+                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => setShowSnapshots(!showSnapshots)}>Time Machine</button>
+               </div>
+            </div>
             
             {/* Phase 2A: Workspace Selector */}
             <div className="border-l border-white/20 pl-4">

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { OSWindow } from '@/lib/os-context';
-import { Store, Download, CheckCircle, Star } from 'lucide-react';
+import { Store, Download, CheckCircle, Star, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useOS } from '@/lib/os-context';
 
@@ -39,8 +39,14 @@ export function AppStoreApp({ window: osWindow }: { window: OSWindow }) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-8">
-        <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in">
+      <div className="flex-1 overflow-y-auto p-8 relative">
+        <button 
+           onClick={() => window.dispatchEvent(new CustomEvent('os:add-custom-app'))}
+           className="absolute top-8 right-8 px-4 py-2 bg-white/10 hover:bg-white/20 text-xs font-bold rounded-full transition-colors flex items-center gap-2 border border-white/10"
+        >
+           <Plus className="w-3.5 h-3.5" /> Add Custom Web App
+        </button>
+        <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in pt-8">
           
           {activeTab === 'Discover' && (
              <>

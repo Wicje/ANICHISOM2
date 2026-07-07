@@ -135,7 +135,8 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
   const colorRef = useRef<string>('#000');
   const isSyncingRef = useRef(false);
 
-  const projectId = osWindow.data?.projectId || 'global';
+  // Use window.id as fallback so each new window instance has a fresh scratchpad
+  const projectId = osWindow.data?.projectId || osWindow.id;
   const roomId = `moodboard-${workspaceMode}-${projectId}`;
   
   // Realtime Cursors and Local-First CRDT (Yjs) (Phase 2 & 3)
