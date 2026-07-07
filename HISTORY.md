@@ -84,3 +84,29 @@ This document tracks all features added, how they work, and how to use them.
 - **How to use**: Open the "Hardware" app and go to the "Displays" tab. Click "Detect Displays" to find plugged-in HDMI/DisplayPort monitors.
 - **Implementation**: Prepares the OS display logic to handle multi-monitor state bridging from the Tauri window manager.
 
+## Phase 4: Pro OS Features
+
+### 16. Unified Control Center
+- **What it is**: A macOS-style quick settings slide-out panel.
+- **How to use**: Click the sliders icon next to the clock in the top right menu bar. You can adjust screen brightness, system volume, and toggle Wi-Fi, Bluetooth, AirDrop, and Do Not Disturb.
+- **Implementation**: Lives in `components/control-center.tsx` and dynamically filters the document body to simulate hardware brightness adjustments.
+
+### 17. Custom Right-Click Context Menus
+- **What it is**: Overrides the default browser context menu to provide OS-level actions.
+- **How to use**: Right-click anywhere on the empty desktop. A sleek, animated menu appears letting you change your wallpaper or spawn widgets.
+- **Implementation**: An absolutely positioned overlay in `desktop.tsx` bound to the `onContextMenu` React synthetic event.
+
+### 18. Desktop Widgets & Sticky Notes
+- **What it is**: Pin floating utilities directly to your desktop layer.
+- **How to use**: Right-click the desktop and choose "Add Sticky Note" or "Add CPU Monitor". You can type directly into the sticky note. Right-click any widget to delete it.
+- **Implementation**: State stored in `os-context.tsx`/`desktop.tsx` as an array of widgets rendered beneath the active windows but above the desktop wallpaper.
+
+### 19. Idle Lock Screen
+- **What it is**: Automatically secures the OS when you step away.
+- **How to use**: If there is no mouse or keyboard movement for 5 minutes, the screen blurs and locks, displaying a beautiful clock and your avatar. Click "Unlock" to resume.
+- **Implementation**: Uses a global `setTimeout` that resets on `mousemove` and `keydown` in `desktop.tsx`.
+
+### 20. OS Drag-and-Drop
+- **What it is**: Bridge the gap between your physical computer and the Web OS.
+- **How to use**: Drag a file (image, pdf, text) from your physical desktop and drop it directly into the browser window. A blue dashed overlay appears to catch it, and it writes directly into the OS's internal Virtual File System (`FS.write`).
+

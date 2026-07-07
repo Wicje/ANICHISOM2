@@ -7,7 +7,9 @@ import { WindowFrame } from '@/components/window-frame';
 import { CommandPalette } from '@/components/command-palette';
 import { WorkspaceSelector } from '@/components/workspace-selector';
 import { PresenceIndicator } from '@/components/presence-indicator';
-import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Code2, Search, LayoutTemplate, Clock, Save, Cloud, RefreshCw, ShieldCheck, Power, Figma, Framer, HardDrive, Github, BookOpen, Zap, ZapOff, Briefcase, Brain, User, AlertCircle, Play, Plus, Users, Server, Archive, FileText, Video, Store, Shirt, Cpu, Camera, Code, Box, Settings, Pipette, Layers, Grid, Sliders, Cpu as CpuIcon } from 'lucide-react';
+import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Code2, Search, LayoutTemplate, Clock, Save, Cloud, RefreshCw, ShieldCheck, Power, Figma, Framer, HardDrive, Github, BookOpen, Zap, ZapOff, Briefcase, Brain, User, AlertCircle, Play, Plus, Users, Server, Archive, FileText, Video, Store, Shirt, Cpu, Camera, Code, Box, Settings, Pipette, Layers, Grid, Sliders, Cpu as CpuIcon, Lock, StickyNote, Activity, FilePlus } from 'lucide-react';
+import { ControlCenter } from '@/components/control-center';
+import { FS } from '@/lib/fs';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { LoginScreen } from '@/components/login-screen';
@@ -171,6 +173,13 @@ export function Desktop() {
   const [switcherIndex, setSwitcherIndex] = useState(0);
   const [showLaunchpad, setShowLaunchpad] = useState(false);
   const [showMissionControl, setShowMissionControl] = useState(false);
+  const [showControlCenter, setShowControlCenter] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, items: { label: string, onClick: () => void, icon?: any }[] } | null>(null);
+  const [widgets, setWidgets] = useState<{ id: string, type: 'notes' | 'cpu', x: number, y: number, content?: string }[]>([
+    { id: 'w1', type: 'notes', x: 40, y: 80, content: 'Finish the new brand guidelines by Friday.' }
+  ]);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -307,6 +316,57 @@ export function Desktop() {
     };
   }, [openWindow]);
 
+  // Idle Timer for Lock Screen
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    const resetIdle = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => setIsLocked(true), 5 * 60 * 1000); // 5 mins
+    };
+    window.addEventListener('mousemove', resetIdle);
+    window.addEventListener('keydown', resetIdle);
+    resetIdle();
+    return () => {
+      window.removeEventListener('mousemove', resetIdle);
+      window.removeEventListener('keydown', resetIdle);
+      clearTimeout(timeout);
+    };
+  }, []);
+
+  const handleGlobalContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        { label: 'New Folder', icon: Folder, onClick: () => console.log('New Folder') },
+        { label: 'Change Wallpaper', icon: ImageIcon, onClick: () => openWindow('settings') },
+        { label: 'Add Sticky Note', icon: StickyNote, onClick: () => setWidgets(prev => [...prev, { id: Date.now().toString(), type: 'notes', x: e.clientX, y: e.clientY, content: '' }]) },
+        { label: 'Add CPU Monitor', icon: Activity, onClick: () => setWidgets(prev => [...prev, { id: Date.now().toString(), type: 'cpu', x: e.clientX, y: e.clientY }]) },
+      ]
+    });
+  };
+
+  const closeContextMenu = () => {
+    if (contextMenu) setContextMenu(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingFile(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      try {
+        await FS.write(`Desktop/${file.name}`, file, file.type);
+        alert(`File ${file.name} saved to Desktop via OS File System.`);
+        // In a real implementation, we would dispatch an event to refresh desktop icons
+      } catch (err) {
+        console.error('File drop failed', err);
+      }
+    }
+  };
+
   const handleAddApp = async () => {
     const title = prompt("Enter App Name:");
     const url = prompt("Enter App URL:");
@@ -329,8 +389,41 @@ export function Desktop() {
   );
   const isSuperUser = currentUser.role === 'admin';
 
+  if (isLocked) {
+    return (
+      <div className="fixed inset-0 w-full h-full bg-black flex flex-col items-center justify-center z-[9999] text-white font-sans overflow-hidden">
+        <div className="absolute inset-0 bg-cover bg-center opacity-30 blur-xl scale-110" style={{ backgroundImage: `url("${wallpaper}")` }} />
+        <div className="relative z-10 flex flex-col items-center gap-8 animate-in fade-in zoom-in duration-500">
+          <div className="text-8xl font-light tracking-tighter">{format(new Date(), 'HH:mm')}</div>
+          <div className="text-xl font-medium text-white/70">{format(new Date(), 'EEEE, MMMM do')}</div>
+          
+          <div className="mt-12 flex flex-col items-center gap-4">
+             {currentUser.avatarUrl ? (
+               // eslint-disable-next-line @next/next/no-img-element
+               <img src={currentUser.avatarUrl} alt="avatar" className="w-20 h-20 rounded-full border-2 border-white/20 shadow-2xl" />
+             ) : (
+               <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center border-2 border-white/20 shadow-2xl"><User className="w-10 h-10 text-white/50" /></div>
+             )}
+             <div className="font-medium text-lg">{currentUser.name}</div>
+             <button onClick={() => setIsLocked(false)} className="mt-4 px-8 py-2.5 bg-white/10 hover:bg-white/25 border border-white/20 rounded-full font-medium transition-colors backdrop-blur-md flex items-center gap-2">
+               <Lock className="w-4 h-4" /> Unlock
+             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 w-full h-full overflow-hidden flex flex-col font-sans select-none bg-black" style={{ fontFamily }}>
+    <div 
+      className="fixed inset-0 w-full h-full overflow-hidden flex flex-col font-sans select-none bg-black" 
+      style={{ fontFamily }}
+      onClick={closeContextMenu}
+      onContextMenu={handleGlobalContextMenu}
+      onDragOver={(e) => { e.preventDefault(); setIsDraggingFile(true); }}
+      onDragLeave={() => setIsDraggingFile(false)}
+      onDrop={handleDrop}
+    >
       <style>{`
         :root {
           --color-neon-blue: ${themeColor};
@@ -470,14 +563,17 @@ export function Desktop() {
               </div>
             </div>
             <button 
-              className="text-white/90 cursor-pointer hover:text-white ml-2 focus:outline-none"
-              onClick={() => setShowActionCenter(!showActionCenter)}
+              className="text-white/90 cursor-pointer hover:text-white ml-2 focus:outline-none flex items-center gap-2 px-2 py-1 rounded hover:bg-white/10 transition-colors"
+              onClick={() => setShowControlCenter(!showControlCenter)}
             >
+              <Sliders className="w-3.5 h-3.5" />
               <OsClock />
             </button>
           </div>
         </div>
       </header>
+
+      {showControlCenter && <ControlCenter onClose={() => setShowControlCenter(false)} />}
 
       {/* Main Workspace Area (Desktop) */}
       <main className="flex-1 relative z-10 w-full h-full overflow-hidden pointer-events-none">
@@ -556,6 +652,49 @@ export function Desktop() {
              </div>
              <div className="text-white/50 text-[10px] font-medium text-center mt-1">Add App</div>
           </button>
+        </div>
+
+        {/* Desktop Widgets Layer */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
+           {widgets.map(widget => (
+             <div 
+               key={widget.id} 
+               className="absolute pointer-events-auto"
+               style={{ left: widget.x, top: widget.y }}
+               onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); setWidgets(prev => prev.filter(w => w.id !== widget.id)); }}
+             >
+               {widget.type === 'notes' && (
+                 <div className="w-64 h-64 bg-amber-200/90 backdrop-blur-md shadow-2xl rounded-sm p-4 rotate-1 hover:rotate-0 transition-transform cursor-move flex flex-col group">
+                   <div className="text-amber-900/40 text-xs font-bold uppercase mb-2 flex justify-between">
+                      Sticky Note
+                      <button onClick={() => setWidgets(prev => prev.filter(w => w.id !== widget.id))} className="opacity-0 group-hover:opacity-100 hover:text-rose-500"><X className="w-3 h-3" /></button>
+                   </div>
+                   <textarea 
+                     className="flex-1 bg-transparent border-none outline-none resize-none text-amber-900 font-medium text-sm leading-relaxed"
+                     defaultValue={widget.content}
+                     placeholder="Write a note..."
+                     onPointerDown={e => e.stopPropagation()}
+                   />
+                 </div>
+               )}
+               {widget.type === 'cpu' && (
+                 <div className="w-64 bg-black/60 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-2xl p-4 flex flex-col gap-4 group">
+                    <div className="flex justify-between items-center text-white/50">
+                       <div className="text-xs font-bold uppercase flex items-center gap-1.5"><Activity className="w-3.5 h-3.5 text-emerald-400" /> System Stats</div>
+                       <button onClick={() => setWidgets(prev => prev.filter(w => w.id !== widget.id))} className="opacity-0 group-hover:opacity-100 hover:text-rose-500"><X className="w-3 h-3" /></button>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                       <div className="flex items-center justify-between text-xs font-medium text-white"><span>CPU Usage</span> <span>12%</span></div>
+                       <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="w-[12%] h-full bg-emerald-400 rounded-full" /></div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                       <div className="flex items-center justify-between text-xs font-medium text-white"><span>RAM Usage</span> <span>4.2 GB</span></div>
+                       <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="w-[60%] h-full bg-blue-400 rounded-full" /></div>
+                    </div>
+                 </div>
+               )}
+             </div>
+           ))}
         </div>
 
         {/* Snapshots Menu */}
@@ -864,6 +1003,35 @@ export function Desktop() {
           })}
         </div>
       </div>
+
+      {/* Global Context Menu */}
+      {contextMenu && (
+        <div 
+          className="absolute z-[9999] bg-black/70 backdrop-blur-3xl border border-white/20 shadow-2xl rounded-xl py-2 min-w-[200px] animate-in fade-in zoom-in-95 duration-100"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          {contextMenu.items.map((item, i) => (
+            <button 
+              key={i} 
+              className="w-full text-left px-4 py-2 text-sm text-white/90 hover:bg-blue-500 hover:text-white flex items-center gap-3 transition-colors"
+              onClick={() => { item.onClick(); closeContextMenu(); }}
+            >
+              {item.icon && <item.icon className="w-4 h-4 opacity-70" />}
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Drag Drop Overlay */}
+      {isDraggingFile && (
+        <div className="absolute inset-0 z-[9000] bg-blue-500/10 backdrop-blur-sm border-4 border-blue-500 border-dashed m-4 rounded-3xl flex items-center justify-center pointer-events-none">
+           <div className="bg-blue-500 text-white font-bold text-xl px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4">
+              <FilePlus className="w-8 h-8" />
+              Drop files to save to OS Desktop
+           </div>
+        </div>
+      )}
     </div>
   );
 }
