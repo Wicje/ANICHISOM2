@@ -6,10 +6,9 @@ import { useOS, OSRole, OSUser, OSWindow } from '@/lib/os-context';
 import { WindowFrame } from '@/components/window-frame';
 import { CommandPalette } from '@/components/command-palette';
 import { WorkspaceSelector } from '@/components/workspace-selector';
-import { PresenceIndicator } from '@/components/presence-indicator';
-import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Code2, Search, LayoutTemplate, Clock, Save, Cloud, RefreshCw, ShieldCheck, Power, Figma, Framer, HardDrive, Github, BookOpen, Zap, ZapOff, Briefcase, Brain, User, AlertCircle, Play, Plus, Users, Server, Archive, FileText, Video, Store, Shirt, Cpu, Camera, Code, Box, Settings, Pipette, Layers, Grid, Sliders, Cpu as CpuIcon, Lock, StickyNote, Activity, FilePlus } from 'lucide-react';
+import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Code2, Search, LayoutTemplate, Clock, Save, Cloud, RefreshCw, ShieldCheck, Power, Figma, Framer, HardDrive, Github, BookOpen, Zap, ZapOff, Briefcase, Brain, User, AlertCircle, Play, Plus, Users, Server, Archive, FileText, Video, Store, Shirt, Cpu, Camera, Code, Box, Settings, Pipette, Layers, Grid, Sliders, Cpu as CpuIcon, Lock, StickyNote, Activity, FilePlus, Bot, Film, Compass } from 'lucide-react';
 import { ControlCenter } from '@/components/control-center';
-import { FS } from '@/lib/fs';
+import { FS, LocalFile } from '@/lib/fs';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { LoginScreen } from '@/components/login-screen';
@@ -42,6 +41,10 @@ const ColorPickerApp = dynamic(() => import('@/components/apps/color-picker').th
 const ScreenRecorderApp = dynamic(() => import('@/components/apps/screen-recorder').then(mod => mod.ScreenRecorderApp), { ssr: false });
 const HardwareManagerApp = dynamic(() => import('@/components/apps/hardware-manager').then(mod => mod.HardwareManagerApp), { ssr: false });
 const ConfigManagerApp = dynamic(() => import('@/components/apps/config-manager').then(mod => mod.ConfigManagerApp), { ssr: false });
+const AppStoreApp = dynamic(() => import('@/components/apps/app-store').then(mod => mod.AppStoreApp), { ssr: false });
+const BrowserApp = dynamic(() => import('@/components/apps/browser').then(mod => mod.BrowserApp), { ssr: false });
+const MediaPlayerApp = dynamic(() => import('@/components/apps/media-player').then(mod => mod.MediaPlayerApp), { ssr: false });
+const AssistantApp = dynamic(() => import('@/components/apps/assistant').then(mod => mod.AssistantApp), { ssr: false });
 
 export const APPS = {
   'terminal': { component: TerminalBox, icon: Terminal, title: 'Terminal', roles: ['admin', 'technician'], isCore: true },
@@ -71,6 +74,10 @@ export const APPS = {
   'screen-recorder': { component: ScreenRecorderApp, icon: Video, title: 'Screen Record', roles: ['admin', 'filmmaker', 'technician', 'designer'], isCore: false },
   'hardware': { component: HardwareManagerApp, icon: CpuIcon, title: 'Hardware', roles: ['admin', 'technician'], isCore: false },
   'config': { component: ConfigManagerApp, icon: Sliders, title: 'OS Config', roles: ['admin', 'technician'], isCore: false },
+  'store': { component: AppStoreApp, icon: Store, title: 'App Hub', roles: ['admin', 'filmmaker', 'technician', 'designer', 'client', 'user'], isCore: true },
+  'browser': { component: BrowserApp, icon: Compass, title: 'Browser', roles: ['admin', 'user', 'designer', 'filmmaker', 'technician'], isCore: false },
+  'media-player': { component: MediaPlayerApp, icon: Film, title: 'CinePlay', roles: ['admin', 'user', 'filmmaker', 'client'], isCore: false },
+  'assistant': { component: AssistantApp, icon: Bot, title: 'System AI', roles: ['admin', 'user', 'designer', 'filmmaker', 'technician', 'client'], isCore: true },
 };
 
 const PROJECTS = {
@@ -180,9 +187,20 @@ export function Desktop() {
     { id: 'w1', type: 'notes', x: 40, y: 80, content: 'Finish the new brand guidelines by Friday.' }
   ]);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [desktopFiles, setDesktopFiles] = useState<LocalFile[]>([]);
+
+  const refreshDesktop = async () => {
+    try {
+      const files = await FS.readDir('Desktop');
+      setDesktopFiles(files || []);
+    } catch (e) {
+      console.warn("Failed to read desktop files", e);
+    }
+  };
 
   useEffect(() => {
     if (!currentUser) return;
+    refreshDesktop();
     const q = query(collection(db, 'apps'), limit(100));
     const unsub = onSnapshot(q, (snap) => {
       const apps = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -360,7 +378,7 @@ export function Desktop() {
       try {
         await FS.write(`Desktop/${file.name}`, file, file.type);
         alert(`File ${file.name} saved to Desktop via OS File System.`);
-        // In a real implementation, we would dispatch an event to refresh desktop icons
+        refreshDesktop();
       } catch (err) {
         console.error('File drop failed', err);
       }
@@ -577,81 +595,40 @@ export function Desktop() {
 
       {/* Main Workspace Area (Desktop) */}
       <main className="flex-1 relative z-10 w-full h-full overflow-hidden pointer-events-none">
+        
         {/* Desktop Icons */}
-        <div className="absolute top-4 right-4 flex flex-col gap-6 pointer-events-auto z-0">
-          <div className="text-white/50 text-[10px] font-bold tracking-widest uppercase mb-[-12px] text-center">Projects</div>
-          {Object.entries(PROJECTS).map(([id, project]) => {
-             return (
-               <button 
-                 key={id} 
-                 onClick={() => loadProject(id)}
-                 className="flex flex-col items-center gap-1 group w-24 focus:outline-none"
-               >
-                 <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 flex items-center justify-center group-hover:bg-white/20 transition-colors shadow-lg">
-                   <Folder className="w-8 h-8 text-blue-400 fill-blue-400" />
-                 </div>
-                 <div className="text-white text-xs font-medium text-center line-clamp-2 px-1 break-words drop-shadow-md group-focus:bg-blue-500/50 group-focus:px-2 group-focus:rounded flex items-center justify-center min-h-[32px]">
-                   {project.title}
-                 </div>
-               </button>
-             );
+        <div className="absolute inset-0 p-6 flex flex-col flex-wrap gap-6 items-start content-start z-0 pointer-events-auto">
+          {desktopFiles.map((file, i) => {
+            const isMedia = file.mimeType?.startsWith('video/') || file.mimeType?.startsWith('audio/');
+            const isImage = file.mimeType?.startsWith('image/');
+            return (
+              <div 
+                key={i}
+                className="w-20 flex flex-col items-center gap-1.5 p-2 rounded-lg hover:bg-white/10 cursor-pointer group transition-colors"
+                onDoubleClick={() => {
+                   if (isMedia) {
+                     openWindow('media-player', { fileUrl: file.content || file.id, mimeType: file.mimeType });
+                   } else if (isImage) {
+                     openWindow('code', { fileId: file.id });
+                   } else {
+                     openWindow('code', { fileId: file.id });
+                   }
+                }}
+              >
+                {isImage && file.content ? (
+                   // eslint-disable-next-line @next/next/no-img-element
+                   <img src={file.content} alt={file.name} className="w-12 h-12 object-cover rounded shadow-lg" />
+                ) : isMedia ? (
+                   <Film className="w-12 h-12 text-rose-400 drop-shadow-md" />
+                ) : (
+                   <FileText className="w-12 h-12 text-white/80 drop-shadow-md" />
+                )}
+                <span className="text-xs text-center font-medium text-white drop-shadow-md px-1 bg-black/30 rounded leading-tight line-clamp-2">
+                  {file.name}
+                </span>
+              </div>
+            )
           })}
-          <div className="w-12 h-px bg-white/10 mx-auto my-2" />
-          <div className="text-white/50 text-[10px] font-bold tracking-widest uppercase mb-[-12px] text-center">Services</div>
-          {Object.entries(SERVICES).map(([id, service]) => {
-             const Icon = service.icon;
-             return (
-               <a 
-                 key={id} 
-                 href={service.url}
-                 target="_blank"
-                 rel="noopener noreferrer"
-                 onClick={(e) => {
-                   e.preventDefault();
-                   openWindow('browser', `Web: ${service.title}`, { url: service.url });
-                 }}
-                 className="flex flex-col items-center gap-1 group w-24 outline-none border-none"
-               >
-                 <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 flex items-center justify-center group-hover:bg-white/20 transition-colors shadow-lg">
-                   <Icon className={cn("w-8 h-8", service.color)} />
-                 </div>
-                 <div className="text-white text-xs font-medium text-center line-clamp-2 px-1 break-words drop-shadow-md group-focus:bg-blue-500/50 group-focus:px-2 group-focus:rounded flex items-center justify-center min-h-[32px]">
-                   {service.title}
-                 </div>
-               </a>
-             );
-          })}
-          {customApps.map((app) => {
-             return (
-               <a 
-                 key={app.id} 
-                 href={app.url}
-                 target="_blank"
-                 rel="noopener noreferrer"
-                 onClick={(e) => {
-                   e.preventDefault();
-                   openWindow('browser', `Web: ${app.title}`, { url: app.url });
-                 }}
-                 className="flex flex-col items-center gap-1 group w-24 outline-none border-none"
-               >
-                 <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 flex items-center justify-center group-hover:bg-white/20 transition-colors shadow-lg relative">
-                   {app.ownerId === currentUser.id && (
-                     <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-black" title="Added by you"></div>
-                   )}
-                   <Globe className={cn("w-8 h-8", app.color || 'text-white')} />
-                 </div>
-                 <div className="text-white text-xs font-medium text-center line-clamp-2 px-1 break-words drop-shadow-md group-focus:bg-blue-500/50 group-focus:px-2 group-focus:rounded flex items-center justify-center min-h-[32px]">
-                   {app.title}
-                 </div>
-               </a>
-             );
-          })}
-          <button onClick={handleAddApp} className="flex flex-col items-center gap-1 group w-24 focus:outline-none">
-             <div className="w-12 h-12 bg-white/5 backdrop-blur-md rounded-xl border border-white/10 border-dashed flex items-center justify-center group-hover:bg-white/10 transition-colors">
-               <Plus className="w-5 h-5 text-white/50 group-hover:text-white/80" />
-             </div>
-             <div className="text-white/50 text-[10px] font-medium text-center mt-1">Add App</div>
-          </button>
         </div>
 
         {/* Desktop Widgets Layer */}
@@ -844,9 +821,11 @@ export function Desktop() {
                 autoFocus
              />
           </div>
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-x-6 gap-y-10 max-w-6xl px-8 w-full justify-items-center">
-            {Object.entries(APPS).filter(([id, config]) => config.roles.includes(currentUser.role)).map(([appId, config]) => {
-               const Icon = config.icon;
+          <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-x-4 gap-y-12 max-w-6xl mx-auto mt-24 px-8">
+            {Object.entries(APPS).map(([appId, config]) => {
+              if (!config.roles.includes(currentUser.role) && !isSuperUser) return null;
+              if (!config.isCore && !installedApps.includes(appId)) return null;
+              const Icon = config.icon;
                return (
                  <button 
                    key={appId}

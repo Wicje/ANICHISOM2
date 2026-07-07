@@ -110,3 +110,31 @@ This document tracks all features added, how they work, and how to use them.
 - **What it is**: Bridge the gap between your physical computer and the Web OS.
 - **How to use**: Drag a file (image, pdf, text) from your physical desktop and drop it directly into the browser window. A blue dashed overlay appears to catch it, and it writes directly into the OS's internal Virtual File System (`FS.write`).
 
+## Phase 5: The Ultimate Desktop Experience
+
+### 21. Interactive Desktop Icons
+- **What it is**: A true visual desktop that renders files from your virtual file system.
+- **How to use**: When you drag and drop files onto the OS, they are now saved to the `/Desktop` folder and rendered as interactive icons on your wallpaper. Double-clicking them opens them in the appropriate app.
+- **Implementation**: Fetches directly from `FS.readDir('Desktop')` and renders in an absolute layer on the desktop.
+
+### 22. App Hub (Plugin Store)
+- **What it is**: A centralized marketplace to install third-party plugins or apps.
+- **How to use**: Open "App Hub" from Launchpad. You can browse curated apps like the Nite Browser or CinePlay and click "Get". Once installed, they appear in your Launchpad.
+- **Implementation**: Uses the `installApp` method in `os-context.tsx` to dynamically provision access to components.
+
+### 23. Nite Browser
+- **What it is**: A fully functional browser living *inside* the web OS.
+- **How to use**: Install it from the App Hub. You can navigate the real web seamlessly.
+- **Implementation**: Built using an iframe engine (`components/apps/browser.tsx`) with a custom navigation bar and anti-frame-busting UI.
+
+### 24. CinePlay (Media Player)
+- **What it is**: A high-fidelity native media player for audio and video.
+- **How to use**: Double-click an `.mp4` or `.mp3` file that you've dropped onto your desktop. CinePlay will launch automatically, offering playback controls, a scrubber, and volume adjustment.
+- **Implementation**: Uses native `<video>` and `<audio>` tags hooked into a custom React UI state (`components/apps/media-player.tsx`).
+
+### 25. System AI Assistant
+- **What it is**: An integrated virtual assistant for controlling the OS.
+- **How to use**: Open "System AI" from Launchpad. You can ask it to "Change theme to blue", "Open the terminal", or "Enable CRT shader".
+- **Implementation**: A natural language parser built in `components/apps/assistant.tsx` that directly invokes `os-context` hooks.
+
+
