@@ -133,9 +133,14 @@ This document tracks all features added, how they work, and how to use them.
 - **Implementation**: Uses native `<video>` and `<audio>` tags hooked into a custom React UI state (`components/apps/media-player.tsx`). Scans the `FS` abstraction to build playlists.
 
 ### 25. Campaign Lab (Command Center)
-- **What it is**: A notion-like document editor for strategy and design.
-- **How to use**: Open Campaign Lab. Use the `/` command to access standard blocks (Headings, Checklists) or trigger AI tools like "AI: Generate Proposals". You can navigate the slash menu with your keyboard (Up/Down/Enter).
-- **Implementation**: Built from scratch (`components/apps/campaign-lab/components/BlockEditor.tsx`) to support contenteditable-style textareas, block dragging, and dynamic popup menus.
+- **What it is**: A massive Notion-like document editor for strategy and design.
+- **How to use**: Open Campaign Lab. The top bar is extremely clean—all phase management (Discovery, Design, Delivery) and sharing options are tucked inside the three-dot menu. Type `/` in the editor to access dozens of Notion-style blocks including:
+  - Text, Headings (H1-H3), Checklists, Bullets, Numbers, Toggles
+  - Quotes, Callouts, Dividers
+  - Media & Files (Video, Audio, File, Web Bookmark, Code)
+  - Database Views (Table, Board, Calendar, List, Gallery, Timeline)
+  - AI Generation (`/action-ai`) to summon the System AI directly from your text cursor.
+- **Implementation**: Built from scratch (`components/apps/campaign-lab/components/BlockEditor.tsx`) to support contenteditable-style textareas, block dragging, dynamic popup menus, and extensive block type tracking via `yjs`.
 
 ### 26. System AI Assistant
 - **What it is**: An integrated virtual assistant for controlling the OS.

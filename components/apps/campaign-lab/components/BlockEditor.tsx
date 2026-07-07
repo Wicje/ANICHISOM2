@@ -161,10 +161,11 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
     
     const newBlocks = [...blocks];
     
-    if (cmdId.startsWith('action-')) {
-       // Open AI Gateway
-       openWindow('ai-gateway', cmdId.replace('action-', 'AI '));
-       // Clear the slash command text without changing block type
+    if (cmdId === 'action-ai') {
+       openWindow('assistant', 'System AI');
+       newBlocks[index] = { ...block, content: textBeforeSlash };
+    } else if (cmdId.startsWith('action-')) {
+       openWindow('assistant', cmdId.replace('action-', 'AI '));
        newBlocks[index] = { ...block, content: textBeforeSlash };
     } else {
        newBlocks[index] = { ...block, type: cmdId as BlockType, content: textBeforeSlash };
@@ -227,12 +228,12 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
           block.type === 'h1' && "text-4xl font-bold font-display mt-6 mb-2",
           block.type === 'h2' && "text-2xl font-semibold font-display mt-5 mb-1",
           block.type === 'h3' && "text-xl font-medium font-display mt-4 mb-1",
-          block.type === 'p' && "text-base text-[#37352f] min-h-[24px]",
-          block.type === 'todo' && "text-base text-[#37352f]",
-          block.type === 'bullet' && "text-base text-[#37352f]",
+          ['p', 'todo', 'bullet', 'num', 'toggle'].includes(block.type) && "text-base text-[#37352f] min-h-[24px]",
+          block.type === 'quote' && "text-lg text-[#37352f] pl-4 border-l-4 border-black/20 italic my-2",
+          block.type === 'callout' && "text-base bg-[#f7f7f5] p-4 rounded-lg my-2 flex items-start gap-3",
+          block.type === 'divider' && "h-0 text-transparent min-h-0 py-2 my-2 border-b border-black/10 select-none",
           block.type === 'code' && "text-sm font-mono bg-[#f7f7f5] border border-black/5 p-4 rounded-lg text-[#37352f] min-h-[80px] my-2 w-full",
-          block.type === 'image' && "hidden",
-          block.type === 'database' && "hidden"
+          ['image', 'database', 'board', 'calendar', 'list', 'gallery', 'timeline', 'linked', 'video', 'audio', 'file', 'web'].includes(block.type) && "hidden"
         );
 
         return (
@@ -251,6 +252,19 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
              )}
              {block.type === 'bullet' && (
                 <div className="mt-3 mr-3 ml-2 shrink-0"><div className="w-1.5 h-1.5 rounded-full bg-[#37352f]" /></div>
+             )}
+             {block.type === 'num' && (
+                <div className="mt-1 mr-2 ml-1 text-sm text-[#37352f]/60 font-medium shrink-0">{index + 1}.</div>
+             )}
+             {block.type === 'toggle' && (
+                <div className="mt-1.5 mr-1 cursor-pointer shrink-0">
+                  <div className="w-4 h-4 flex items-center justify-center hover:bg-black/5 rounded">
+                     <div className="w-0 h-0 border-t-[4px] border-t-transparent border-l-[6px] border-l-[#37352f]/60 border-b-[4px] border-b-transparent" />
+                  </div>
+                </div>
+             )}
+             {block.type === 'callout' && (
+                <div className="mt-5 mr-3 shrink-0 text-xl ml-2">💡</div>
              )}
 
              <div className="flex-1 min-w-0">
@@ -274,8 +288,21 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
                       </div>
                     )}
                   </div>
-                ) : block.type === 'database' ? (
+                ) : ['database', 'board', 'calendar', 'list', 'gallery', 'timeline', 'linked', 'form'].includes(block.type) ? (
                   <DatabaseView block={block} />
+                ) : ['video', 'audio', 'file', 'web'].includes(block.type) ? (
+                  <div className="py-2">
+                      <div className="bg-slate-50 border border-black/10 rounded-lg p-4 flex flex-col gap-2 relative">
+                        <div className="text-sm font-medium text-[#37352f]/70 mb-1 flex items-center gap-2 capitalize">
+                           <ImageIcon className="w-4 h-4" /> Embed {block.type}
+                        </div>
+                        <input type="text" placeholder={`Paste ${block.type} URL and press Enter...`} className="w-full bg-white border border-black/10 rounded p-2 text-sm outline-none focus:border-blue-500"
+                          onKeyDown={(e) => { 
+                            if(e.key === 'Backspace' && e.currentTarget.value === '') updateBlock(index, { type: 'p' });
+                          }}
+                        />
+                      </div>
+                  </div>
                 ) : (
                   <div className="relative">
                     <textarea

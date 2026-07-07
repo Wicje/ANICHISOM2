@@ -229,48 +229,61 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
           </div>
           <div className="flex items-center gap-2 relative">
             {/* Streamlined right side tools */}
-            <button 
-              onClick={() => openWindow('moodboard', `Moodboard: ${activePage?.title || 'Campaign'}`, { projectId })}
-              className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded transition-colors"
-              title="Open Attached Moodboard"
-            >
-              <ImageIcon className="w-4 h-4" /> Moodboard
-            </button>
-            <div className="w-px h-4 bg-black/10 mx-1" />
-            <button className="flex items-center gap-2 text-sm text-[#37352f]/70 hover:bg-black/5 px-3 py-1.5 rounded transition-colors" onClick={() => setShareMenuOpen(!shareMenuOpen)}>
-              <Share2 className="w-4 h-4" /> Share
-            </button>
-            <button className="p-1 hover:bg-black/5 rounded">
-              <MoreHorizontal className="w-4 h-4 text-[#37352f]/50" />
+            <button className="p-1 hover:bg-black/5 rounded relative" onClick={() => setShareMenuOpen(!shareMenuOpen)}>
+              <MoreHorizontal className="w-4 h-4 text-[#37352f]/70" />
             </button>
 
             {shareMenuOpen && activePage && (
-              <div className="absolute top-full right-0 mt-2 w-72 bg-white border border-black/10 shadow-2xl rounded-xl p-4 z-50">
-                <div className="text-sm font-bold mb-1 flex items-center gap-2"><Globe className="w-4 h-4 text-blue-500"/> Publish to Client</div>
-                <p className="text-xs text-[#37352f]/60 mb-4">Create a read-only link. Clients do not need an OS account to view this campaign.</p>
+              <div className="absolute top-full right-0 mt-2 w-56 bg-white border border-black/10 shadow-2xl rounded-xl p-2 z-50 flex flex-col gap-1 text-sm text-[#37352f]">
                 
-                <div className="flex items-center justify-between bg-[#f7f7f5] p-2 rounded-lg mb-4">
-                  <div className="flex items-center gap-2">
-                    {activePage.shared ? <Globe className="w-4 h-4 text-emerald-500" /> : <Lock className="w-4 h-4 text-[#37352f]/40" />}
-                    <span className="text-sm">{activePage.shared ? 'Link is live' : 'Private'}</span>
+                <div className="text-xs font-semibold text-[#37352f]/50 px-2 pt-2 pb-1 uppercase tracking-wider">Phases</div>
+                <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-black/5 rounded text-left transition-colors" onClick={() => setCampaignPhase('discovery')}>
+                  <Search className="w-4 h-4 text-amber-500" /> Discovery
+                </button>
+                <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-black/5 rounded text-left transition-colors" onClick={() => setCampaignPhase('design')}>
+                  <Palette className="w-4 h-4 text-blue-500" /> Design
+                </button>
+                <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-black/5 rounded text-left transition-colors" onClick={() => setCampaignPhase('delivery')}>
+                  <CheckCircle className="w-4 h-4 text-emerald-500" /> Delivery
+                </button>
+                
+                <div className="h-px bg-black/10 my-1 mx-2" />
+                <div className="text-xs font-semibold text-[#37352f]/50 px-2 pt-2 pb-1 uppercase tracking-wider">Actions</div>
+                
+                <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-black/5 rounded text-left transition-colors" onClick={() => {
+                  setShareMenuOpen(false);
+                  openWindow('moodboard', `Moodboard: ${activePage.title || 'Campaign'}`, { projectId });
+                }}>
+                  <ImageIcon className="w-4 h-4 text-indigo-500" /> Open Moodboard
+                </button>
+                
+                <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-black/5 rounded text-left transition-colors">
+                  <CheckCircle className="w-4 h-4 text-emerald-600" /> Final Approval
+                </button>
+                <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-black/5 rounded text-left transition-colors">
+                  <Send className="w-4 h-4 text-blue-600" /> Publish to Portal
+                </button>
+                
+                <div className="h-px bg-black/10 my-1 mx-2" />
+                
+                <div className="px-2 py-1.5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-xs">Share Page</span>
+                    <button 
+                      onClick={() => updatePage(activePage.id, { shared: !activePage.shared })}
+                      className={cn("w-8 h-4 rounded-full relative transition-colors", activePage.shared ? "bg-blue-500" : "bg-black/20")}
+                    >
+                      <div className={cn("w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all shadow-sm", activePage.shared ? "left-4.5" : "left-0.5")} />
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => updatePage(activePage.id, { shared: !activePage.shared })}
-                    className={cn(
-                      "w-10 h-5 rounded-full relative transition-colors",
-                      activePage.shared ? "bg-blue-500" : "bg-black/20"
-                    )}
-                  >
-                    <div className={cn("w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm", activePage.shared ? "left-5" : "left-1")} />
-                  </button>
+                  {activePage.shared && (
+                    <div className="flex items-center gap-2 bg-black/5 border border-black/5 p-1 rounded">
+                      <input type="text" readOnly value={`https://os.anichisom.com/c/${activePage.id}`} className="text-[10px] w-full outline-none text-[#37352f]/60 bg-transparent px-1" />
+                      <button className="bg-blue-500 hover:bg-blue-600 text-white p-1 rounded transition-colors" title="Copy Link"><Copy className="w-3 h-3" /></button>
+                    </div>
+                  )}
                 </div>
 
-                {activePage.shared && (
-                  <div className="flex items-center gap-2 bg-white border border-black/10 p-1.5 rounded-lg">
-                    <input type="text" readOnly value={`https://os.anichisom.com/c/${activePage.id}`} className="text-xs w-full outline-none text-[#37352f]/60 bg-transparent px-1" />
-                    <button className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded transition-colors" title="Copy Link"><Copy className="w-3 h-3" /></button>
-                  </div>
-                )}
               </div>
             )}
           </div>
