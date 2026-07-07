@@ -7,7 +7,7 @@ import { WindowFrame } from '@/components/window-frame';
 import { CommandPalette } from '@/components/command-palette';
 import { WorkspaceSelector } from '@/components/workspace-selector';
 import { PresenceIndicator } from '@/components/presence-indicator';
-import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Code2, Search, LayoutTemplate, Clock, Save, Cloud, RefreshCw, ShieldCheck, Power, Figma, Framer, HardDrive, Github, BookOpen, Zap, ZapOff, Briefcase, Brain, User, AlertCircle, Play, Plus, Users, Server, Archive, FileText, Video, Store, Shirt, Cpu, Camera, Code, Box } from 'lucide-react';
+import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Code2, Search, LayoutTemplate, Clock, Save, Cloud, RefreshCw, ShieldCheck, Power, Figma, Framer, HardDrive, Github, BookOpen, Zap, ZapOff, Briefcase, Brain, User, AlertCircle, Play, Plus, Users, Server, Archive, FileText, Video, Store, Shirt, Cpu, Camera, Code, Box, Settings, Pipette, Layers, Grid, Sliders, Cpu as CpuIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { LoginScreen } from '@/components/login-screen';
@@ -35,6 +35,11 @@ const Marketplace = dynamic(() => import('@/components/apps/marketplace').then(m
 const SideGigsApp = dynamic(() => import('@/components/apps/side-gigs').then(mod => mod.SideGigsApp), { ssr: false });
 const ProposalGenerator = dynamic(() => import('@/components/apps/proposal-generator').then(mod => mod.ProposalGenerator), { ssr: false });
 const PluginSandbox = dynamic(() => import('@/components/apps/plugin-sandbox').then(mod => mod.PluginSandbox), { ssr: false });
+const SettingsApp = dynamic(() => import('@/components/apps/settings').then(mod => mod.SettingsApp), { ssr: false });
+const ColorPickerApp = dynamic(() => import('@/components/apps/color-picker').then(mod => mod.ColorPickerApp), { ssr: false });
+const ScreenRecorderApp = dynamic(() => import('@/components/apps/screen-recorder').then(mod => mod.ScreenRecorderApp), { ssr: false });
+const HardwareManagerApp = dynamic(() => import('@/components/apps/hardware-manager').then(mod => mod.HardwareManagerApp), { ssr: false });
+const ConfigManagerApp = dynamic(() => import('@/components/apps/config-manager').then(mod => mod.ConfigManagerApp), { ssr: false });
 
 export const APPS = {
   'terminal': { component: TerminalBox, icon: Terminal, title: 'Terminal', roles: ['admin', 'technician'], isCore: true },
@@ -59,6 +64,11 @@ export const APPS = {
   'developer': { component: DeveloperPack, icon: Code, title: 'DevOps', roles: ['admin', 'technician'], isCore: false },
   'photography': { component: PhotographyPack, icon: Camera, title: 'Photography', roles: ['admin', 'filmmaker'], isCore: false },
   'plugin': { component: PluginSandbox, icon: Box, title: 'Plugin Sandbox', roles: ['admin'], isCore: false },
+  'settings': { component: SettingsApp, icon: Settings, title: 'Settings', roles: ['admin', 'filmmaker', 'technician', 'designer', 'client', 'user'], isCore: true },
+  'colorpicker': { component: ColorPickerApp, icon: Pipette, title: 'Color Utility', roles: ['admin', 'designer', 'filmmaker'], isCore: false },
+  'screen-recorder': { component: ScreenRecorderApp, icon: Video, title: 'Screen Record', roles: ['admin', 'filmmaker', 'technician', 'designer'], isCore: false },
+  'hardware': { component: HardwareManagerApp, icon: CpuIcon, title: 'Hardware', roles: ['admin', 'technician'], isCore: false },
+  'config': { component: ConfigManagerApp, icon: Sliders, title: 'OS Config', roles: ['admin', 'technician'], isCore: false },
 };
 
 const PROJECTS = {
@@ -153,10 +163,14 @@ const DesktopWindow = React.memo(
 );
 
 export function Desktop() {
-  const { currentUser, setCurrentUser, logout, windows, snapshots, performanceMode, setPerformanceMode, workspaceMode, setWorkspaceMode, activeWorkspace, setActiveWorkspace, installedApps, recentApps, openWindow, minimizeWindow, focusWindow, applyWorkspaceLayout, loadProject, saveSnapshot, restoreSnapshot, wipeSession } = useOS();
+  const { currentUser, setCurrentUser, logout, windows, snapshots, performanceMode, setPerformanceMode, workspaceMode, setWorkspaceMode, activeWorkspace, setActiveWorkspace, installedApps, recentApps, openWindow, minimizeWindow, focusWindow, applyWorkspaceLayout, loadProject, saveSnapshot, restoreSnapshot, wipeSession, wallpaper, themeColor, fontFamily, screenShader } = useOS();
   const [showSnapshots, setShowSnapshots] = useState(false);
   const [showActionCenter, setShowActionCenter] = useState(false);
   const [customApps, setCustomApps] = useState<any[]>([]);
+  const [showSwitcher, setShowSwitcher] = useState(false);
+  const [switcherIndex, setSwitcherIndex] = useState(0);
+  const [showLaunchpad, setShowLaunchpad] = useState(false);
+  const [showMissionControl, setShowMissionControl] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -196,6 +210,103 @@ export function Desktop() {
     };
   }, [currentUser]);
 
+  // Window Switcher (Ctrl+Tab) Logic
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'Tab') {
+        e.preventDefault();
+        setShowSwitcher(true);
+        setSwitcherIndex((prev) => {
+          const activeW = windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined);
+          if (activeW.length === 0) return 0;
+          return (prev + 1) % activeW.length;
+        });
+      }
+    };
+    
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Control' || e.key === 'Tab') {
+        // If they release Ctrl, execute the switch
+        if (!e.ctrlKey) {
+          setShowSwitcher(false);
+          setSwitcherIndex((currentIdx) => {
+            const activeW = windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined);
+            if (activeW.length > 0 && currentIdx < activeW.length) {
+              focusWindow(activeW[currentIdx].id);
+            }
+            return 0; // reset
+          });
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [windows, activeWorkspace, focusWindow]);
+
+  // Global Config & Keybinds Logic
+  useEffect(() => {
+    let currentKeybinds: Record<string, string> = {
+      'alt+t': 'open:terminal',
+      'alt+f': 'open:files',
+      'alt+b': 'open:browser',
+      'alt+c': 'open:code',
+      'ctrl+space': 'action:launchpad',
+    };
+    
+    import('@/lib/fs').then(({ FS }) => {
+      FS.read('.config/anichisom.json').then(file => {
+        if (file && file.content) {
+           try {
+             currentKeybinds = JSON.parse(file.content).keybinds || currentKeybinds;
+           } catch (e) {}
+        }
+      });
+    });
+
+    const handleConfigUpdate = (e: any) => {
+       currentKeybinds = e.detail?.keybinds || currentKeybinds;
+    };
+    window.addEventListener('os:config-updated', handleConfigUpdate);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      const keys = [];
+      if (e.ctrlKey) keys.push('ctrl');
+      if (e.altKey) keys.push('alt');
+      if (e.shiftKey) keys.push('shift');
+      if (e.metaKey) keys.push('meta');
+      
+      const key = e.key.toLowerCase();
+      if (!['control', 'alt', 'shift', 'meta'].includes(key)) {
+         keys.push(key === ' ' ? 'space' : key);
+      }
+      
+      const combo = keys.join('+');
+      
+      if (currentKeybinds[combo]) {
+         e.preventDefault();
+         const action = currentKeybinds[combo];
+         if (action.startsWith('open:')) {
+            openWindow(action.replace('open:', ''));
+         } else if (action === 'action:launchpad') {
+            setShowLaunchpad(prev => !prev);
+         }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+       window.removeEventListener('os:config-updated', handleConfigUpdate);
+       window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [openWindow]);
+
   const handleAddApp = async () => {
     const title = prompt("Enter App Name:");
     const url = prompt("Enter App URL:");
@@ -219,19 +330,31 @@ export function Desktop() {
   const isSuperUser = currentUser.role === 'admin';
 
   return (
-    <div className="fixed inset-0 w-full h-full overflow-hidden flex flex-col font-sans select-none bg-black">
+    <div className="fixed inset-0 w-full h-full overflow-hidden flex flex-col font-sans select-none bg-black" style={{ fontFamily }}>
+      <style>{`
+        :root {
+          --color-neon-blue: ${themeColor};
+        }
+        ${screenShader === 'contrast' ? 'body { filter: contrast(1.25) saturate(1.2); }' : ''}
+      `}</style>
+      
+      {/* Screen Shaders Overlays */}
+      {screenShader === 'crt' && <div className="pointer-events-none absolute inset-0 z-[200] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] opacity-20 mix-blend-overlay"></div>}
+      {screenShader === 'warm' && <div className="pointer-events-none absolute inset-0 z-[200] bg-orange-500/10 mix-blend-multiply"></div>}
+      {screenShader === 'matrix' && <div className="pointer-events-none absolute inset-0 z-[200] bg-green-500/10 mix-blend-color"></div>}
+
       <CommandPalette />
       
       {/* macOS Style Background */}
       <div 
-        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop")' }} 
+        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat transition-all duration-1000"
+        style={{ backgroundImage: \`url("\${wallpaper}")\` }} 
       />
 
       {/* OS Menu Bar */}
-      <header className="h-7 flex items-center shrink-0 w-full bg-black/20 backdrop-blur-3xl border-b border-white/10 z-50 px-4 sticky top-0 text-[13px] font-medium text-white/90">
+      <header className="h-7 flex items-center shrink-0 w-full bg-black/20 backdrop-blur-3xl border-b border-white/10 z-[260] px-4 sticky top-0 text-[13px] font-medium text-white/90">
         <div className="flex items-center gap-6">
-          <div className="font-bold text-white flex items-center gap-2 cursor-pointer">
+          <div className="font-bold text-white flex items-center gap-2 cursor-pointer hover:scale-110 transition-transform" onClick={() => setShowLaunchpad(!showLaunchpad)}>
             
           </div>
           <div className="font-bold flex items-center cursor-default uppercase tracking-wider text-xs bg-white/20 px-2 py-0.5 rounded gap-2">
@@ -550,9 +673,148 @@ export function Desktop() {
         )}
       </main>
 
+      {/* Window Switcher Overlay */}
+      {showSwitcher && (
+        <div className="absolute inset-0 z-[300] flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-auto">
+          <div className="bg-black/80 border border-white/20 p-8 rounded-3xl shadow-2xl flex gap-6 items-center flex-wrap max-w-4xl justify-center">
+            {windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined).map((win, idx) => {
+               const AppConfig = APPS[win.appId as keyof typeof APPS];
+               const Icon = AppConfig?.icon || Folder;
+               return (
+                 <div key={win.id} className={cn("flex flex-col items-center gap-4 p-5 rounded-2xl transition-all duration-200", switcherIndex === idx ? "bg-white/20 scale-110 shadow-xl" : "opacity-50 hover:opacity-80")}>
+                    <Icon className="w-14 h-14 text-white" />
+                    <span className="text-white text-sm font-medium tracking-wide">{win.title}</span>
+                 </div>
+               );
+            })}
+            {windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined).length === 0 && (
+               <div className="text-white/50 text-sm">No open windows</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Launchpad Overlay */}
+      {showLaunchpad && (
+        <div className="absolute inset-0 z-[250] bg-black/60 backdrop-blur-2xl pointer-events-auto flex flex-col items-center pt-24 pb-12 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-full max-w-xl mb-16 px-4">
+             <input 
+                type="text" 
+                placeholder="Search applications..." 
+                className="w-full bg-white/10 border border-white/20 rounded-2xl px-6 py-4 text-white text-lg font-medium focus:outline-none focus:bg-white/20 focus:border-white/40 transition-all text-center placeholder:text-white/30 shadow-2xl" 
+                autoFocus
+             />
+          </div>
+          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-x-6 gap-y-10 max-w-6xl px-8 w-full justify-items-center">
+            {Object.entries(APPS).filter(([id, config]) => config.roles.includes(currentUser.role)).map(([appId, config]) => {
+               const Icon = config.icon;
+               return (
+                 <button 
+                   key={appId}
+                   onClick={() => {
+                     openWindow(appId);
+                     setShowLaunchpad(false);
+                   }}
+                   className="flex flex-col items-center gap-3 group outline-none w-24"
+                 >
+                   <div className="w-20 h-20 bg-white/10 rounded-3xl flex items-center justify-center group-hover:bg-white/25 transition-all duration-300 group-hover:scale-110 shadow-lg border border-white/10 group-focus:ring-2 ring-white/50">
+                     <Icon className="w-10 h-10 text-white" />
+                   </div>
+                   <span className="text-white text-sm font-medium drop-shadow-md text-center line-clamp-1 w-full px-1">{config.title}</span>
+                 </button>
+               );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Mission Control Overlay */}
+      {showMissionControl && (
+        <div className="absolute inset-0 z-[240] bg-black/40 backdrop-blur-xl pointer-events-auto flex flex-col animate-in fade-in duration-200">
+          {/* Top Desktop Bar */}
+          <div className="h-48 bg-black/40 border-b border-white/10 flex items-center justify-center gap-10 px-8 py-6">
+            {[0, 1, 2].map(wsIndex => (
+               <button 
+                 key={wsIndex}
+                 onClick={() => {
+                    setActiveWorkspace(wsIndex);
+                    setShowMissionControl(false);
+                 }}
+                 className={cn(
+                   "relative w-64 h-full rounded-2xl border-2 overflow-hidden transition-all duration-300 group shadow-2xl",
+                   activeWorkspace === wsIndex ? "border-blue-500 scale-105 shadow-[0_0_30px_rgba(59,130,246,0.3)]" : "border-white/20 hover:border-white/50 hover:scale-105"
+                 )}
+               >
+                 <div className="absolute inset-0 bg-cover bg-center opacity-60 group-hover:opacity-100 transition-opacity" style={{ backgroundImage: \`url("\${wallpaper}")\` }} />
+                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                 <div className="absolute bottom-3 left-0 right-0 text-center font-bold text-white text-sm shadow-sm">
+                   Desktop {wsIndex + 1}
+                 </div>
+               </button>
+            ))}
+          </div>
+          
+          {/* Windows Overview */}
+          <div className="flex-1 p-12 flex flex-wrap content-start gap-8 justify-center overflow-y-auto">
+             {windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined).map(win => {
+                const AppConfig = APPS[win.appId as keyof typeof APPS];
+                const Icon = AppConfig?.icon || Folder;
+                return (
+                  <button
+                    key={win.id}
+                    onClick={() => {
+                       focusWindow(win.id);
+                       setShowMissionControl(false);
+                    }}
+                    className="relative w-72 h-48 bg-black/40 border border-white/20 rounded-2xl overflow-hidden hover:scale-105 hover:border-blue-400 transition-all duration-300 shadow-2xl flex flex-col group backdrop-blur-md"
+                  >
+                     <div className="h-10 bg-white/10 border-b border-white/10 flex items-center px-4 gap-3">
+                        <Icon className="w-4 h-4 text-white" />
+                        <span className="text-white text-sm font-medium truncate">{win.title}</span>
+                     </div>
+                     <div className="flex-1 flex items-center justify-center group-hover:bg-white/5 transition-colors">
+                        <Icon className="w-20 h-20 text-white/20 group-hover:text-white/40 transition-colors" />
+                     </div>
+                  </button>
+                )
+             })}
+             {windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined).length === 0 && (
+                <div className="w-full text-center text-white/50 mt-32 text-2xl font-medium tracking-tight">No open windows on Desktop {activeWorkspace + 1}</div>
+             )}
+          </div>
+        </div>
+      )}
+
       {/* macOS Style Dock */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[260] pointer-events-none">
         <div className="flex items-end gap-3 px-3 py-2 bg-white/20 backdrop-blur-3xl border border-white/20 rounded-3xl shadow-2xl pointer-events-auto">
+          {/* Launchpad & Mission Control Buttons */}
+          <div className="relative group flex flex-col items-center justify-end">
+            <button
+              onClick={() => setShowLaunchpad(prev => {
+                 if (!prev) setShowMissionControl(false);
+                 return !prev;
+              })}
+              className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 transform origin-bottom hover:scale-125 hover:mx-2 bg-white/80 hover:bg-white"
+            >
+              <Grid className="w-7 h-7 text-black" />
+            </button>
+            <div className="absolute -top-12 scale-0 group-hover:scale-100 transition-transform px-3 py-1 bg-black/60 backdrop-blur text-white text-xs font-medium rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50">Launchpad</div>
+          </div>
+          <div className="relative group flex flex-col items-center justify-end">
+            <button
+              onClick={() => setShowMissionControl(prev => {
+                 if (!prev) setShowLaunchpad(false);
+                 return !prev;
+              })}
+              className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 transform origin-bottom hover:scale-125 hover:mx-2 bg-white/80 hover:bg-white"
+            >
+              <Layers className="w-7 h-7 text-black" />
+            </button>
+            <div className="absolute -top-12 scale-0 group-hover:scale-100 transition-transform px-3 py-1 bg-black/60 backdrop-blur text-white text-xs font-medium rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50">Mission Control</div>
+          </div>
+          <div className="w-px h-10 bg-white/20 mx-1"></div>
+
           {allowedApps.filter(([appId, config]) => {
              const activeWindows = windows.filter(win => win.workspace === activeWorkspace || win.workspace === undefined);
              const isOpen = activeWindows.some(w => w.appId === appId);

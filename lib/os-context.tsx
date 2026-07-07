@@ -76,6 +76,15 @@ type OSContextType = {
   mode: 'create' | 'review' | 'present';
   setMode: (mode: 'create' | 'review' | 'present') => void;
   emitEvent: (event: Omit<Event, 'id' | 'timestamp'>) => void;
+  wallpaper: string;
+  setWallpaper: (url: string) => void;
+  themeColor: string;
+  setThemeColor: (color: string) => void;
+  fontFamily: string;
+  setFontFamily: (font: string) => void;
+  screenShader: string;
+  setScreenShader: (shader: string) => void;
+  notify: (title: string, options?: NotificationOptions) => void;
 };
 
 const OSContext = createContext<OSContextType | undefined>(undefined);
@@ -95,6 +104,10 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
   const [workspaceId, setWorkspaceId] = useState<string>('personal');
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [mode, setMode] = useState<'create' | 'review' | 'present'>('create');
+  const [wallpaper, setWallpaper] = useState<string>('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop');
+  const [themeColor, setThemeColor] = useState<string>('#00f0ff');
+  const [fontFamily, setFontFamily] = useState<string>('system-ui, sans-serif');
+  const [screenShader, setScreenShader] = useState<string>('none');
 
   useEffect(() => {
     // Load local snapshots
@@ -136,6 +149,10 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
             if (localData.workspaceMode) setWorkspaceMode(localData.workspaceMode);
             if (localData.installedApps) setInstalledApps(localData.installedApps);
             if (localData.recentApps) setRecentApps(localData.recentApps);
+            if (localData.wallpaper) setWallpaper(localData.wallpaper);
+            if (localData.themeColor) setThemeColor(localData.themeColor);
+            if (localData.fontFamily) setFontFamily(localData.fontFamily);
+            if (localData.screenShader) setScreenShader(localData.screenShader);
             const highest = Math.max(10, ...localData.windows.map((w: any) => w.zIndex || 10));
             highestZIndexRef.current = highest;
           }
@@ -153,6 +170,10 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
               if (localData.workspaceMode) setWorkspaceMode(localData.workspaceMode);
               if (localData.installedApps) setInstalledApps(localData.installedApps);
               if (localData.recentApps) setRecentApps(localData.recentApps);
+              if (localData.wallpaper) setWallpaper(localData.wallpaper);
+              if (localData.themeColor) setThemeColor(localData.themeColor);
+              if (localData.fontFamily) setFontFamily(localData.fontFamily);
+              if (localData.screenShader) setScreenShader(localData.screenShader);
             }
             isHydratedRef.current = true;
           }
@@ -173,7 +194,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     const t = setTimeout(async () => {
       try {
         // Save to IndexedDB (local fast path)
-        await set('anichisom_os_desktop', { windows, workspaceMode, installedApps, recentApps });
+        await set('anichisom_os_desktop', { windows, workspaceMode, installedApps, recentApps, wallpaper, themeColor, fontFamily, screenShader });
         
         // Sync to server for Cross-Device Resumé (async)
         try {
@@ -182,7 +203,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              desktopState: { windows, workspaceMode, installedApps, recentApps, lastUpdated: Date.now() }
+              desktopState: { windows, workspaceMode, installedApps, recentApps, wallpaper, themeColor, fontFamily, screenShader, lastUpdated: Date.now() }
             }),
           });
         } catch (e) {
@@ -194,7 +215,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     }, 2000);
     
     return () => clearTimeout(t);
-  }, [windows, workspaceMode, currentUser]);
+  }, [windows, workspaceMode, currentUser, wallpaper, themeColor, fontFamily, screenShader]);
 
   const saveSnapshot = useCallback((name: string) => {
     const newSnapshot: Snapshot = {
@@ -222,20 +243,37 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
   const installApp = useCallback(async (appId: string) => {
     setInstalledApps(prev => {
       const next = prev.includes(appId) ? prev : [...prev, appId];
-      set('anichisom_os_desktop', { windows, workspaceMode, installedApps: next });
+      set('anichisom_os_desktop', { windows, workspaceMode, installedApps: next, recentApps, wallpaper, themeColor, fontFamily, screenShader });
       return next;
     });
-  }, [windows, workspaceMode]);
+  }, [windows, workspaceMode, recentApps, wallpaper, themeColor, fontFamily, screenShader]);
 
   const uninstallApp = useCallback(async (appId: string) => {
     setInstalledApps(prev => {
       const next = prev.filter(id => id !== appId);
-      set('anichisom_os_desktop', { windows, workspaceMode, installedApps: next });
+      set('anichisom_os_desktop', { windows, workspaceMode, installedApps: next, recentApps, wallpaper, themeColor, fontFamily, screenShader });
       return next;
     });
     // Also close the app if it's open
     setWindows(curr => curr.filter(w => w.appId !== appId));
-  }, [windows, workspaceMode]);
+  }, [windows, workspaceMode, recentApps, wallpaper, themeColor, fontFamily, screenShader]);
+
+  const notify = useCallback((title: string, options?: NotificationOptions) => {
+    // Push to internal system event log
+    emitEvent({ type: 'system', message: title, details: options?.body });
+
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    
+    if (Notification.permission === 'granted') {
+      new Notification(title, { icon: '/favicon.ico', ...options });
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          new Notification(title, { icon: '/favicon.ico', ...options });
+        }
+      });
+    }
+  }, [emitEvent]);
 
   const logout = useCallback(async () => {
     try {
@@ -268,7 +306,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     // Add to recent apps
     setRecentApps(prev => {
       const next = [appId, ...prev.filter(id => id !== appId)].slice(0, 5); // Keep top 5 recent
-      set('anichisom_os_desktop', { windows, workspaceMode, installedApps, recentApps: next });
+      set('anichisom_os_desktop', { windows, workspaceMode, installedApps, recentApps: next, wallpaper, themeColor, fontFamily, screenShader });
       return next;
     });
 
@@ -316,7 +354,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
       
       return [...curr, newWindow];
     });
-  }, [activeWorkspace]);
+  }, [activeWorkspace, windows, workspaceMode, installedApps, wallpaper, themeColor, fontFamily, screenShader]);
 
   const closeWindow = useCallback((id: string) => {
     setWindows((curr) => curr.filter((w) => w.id !== id));
@@ -523,7 +561,16 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     mode,
     setMode,
     emitEvent,
-  }), [currentUser, logout, windows, snapshots, performanceMode, workspaceMode, activeWorkspace, installedApps, recentApps, installApp, uninstallApp, openWindow, closeWindow, focusWindow, minimizeWindow, maximizeWindow, updateWindowDimensions, updateWindowData, applyWorkspaceLayout, loadProject, saveSnapshot, restoreSnapshot, wipeSession, workspaceId, workspaces, mode, emitEvent]);
+    wallpaper,
+    setWallpaper,
+    themeColor,
+    setThemeColor,
+    fontFamily,
+    setFontFamily,
+    screenShader,
+    setScreenShader,
+    notify,
+  }), [currentUser, logout, windows, snapshots, performanceMode, workspaceMode, activeWorkspace, installedApps, recentApps, installApp, uninstallApp, openWindow, closeWindow, focusWindow, minimizeWindow, maximizeWindow, updateWindowDimensions, updateWindowData, applyWorkspaceLayout, loadProject, saveSnapshot, restoreSnapshot, wipeSession, workspaceId, workspaces, mode, emitEvent, wallpaper, themeColor, fontFamily, screenShader, notify]);
 
   return <OSContext.Provider value={value}>{children}</OSContext.Provider>;
 }
