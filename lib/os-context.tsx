@@ -259,9 +259,6 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
   }, [windows, workspaceMode, recentApps, wallpaper, themeColor, fontFamily, screenShader]);
 
   const notify = useCallback((title: string, options?: NotificationOptions) => {
-    // Push to internal system event log
-    emitEvent({ type: 'system', message: title, details: options?.body });
-
     if (typeof window === 'undefined' || !('Notification' in window)) return;
     
     if (Notification.permission === 'granted') {
@@ -273,7 +270,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
         }
       });
     }
-  }, [emitEvent]);
+  }, []);
 
   const logout = useCallback(async () => {
     try {

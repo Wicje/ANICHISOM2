@@ -14,7 +14,7 @@ export function ControlCenter({ onClose }: { onClose: () => void }) {
 
   // Apply brightness globally using CSS filters on body (mock)
   useEffect(() => {
-    document.body.style.filter = \`brightness(\${brightness}%)\`;
+    document.body.style.filter = `brightness(${brightness}%)`;
     return () => { document.body.style.filter = ''; };
   }, [brightness]);
 

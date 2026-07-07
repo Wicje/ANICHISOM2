@@ -100,7 +100,7 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
     if (recordedUrl) {
       const a = document.createElement('a');
       a.href = recordedUrl;
-      a.download = \`Screen_Recording_\${new Date().getTime()}.webm\`;
+      a.download = `Screen_Recording_${new Date().getTime()}.webm`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

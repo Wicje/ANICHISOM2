@@ -128,7 +128,7 @@ export function SettingsApp({ window }: { window: OSWindow }) {
                       "w-12 h-12 rounded-full border-2 transition-transform",
                       themeColor === theme.color ? "border-white scale-110 shadow-lg" : "border-white/20 group-hover:scale-105"
                     )}
-                    style={{ backgroundColor: theme.color, boxShadow: themeColor === theme.color ? \`0 0 15px \${theme.color}80\` : undefined }}
+                    style={{ backgroundColor: theme.color, boxShadow: themeColor === theme.color ? `0 0 15px ${theme.color}80` : undefined }}
                   />
                   <span className={cn(
                     "text-xs font-medium transition-colors",

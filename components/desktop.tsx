@@ -6,7 +6,8 @@ import { useOS, OSRole, OSUser, OSWindow } from '@/lib/os-context';
 import { WindowFrame } from '@/components/window-frame';
 import { CommandPalette } from '@/components/command-palette';
 import { WorkspaceSelector } from '@/components/workspace-selector';
-import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Code2, Search, LayoutTemplate, Clock, Save, Cloud, RefreshCw, ShieldCheck, Power, Figma, Framer, HardDrive, Github, BookOpen, Zap, ZapOff, Briefcase, Brain, User, AlertCircle, Play, Plus, Users, Server, Archive, FileText, Video, Store, Shirt, Cpu, Camera, Code, Box, Settings, Pipette, Layers, Grid, Sliders, Cpu as CpuIcon, Lock, StickyNote, Activity, FilePlus, Bot, Film, Compass } from 'lucide-react';
+import { PresenceIndicator } from '@/components/presence-indicator';
+import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Code2, Search, LayoutTemplate, Clock, Save, Cloud, RefreshCw, ShieldCheck, Power, Figma, Framer, HardDrive, Github, BookOpen, Zap, ZapOff, Briefcase, Brain, User, AlertCircle, Play, Plus, Users, Server, Archive, FileText, Video, Store, Shirt, Cpu, Camera, Code, Box, Settings, Pipette, Layers, Grid, Sliders, Cpu as CpuIcon, Lock, StickyNote, Activity, FilePlus, Bot, Film, Compass, X } from 'lucide-react';
 import { ControlCenter } from '@/components/control-center';
 import { FS, LocalFile } from '@/lib/fs';
 import { cn } from '@/lib/utils';
@@ -49,7 +50,6 @@ const AssistantApp = dynamic(() => import('@/components/apps/assistant').then(mo
 export const APPS = {
   'terminal': { component: TerminalBox, icon: Terminal, title: 'Terminal', roles: ['admin', 'technician'], isCore: true },
   'files': { component: FileManager, icon: Folder, title: 'Files', roles: ['admin', 'filmmaker', 'technician'], isCore: true },
-  'browser': { component: MiniBrowser, icon: Globe, title: 'Browser', roles: ['admin', 'filmmaker', 'technician'], isCore: true },
   'moodboard': { component: Moodboard, icon: ImageIcon, title: 'Moodboard', roles: ['admin', 'filmmaker'], isCore: true },
   'assets': { component: AssetPipeline, icon: Archive, title: 'Asset Pipeline', roles: ['admin', 'filmmaker', 'technician'], isCore: false },
   'workspace': { component: CampaignLab, icon: BookOpen, title: 'Notes & Campaigns', roles: ['admin', 'designer', 'client', 'filmmaker', 'technician'], isCore: true },
@@ -65,7 +65,6 @@ export const APPS = {
   'admin': { component: AdminPanel, icon: ShieldCheck, title: 'Access Control', roles: ['admin'], isCore: true },
   'ziklag': { component: ZiklagTools, icon: Server, title: 'Ziklag Diagnostics', roles: ['admin', 'technician'], isCore: false },
   'clothing': { component: ClothingBrandPack, icon: Shirt, title: 'Clothing Brand', roles: ['admin'], isCore: false },
-  'hardware': { component: HardwarePack, icon: Cpu, title: 'Hardware', roles: ['admin'], isCore: false },
   'developer': { component: DeveloperPack, icon: Code, title: 'DevOps', roles: ['admin', 'technician'], isCore: false },
   'photography': { component: PhotographyPack, icon: Camera, title: 'Photography', roles: ['admin', 'filmmaker'], isCore: false },
   'plugin': { component: PluginSandbox, icon: Box, title: 'Plugin Sandbox', roles: ['admin'], isCore: false },
@@ -459,7 +458,7 @@ export function Desktop() {
       {/* macOS Style Background */}
       <div 
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat transition-all duration-1000"
-        style={{ backgroundImage: \`url("\${wallpaper}")\` }} 
+        style={{ backgroundImage: `url("${wallpaper}")` }} 
       />
 
       {/* OS Menu Bar */}
@@ -607,11 +606,11 @@ export function Desktop() {
                 className="w-20 flex flex-col items-center gap-1.5 p-2 rounded-lg hover:bg-white/10 cursor-pointer group transition-colors"
                 onDoubleClick={() => {
                    if (isMedia) {
-                     openWindow('media-player', { fileUrl: file.content || file.id, mimeType: file.mimeType });
+                     openWindow('media-player', 'Media Player', { fileUrl: file.content || file.id, mimeType: file.mimeType });
                    } else if (isImage) {
-                     openWindow('code', { fileId: file.id });
+                     openWindow('code', 'Editor', { fileId: file.id });
                    } else {
-                     openWindow('code', { fileId: file.id });
+                     openWindow('code', 'Editor', { fileId: file.id });
                    }
                 }}
               >
@@ -863,7 +862,7 @@ export function Desktop() {
                    activeWorkspace === wsIndex ? "border-blue-500 scale-105 shadow-[0_0_30px_rgba(59,130,246,0.3)]" : "border-white/20 hover:border-white/50 hover:scale-105"
                  )}
                >
-                 <div className="absolute inset-0 bg-cover bg-center opacity-60 group-hover:opacity-100 transition-opacity" style={{ backgroundImage: \`url("\${wallpaper}")\` }} />
+                 <div className="absolute inset-0 bg-cover bg-center opacity-60 group-hover:opacity-100 transition-opacity" style={{ backgroundImage: `url("${wallpaper}")` }} />
                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                  <div className="absolute bottom-3 left-0 right-0 text-center font-bold text-white text-sm shadow-sm">
                    Desktop {wsIndex + 1}

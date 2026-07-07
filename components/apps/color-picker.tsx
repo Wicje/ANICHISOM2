@@ -11,7 +11,7 @@ export function ColorPickerApp({ window }: { window: OSWindow }) {
   const hexToRgb = (hex: string) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? 
-      \`\${parseInt(result[1], 16)}, \${parseInt(result[2], 16)}, \${parseInt(result[3], 16)}\` : '0, 0, 0';
+      `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '0, 0, 0';
   };
 
   const copyToClipboard = (text: string) => {
@@ -95,10 +95,10 @@ export function ColorPickerApp({ window }: { window: OSWindow }) {
               <div className="font-mono text-sm">rgb({hexToRgb(color)})</div>
             </div>
             <button 
-              onClick={() => copyToClipboard(\`rgb(\${hexToRgb(color)})\`)}
+              onClick={() => copyToClipboard(`rgb(${hexToRgb(color)})`)}
               className="p-2 bg-white/5 hover:bg-white/20 rounded-md transition-colors"
             >
-              {copied === \`rgb(\${hexToRgb(color)})\` ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-white/70" />}
+              {copied === `rgb(${hexToRgb(color)})` ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-white/70" />}
             </button>
           </div>
         </div>
