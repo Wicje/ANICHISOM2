@@ -53,14 +53,49 @@ export function AIGateway({ window }: { window: OSWindow }) {
     });
   };
 
+  const { openWindow, setThemeColor, setScreenShader, notify } = useOS();
+
   const handleSend = async () => {
     if (!input.trim() || loading) return;
     const userMessage: Message = { id: crypto.randomUUID(), role: 'user', content: input };
     setMessages(prev => [...prev, userMessage]);
+    
+    const cmd = input.toLowerCase();
     setInput('');
     setLoading(true);
+    
+    // System command handling
+    let systemResponse = null;
+    
+    if (cmd.includes('open') && openWindow) {
+      const apps = ['terminal', 'files', 'browser', 'settings', 'colorpicker', 'hardware', 'config', 'store', 'media-player', 'code', 'campaign', 'moodboard'];
+      const found = apps.find(a => cmd.includes(a));
+      if (found) {
+        openWindow(found);
+        systemResponse = `Opening ${found} for you right now.`;
+      }
+    } else if ((cmd.includes('theme') || cmd.includes('color')) && setThemeColor) {
+       if (cmd.includes('blue')) { setThemeColor('#3b82f6'); systemResponse = 'Theme updated to Blue.'; }
+       else if (cmd.includes('red')) { setThemeColor('#ef4444'); systemResponse = 'Theme updated to Red.'; }
+       else if (cmd.includes('green')) { setThemeColor('#10b981'); systemResponse = 'Theme updated to Green.'; }
+       else { setThemeColor('#8b5cf6'); systemResponse = 'Theme updated to Purple.'; }
+    } else if ((cmd.includes('shader') || cmd.includes('filter')) && setScreenShader) {
+       if (cmd.includes('crt')) { setScreenShader('crt'); systemResponse = 'CRT shader enabled.'; }
+       else if (cmd.includes('night') || cmd.includes('warm')) { setScreenShader('warm'); systemResponse = 'Night shift enabled.'; }
+       else if (cmd.includes('off') || cmd.includes('none')) { setScreenShader('none'); systemResponse = 'Shaders disabled.'; }
+    }
 
-    const res = await generateChatResponse(userMessage.content, "You are Ziklag OS's internal AI Gateway assistant. Be helpful, concise, and futuristic.", model, apiKey);
+    if (systemResponse) {
+      setMessages(prev => [...prev, {
+        id: crypto.randomUUID(), 
+        role: 'assistant', 
+        content: systemResponse
+      }]);
+      setLoading(false);
+      return;
+    }
+
+    const res = await generateChatResponse(userMessage.content, "You are Ziklag OS's internal AI System Assistant and Gateway. Be helpful, concise, and futuristic.", model, apiKey);
     
     setMessages(prev => [...prev, {
       id: crypto.randomUUID(), 

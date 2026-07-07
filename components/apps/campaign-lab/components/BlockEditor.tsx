@@ -321,36 +321,35 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
           </div>
         )
       })}
-
-      {/* Slash Menu */}
-      {slashMenu && filteredSlashCommands.length > 0 && (
-        <div ref={menuRef} className="fixed z-[100] bg-white border border-black/10 rounded-xl shadow-2xl w-72 flex flex-col py-2" style={{ top: Math.min(slashMenu.y + 4, window.innerHeight - 300), left: Math.min(slashMenu.x, window.innerWidth - 300) }}>
-          <div className="text-xs font-semibold text-[#37352f]/50 px-3 pb-2 pt-1 uppercase tracking-wider">Commands</div>
-          <div className="max-h-[300px] overflow-y-auto">
-            {filteredSlashCommands.map((cmd, i) => (
+      {slashMenu && filteredSlashCommands.length > 0 && typeof document !== 'undefined' && import('react-dom').then(ReactDOM => ReactDOM.createPortal(
+        <div ref={menuRef} className="fixed z-[9999] bg-white border border-black/10 rounded-xl shadow-2xl w-72 flex flex-col py-2" style={{ top: Math.min(slashMenu.y + 4, window.innerHeight - 300), left: Math.min(slashMenu.x, window.innerWidth - 300) }}>
+           <div className="px-3 pb-2 text-[10px] font-bold tracking-widest text-[#37352f]/50 uppercase">Basic Blocks</div>
+           <div className="flex-1 overflow-y-auto max-h-[300px] custom-scrollbar">
+             {filteredSlashCommands.map((cmd, i) => (
               <button key={cmd.id} className={cn("flex items-center gap-3 w-full text-left px-3 py-2 text-[#37352f] transition-colors", i === slashMenu.selectedIndex ? "bg-black/5" : "hover:bg-black/5")} onClick={() => executeSlashCommand(cmd.id)}>
-                <div className="w-8 h-8 rounded border border-[#37352f]/10 bg-white flex items-center justify-center shrink-0"><cmd.icon className="w-4 h-4 text-[#37352f]/70" /></div>
-                <div><div className="text-sm font-medium">{cmd.label}</div></div>
+                <cmd.icon className="w-4 h-4 shrink-0 text-[#37352f]/70" />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">{cmd.label}</span>
+                </div>
               </button>
-            ))}
-          </div>
-        </div>
-      )}
+             ))}
+           </div>
+        </div>, document.body
+      ))}
 
-      {/* Mention Menu */}
-      {mentionMenu && filteredMembers.length > 0 && (
-        <div ref={menuRef} className="fixed z-[100] bg-white border border-black/10 rounded-xl shadow-2xl w-56 flex flex-col py-2" style={{ top: Math.min(mentionMenu.y + 4, window.innerHeight - 300), left: Math.min(mentionMenu.x, window.innerWidth - 300) }}>
-          <div className="text-xs font-semibold text-[#37352f]/50 px-3 pb-2 pt-1 uppercase tracking-wider flex items-center gap-2"><AtSign className="w-3 h-3"/> Team Members</div>
-          <div className="max-h-[300px] overflow-y-auto">
-            {filteredMembers.map((member, i) => (
-              <button key={member} className={cn("flex items-center gap-3 w-full text-left px-3 py-2 text-[#37352f] transition-colors", i === mentionMenu.selectedIndex ? "bg-blue-50" : "hover:bg-black/5")} onClick={() => executeMention(member)}>
-                <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">{member.charAt(1)}</div>
-                <div className="text-sm font-medium">{member}</div>
+      {mentionMenu && filteredMembers.length > 0 && typeof document !== 'undefined' && import('react-dom').then(ReactDOM => ReactDOM.createPortal(
+        <div ref={menuRef} className="fixed z-[9999] bg-white border border-black/10 rounded-xl shadow-2xl w-56 flex flex-col py-2" style={{ top: Math.min(mentionMenu.y + 4, window.innerHeight - 200), left: Math.min(mentionMenu.x, window.innerWidth - 200) }}>
+           <div className="px-3 pb-2 text-[10px] font-bold tracking-widest text-[#37352f]/50 uppercase">Team Members</div>
+           <div className="flex-1 overflow-y-auto max-h-[200px] custom-scrollbar">
+             {filteredMembers.map((member, i) => (
+              <button key={member} className={cn("flex items-center gap-2 w-full text-left px-3 py-1.5 text-[#37352f] transition-colors", i === mentionMenu.selectedIndex ? "bg-black/5" : "hover:bg-black/5")} onClick={() => executeMention(member)}>
+                <AtSign className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                <span className="text-sm font-medium">{member.replace('@', '')}</span>
               </button>
-            ))}
-          </div>
-        </div>
-      )}
+             ))}
+           </div>
+        </div>, document.body
+      ))}
     </div>
   )
 }

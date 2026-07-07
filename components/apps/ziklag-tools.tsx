@@ -372,7 +372,14 @@ export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
         {activeTab === 'cases' && (
           <div className="flex flex-col gap-4">
              <div className="flex justify-end mb-2">
-                <button className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-bold uppercase tracking-wider transition-colors">
+                <button 
+                  onClick={() => {
+                     const client = prompt('Enter client name:');
+                     if (!client) return;
+                     const newCase: ForensicCase = { id: `CASE-00${cases.length + 1}`, client, status: 'intake', date: new Date().toISOString(), driveSerial: 'UNKNOWN', investigator: currentUser?.name || 'Admin' };
+                     setCases(prev => { const n = [...prev, newCase]; storage.set('cases', n); return n; });
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-bold uppercase tracking-wider transition-colors">
                   <Plus className="w-3 h-3" />
                   New Case
                 </button>
@@ -415,7 +422,14 @@ export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
         {activeTab === 'evidence' && (
           <div className="flex flex-col gap-4">
              <div className="flex justify-end mb-2">
-                <button className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-bold uppercase tracking-wider transition-colors">
+                <button 
+                  onClick={() => {
+                     const model = prompt('Enter Drive Model/Type:');
+                     if (!model) return;
+                     const newEv: Evidence = { id: `EV-00${evidence.length + 1}`, caseId: 'CASE-001', type: 'hdd', makeModel: model, serialNumber: 'UNKNOWN', capacity: 'Unknown', receivedDate: new Date().toISOString(), condition: 'Unknown' };
+                     setEvidence(prev => { const n = [...prev, newEv]; storage.set('evidence', n); return n; });
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-bold uppercase tracking-wider transition-colors">
                   <Plus className="w-3 h-3" />
                   Log Evidence
                 </button>

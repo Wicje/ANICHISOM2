@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
 import { motion, useDragControls } from 'motion/react';
-import { MousePointer2, GripHorizontal, Type, Image as ImageIcon, Trash2, Video, Link as LinkIcon, Upload, MessageSquare, Heart, X as XIcon, CheckCircle } from 'lucide-react';
+import { MousePointer2, GripHorizontal, Type, Image as ImageIcon, Trash2, Video, Link as LinkIcon, Upload, MessageSquare, Heart, X as XIcon, CheckCircle, Plus } from 'lucide-react';
 import { get, set } from 'idb-keyval';
 import { cn } from '@/lib/utils';
 import { db, doc, onSnapshot, setDoc } from '@/lib/firebase';
@@ -478,6 +478,16 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
         </button>
         <button onClick={handleAddLink} className="w-8 h-8 rounded flex items-center justify-center text-black/60 hover:bg-slate-100 hover:text-black transition-colors" title="Add Link (YouTube, Instagram, etc.)">
           <LinkIcon className="w-4 h-4" />
+        </button>
+        <div className="w-px h-4 bg-black/10 mx-2" />
+        <button 
+          onClick={() => {
+            const event = new CustomEvent('os:open-window', { detail: { appId: 'moodboard', title: 'New Moodboard', data: { projectId: crypto.randomUUID() } }});
+            globalThis.window.dispatchEvent(event);
+          }} 
+          className="w-8 h-8 rounded flex items-center justify-center text-black hover:bg-blue-100 transition-colors" title="New Board Instance"
+        >
+          <Plus className="w-4 h-4" />
         </button>
         <div className="w-px h-4 bg-black/10 mx-2" />
         <button onClick={() => { setVoteMode(true); setCurrentVoteIndex(0); }} className="px-3 h-8 rounded flex items-center justify-center bg-rose-50 text-rose-500 font-bold text-xs hover:bg-rose-100 transition-colors gap-1" title="Moodboard Mill (Voting)">

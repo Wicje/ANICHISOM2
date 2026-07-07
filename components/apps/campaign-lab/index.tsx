@@ -233,7 +233,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
               <MoreHorizontal className="w-4 h-4 text-[#37352f]/70" />
             </button>
 
-            {shareMenuOpen && activePage && (
+            {shareMenuOpen && (
               <div className="absolute top-full right-0 mt-2 w-56 bg-white border border-black/10 shadow-2xl rounded-xl p-2 z-50 flex flex-col gap-1 text-sm text-[#37352f]">
                 
                 <div className="text-xs font-semibold text-[#37352f]/50 px-2 pt-2 pb-1 uppercase tracking-wider">Phases</div>
@@ -252,7 +252,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                 
                 <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-black/5 rounded text-left transition-colors" onClick={() => {
                   setShareMenuOpen(false);
-                  openWindow('moodboard', `Moodboard: ${activePage.title || 'Campaign'}`, { projectId });
+                  openWindow('moodboard', `Moodboard: ${activePage?.title || 'Campaign'}`, { projectId });
                 }}>
                   <ImageIcon className="w-4 h-4 text-indigo-500" /> Open Moodboard
                 </button>
@@ -270,13 +270,13 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-semibold text-xs">Share Page</span>
                     <button 
-                      onClick={() => updatePage(activePage.id, { shared: !activePage.shared })}
-                      className={cn("w-8 h-4 rounded-full relative transition-colors", activePage.shared ? "bg-blue-500" : "bg-black/20")}
+                      onClick={() => activePage && updatePage(activePage.id, { shared: !activePage.shared })}
+                      className={cn("w-8 h-4 rounded-full relative transition-colors", activePage?.shared ? "bg-blue-500" : "bg-black/20")}
                     >
-                      <div className={cn("w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all shadow-sm", activePage.shared ? "left-4.5" : "left-0.5")} />
+                      <div className={cn("w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all shadow-sm", activePage?.shared ? "left-4.5" : "left-0.5")} />
                     </button>
                   </div>
-                  {activePage.shared && (
+                  {activePage?.shared && (
                     <div className="flex items-center gap-2 bg-black/5 border border-black/5 p-1 rounded">
                       <input type="text" readOnly value={`https://os.anichisom.com/c/${activePage.id}`} className="text-[10px] w-full outline-none text-[#37352f]/60 bg-transparent px-1" />
                       <button className="bg-blue-500 hover:bg-blue-600 text-white p-1 rounded transition-colors" title="Copy Link"><Copy className="w-3 h-3" /></button>

@@ -56,10 +56,14 @@ export function Sidebar({ activityTab, setActivityTab, files, activeFileId, setA
                <span>Explorer</span>
                <div className="flex items-center gap-1">
                  <button onClick={async () => {
+                   const name = prompt("Enter folder path (e.g. components):");
+                   if (name) { await FS.write(`${name}/.keep`, ''); await refreshFiles(); }
+                 }} className="p-0.5 hover:bg-[#3c3c3c] rounded" title="New Folder"><Folder className="w-3.5 h-3.5" /></button>
+                 <button onClick={async () => {
                    const name = prompt("Enter file path (e.g. src/app.tsx):");
                    if (name) { await FS.write(name, '// new file\\n'); await refreshFiles(); }
-                 }} className="p-0.5 hover:bg-[#3c3c3c] rounded"><Plus className="w-3.5 h-3.5" /></button>
-                 <button onClick={refreshFiles} className="p-0.5 hover:bg-[#3c3c3c] rounded"><RefreshCcw className="w-3.5 h-3.5" /></button>
+                 }} className="p-0.5 hover:bg-[#3c3c3c] rounded" title="New File"><Plus className="w-3.5 h-3.5" /></button>
+                 <button onClick={refreshFiles} className="p-0.5 hover:bg-[#3c3c3c] rounded" title="Refresh"><RefreshCcw className="w-3.5 h-3.5" /></button>
                </div>
              </div>
              

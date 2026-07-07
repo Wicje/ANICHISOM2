@@ -73,8 +73,7 @@ export const APPS = {
   'config': { component: ConfigManagerApp, icon: Sliders, title: 'OS Config', roles: ['admin', 'technician'], isCore: false },
   'store': { component: AppStoreApp, icon: Store, title: 'App Hub', roles: ['admin', 'filmmaker', 'technician', 'designer', 'client', 'user'], isCore: true },
   'browser': { component: BrowserApp, icon: Compass, title: 'Browser', roles: ['admin', 'user', 'designer', 'filmmaker', 'technician'], isCore: false },
-  'media-player': { component: MediaPlayerApp, icon: Film, title: 'CinePlay', roles: ['admin', 'user', 'filmmaker', 'client'], isCore: false },
-  'assistant': { component: AssistantApp, icon: Bot, title: 'System AI', roles: ['admin', 'user', 'designer', 'filmmaker', 'technician', 'client'], isCore: true },
+  'assistant': { component: AIGateway, icon: Bot, title: 'System AI', roles: ['admin', 'user', 'designer', 'filmmaker', 'technician', 'client'], isCore: true },
 };
 
 const PROJECTS = {
@@ -237,9 +236,18 @@ export function Desktop() {
   // Handle custom app additions via events
   useEffect(() => {
     const onAddApp = () => handleAddApp();
+    const onOpenWindow = (e: any) => {
+      if (e.detail) {
+        openWindow(e.detail.appId, e.detail.title, e.detail.data);
+      }
+    };
     window.addEventListener('os:add-custom-app', onAddApp);
-    return () => window.removeEventListener('os:add-custom-app', onAddApp);
-  }, [currentUser]);
+    window.addEventListener('os:open-window', onOpenWindow);
+    return () => {
+       window.removeEventListener('os:add-custom-app', onAddApp);
+       window.removeEventListener('os:open-window', onOpenWindow);
+    };
+  }, [currentUser, openWindow]);
 
   // Window Switcher (Ctrl+Tab) Logic
   useEffect(() => {

@@ -63,8 +63,8 @@ function SketchingTab({ windowId }: { windowId: string }) {
       if (!canvasRef.current || !containerRef.current) return;
       
       canvas = new fabric.Canvas(canvasRef.current, {
-        width: containerRef.current.clientWidth - 40,
-        height: containerRef.current.clientHeight - 40,
+        width: Math.max(containerRef.current.clientWidth - 40, 600),
+        height: Math.max(containerRef.current.clientHeight - 40, 400),
         isDrawingMode: true,
         backgroundColor: '#ffffff'
       });

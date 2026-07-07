@@ -160,6 +160,16 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                <Upload className="w-4 h-4" /> Upload
             </button>
             
+            <button onClick={async () => {
+              const name = prompt("Enter new folder name:");
+              if (!name) return;
+              const path = currentPath === 'Root' ? name : `${currentPath}/${name}`;
+              await FS.write(`${path}/.keep`, "");
+              fetchFiles();
+            }} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-md text-sm font-medium transition-colors">
+               <Folder className="w-4 h-4" /> New Folder
+            </button>
+            
             <button onClick={createNewFile} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-md text-white text-sm font-medium transition-colors shadow-lg shadow-blue-500/20">
                <Plus className="w-4 h-4" /> New File
             </button>

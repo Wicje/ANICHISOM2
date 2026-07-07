@@ -199,8 +199,11 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser }: 
 
     const unsub = Storage.subscribe('docs', roomId, workspaceMode, (state: any) => {
        if (state) {
-         const remoteData = workspaceMode === 'private' ? state : state.content;
+         const remoteData = state.content;
          if (remoteData !== undefined && remoteData !== latestContentRef.current && remoteData !== lastSavedContentRef.current) {
+             // Do not overwrite if the user is actively typing in the editor
+             if (editor && editor.isFocused) return;
+             
              isSyncingRef.current = true;
              setContent(remoteData);
              latestContentRef.current = remoteData;
@@ -233,7 +236,7 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser }: 
     saveTimeoutRef.current = setTimeout(() => {
        lastSavedContentRef.current = newContent;
        if (workspaceMode === 'private') {
-           Storage.setDoc('docs', roomId, newContent, workspaceMode);
+           Storage.setDoc('docs', roomId, { content: newContent }, workspaceMode);
        } else {
            Storage.setDoc('docs', roomId, { content: newContent, workspaceMode: 'shared' }, workspaceMode);
        }
@@ -481,6 +484,13 @@ function SlidesEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
          if (state) {
             const target = workspaceMode === 'private' ? state : state;
             if (target.canvasState && !isSyncingRef.current) {
+               // Do not overwrite if the user is actively editing an object
+               if (canvas.getActiveObject()) return;
+               
+               const currentStateStr = JSON.stringify(canvas.toJSON());
+               const targetStateStr = JSON.stringify(target.canvasState);
+               if (currentStateStr === targetStateStr) return;
+
                isSyncingRef.current = true;
                const p = canvas.loadFromJSON(target.canvasState, () => {
                    if (!p || !p.then) {

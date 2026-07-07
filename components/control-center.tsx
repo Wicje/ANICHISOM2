@@ -19,7 +19,7 @@ export function ControlCenter({ onClose }: { onClose: () => void }) {
   }, [brightness]);
 
   return (
-    <div className="absolute top-8 right-4 w-[340px] bg-black/60 backdrop-blur-3xl border border-white/20 shadow-2xl rounded-3xl p-4 flex flex-col gap-4 text-white z-[300] animate-in fade-in slide-in-from-top-4 duration-200">
+    <div className="absolute top-8 right-4 w-[340px] bg-black/80 backdrop-blur-md border border-white/20 shadow-2xl rounded-3xl p-4 flex flex-col gap-4 text-white z-[300] animate-in fade-in slide-in-from-top-4 duration-200">
       
       {/* Network Grid */}
       <div className="grid grid-cols-2 gap-3">
