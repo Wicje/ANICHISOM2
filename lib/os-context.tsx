@@ -323,8 +323,9 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     const nextZ = highestZIndexRef.current;
 
     setWindows((curr) => {
-      // Prevent duplicate instances of the same app in the same workspace; focus it instead
-      const existing = curr.find((w) => w.appId === appId && w.workspace === activeWorkspace);
+      // Prevent duplicate instances for single-instance apps
+      const singleInstanceApps = ['terminal', 'files', 'settings', 'store', 'campaign', 'admin'];
+      const existing = singleInstanceApps.includes(appId) ? curr.find((w) => w.appId === appId && w.workspace === activeWorkspace) : null;
       if (existing) {
         return curr.map((w) => 
           (w.appId === appId && w.workspace === activeWorkspace)

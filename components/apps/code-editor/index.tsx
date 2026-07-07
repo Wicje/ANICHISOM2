@@ -31,7 +31,7 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
     refreshFiles,
     handleCodeChange,
     setCode
-  } = useCodeEditorState(projectId, osWindow.data?.content, workspaceMode, roomId, currentUser);
+  } = useCodeEditorState(projectId, osWindow.data?.content, workspaceMode, roomId, currentUser, osWindow.data?.fileId);
 
   // UI States
   const [terminalOpen, setTerminalOpen] = useState(true);

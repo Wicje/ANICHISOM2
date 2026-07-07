@@ -1,20 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Block, BlockType } from '../types';
 import { SLASH_COMMANDS, TEAM_MEMBERS } from '../data';
 import { DatabaseView } from './DatabaseView';
 import { GripVertical, CheckSquare, Square, Image as ImageIcon, Trash2, AtSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useOS } from '@/lib/os-context';
 
 export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (blocks: Block[]) => void }) {
-  const [slashMenu, setSlashMenu] = useState<{ index: number, x: number, y: number, query: string } | null>(null);
-  const [mentionMenu, setMentionMenu] = useState<{ index: number, x: number, y: number, query: string } | null>(null);
+  const { openWindow } = useOS();
+  const [slashMenu, setSlashMenu] = useState<{ index: number, x: number, y: number, query: string, selectedIndex: number } | null>(null);
+  const [mentionMenu, setMentionMenu] = useState<{ index: number, x: number, y: number, query: string, selectedIndex: number } | null>(null);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const updateBlock = (index: number, updates: Partial<Block>) => {
     const newBlocks = [...blocks];
     newBlocks[index] = { ...newBlocks[index], ...updates };
     onChange(newBlocks);
   };
+
+  const filteredSlashCommands = slashMenu ? SLASH_COMMANDS.filter(c => c.label.toLowerCase().includes(slashMenu.query.toLowerCase()) || c.id.includes(slashMenu.query.toLowerCase())) : [];
+  const filteredMembers = mentionMenu ? TEAM_MEMBERS.filter(m => m.toLowerCase().includes(mentionMenu.query.toLowerCase())) : [];
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, index: number) => {
     const el = e.currentTarget;
@@ -25,12 +31,47 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
       return;
     }
 
+    if (slashMenu) {
+       if (e.key === 'ArrowDown') {
+         e.preventDefault();
+         setSlashMenu(prev => prev ? { ...prev, selectedIndex: Math.min(prev.selectedIndex + 1, filteredSlashCommands.length - 1) } : null);
+         return;
+       }
+       if (e.key === 'ArrowUp') {
+         e.preventDefault();
+         setSlashMenu(prev => prev ? { ...prev, selectedIndex: Math.max(prev.selectedIndex - 1, 0) } : null);
+         return;
+       }
+       if (e.key === 'Enter') {
+         e.preventDefault();
+         if (filteredSlashCommands[slashMenu.selectedIndex]) {
+           executeSlashCommand(filteredSlashCommands[slashMenu.selectedIndex].id);
+         }
+         return;
+       }
+    }
+
+    if (mentionMenu) {
+       if (e.key === 'ArrowDown') {
+         e.preventDefault();
+         setMentionMenu(prev => prev ? { ...prev, selectedIndex: Math.min(prev.selectedIndex + 1, filteredMembers.length - 1) } : null);
+         return;
+       }
+       if (e.key === 'ArrowUp') {
+         e.preventDefault();
+         setMentionMenu(prev => prev ? { ...prev, selectedIndex: Math.max(prev.selectedIndex - 1, 0) } : null);
+         return;
+       }
+       if (e.key === 'Enter') {
+         e.preventDefault();
+         if (filteredMembers[mentionMenu.selectedIndex]) {
+           executeMention(filteredMembers[mentionMenu.selectedIndex]);
+         }
+         return;
+       }
+    }
+
     if (e.key === 'Enter') {
-      if (slashMenu || mentionMenu) {
-        e.preventDefault(); 
-        return;
-      }
-      
       if (!e.shiftKey) {
         e.preventDefault();
         const currentBlock = blocks[index];
@@ -80,15 +121,11 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
         }, 0);
       }
     } else if (e.key === 'ArrowUp' && el.selectionStart === 0 && index > 0) {
-      if (!slashMenu && !mentionMenu) {
-        e.preventDefault();
-        document.getElementById(`block-${blocks[index - 1].id}`)?.focus();
-      }
+      e.preventDefault();
+      document.getElementById(`block-${blocks[index - 1].id}`)?.focus();
     } else if (e.key === 'ArrowDown' && el.selectionStart === el.value.length && index < blocks.length - 1) {
-      if (!slashMenu && !mentionMenu) {
-        e.preventDefault();
-        document.getElementById(`block-${blocks[index + 1].id}`)?.focus();
-      }
+      e.preventDefault();
+      document.getElementById(`block-${blocks[index + 1].id}`)?.focus();
     }
   };
 
@@ -99,16 +136,16 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
     updateBlock(index, { content: e.target.value });
 
     const val = e.target.value.slice(0, e.target.selectionStart);
-    const slashMatch = val.match(/(?:\s|^)\/([a-zA-Z0-9]*)$/);
-    const mentionMatch = val.match(/(?:\s|^)@([a-zA-Z0-9]*)$/);
+    const slashMatch = val.match(/(?:\s|^)\/([a-zA-Z0-9-]*)$/);
+    const mentionMatch = val.match(/(?:\s|^)@([a-zA-Z0-9-]*)$/);
     
     const rect = e.target.getBoundingClientRect();
     
     if (slashMatch) {
-      setSlashMenu({ index, x: rect.left, y: rect.bottom, query: slashMatch[1] || '' });
+      setSlashMenu({ index, x: rect.left, y: rect.bottom, query: slashMatch[1] || '', selectedIndex: 0 });
       setMentionMenu(null);
     } else if (mentionMatch) {
-      setMentionMenu({ index, x: rect.left + 50, y: rect.bottom, query: mentionMatch[1] || '' });
+      setMentionMenu({ index, x: rect.left + 50, y: rect.bottom, query: mentionMatch[1] || '', selectedIndex: 0 });
       setSlashMenu(null);
     } else {
       setSlashMenu(null);
@@ -123,7 +160,16 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
     const textBeforeSlash = block.content.substring(0, block.content.lastIndexOf('/'));
     
     const newBlocks = [...blocks];
-    newBlocks[index] = { ...block, type: cmdId as BlockType, content: textBeforeSlash };
+    
+    if (cmdId.startsWith('action-')) {
+       // Open AI Gateway
+       openWindow('ai-gateway', cmdId.replace('action-', 'AI '));
+       // Clear the slash command text without changing block type
+       newBlocks[index] = { ...block, content: textBeforeSlash };
+    } else {
+       newBlocks[index] = { ...block, type: cmdId as BlockType, content: textBeforeSlash };
+    }
+    
     onChange(newBlocks);
     setSlashMenu(null);
     setTimeout(() => document.getElementById(`block-${block.id}`)?.focus(), 0);
@@ -161,8 +207,17 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
       const el = document.getElementById(`block-${b.id}`);
       if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blocks.length]);
+  
+  // Scroll selected menu item into view
+  useEffect(() => {
+    if (menuRef.current) {
+      const selectedEl = menuRef.current.querySelector('.bg-black\\/5') as HTMLElement;
+      if (selectedEl) {
+         selectedEl.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [slashMenu?.selectedIndex, mentionMenu?.selectedIndex]);
 
   return (
     <div className="flex-1 w-full pb-32">
@@ -241,14 +296,14 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
       })}
 
       {/* Slash Menu */}
-      {slashMenu && (
-        <div className="fixed z-[100] bg-white border border-black/10 rounded-xl shadow-2xl w-72 overflow-hidden flex flex-col py-2" style={{ top: Math.min(slashMenu.y + 4, window.innerHeight - 300), left: Math.min(slashMenu.x, window.innerWidth - 300) }}>
-          <div className="text-xs font-semibold text-[#37352f]/50 px-3 pb-2 pt-1 uppercase tracking-wider">Basic Blocks</div>
+      {slashMenu && filteredSlashCommands.length > 0 && (
+        <div ref={menuRef} className="fixed z-[100] bg-white border border-black/10 rounded-xl shadow-2xl w-72 flex flex-col py-2" style={{ top: Math.min(slashMenu.y + 4, window.innerHeight - 300), left: Math.min(slashMenu.x, window.innerWidth - 300) }}>
+          <div className="text-xs font-semibold text-[#37352f]/50 px-3 pb-2 pt-1 uppercase tracking-wider">Commands</div>
           <div className="max-h-[300px] overflow-y-auto">
-            {SLASH_COMMANDS.filter(c => c.label.toLowerCase().includes(slashMenu.query.toLowerCase()) || c.id.includes(slashMenu.query.toLowerCase())).map((cmd, i) => (
-              <button key={cmd.id} className={cn("flex items-center gap-3 w-full text-left px-3 py-2 text-[#37352f] transition-colors", i === 0 ? "bg-black/5" : "hover:bg-black/5")} onClick={() => executeSlashCommand(cmd.id)}>
-                <div className="w-10 h-10 rounded border border-[#37352f]/10 bg-white flex items-center justify-center shrink-0"><cmd.icon className="w-5 h-5 text-[#37352f]/70" /></div>
-                <div><div className="text-sm font-medium">{cmd.label}</div><div className="text-xs text-[#37352f]/50">Action command to convert block</div></div>
+            {filteredSlashCommands.map((cmd, i) => (
+              <button key={cmd.id} className={cn("flex items-center gap-3 w-full text-left px-3 py-2 text-[#37352f] transition-colors", i === slashMenu.selectedIndex ? "bg-black/5" : "hover:bg-black/5")} onClick={() => executeSlashCommand(cmd.id)}>
+                <div className="w-8 h-8 rounded border border-[#37352f]/10 bg-white flex items-center justify-center shrink-0"><cmd.icon className="w-4 h-4 text-[#37352f]/70" /></div>
+                <div><div className="text-sm font-medium">{cmd.label}</div></div>
               </button>
             ))}
           </div>
@@ -256,12 +311,12 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
       )}
 
       {/* Mention Menu */}
-      {mentionMenu && (
-        <div className="fixed z-[100] bg-white border border-black/10 rounded-xl shadow-2xl w-56 overflow-hidden flex flex-col py-2" style={{ top: Math.min(mentionMenu.y + 4, window.innerHeight - 300), left: Math.min(mentionMenu.x, window.innerWidth - 300) }}>
+      {mentionMenu && filteredMembers.length > 0 && (
+        <div ref={menuRef} className="fixed z-[100] bg-white border border-black/10 rounded-xl shadow-2xl w-56 flex flex-col py-2" style={{ top: Math.min(mentionMenu.y + 4, window.innerHeight - 300), left: Math.min(mentionMenu.x, window.innerWidth - 300) }}>
           <div className="text-xs font-semibold text-[#37352f]/50 px-3 pb-2 pt-1 uppercase tracking-wider flex items-center gap-2"><AtSign className="w-3 h-3"/> Team Members</div>
           <div className="max-h-[300px] overflow-y-auto">
-            {TEAM_MEMBERS.filter(m => m.toLowerCase().includes(mentionMenu.query.toLowerCase())).map((member, i) => (
-              <button key={member} className={cn("flex items-center gap-3 w-full text-left px-3 py-2 text-[#37352f] transition-colors", i === 0 ? "bg-blue-50" : "hover:bg-black/5")} onClick={() => executeMention(member)}>
+            {filteredMembers.map((member, i) => (
+              <button key={member} className={cn("flex items-center gap-3 w-full text-left px-3 py-2 text-[#37352f] transition-colors", i === mentionMenu.selectedIndex ? "bg-blue-50" : "hover:bg-black/5")} onClick={() => executeMention(member)}>
                 <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">{member.charAt(1)}</div>
                 <div className="text-sm font-medium">{member}</div>
               </button>

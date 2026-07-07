@@ -4,488 +4,226 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useOS, OSWindow } from '@/lib/os-context';
 import { 
   Folder, File as FileIcon, FileText, Image as ImageIcon, Video, Box, Search, 
-  Plus, Trash2, Cloud, Download, HardDrive, History, X, Github
+  Plus, Trash2, HardDrive, RefreshCw, ChevronRight, Download, Upload
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { initAuth, googleSignIn, getAccessToken, logout, db, collection, onSnapshot, setDoc, doc, deleteDoc as firestoreDeleteDoc, query, where, limit } from '@/lib/firebase';
-import { FS } from '@/lib/fs';
+import { FS, LocalFile } from '@/lib/fs';
 
-type FileItem = {
-  id: string;
-  name: string;
-  type: 'image' | 'doc' | 'video' | 'design' | 'folder' | 'project' | 'unknown';
-  date: string;
-  size: string;
-  content?: string;
-  projectId?: string;
-  isDrive?: boolean;
-  isDropbox?: boolean;
-  isLocal?: boolean;
-  provider?: 'Firebase' | 'Google Drive' | 'Dropbox' | 'Local';
-};
-
-const initialFiles: FileItem[] = [
-  { id: '1', name: 'Nike Campaign', type: 'project', date: 'Oct 23', size: '--', projectId: 'nike-campaign', provider: 'Firebase' },
-  { id: '2', name: 'Tesla Redesign', type: 'project', date: 'Oct 22', size: '--', projectId: 'tesla-redesign', provider: 'Firebase' },
-  { id: '3', name: 'Portfolio OS', type: 'project', date: 'Oct 20', size: '--', projectId: 'portfolio-v3', provider: 'Firebase' },
-];
-
-export function FileManager({ window }: { window: OSWindow }) {
-  const { loadProject, openWindow, currentUser } = useOS();
-
-  const handleFileOpen = (file: FileItem) => {
-    if (file.type === 'project' && file.projectId) {
-      loadProject(file.projectId);
-      return;
-    }
-
-    if (file.name.toLowerCase().endsWith('.pdf')) {
-      openWindow('office', `Reading: ${file.name}`, { tab: 'pdf', url: file.content || file.name });
-    } else if (['.js', '.ts', '.jsx', '.tsx', '.json', '.html', '.css', '.md'].some(ext => file.name.toLowerCase().endsWith(ext)) || file.type === 'doc') {
-      openWindow('code', `Editing: ${file.name}`, { content: file.content, filename: file.name });
-    } else if (file.type === 'image') {
-      openWindow('moodboard', `Viewing: ${file.name}`, { url: file.content });
-    } else if (file.name.toLowerCase().endsWith('.fig') || file.type === 'design') {
-      openWindow('browser', `Figma: ${file.name}`, { url: 'https://www.figma.com/login' });
-    } else {
-      openWindow('code', `Editing: ${file.name}`, { content: file.content, filename: file.name });
-    }
-  };
-
-  const [activeTab, setActiveTab] = useState('Unified Explorer');
-  const tabs = ['Unified Explorer', 'Ziklag NAS (Local)', 'Nextcloud (Self-Hosted)', 'Custom VPS (SFTP)', 'Google Drive', 'Dropbox', 'Shared With Me'];
-  const fileInputRef = useRef<HTMLInputElement>(null);
+export function FileManager({ window: osWindow }: { window: OSWindow }) {
+  const { openWindow } = useOS();
+  
+  const [files, setFiles] = useState<LocalFile[]>([]);
+  const [currentPath, setCurrentPath] = useState<string>('Desktop');
   const [search, setSearch] = useState('');
-
-  const [files, setFiles] = useState<FileItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   
-  const [needsAuth, setNeedsAuth] = useState(false);
-  const [needsDropboxAuth, setNeedsDropboxAuth] = useState(true);
-  
-  const [driveFiles, setDriveFiles] = useState<FileItem[]>([]);
-  const [dropboxFiles, setDropboxFiles] = useState<FileItem[]>([]);
-  const [localFiles, setLocalFiles] = useState<FileItem[]>([]);
-  
-  const [isLoadingDrive, setIsLoadingDrive] = useState(false);
-  const [versionHistoryFile, setVersionHistoryFile] = useState<FileItem | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auth Initialization
-  useEffect(() => {
-    const unsubscribe = initAuth(() => setNeedsAuth(false), () => setNeedsAuth(true));
-    return () => { if (unsubscribe) unsubscribe(); };
-  }, []);
-
-  // Fetch Providers
-  const fetchDriveFiles = async () => {
-    setIsLoadingDrive(true);
+  const fetchFiles = async () => {
+    setIsLoaded(false);
     try {
-      const token = await getAccessToken();
-      if (!token) { setNeedsAuth(true); setIsLoadingDrive(false); return; }
-      const res = await fetch('https://www.googleapis.com/drive/v3/files?fields=files(id,name,mimeType,createdTime,size)', { headers: { Authorization: `Bearer ${token}` }});
-      if (res.status === 401) { setNeedsAuth(true); setIsLoadingDrive(false); return; }
-      const data = await res.json();
-      if (data.files) {
-        setDriveFiles(data.files.map((f: any) => ({
-          id: f.id, name: f.name,
-          type: f.mimeType.includes('folder') ? 'folder' : f.mimeType.includes('image') ? 'image' : f.mimeType.includes('video') ? 'video' : 'doc',
-          date: f.createdTime ? format(new Date(f.createdTime), 'MMM dd') : '--',
-          size: f.size ? (parseInt(f.size) / 1024).toFixed(1) + ' KB' : '--',
-          isDrive: true, provider: 'Google Drive'
-        })));
-      }
-    } catch (err) {
-      console.error('Failed to load drive files:', err);
-    } finally {
-      setIsLoadingDrive(false);
-    }
-  };
-
-  const fetchLocalFiles = async () => {
-    try {
-      const entries = await FS.readDir('');
-      setLocalFiles(entries.map(e => ({
-        id: e.id, name: e.name, type: 'doc', date: format(new Date(), 'MMM dd'), size: '--', isLocal: true, provider: 'Local'
-      })));
+      const entries = await FS.readDir(currentPath === 'Root' ? '' : currentPath);
+      setFiles(entries || []);
     } catch (err) {
       console.error("Failed to read local files:", err);
-    }
-  };
-
-  const fetchDropboxFiles = async () => {
-    // Mocked for Phase 2D MVP
-    setTimeout(() => {
-      setDropboxFiles([
-        { id: 'db1', name: 'Q3 Financials.xlsx', type: 'doc', date: 'Oct 15', size: '1.2 MB', isDropbox: true, provider: 'Dropbox' },
-        { id: 'db2', name: 'Brand_Guidelines.pdf', type: 'doc', date: 'Oct 10', size: '8.4 MB', isDropbox: true, provider: 'Dropbox' },
-      ]);
-    }, 1000);
-  };
-  useEffect(() => {
-    if (activeTab === 'Google Drive' && !needsAuth) fetchDriveFiles();
-    if (activeTab === 'Ziklag NAS (Local)') fetchLocalFiles();
-    if (activeTab === 'Dropbox' && !needsDropboxAuth) fetchDropboxFiles();
-    
-    if (activeTab === 'Unified Explorer') {
-      fetchLocalFiles();
-      if (!needsAuth) fetchDriveFiles();
-      if (!needsDropboxAuth) fetchDropboxFiles();
-    }
-  }, [activeTab, needsAuth, needsDropboxAuth]);
-
-  // Firebase Realtime
-  useEffect(() => {
-    if (!currentUser) {
-      setFiles(initialFiles);
+    } finally {
       setIsLoaded(true);
-      return;
     }
-    const q = query(collection(db, 'files'), where('ownerId', '==', currentUser.id), limit(200));
-    const unsub = onSnapshot(q, (snap) => {
-      const dbFiles: FileItem[] = [];
-      snap.forEach(d => dbFiles.push({ ...d.data(), provider: 'Firebase' } as FileItem));
-      setFiles(dbFiles.length === 0 ? initialFiles : dbFiles);
-      setIsLoaded(true);
-    });
-    return () => unsub();
-  }, [currentUser]);
-
-  const handleLogin = async () => {
-    try {
-      const result = await googleSignIn();
-      if (result) { setNeedsAuth(false); if (activeTab === 'Google Drive') fetchDriveFiles(); }
-    } catch (err) { console.error('Login failed:', err); }
   };
 
-  const handleDropboxLogin = () => {
-    setNeedsDropboxAuth(false);
-    if (activeTab === 'Dropbox') fetchDropboxFiles();
+  useEffect(() => {
+    fetchFiles();
+  }, [currentPath]);
+
+  const handleFileOpen = (file: LocalFile) => {
+    if (file.mimeType?.startsWith('image/')) {
+       openWindow('moodboard', 'Image Viewer', { url: file.content || file.id });
+    } else if (file.mimeType?.startsWith('video/') || file.mimeType?.startsWith('audio/')) {
+       openWindow('media-player', 'Media Player', { fileUrl: file.content || file.id, mimeType: file.mimeType });
+    } else if (file.name.toLowerCase().endsWith('.pdf')) {
+       openWindow('pdf', `Reading: ${file.name}`, { url: file.content || file.id });
+    } else {
+       openWindow('code', 'Code Editor', { fileId: file.id, content: file.content });
+    }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFiles = e.target.files;
     if (!uploadedFiles) return;
 
-    Array.from(uploadedFiles).forEach(file => {
-      let type: FileItem['type'] = 'unknown';
-      if (file.type.startsWith('image/')) type = 'image';
-      else if (file.type.startsWith('video/')) type = 'video';
-      else if (file.type.startsWith('text/') || file.name.endsWith('.md')) type = 'doc';
-      else if (file.name.endsWith('.fig') || file.name.endsWith('.sketch')) type = 'design';
-
-      const isLocal = activeTab === 'Ziklag NAS (Local)' || activeTab === 'Unified Explorer';
-      const isFirebase = activeTab !== 'Google Drive' && !isLocal;
-      
-      // Validate file size to prevent memory leaks and API rejections
-      if (isFirebase && file.size > 500 * 1024) {
-         alert(`File ${file.name} is too large for Cloud Sync. Maximum size is 500KB. Use Ziklag NAS for larger files.`);
-         return;
-      }
-      if (isLocal && file.size > 50 * 1024 * 1024) {
-         alert(`File ${file.name} is too large for Local Storage. Maximum size is 50MB.`);
-         return;
-      }
-
-      const fileId = crypto.randomUUID();
-      const newFile = {
-        id: fileId, name: file.name, type,
-        date: format(new Date(), 'MMM dd'),
-        size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
-        ownerId: currentUser?.id
-      };
-      
-      if (activeTab === 'Ziklag NAS (Local)' || activeTab === 'Unified Explorer') {
-        // Stream directly to OPFS without caching in RAM or IndexedDB
-        FS.write(file.name, file, file.type).then(() => fetchLocalFiles());
-      } else if (activeTab === 'Google Drive') {
-        alert('Direct upload to Google Drive requires full OAuth scopes. Supported via Firebase API in prod.');
-      } else {
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-          try {
-            await setDoc(doc(db, 'files', fileId), { ...newFile, content: event.target?.result as string, provider: 'Firebase' });
-          } catch (e: any) { alert('Failed to save file: ' + e.message); }
-        };
-        reader.readAsDataURL(file);
-      }
-    });
+    for (let i = 0; i < uploadedFiles.length; i++) {
+      const file = uploadedFiles[i];
+      const filePath = currentPath === 'Root' ? file.name : `${currentPath}/${file.name}`;
+      await FS.write(filePath, file, file.type);
+    }
+    fetchFiles();
   };
 
-  const deleteFile = async (id: string, e: React.MouseEvent, provider?: string) => {
+  const deleteFile = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (provider === 'Google Drive') {
-      if (!globalThis.window.confirm('Delete from Google Drive?')) return;
-      const token = await getAccessToken();
-      if (token) {
-        try {
-          await fetch(`https://www.googleapis.com/drive/v3/files/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` }});
-          setDriveFiles(prev => prev.filter(f => f.id !== id));
-        } catch(err) { console.error("Failed", err); }
-      }
-    } else if (provider === 'Local') {
-      if (!confirm("Delete locally?")) return;
-      await FS.delete(id);
-      fetchLocalFiles();
-    } else if (provider === 'Dropbox') {
-      if (!confirm("Delete from Dropbox?")) return;
-      setDropboxFiles(prev => prev.filter(f => f.id !== id));
-    } else {
-      if (!confirm("Delete from OS Cloud?")) return;
-      try { await firestoreDeleteDoc(doc(db, 'files', id)); } catch (err: any) { alert('Error: ' + err.message); }
-    }
+    if (!confirm("Are you sure you want to delete this file?")) return;
+    await FS.delete(id);
+    fetchFiles();
   };
 
-  const downloadToLocal = async (file: FileItem, e: React.MouseEvent) => {
+  const downloadFile = (file: LocalFile, e: React.MouseEvent) => {
     e.stopPropagation();
-    let downloadUrl = file.content;
-    
-    if (file.type === 'project' || (!downloadUrl && file.type !== 'image')) {
-      const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
-      downloadUrl = URL.createObjectURL(blob);
-    } else if (downloadUrl) {
-      if (downloadUrl.startsWith('data:')) {
-        const res = await fetch(downloadUrl);
-        const blob = await res.blob();
-        downloadUrl = URL.createObjectURL(blob);
-      } else {
-        const blob = new Blob([downloadUrl], { type: 'text/plain' });
-        downloadUrl = URL.createObjectURL(blob);
-      }
-    }
-    
-    if (downloadUrl) {
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = file.name + (file.type === 'project' ? '.json' : '');
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
+    if (!file.content) return;
+    const a = document.createElement('a');
+    a.href = file.content;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
-  // Ziklag NAS Mock Files
-  const ziklagFiles: FileItem[] = [
-    { id: 'z1', name: 'Ziklag Firmware Recovery.bin', type: 'doc', content: 'HEX DATA', projectId: 'ziklag', size: '4.2 GB', date: 'Oct 25', provider: 'Local' },
-    { id: 'z2', name: 'Client 492_SD_RAW.mp4', type: 'video', size: '12.8 GB', date: 'Oct 24', provider: 'Local' },
-    { id: 'z3', name: 'Agency Rebranding Assets.fig', type: 'design', size: '142 MB', date: 'Oct 24', provider: 'Local' },
-    ...localFiles
-  ];
+  const createNewFile = async () => {
+    const name = prompt("Enter new file name (e.g. document.txt):");
+    if (!name) return;
+    const filePath = currentPath === 'Root' ? name : `${currentPath}/${name}`;
+    await FS.write(filePath, "");
+    fetchFiles();
+  };
 
-  const searchFilter = (f: FileItem) => f.name.toLowerCase().includes(search.toLowerCase());
-
-  let currentFiles: FileItem[] = [];
-  if (activeTab === 'Google Drive') currentFiles = driveFiles.filter(searchFilter);
-  else if (activeTab === 'Dropbox') currentFiles = dropboxFiles.filter(searchFilter);
-  else if (activeTab === 'Ziklag NAS (Local)') currentFiles = ziklagFiles.filter(searchFilter);
-  else if (activeTab === 'Unified Explorer') currentFiles = [...files, ...driveFiles, ...dropboxFiles, ...ziklagFiles].filter(searchFilter);
-  else currentFiles = files.filter(searchFilter); // Default for Nextcloud/VPS mocks
-
-  if (!isLoaded) return null;
+  const filteredFiles = files.filter(f => f.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="w-full h-full flex bg-[#0a0a0a]/90 text-white font-sans overflow-hidden">
+    <div className="w-full h-full flex bg-[#0f0f0f] text-[#ececec] font-sans overflow-hidden">
+      
       {/* Sidebar */}
-      <div className="w-48 border-r border-white/5 p-4 flex flex-col gap-2 shrink-0">
-        <div className="font-display text-xs text-white/40 uppercase tracking-widest mb-4 px-2">Locations</div>
-        {tabs.map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={cn(
-              "text-left px-3 py-1.5 rounded-md text-sm transition-colors",
-              activeTab === tab ? "bg-white/10 text-white font-medium" : "text-white/60 hover:text-white hover:bg-white/5"
-            )}
-          >
-            {tab}
-          </button>
-        ))}
+      <div className="w-56 bg-[#1a1a1a] border-r border-white/5 flex flex-col shrink-0">
+        <div className="h-14 flex items-center px-4 border-b border-white/5 text-sm font-semibold tracking-wide text-white/80">
+          <HardDrive className="w-4 h-4 mr-2 text-emerald-500" />
+          Virtual OS Disk
+        </div>
         
-        <div className="mt-8 font-display text-xs text-white/40 uppercase tracking-widest mb-4 px-2">Tags</div>
-        <div className="flex flex-wrap gap-2 px-2">
-          <span className="w-3 h-3 rounded-full bg-neon-blue cursor-pointer hover:scale-125 transition-transform" />
-          <span className="w-3 h-3 rounded-full bg-electric-purple cursor-pointer hover:scale-125 transition-transform" />
-          <span className="w-3 h-3 rounded-full bg-acid-green cursor-pointer hover:scale-125 transition-transform" />
+        <div className="flex-1 overflow-y-auto py-4">
+          <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-white/40">Locations</div>
+          <div className="flex flex-col gap-1 px-2">
+            {['Root', 'Desktop', 'Documents', 'Downloads', 'Media'].map(loc => (
+              <button
+                key={loc}
+                onClick={() => {
+                  if (loc !== 'Root' && loc !== 'Desktop') {
+                     // Auto-create directories if they don't exist by just changing path
+                     // the FS handles flat structures dynamically based on prefixes
+                  }
+                  setCurrentPath(loc);
+                }}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
+                  currentPath === loc ? "bg-blue-600 text-white" : "text-white/70 hover:bg-white/5 hover:text-white"
+                )}
+              >
+                <Folder className={cn("w-4 h-4", currentPath === loc ? "text-white" : "text-blue-400")} fill="currentColor" />
+                {loc}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Main Area */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 bg-[#0a0a0a]">
+        
         {/* Toolbar */}
-        <div className="h-14 border-b border-white/5 flex items-center justify-between px-6 shrink-0">
-          <div className="flex items-center gap-4 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 text-sm focus-within:border-white/30 transition-colors w-64">
-            <Search className="w-4 h-4 text-white/50" />
-            <input 
-              type="text" 
-              placeholder="Search across all clouds..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="bg-transparent border-none outline-none text-white placeholder:text-white/30 w-full"
-            />
-          </div>
+        <div className="h-14 border-b border-white/5 flex items-center justify-between px-6 bg-[#121212] shrink-0">
           
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => alert("Mock: Analyzing active directory using Local Llama 3 or Cloud GPT-4o...")}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-purple-600/20 text-purple-400 border border-purple-500/30 hover:bg-purple-600/40 transition-colors text-sm font-medium"
-              title="AI File Analysis (Local/Cloud)"
-            >
-              <Search className="w-4 h-4" /> AI Analysis
-            </button>
-            <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" multiple />
-            <button 
-              onClick={() => fileInputRef.current?.click()}
-              className="h-8 w-8 flex items-center justify-center rounded-md bg-white text-black hover:bg-white/90 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-[#0a0a0a] to-[#111111] relative">
-          <div className="flex items-center justify-between mb-6 px-1">
-             <div className="flex items-center gap-3">
-               <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
-                  <Cloud className="w-4 h-4 text-blue-400" />
-               </div>
-               <h2 className="text-xl font-medium tracking-tight overflow-hidden text-ellipsis whitespace-nowrap">{activeTab}</h2>
-             </div>
-             <div className="flex items-center gap-4">
-               {activeTab === 'Google Drive' && !needsAuth && <button onClick={logout} className="text-sm text-white/50 hover:text-white/80 transition-colors">Sign Out</button>}
-             </div>
+          {/* Breadcrumbs */}
+          <div className="flex items-center gap-2 text-sm text-white/80 font-medium">
+             <button onClick={() => setCurrentPath('Root')} className="hover:text-blue-400 transition-colors">OS</button>
+             <ChevronRight className="w-3 h-3 text-white/40" />
+             <span className="text-white">{currentPath}</span>
           </div>
 
-          {activeTab === 'Google Drive' && needsAuth ? (
-             <div className="h-full flex flex-col items-center justify-center gap-4 text-white/60">
-               <p className="max-w-md text-center text-sm font-medium">Connect your Google Drive account to sync and access files from anywhere across devices in real-time.</p>
-               <button className="gsi-material-button mt-2" onClick={handleLogin}>
-                  <div className="gsi-material-button-state"></div>
-                  <div className="gsi-material-button-content-wrapper flex items-center bg-white text-black px-4 py-2 rounded shadow shrink-0">
-                    <span className="font-medium">Sign in with Google</span>
-                  </div>
-               </button>
-             </div>
-           ) : activeTab === 'Dropbox' && needsDropboxAuth ? (
-             <div className="h-full flex flex-col items-center justify-center gap-4 text-white/60">
-               <p className="max-w-md text-center text-sm font-medium">Connect your Dropbox account to bridge your external client folders into the OS.</p>
-               <button className="mt-2 bg-[#0061FE] hover:bg-[#0050d2] text-white px-6 py-2.5 rounded shadow font-medium transition-colors" onClick={handleDropboxLogin}>
-                  Connect Dropbox
-               </button>
-             </div>
-           ) : activeTab === 'Nextcloud (Self-Hosted)' ? (
-             <div className="h-full flex flex-col items-center justify-center gap-4 text-white/60">
-               <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center mb-2"><Cloud className="w-8 h-8 text-blue-400" /></div>
-               <p className="max-w-md text-center text-sm font-medium">Connect your self-hosted Nextcloud instance via WebDAV. Your data stays 100% on your own hardware.</p>
-               <button className="mt-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded shadow font-medium transition-colors" onClick={() => alert("Mock: Opening Nextcloud WebDAV configuration...")}>
-                  Configure WebDAV
-               </button>
-             </div>
-           ) : activeTab === 'Custom VPS (SFTP)' ? (
-             <div className="h-full flex flex-col items-center justify-center gap-4 text-white/60">
-               <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mb-2"><HardDrive className="w-8 h-8 text-emerald-400" /></div>
-               <p className="max-w-md text-center text-sm font-medium">Mount a remote Linux VPS securely over SFTP. Perfect for self-hosting workflows.</p>
-               <button className="mt-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded shadow font-medium transition-colors" onClick={() => alert("Mock: Opening SSH/SFTP Credentials Modal...")}>
-                  Add SSH Key & Mount
-               </button>
-             </div>
-           ) : activeTab === 'Google Drive' && isLoadingDrive ? (
-             <div className="h-full flex items-center justify-center text-white/40 font-mono text-sm animate-pulse">Loading drive files...</div>
-          ) : currentFiles.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-white/40 font-mono text-sm">No files found.</div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-12">
-              {currentFiles.map(file => (
-                <div 
-                  key={file.id + file.provider} 
-                  onDoubleClick={() => handleFileOpen(file)}
-                  className="group relative flex flex-col items-center justify-center p-4 rounded-xl border border-transparent hover:border-white/10 hover:bg-white/5 transition-all cursor-pointer"
-                >
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1 z-10">
-                    <button onClick={(e) => { e.stopPropagation(); setVersionHistoryFile(file); }} className="p-1 hover:bg-white/10 rounded bg-black/40 backdrop-blur" title="Version History">
-                      <History className="w-4 h-4 text-white/50 hover:text-white" />
-                    </button>
-                    {!file.isDrive && !file.isDropbox && (
-                      <button onClick={(e) => downloadToLocal(file, e)} className="p-1 hover:bg-white/10 rounded bg-black/40 backdrop-blur" title="Download to Local">
-                        <Download className="w-4 h-4 text-white/50 hover:text-white" />
-                      </button>
-                    )}
-                    <button onClick={(e) => deleteFile(file.id, e, file.provider)} className="p-1 hover:bg-white/10 rounded bg-black/40 backdrop-blur" title="Delete">
-                      <Trash2 className="w-4 h-4 text-white/50 hover:text-rose-500" />
-                    </button>
-                  </div>
-
-                  <div className="w-16 h-16 mb-4 flex items-center justify-center relative">
-                    {file.type === 'folder' && <Folder className="w-12 h-12 text-neon-blue/80 group-hover:text-neon-blue" fill="currentColor" />}
-                    {file.type === 'project' && (
-                       <div className="w-12 h-12 rounded bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center group-hover:border-white/30 transition-colors shadow-lg">
-                          <Folder className="w-6 h-6 text-white" fill="currentColor" />
-                       </div>
-                    )}
-                    {file.type === 'image' && (
-                      file.content ? <img src={file.content} alt={file.name} className="w-12 h-12 object-cover rounded" /> : <ImageIcon className="w-12 h-12 text-electric-purple/80 group-hover:text-electric-purple" />
-                    )}
-                    {file.type === 'doc' && <FileText className="w-12 h-12 text-white/50 group-hover:text-white/80" />}
-                    {file.type === 'video' && <Video className="w-12 h-12 text-acid-green/80 group-hover:text-acid-green" />}
-                    {(file.type === 'design' || file.type === 'unknown') && <Box className="w-12 h-12 text-orange-400/80 group-hover:text-orange-400" />}
-                    
-                    {/* Provider Badge */}
-                    {activeTab === 'Unified Explorer' && file.provider && (
-                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#111] border border-white/20 flex items-center justify-center" title={file.provider}>
-                        {file.provider === 'Google Drive' ? <Cloud className="w-2.5 h-2.5 text-blue-400" /> :
-                         file.provider === 'Dropbox' ? <Box className="w-2.5 h-2.5 text-blue-500" /> :
-                         file.provider === 'Local' ? <HardDrive className="w-2.5 h-2.5 text-emerald-400" /> :
-                         <div className="w-2.5 h-2.5 rounded-full bg-white/20" />}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-sm text-center text-white/90 font-medium truncate w-full px-2">{file.name}</div>
-                  <div className="text-xs text-white/40 mt-1">{file.date} • {file.size}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Version History Modal */}
-      {versionHistoryFile && (
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1e1e1e] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-[#252526]">
-              <div className="flex items-center gap-2">
-                <History className="w-5 h-5 text-white/70" />
-                <h3 className="font-medium text-white">Version History</h3>
-              </div>
-              <button onClick={() => setVersionHistoryFile(null)} className="p-1 hover:bg-white/10 rounded"><X className="w-4 h-4 text-white/50" /></button>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+              <input 
+                type="text" 
+                placeholder="Search files..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-48 bg-[#1a1a1a] border border-white/10 rounded-full py-1.5 pl-9 pr-4 text-sm text-white outline-none focus:border-blue-500 transition-colors shadow-inner"
+              />
             </div>
             
-            <div className="p-6 flex flex-col gap-4">
-              <div className="text-sm text-white/50 truncate mb-2">Viewing history for: <strong className="text-white">{versionHistoryFile.name}</strong></div>
-              
-              <div className="flex flex-col border border-white/5 rounded-lg overflow-hidden bg-black/20">
-                {[
-                  { v: 'v3 (Current)', time: 'Just now', user: 'You' },
-                  { v: 'v2', time: '2 days ago', user: 'Founder' },
-                  { v: 'v1', time: 'Oct 10, 2026', user: 'System' }
-                ].map((ver, i) => (
-                  <div key={ver.v} className="flex items-center justify-between p-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors group cursor-pointer">
-                    <div>
-                      <div className="text-sm font-medium text-white group-hover:text-neon-blue transition-colors">{ver.v}</div>
-                      <div className="text-xs text-white/40">{ver.time} • by {ver.user}</div>
-                    </div>
-                    {i !== 0 && (
-                      <button className="text-xs bg-white/10 hover:bg-white/20 text-white px-2 py-1 rounded transition-colors opacity-0 group-hover:opacity-100">
-                        Restore
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+            <div className="h-6 w-px bg-white/10 mx-1"></div>
+            
+            <button onClick={fetchFiles} className="p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/10 transition-colors" title="Refresh">
+               <RefreshCw className="w-4 h-4" />
+            </button>
+            
+            <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" multiple />
+            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-md text-sm font-medium transition-colors" title="Upload Files">
+               <Upload className="w-4 h-4" /> Upload
+            </button>
+            
+            <button onClick={createNewFile} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-md text-white text-sm font-medium transition-colors shadow-lg shadow-blue-500/20">
+               <Plus className="w-4 h-4" /> New File
+            </button>
           </div>
         </div>
-      )}
+
+        {/* File Grid */}
+        <div className="flex-1 overflow-y-auto p-6">
+           {!isLoaded ? (
+             <div className="flex items-center justify-center h-full text-white/40 text-sm">Loading files...</div>
+           ) : filteredFiles.length === 0 ? (
+             <div className="flex flex-col items-center justify-center h-full gap-4 text-white/40">
+               <Folder className="w-16 h-16 opacity-20" />
+               <p className="text-sm">This folder is empty.</p>
+               <button onClick={createNewFile} className="px-4 py-2 bg-white/5 rounded-md text-white hover:bg-white/10 transition-colors">Create a file</button>
+             </div>
+           ) : (
+             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 pb-12">
+               {filteredFiles.map((file, i) => {
+                 const isMedia = file.mimeType?.startsWith('video/') || file.mimeType?.startsWith('audio/');
+                 const isImage = file.mimeType?.startsWith('image/');
+                 const isPdf = file.name.toLowerCase().endsWith('.pdf');
+                 
+                 return (
+                   <div 
+                     key={i} 
+                     onDoubleClick={() => handleFileOpen(file)}
+                     className="group flex flex-col items-center p-4 rounded-xl border border-transparent hover:bg-white/5 hover:border-white/10 hover:shadow-xl transition-all cursor-pointer relative"
+                   >
+                     {/* Action Buttons */}
+                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1 z-10">
+                       <button onClick={(e) => downloadFile(file, e)} className="p-1.5 hover:bg-blue-500 rounded-md bg-black/60 backdrop-blur" title="Download">
+                         <Download className="w-3.5 h-3.5 text-white" />
+                       </button>
+                       <button onClick={(e) => deleteFile(file.id, e)} className="p-1.5 hover:bg-red-500 rounded-md bg-black/60 backdrop-blur" title="Delete">
+                         <Trash2 className="w-3.5 h-3.5 text-white" />
+                       </button>
+                     </div>
+                     
+                     <div className="w-16 h-16 mb-4 flex items-center justify-center relative">
+                       {isImage && file.content ? (
+                         <img src={file.content} alt={file.name} className="w-16 h-16 object-cover rounded-lg shadow-md" />
+                       ) : isMedia ? (
+                         <Video className="w-12 h-12 text-rose-400 drop-shadow-md" />
+                       ) : isPdf ? (
+                         <FileText className="w-12 h-12 text-orange-500 drop-shadow-md" />
+                       ) : (
+                         <FileText className="w-12 h-12 text-white/50 drop-shadow-md" />
+                       )}
+                     </div>
+                     <span className="text-xs font-medium text-white/90 text-center line-clamp-2 w-full break-words">
+                       {file.name}
+                     </span>
+                     <span className="text-[10px] text-white/40 mt-1 uppercase tracking-wider">
+                       {isImage ? 'Image' : isMedia ? 'Media' : isPdf ? 'PDF' : 'Document'}
+                     </span>
+                   </div>
+                 )
+               })}
+             </div>
+           )}
+        </div>
+
+      </div>
     </div>
   );
 }

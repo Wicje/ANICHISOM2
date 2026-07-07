@@ -227,34 +227,8 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
               </div>
             )}
           </div>
-          
           <div className="flex items-center gap-2 relative">
-            <div className="flex bg-black/5 p-1 rounded-lg text-xs font-semibold mr-2 border border-black/5">
-              <button onClick={() => setCampaignPhase('discovery')} className={cn("px-3 py-1 rounded transition-colors", campaignPhase === 'discovery' ? "bg-amber-100 text-amber-800 shadow-sm" : "hover:bg-black/5 text-[#37352f]/60")}>Discovery</button>
-              <button onClick={() => setCampaignPhase('design')} className={cn("px-3 py-1 rounded transition-colors", campaignPhase === 'design' ? "bg-white text-[#37352f] shadow-sm" : "hover:bg-black/5 text-[#37352f]/60")}>Design</button>
-              <button onClick={() => setCampaignPhase('delivery')} className={cn("px-3 py-1 rounded transition-colors", campaignPhase === 'delivery' ? "bg-emerald-100 text-emerald-800 shadow-sm" : "hover:bg-black/5 text-[#37352f]/60")}>Delivery</button>
-            </div>
-            
-            <div className="flex items-center gap-2 border-l border-zinc-200 pl-2">
-               {campaignPhase === 'discovery' && (
-                 <>
-                   <button className="flex items-center gap-1 px-3 py-1 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 rounded transition-colors text-xs font-bold"><Search className="w-3.5 h-3.5" /> Start Research</button>
-                   <button className="flex items-center gap-1 px-3 py-1 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 rounded transition-colors text-xs font-bold"><Layout className="w-3.5 h-3.5" /> Strategy Doc</button>
-                 </>
-               )}
-               {campaignPhase === 'design' && (
-                 <>
-                   <button className="flex items-center gap-1 px-3 py-1 bg-blue-500/10 text-blue-700 hover:bg-blue-500/20 rounded transition-colors text-xs font-bold"><ImageIcon className="w-3.5 h-3.5" /> Import Assets</button>
-                   <button className="flex items-center gap-1 px-3 py-1 bg-indigo-500/10 text-indigo-700 hover:bg-indigo-500/20 rounded transition-colors text-xs font-bold"><Palette className="w-3.5 h-3.5" /> Generate Variations</button>
-                 </>
-               )}
-               {campaignPhase === 'delivery' && (
-                 <>
-                   <button className="flex items-center gap-1 px-3 py-1 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 rounded transition-colors text-xs font-bold"><CheckCircle className="w-3.5 h-3.5" /> Final Approval</button>
-                   <button className="flex items-center gap-1 px-3 py-1 bg-emerald-600 text-white hover:bg-emerald-700 rounded shadow-sm transition-colors text-xs font-bold"><Send className="w-3.5 h-3.5" /> Publish to Portal</button>
-                 </>
-               )}
-            </div>
+            {/* Streamlined right side tools */}
             <button 
               onClick={() => openWindow('moodboard', `Moodboard: ${activePage?.title || 'Campaign'}`, { projectId })}
               className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded transition-colors"
@@ -305,26 +279,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
         {activePage ? (
           <div className="max-w-4xl w-full mx-auto px-12 py-8 flex-1 flex flex-col focus-within:ring-0 pb-32">
             <div className="group relative">
-               {campaignPhase === 'discovery' && (
-                 <div className="mb-6 bg-amber-100 text-amber-800 p-4 rounded-xl border border-amber-200 flex items-start gap-3">
-                    <span className="text-xl mt-1">🔍</span>
-                    <div>
-                      <h4 className="font-bold text-sm">Discovery Phase Active</h4>
-                      <p className="text-xs mt-1 opacity-80">Focus on the brief, competitive analysis, and AI proposals. Build the strategic foundation.</p>
-                      <button className="mt-3 bg-amber-800 text-white px-3 py-1.5 rounded text-xs font-bold shadow-sm" onClick={() => openWindow('ai-gateway', 'AI Proposals')}>Generate AI Proposals</button>
-                    </div>
-                 </div>
-               )}
-               {campaignPhase === 'delivery' && (
-                 <div className="mb-6 bg-emerald-100 text-emerald-800 p-4 rounded-xl border border-emerald-200 flex items-start gap-3">
-                    <span className="text-xl mt-1">📦</span>
-                    <div>
-                      <h4 className="font-bold text-sm">Delivery Phase Active</h4>
-                      <p className="text-xs mt-1 opacity-80">The campaign is ready for client handoff. The interface is optimized for read-only sharing and exports.</p>
-                      <button className="mt-3 bg-emerald-800 text-white px-3 py-1.5 rounded text-xs font-bold shadow-sm" onClick={() => setShareMenuOpen(true)}>Open Client Portal</button>
-                    </div>
-                 </div>
-               )}
+               {/* Clean editor area */}
 
                <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity mb-4">
                  <button 

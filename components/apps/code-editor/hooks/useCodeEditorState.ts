@@ -17,7 +17,7 @@ export const getInitialCode = (id: string, content?: string) => {
   }
 };
 
-export function useCodeEditorState(projectId: string, initialContent: string | undefined, workspaceMode: 'agency' | 'private', roomId: string, currentUser: any) {
+export function useCodeEditorState(projectId: string, initialContent: string | undefined, workspaceMode: 'agency' | 'private', roomId: string, currentUser: any, initialFileId?: string) {
   const [files, setFiles] = useState<FileNode[]>([
     { id: 'app.tsx', name: 'app.tsx', type: 'file', folder: 'src' },
     { id: 'package.json', name: 'package.json', type: 'file', folder: 'root' },
@@ -35,11 +35,11 @@ export function useCodeEditorState(projectId: string, initialContent: string | u
   }, []);
 
   const [activeFileId, setActiveFileId] = useState(
-    projectId === 'portfolio-v3' ? 'app.tsx' : projectId === 'tesla-redesign' ? 'ui.tsx' : 'app.tsx'
+    initialFileId || (projectId === 'portfolio-v3' ? 'app.tsx' : projectId === 'tesla-redesign' ? 'ui.tsx' : 'app.tsx')
   );
   
   const activeFile = files.find(f => f.id === activeFileId);
-  const fileName = activeFile?.name || activeFileId || 'app.tsx';
+  const fileName = activeFile?.name || activeFileId.split('/').pop() || 'app.tsx';
 
   const [code, setCode] = useState(getInitialCode(projectId, initialContent));
   const [loaded, setLoaded] = useState(false);

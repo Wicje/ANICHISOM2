@@ -43,6 +43,9 @@ export const SLASH_COMMANDS = [
   { id: 'image', label: 'Image', icon: ImageIcon },
   { id: 'database', label: 'Database', icon: Database },
   { id: 'code', label: 'Code Snippet', icon: Code },
+  { id: 'action-ai-research', label: 'AI: Start Research', icon: Type },
+  { id: 'action-ai-proposals', label: 'AI: Generate Proposals', icon: Type },
+  { id: 'action-ai-variations', label: 'AI: Generate Variations', icon: Type },
 ];
 
 export const TEAM_MEMBERS = ['@Founder', '@CreativeDir', '@Designer', '@Developer', '@Filmmaker', '@Copywriter', '@DataRecovery'];

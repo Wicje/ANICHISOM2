@@ -122,17 +122,22 @@ This document tracks all features added, how they work, and how to use them.
 - **How to use**: Open "App Hub" from Launchpad. You can browse curated apps like the Nite Browser or CinePlay and click "Get". Once installed, they appear in your Launchpad.
 - **Implementation**: Uses the `installApp` method in `os-context.tsx` to dynamically provision access to components.
 
-### 23. Nite Browser
-- **What it is**: A fully functional browser living *inside* the web OS.
-- **How to use**: Install it from the App Hub. You can navigate the real web seamlessly.
-- **Implementation**: Built using an iframe engine (`components/apps/browser.tsx`) with a custom navigation bar and anti-frame-busting UI.
+### 23. Nite Browser (Arc Mode)
+- **What it is**: A fully functional browser living *inside* the web OS, designed with an Arc-style vertical sidebar.
+- **How to use**: Install it from the App Hub. You can navigate the web using tabs, pin favorites, and search via DuckDuckGo automatically when URLs aren't fully formed.
+- **Implementation**: Built using an iframe engine (`components/apps/browser.tsx`) with dynamic tab state, loading spinners, and an anti-frame-busting UI.
 
 ### 24. CinePlay (Media Player)
-- **What it is**: A high-fidelity native media player for audio and video.
-- **How to use**: Double-click an `.mp4` or `.mp3` file that you've dropped onto your desktop. CinePlay will launch automatically, offering playback controls, a scrubber, and volume adjustment.
-- **Implementation**: Uses native `<video>` and `<audio>` tags hooked into a custom React UI state (`components/apps/media-player.tsx`).
+- **What it is**: A high-fidelity native media player for audio and video, now with a premium glassmorphism interface and integrated file system playlists.
+- **How to use**: Double-click an `.mp4` or `.mp3` file that you've dropped onto your desktop. CinePlay will launch automatically, offering playback controls, a scrubber, volume adjustment, and a slide-out playlist of all media found on your OS disk.
+- **Implementation**: Uses native `<video>` and `<audio>` tags hooked into a custom React UI state (`components/apps/media-player.tsx`). Scans the `FS` abstraction to build playlists.
 
-### 25. System AI Assistant
+### 25. Campaign Lab (Command Center)
+- **What it is**: A notion-like document editor for strategy and design.
+- **How to use**: Open Campaign Lab. Use the `/` command to access standard blocks (Headings, Checklists) or trigger AI tools like "AI: Generate Proposals". You can navigate the slash menu with your keyboard (Up/Down/Enter).
+- **Implementation**: Built from scratch (`components/apps/campaign-lab/components/BlockEditor.tsx`) to support contenteditable-style textareas, block dragging, and dynamic popup menus.
+
+### 26. System AI Assistant
 - **What it is**: An integrated virtual assistant for controlling the OS.
 - **How to use**: Open "System AI" from Launchpad. You can ask it to "Change theme to blue", "Open the terminal", or "Enable CRT shader".
 - **Implementation**: A natural language parser built in `components/apps/assistant.tsx` that directly invokes `os-context` hooks.

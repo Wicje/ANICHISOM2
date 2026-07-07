@@ -59,7 +59,6 @@ export const APPS = {
   'calls': { component: CallsApp, icon: Video, title: 'Calls', roles: ['admin', 'filmmaker'], isCore: false },
   'sidegigs': { component: SideGigsApp, icon: Briefcase, title: 'Side-Gigs', roles: ['admin', 'filmmaker'], isCore: false },
   'proposals': { component: ProposalGenerator, icon: FileText, title: 'Proposals', roles: ['admin'], isCore: false },
-  'marketplace': { component: Marketplace, icon: Store, title: 'Ecosystem', roles: ['admin'], isCore: true },
   'ai-gateway': { component: AIGateway, icon: Brain, title: 'AI Gateway', roles: ['admin', 'technician'], isCore: true },
   'history': { component: HistoryApp, icon: Clock, title: 'Event History', roles: ['admin', 'filmmaker', 'technician'], isCore: true },
   'admin': { component: AdminPanel, icon: ShieldCheck, title: 'Access Control', roles: ['admin'], isCore: true },
