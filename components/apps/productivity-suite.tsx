@@ -1,18 +1,51 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
-import { FileText, Grid, Presentation, FileCode, Printer, Share2, Save, X, Type, Image as ImageIcon, Search } from 'lucide-react';
+import { FileText, Grid, Presentation, FileCode, Printer, Share2, Save, X, Type, Image as ImageIcon, Search, Download, Plus, Trash2, Pencil, Copy, PanelLeft, Undo2, Redo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import DOMPurify from 'isomorphic-dompurify';
 import { Storage } from '@/lib/storage';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+import { TextStyle } from '@tiptap/extension-text-style';
+import FontFamily from '@tiptap/extension-font-family';
+import Collaboration from '@tiptap/extension-collaboration';
 // @ts-ignore
 import { Parser } from 'hot-formula-parser';
+import { useCollaborativeDoc, CollaborativeDocState } from '@/lib/hooks/useCollaborativeDoc';
 
 type AppType = 'word' | 'sheets' | 'slides' | 'pdf';
+
+interface DocMeta {
+  id: string;
+  title: string;
+  type: AppType;
+  updatedAt: number;
+}
+
+function downloadFile(filename: string, content: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function downloadDataURL(filename: string, dataUrl: string) {
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
 
 /**
  * Safely sanitize HTML using DOMPurify
@@ -31,21 +64,223 @@ function sanitizeHTML(html: string): string {
 export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
   const { performanceMode, currentUser, workspaceMode, setWorkspaceMode } = useOS();
   const [activeTab, setActiveTab] = useState<AppType>((osWindow.data?.tab as AppType) || 'word');
-  
-  const projectId = osWindow.data?.projectId || osWindow.id;
+  const [wordEditor, setWordEditor] = useState<Editor | null>(null);
+  const sheetsDataRef = useRef<Record<string, string>>({});
+  const fabricCanvasRef = useRef<any>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [docList, setDocList] = useState<DocMeta[]>([]);
+  const [projectId, setProjectId] = useState(osWindow.data?.projectId || osWindow.id);
+  const [docTitle, setDocTitle] = useState('Untitled Document');
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const collab = useCollaborativeDoc({
+    appPrefix: 'office',
+    docId: projectId,
+    sharedTypes: [
+      { name: 'content', kind: 'XmlFragment' },
+      { name: 'cells', kind: 'Map' },
+      { name: 'canvas', kind: 'Map' },
+    ],
+    undoTrackingTypes: ['content', 'cells'],
+  });
+
+  useEffect(() => {
+    Storage.getDoc('meta', `doc_index_${workspaceMode}`, workspaceMode).then((saved: any) => {
+      if (saved && saved.documents) {
+        setDocList(saved.documents);
+        const current = saved.documents.find((d: DocMeta) => d.id === projectId);
+        if (current) setDocTitle(current.title);
+      } else {
+        const initial: DocMeta = { id: projectId, title: 'Untitled Document', type: activeTab, updatedAt: Date.now() };
+        setDocList([initial]);
+        Storage.setDoc('meta', `doc_index_${workspaceMode}`, { documents: [initial] }, workspaceMode);
+      }
+    });
+  }, [workspaceMode]);
+
+  const saveDocIndex = (docs: DocMeta[]) => {
+    setDocList(docs);
+    Storage.setDoc('meta', `doc_index_${workspaceMode}`, { documents: docs }, workspaceMode);
+  };
+
+  const createNewDoc = () => {
+    const newId = `doc-${Date.now()}`;
+    const newDoc: DocMeta = { id: newId, title: 'New Document', type: activeTab, updatedAt: Date.now() };
+    const newList = [...docList, newDoc];
+    saveDocIndex(newList);
+    setProjectId(newId);
+    setDocTitle('New Document');
+    window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Document Created', message: 'A new document has been created.' } }));
+  };
+
+  const deleteDoc = (docId: string) => {
+    if (docList.length <= 1) {
+      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Cannot Delete', message: 'You must have at least one document.' } }));
+      return;
+    }
+    const newList = docList.filter(d => d.id !== docId);
+    saveDocIndex(newList);
+    Storage.deleteDoc('docs', `word-${docId}`, workspaceMode);
+    Storage.deleteDoc('docs', `sheets-${docId}`, workspaceMode);
+    Storage.deleteDoc('docs', `slides-fabric-${docId}`, workspaceMode);
+    if (docId === projectId) {
+      setProjectId(newList[0].id);
+      setDocTitle(newList[0].title);
+    }
+    window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Document Deleted', message: 'The document has been removed.' } }));
+  };
+
+  const renameDoc = (docId: string, newTitle: string) => {
+    const newList = docList.map(d => d.id === docId ? { ...d, title: newTitle, updatedAt: Date.now() } : d);
+    saveDocIndex(newList);
+    if (docId === projectId) setDocTitle(newTitle);
+    setRenaming(null);
+  };
+
+  const duplicateDoc = (docId: string) => {
+    const source = docList.find(d => d.id === docId);
+    if (!source) return;
+    const newId = `doc-${Date.now()}`;
+    const newDoc: DocMeta = { id: newId, title: `${source.title} (Copy)`, type: source.type, updatedAt: Date.now() };
+    saveDocIndex([...docList, newDoc]);
+    // Copy word content
+    Storage.getDoc('docs', `word-${docId}`, workspaceMode).then((data: any) => {
+      if (data) Storage.setDoc('docs', `word-${newId}`, data, workspaceMode);
+    });
+    Storage.getDoc('docs', `sheets-${docId}`, workspaceMode).then((data: any) => {
+      if (data) Storage.setDoc('docs', `sheets-${newId}`, data, workspaceMode);
+    });
+    Storage.getDoc('docs', `slides-fabric-${docId}`, workspaceMode).then((data: any) => {
+      if (data) Storage.setDoc('docs', `slides-fabric-${newId}`, data, workspaceMode);
+    });
+    window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Document Duplicated', message: 'A copy has been created.' } }));
+  };
+
+  const switchDoc = (docId: string) => {
+    const doc = docList.find(d => d.id === docId);
+    if (!doc || docId === projectId) return;
+    // Update current doc's timestamp
+    const newList = docList.map(d => d.id === projectId ? { ...d, updatedAt: Date.now() } : d);
+    saveDocIndex(newList);
+    setProjectId(docId);
+    setDocTitle(doc.title);
+    if (doc.type) setActiveTab(doc.type);
+  };
+
+  const handleDocTitleChange = (newTitle: string) => {
+    setDocTitle(newTitle);
+    const newList = docList.map(d => d.id === projectId ? { ...d, title: newTitle, updatedAt: Date.now() } : d);
+    saveDocIndex(newList);
+  };
+
+  const handleExport = () => {
+    if (activeTab === 'word') {
+      if (!wordEditor) return;
+      const html = wordEditor.getHTML();
+      const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Document</title><style>body{font-family:Inter,sans-serif;max-width:816px;margin:40px auto;padding:0 24px;line-height:1.6;color:#1e293b;}h1,h2{margin-top:1.5em;}blockquote{border-left:3px solid rgba(13,13,13,0.1);padding-left:1rem;margin-left:0;}</style></head><body>${html}</body></html>`;
+      downloadFile(`${projectId}.html`, fullHtml, 'text/html');
+      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Exported', message: 'Word document exported as HTML.' } }));
+    } else if (activeTab === 'sheets') {
+      const data = sheetsDataRef.current;
+      const cols = Array.from({ length: 15 }, (_, i) => String.fromCharCode(65 + i));
+      const rows = Array.from({ length: 30 }, (_, i) => i + 1);
+      const csvLines = rows.map(r => cols.map(c => data[`${c}${r}`] || '').join(','));
+      downloadFile(`${projectId}.csv`, csvLines.join('\n'), 'text/csv');
+      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Exported', message: 'Sheet exported as CSV.' } }));
+    } else if (activeTab === 'slides') {
+      const canvas = fabricCanvasRef.current;
+      if (!canvas) return;
+      const dataUrl = canvas.toDataURL({ format: 'png', multiplier: 2 });
+      downloadDataURL(`${projectId}.png`, dataUrl);
+      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Exported', message: 'Slide exported as PNG.' } }));
+    }
+  };
 
   return (
-    <div className="w-full h-full flex flex-col bg-white text-slate-800 font-sans shadow-2xl relative overflow-hidden">
+    <div className="w-full h-full flex bg-white text-slate-800 font-sans shadow-2xl relative overflow-hidden">
+      {/* Document Sidebar */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 220, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="shrink-0 bg-slate-50 border-r border-slate-200 flex flex-col overflow-hidden relative z-20"
+          >
+            <div className="p-3 border-b border-slate-200 flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Documents</span>
+              <button onClick={() => setSidebarOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded hover:bg-slate-200"><PanelLeft className="w-3.5 h-3.5" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
+              {docList.map(doc => (
+                <div key={doc.id} className={cn(
+                  "group/doc flex items-center gap-2 px-2 py-1.5 rounded-lg mb-1 cursor-pointer transition-colors",
+                  doc.id === projectId ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200 text-slate-700"
+                )} onClick={() => switchDoc(doc.id)}>
+                  <FileText className="w-3.5 h-3.5 shrink-0" />
+                  {renaming === doc.id ? (
+                    <input
+                      className="flex-1 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs outline-none focus:ring-1 focus:ring-blue-500"
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') renameDoc(doc.id, renameValue); if (e.key === 'Escape') setRenaming(null); }}
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span className="flex-1 text-xs font-medium truncate">{doc.title}</span>
+                  )}
+                  <div className="opacity-0 group-hover/doc:opacity-100 flex items-center gap-0.5 transition-opacity shrink-0">
+                    <button className="p-1 text-slate-400 hover:text-blue-600 rounded hover:bg-white/50" title="Rename" onClick={(e) => { e.stopPropagation(); setRenaming(doc.id); setRenameValue(doc.title); }}>
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                    <button className="p-1 text-slate-400 hover:text-blue-600 rounded hover:bg-white/50" title="Duplicate" onClick={(e) => { e.stopPropagation(); duplicateDoc(doc.id); }}>
+                      <Copy className="w-3 h-3" />
+                    </button>
+                    <button className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-white/50" title="Delete" onClick={(e) => { e.stopPropagation(); deleteDoc(doc.id); }}>
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="p-2 border-t border-slate-200">
+              <button onClick={createNewDoc} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                <Plus className="w-4 h-4" /> New Document
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {!sidebarOpen && (
+        <button onClick={() => setSidebarOpen(true)} className="absolute left-2 top-2 z-30 p-1.5 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded border border-slate-200 shadow-sm transition-colors" title="Open document sidebar">
+          <PanelLeft className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0 relative overflow-hidden">
       {/* Dynamic Background Noise for Heavy Mode */}
       {performanceMode === 'heavy' && (
-        <div 
-          className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none mix-blend-multiply" 
-          style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/cubes.png")' }} 
+        <div
+          className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none mix-blend-multiply"
+          style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/cubes.png")' }}
         />
       )}
 
       {/* Ribbon Banner */}
       <div className="relative z-10 flex flex-col bg-slate-50 border-b border-slate-200 shrink-0">
+        {/* Document Title */}
+        <div className="flex items-center gap-2 px-4 py-1 border-b border-slate-100">
+          <input
+            className="text-sm font-medium bg-transparent outline-none text-slate-700 flex-1 min-w-0"
+            value={docTitle}
+            onChange={(e) => handleDocTitleChange(e.target.value)}
+          />
+        </div>
         <div className="flex items-center justify-between px-2 pt-2">
           <div className="flex items-center gap-1">
             {(['word', 'sheets', 'slides', 'pdf'] as AppType[]).map((app) => (
@@ -83,24 +318,59 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
              <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Save to local-first DB" onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Document Saved', message: 'Your work has been securely saved.' }}))}><Save className="w-4 h-4" /></button>
              <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Print" onClick={() => window.print()}><Printer className="w-4 h-4" /></button>
              <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Share via Self-Host" onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Share Link Created', message: 'Link copied to clipboard.' }}))}><Share2 className="w-4 h-4" /></button>
+             <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Export" onClick={handleExport}><Download className="w-4 h-4" /></button>
            </div>
            
            {activeTab === 'word' && (
              <div className="flex items-center gap-2">
-               <select className="text-xs border border-slate-200 rounded px-2 py-1 outline-none bg-slate-50">
-                 <option>Normal Text</option>
-                 <option>Heading 1</option>
-                 <option>Heading 2</option>
+               <select
+                 className="text-xs border border-slate-200 rounded px-2 py-1 outline-none bg-slate-50"
+                 value={
+                   wordEditor?.isActive('heading', { level: 1 }) ? 'h1'
+                   : wordEditor?.isActive('heading', { level: 2 }) ? 'h2'
+                   : 'normal'
+                 }
+                 onChange={(e) => {
+                   if (!wordEditor) return;
+                   const val = e.target.value;
+                   if (val === 'normal') {
+                     wordEditor.chain().focus().setParagraph().run();
+                   } else if (val === 'h1') {
+                     wordEditor.chain().focus().toggleHeading({ level: 1 }).run();
+                   } else if (val === 'h2') {
+                     wordEditor.chain().focus().toggleHeading({ level: 2 }).run();
+                   }
+                 }}
+               >
+                 <option value="normal">Normal Text</option>
+                 <option value="h1">Heading 1</option>
+                 <option value="h2">Heading 2</option>
                </select>
-               <select className="text-xs border border-slate-200 rounded px-2 py-1 outline-none bg-slate-50">
-                 <option>Inter</option>
-                 <option>Space Grotesk</option>
-                 <option>JetBrains Mono</option>
+               <select
+                 className="text-xs border border-slate-200 rounded px-2 py-1 outline-none bg-slate-50"
+                 value={wordEditor?.getAttributes('textStyle').fontFamily || 'Inter'}
+                 onChange={(e) => {
+                   if (!wordEditor) return;
+                   wordEditor.chain().focus().setFontFamily(e.target.value).run();
+                 }}
+               >
+                 <option value="Inter">Inter</option>
+                 <option value="Space Grotesk">Space Grotesk</option>
+                 <option value="JetBrains Mono">JetBrains Mono</option>
                </select>
                <div className="flex items-center gap-1 px-2 border-l border-slate-200">
-                 <button className="p-1 hover:bg-slate-100 rounded font-bold text-slate-700">B</button>
-                 <button className="p-1 hover:bg-slate-100 rounded italic text-slate-700">I</button>
-                 <button className="p-1 hover:bg-slate-100 rounded underline text-slate-700">U</button>
+                 <button
+                   className={cn("p-1 hover:bg-slate-100 rounded font-bold text-slate-700", wordEditor?.isActive('bold') && "bg-slate-200 text-blue-600")}
+                   onClick={() => wordEditor?.chain().focus().toggleBold().run()}
+                 >B</button>
+                 <button
+                   className={cn("p-1 hover:bg-slate-100 rounded italic text-slate-700", wordEditor?.isActive('italic') && "bg-slate-200 text-blue-600")}
+                   onClick={() => wordEditor?.chain().focus().toggleItalic().run()}
+                 >I</button>
+                 <button
+                   className={cn("p-1 hover:bg-slate-100 rounded underline text-slate-700", wordEditor?.isActive('underline') && "bg-slate-200 text-blue-600")}
+                   onClick={() => wordEditor?.chain().focus().toggleUnderline().run()}
+                 >U</button>
                </div>
              </div>
            )}
@@ -137,9 +407,9 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
           transition={{ duration: 0.2 }}
           className="flex-1 relative z-10 overflow-hidden bg-slate-100"
         >
-          {activeTab === 'word' && <WordEditor performanceMode={performanceMode} workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} />}
-          {activeTab === 'sheets' && <SheetsEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} />}
-          {activeTab === 'slides' && <SlidesEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} />}
+          {activeTab === 'word' && <WordEditor performanceMode={performanceMode} workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} onEditorReady={setWordEditor} collab={collab} />}
+          {activeTab === 'sheets' && <SheetsEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} dataRef={sheetsDataRef} collab={collab} />}
+          {activeTab === 'slides' && <SlidesEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} canvasRef={fabricCanvasRef} collab={collab} />}
           {activeTab === 'pdf' && <PdfEditor initialUrl={osWindow.data?.url} />}
         </motion.div>
       </AnimatePresence>
@@ -155,105 +425,60 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
            {activeTab === 'slides' && <span>Slide 1 of 5</span>}
         </div>
       </div>
+      </div>
     </div>
   );
 }
 
-function WordEditor({ performanceMode, workspaceMode, projectId, currentUser }: { performanceMode: 'light' | 'heavy', workspaceMode: 'private' | 'agency', projectId: string, currentUser: any }) {
-  const [content, setContent] = useState<string>("Loading document...");
-  const [loaded, setLoaded] = useState(false);
-  const isSyncingRef = useRef(false);
-  const latestContentRef = useRef("Loading document...");
-  const lastSavedContentRef = useRef<string | null>(null);
+function WordEditor({ performanceMode, workspaceMode, projectId, currentUser, onEditorReady, collab }: { performanceMode: 'light' | 'heavy', workspaceMode: 'private' | 'agency', projectId: string, currentUser: any, onEditorReady: (editor: Editor | null) => void, collab: CollaborativeDocState }) {
+  const defaultContent = '<h1>Manifesto for the Edge</h1><p>The future of software is not centralized. It is distributed, local-first, and owned by the user.</p><h2>Self-Hostable Infrastructure</h2><p>Users who prefer data independence can pull the open-source code via Docker.</p>';
 
-  const roomId = `word-${projectId}`;
-  const storageKey = `anichisom_os_word_${projectId}`;
+  // Wait for Yjs sync — only create the editor once the Collaboration fragment is available
+  const fragment = collab.synced ? collab.sharedTypesRef.current.content : null;
+
+  // Build extensions: StarterKit (without UndoRedo) + Collaboration bound to Y.XmlFragment
+  const extensions = useMemo(() => {
+    if (!fragment) return [StarterKit, Underline, TextStyle, FontFamily];
+    return [
+      StarterKit.configure({ undoRedo: false }),
+      Underline,
+      TextStyle,
+      FontFamily,
+      Collaboration.configure({ fragment }),
+    ];
+  }, [fragment]);
 
   const editor = useEditor({
-    extensions: [StarterKit],
-    content: '',
+    extensions,
+    content: fragment ? undefined : defaultContent,
+    immediatelyRender: !!fragment, // Create immediately once collab is ready
     onUpdate: ({ editor }) => {
-       const newContent = editor.getHTML();
-       handleInput(newContent);
+       onEditorReady(editor);
     },
-  });
+    onSelectionUpdate: ({ editor }) => {
+       onEditorReady(editor);
+    },
+  }, [extensions]); // Recreate editor when extensions change (collab sync triggers this)
 
+  // Seed default content into the Y.XmlFragment if it's empty
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoaded(false);
-
-    Storage.getDoc('docs', roomId, workspaceMode).then((saved: any) => {
-        let initialContent = `<h1>Manifesto for the Edge</h1><p>The future of software is not centralized. It is distributed, local-first, and owned by the user.</p><h2>Self-Hostable Infrastructure</h2><p>Users who prefer data independence can pull the open-source code via Docker.</p>`;
-        
-        if (workspaceMode === 'private' && saved && typeof saved === 'string') {
-          initialContent = saved;
-        } else if (saved && saved.content !== undefined) {
-          initialContent = saved.content;
-        }
-        
-        setContent(initialContent);
-        latestContentRef.current = initialContent;
-        if (editor) editor.commands.setContent(initialContent);
-        setLoaded(true);
-    });
-
-    const unsub = Storage.subscribe('docs', roomId, workspaceMode, (state: any) => {
-       if (state) {
-         const remoteData = state.content;
-         if (remoteData !== undefined && remoteData !== latestContentRef.current && remoteData !== lastSavedContentRef.current) {
-             // Do not overwrite if the user is actively typing in the editor
-             if (editor && editor.isFocused) return;
-             
-             isSyncingRef.current = true;
-             setContent(remoteData);
-             latestContentRef.current = remoteData;
-             if (editor) {
-               // Get cursor position before update
-               const { from, to } = editor.state.selection;
-               editor.commands.setContent(remoteData, { emitUpdate: false });
-               // Restore cursor
-               editor.commands.setTextSelection({ from, to });
-             }
-         }
-       }
-    });
-
-    return () => unsub();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceMode, projectId, currentUser, roomId, editor]);
-
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const handleInput = (newContent: string) => {
-    setContent(newContent);
-    latestContentRef.current = newContent;
-    if (isSyncingRef.current) {
-        isSyncingRef.current = false;
-        return;
+    if (!editor || !fragment) return;
+    if (fragment.length === 0) {
+      editor.commands.setContent(defaultContent);
     }
-    
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => {
-       lastSavedContentRef.current = newContent;
-       if (workspaceMode === 'private') {
-           Storage.setDoc('docs', roomId, { content: newContent }, workspaceMode);
-       } else {
-           Storage.setDoc('docs', roomId, { content: newContent, workspaceMode: 'shared' }, workspaceMode);
-       }
-    }, 500);
-  };
+    onEditorReady(editor);
+  }, [editor, fragment]);
 
   useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    };
-  }, []);
+    onEditorReady(editor);
+    return () => onEditorReady(null);
+  }, [editor, onEditorReady]);
 
-  if (!loaded) return <div className="p-8 text-slate-500">Loading editor...</div>;
+  if (!collab.synced || !editor) return <div className="p-8 text-slate-500">Loading collaborative editor...</div>;
 
   return (
     <div className="w-full h-full overflow-auto p-4 md:p-8 flex justify-center custom-scrollbar">
-      <div 
+      <div
         className={cn(
           "w-full max-w-[816px] min-h-[1056px] bg-white outline-none p-12 lg:p-24 transition-all duration-300 prose prose-slate max-w-none tiptap-editor",
           performanceMode === 'heavy' ? "shadow-2xl border border-slate-200" : "shadow-sm border border-slate-100"
@@ -271,15 +496,18 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser }: 
   );
 }
 
-function SheetsEditor({ workspaceMode, projectId, currentUser }: { workspaceMode: 'private' | 'agency', projectId: string, currentUser: any }) {
+function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab }: { workspaceMode: 'private' | 'agency', projectId: string, currentUser: any, dataRef: React.MutableRefObject<Record<string, string>>, collab: CollaborativeDocState }) {
   const [data, setData] = useState<Record<string, string>>({});
-  const [loaded, setLoaded] = useState(false);
   const [activeCell, setActiveCell] = useState<string | null>(null);
-  const isSyncingRef = useRef(false);
-  const latestDataRef = useRef<Record<string, string>>({});
-  const lastSavedDataRef = useRef<string | null>(null);
-  
+  const observeListenerRef = useRef<any>(null);
+  const YRef = useRef<any>(null);
+
   const parser = useRef(new Parser()).current;
+
+  // Keep parent ref synced for export
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data, dataRef]);
 
   // Configure formula parser to resolve cell coordinates (e.g. A1, B2) to values from data state
   useEffect(() => {
@@ -287,10 +515,9 @@ function SheetsEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
        const col = cellCoord.column.index;
        const row = cellCoord.row.index + 1;
        const cellId = `${String.fromCharCode(65 + col)}${row}`;
-       
+
        let val = data[cellId];
        if (val && val.startsWith('=')) {
-          // nested evaluation is risky but simple for basic usage
           const res = parser.parse(val.substring(1));
           val = res.error ? res.error : res.result;
        }
@@ -298,73 +525,79 @@ function SheetsEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
     });
   }, [data, parser]);
 
-  const roomId = `sheets-${projectId}`;
-
+  // Sync Y.Map -> React state when synced
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoaded(false);
+    if (!collab.synced) return;
 
-    Storage.getDoc('docs', roomId, workspaceMode).then((saved: any) => {
-        if (workspaceMode === 'private' && saved) {
-          setData(saved);
-          latestDataRef.current = saved;
-        } else if (saved && saved.data !== undefined) {
-          setData(saved.data);
-          latestDataRef.current = saved.data;
-        }
-        setLoaded(true);
+    const cellsMap = collab.sharedTypesRef.current.cells;
+    if (!cellsMap) return;
+
+    // Load initial data from Y.Map
+    const initial: Record<string, string> = {};
+    cellsMap.forEach((value: any, key: string) => {
+      initial[key] = value;
     });
+    setData(initial);
+    dataRef.current = initial;
 
-    const unsub = Storage.subscribe('docs', roomId, workspaceMode, (state: any) => {
-       if (state) {
-         const remoteData = workspaceMode === 'private' ? state : state.data;
-         const remoteDataStr = JSON.stringify(remoteData);
-         if (remoteData !== undefined && remoteDataStr !== JSON.stringify(latestDataRef.current) && remoteDataStr !== lastSavedDataRef.current) {
-             isSyncingRef.current = true;
-             setData(remoteData);
-             latestDataRef.current = remoteData;
-         }
-       }
+    // Observe Y.Map changes and sync to React state
+    const observer = () => {
+      const updated: Record<string, string> = {};
+      cellsMap.forEach((value: any, key: string) => {
+        updated[key] = value;
+      });
+      setData(updated);
+      dataRef.current = updated;
+    };
+    cellsMap.observe(observer);
+    observeListenerRef.current = observer;
+
+    return () => {
+      if (observeListenerRef.current) {
+        cellsMap.unobserve(observeListenerRef.current);
+        observeListenerRef.current = null;
+      }
+    };
+  }, [collab.synced, collab.sharedTypesRef, dataRef]);
+
+  // Load Yjs module for direct Y.Map mutations
+  useEffect(() => {
+    import('yjs').then((mod) => {
+      YRef.current = mod;
     });
-
-    return () => unsub();
-  }, [workspaceMode, projectId, currentUser, roomId]);
-
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  }, []);
 
   const handleChange = (cell: string, value: string) => {
-    const newData = { ...data, [cell]: value };
-    setData(newData);
-    latestDataRef.current = newData;
-    if (isSyncingRef.current) {
-        isSyncingRef.current = false;
-        return;
-    }
-    
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => {
-        lastSavedDataRef.current = JSON.stringify(newData);
-        if (workspaceMode === 'private') {
-           Storage.setDoc('docs', roomId, newData, workspaceMode);
-        } else {
-           Storage.setDoc('docs', roomId, { data: newData, workspaceMode: 'agency' }, workspaceMode);
-        }
-    }, 500);
-  };
+    const cellsMap = collab.sharedTypesRef.current.cells;
+    if (!cellsMap || !YRef.current) return;
 
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    };
-  }, []);
+    // Write to Y.Map — this triggers the observer above to update React state
+    cellsMap.set(cell, value);
+  };
 
   const cols = Array.from({ length: 15 }, (_, i) => String.fromCharCode(65 + i));
   const rows = Array.from({ length: 30 }, (_, i) => i + 1);
 
-  if (!loaded) return <div className="p-8 text-slate-500">Loading sheets...</div>;
+  if (!collab.synced) return <div className="p-8 text-slate-500">Loading collaborative sheets...</div>;
 
   return (
-    <div className="w-full h-full overflow-auto bg-white flex flex-col custom-scrollbar text-xs">
+    <div
+      className="w-full h-full overflow-auto bg-white flex flex-col custom-scrollbar text-xs"
+      onKeyDown={(e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); collab.undo(); }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'Z' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); collab.redo(); }
+      }}
+      tabIndex={0}
+    >
+      {/* Undo/Redo toolbar */}
+      <div className="flex items-center gap-1 sticky top-0 bg-slate-50 border-b border-slate-200 z-20 px-2 py-1">
+        <button onClick={() => collab.undo()} disabled={!collab.canUndo} className="p-1 rounded hover:bg-slate-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors" title="Undo (Ctrl+Z)">
+          <Undo2 className="w-3.5 h-3.5 text-slate-600" />
+        </button>
+        <button onClick={() => collab.redo()} disabled={!collab.canRedo} className="p-1 rounded hover:bg-slate-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors" title="Redo (Ctrl+Shift+Z)">
+          <Redo2 className="w-3.5 h-3.5 text-slate-600" />
+        </button>
+      </div>
       {/* Headers */}
       <div className="flex sticky top-0 bg-slate-50 border-b border-slate-200 z-10 w-max">
         <div className="w-10 h-7 shrink-0 border-r border-slate-200 bg-slate-100" />
@@ -411,27 +644,32 @@ function SheetsEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
   );
 }
 
-function SlidesEditor({ workspaceMode, projectId, currentUser }: { workspaceMode: 'private' | 'agency', projectId: string, currentUser: any }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab }: { workspaceMode: 'private' | 'agency', projectId: string, currentUser: any, canvasRef: React.MutableRefObject<any>, collab: CollaborativeDocState }) {
+  const localCanvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<any>(null);
   const [loaded, setLoaded] = useState(false);
   const isSyncingRef = useRef(false);
-
-  const roomId = `slides-fabric-${projectId}`;
+  // Fabric canvas state is too complex for Yjs UndoManager to track granularly — keep snapshot undo/redo
+  const undoStackRef = useRef<string[]>([]);
+  const redoStackRef = useRef<string[]>([]);
+  const previousStateRef = useRef<string>('');
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const canvasObserverRef = useRef<any>(null);
 
   useEffect(() => {
     let active = true;
-    let unsub = () => {};
 
     import('fabric').then((fabric) => {
-      if (!active || !canvasRef.current) return;
-      
-      const canvas = new fabric.Canvas(canvasRef.current, {
+      if (!active || !localCanvasRef.current) return;
+
+      const canvas = new fabric.Canvas(localCanvasRef.current, {
          width: 768,
          height: 432,
          backgroundColor: '#ffffff'
       });
       fabricCanvasRef.current = canvas;
+      canvasRef.current = canvas;
 
       const setupDefault = () => {
          const title = new fabric.IText('Project "Edge"', {
@@ -458,82 +696,173 @@ function SlidesEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
          canvas.renderAll();
       };
 
-      Storage.getDoc('docs', roomId, workspaceMode).then((saved: any) => {
-        if (!active) return;
-        const target = workspaceMode === 'private' ? saved : (saved?.canvasState ? saved : null);
-        if (target && target.canvasState) {
-           const p = canvas.loadFromJSON(target.canvasState, () => {
+      // Wait for collab sync then load canvas state from Y.Map
+      const waitForSync = () => {
+        if (!collab.synced || !active) return;
+
+        const canvasMap = collab.sharedTypesRef.current.canvas;
+        if (!canvasMap) {
+          setupDefault();
+          previousStateRef.current = JSON.stringify(canvas.toJSON());
+          // Write initial canvas state to Y.Map
+          canvasMap?.set('state', JSON.stringify(canvas.toJSON()));
+          setLoaded(true);
+          return;
+        }
+
+        const savedState = canvasMap.get('state');
+        if (savedState) {
+           const p = canvas.loadFromJSON(JSON.parse(savedState as string), () => {
                if (!p || !p.then) {
                   canvas.renderAll();
+                  previousStateRef.current = JSON.stringify(canvas.toJSON());
                   setLoaded(true);
                }
            });
            if (p && p.then) {
               p.then(() => {
                  canvas.renderAll();
+                 previousStateRef.current = JSON.stringify(canvas.toJSON());
                  setLoaded(true);
               });
            }
         } else {
            setupDefault();
+           previousStateRef.current = JSON.stringify(canvas.toJSON());
+           canvasMap.set('state', JSON.stringify(canvas.toJSON()));
            setLoaded(true);
         }
-      });
 
-      unsub = Storage.subscribe('docs', roomId, workspaceMode, (state: any) => {
-         if (state) {
-            const target = workspaceMode === 'private' ? state : state;
-            if (target.canvasState && !isSyncingRef.current) {
-               // Do not overwrite if the user is actively editing an object
-               if (canvas.getActiveObject()) return;
-               
-               const currentStateStr = JSON.stringify(canvas.toJSON());
-               const targetStateStr = JSON.stringify(target.canvasState);
-               if (currentStateStr === targetStateStr) return;
+        // Observe Y.Map changes for remote canvas updates
+        const observer = () => {
+          const remoteState = canvasMap.get('state') as string | undefined;
+          if (!remoteState || isSyncingRef.current) return;
+          if (canvas.getActiveObject()) return; // Don't overwrite during active editing
 
-               isSyncingRef.current = true;
-               const p = canvas.loadFromJSON(target.canvasState, () => {
-                   if (!p || !p.then) {
-                      canvas.renderAll();
-                      setTimeout(() => { isSyncingRef.current = false; }, 100);
-                   }
-               });
-               if (p && p.then) {
-                  p.then(() => {
-                     canvas.renderAll();
-                     setTimeout(() => { isSyncingRef.current = false; }, 100);
-                  });
-               }
-            }
-         }
-      });
+          const currentStateStr = JSON.stringify(canvas.toJSON());
+          const remoteStateStr = remoteState;
+          if (currentStateStr === remoteStateStr) return;
+
+          isSyncingRef.current = true;
+          const p = canvas.loadFromJSON(JSON.parse(remoteState), () => {
+              if (!p || !p.then) {
+                canvas.renderAll();
+                setTimeout(() => { isSyncingRef.current = false; }, 100);
+              }
+          });
+          if (p && p.then) {
+            p.then(() => {
+              canvas.renderAll();
+              setTimeout(() => { isSyncingRef.current = false; }, 100);
+            });
+          }
+        };
+        canvasMap.observe(observer);
+        canvasObserverRef.current = observer;
+      };
+
+      if (collab.synced) {
+        waitForSync();
+      } else {
+        // Will be triggered by the parent re-rendering when collab.synced flips
+        const checkInterval = setInterval(() => {
+          if (collab.synced && active) {
+            clearInterval(checkInterval);
+            waitForSync();
+          }
+        }, 200);
+      }
 
       const handleModify = () => {
          if (isSyncingRef.current) return;
+
+         undoStackRef.current.push(previousStateRef.current);
+         redoStackRef.current = [];
+         setCanUndo(true);
+         setCanRedo(false);
+
+         previousStateRef.current = JSON.stringify(canvas.toJSON());
+
          isSyncingRef.current = true;
-         const state = canvas.toJSON();
-         
-         if (workspaceMode === 'private') {
-            Storage.setDoc('docs', roomId, { canvasState: state }, workspaceMode);
-         } else {
-            Storage.setDoc('docs', roomId, { canvasState: state, workspaceMode: 'agency' }, workspaceMode);
+         const stateStr = JSON.stringify(canvas.toJSON());
+         const canvasMap = collab.sharedTypesRef.current.canvas;
+         if (canvasMap) {
+           canvasMap.set('state', stateStr);
          }
-         
+
          setTimeout(() => { isSyncingRef.current = false; }, 100);
       };
 
       canvas.on('object:modified', handleModify);
       canvas.on('text:changed', handleModify);
     });
-    
-    return () => { 
-      active = false; 
-      unsub();
+
+    return () => {
+      active = false;
+      canvasRef.current = null;
+      if (canvasObserverRef.current && collab.sharedTypesRef.current.canvas) {
+        collab.sharedTypesRef.current.canvas.unobserve(canvasObserverRef.current);
+        canvasObserverRef.current = null;
+      }
       if (fabricCanvasRef.current) {
         fabricCanvasRef.current.dispose();
       }
     };
-  }, [workspaceMode, projectId, roomId]);
+  }, [collab.synced, projectId]);
+
+  const handleSlidesUndo = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || undoStackRef.current.length === 0) return;
+
+    redoStackRef.current.push(previousStateRef.current);
+    const prevState = undoStackRef.current.pop()!;
+    previousStateRef.current = prevState;
+
+    setCanUndo(undoStackRef.current.length > 0);
+    setCanRedo(true);
+
+    isSyncingRef.current = true;
+    const p = canvas.loadFromJSON(JSON.parse(prevState), () => {
+      if (!p || !p.then) {
+        canvas.renderAll();
+        setTimeout(() => { isSyncingRef.current = false; }, 100);
+      }
+    });
+    if (p && p.then) {
+      p.then(() => {
+        canvas.renderAll();
+        setTimeout(() => { isSyncingRef.current = false; }, 100);
+      });
+    }
+  };
+
+  const handleSlidesRedo = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || redoStackRef.current.length === 0) return;
+
+    undoStackRef.current.push(previousStateRef.current);
+    const nextState = redoStackRef.current.pop()!;
+    previousStateRef.current = nextState;
+
+    setCanUndo(true);
+    setCanRedo(redoStackRef.current.length > 0);
+
+    isSyncingRef.current = true;
+    const p = canvas.loadFromJSON(JSON.parse(nextState), () => {
+      if (!p || !p.then) {
+        canvas.renderAll();
+        setTimeout(() => { isSyncingRef.current = false; }, 100);
+      }
+    });
+    if (p && p.then) {
+      p.then(() => {
+        canvas.renderAll();
+        setTimeout(() => { isSyncingRef.current = false; }, 100);
+      });
+    }
+  };
+
+  if (!collab.synced) return <div className="p-8 text-slate-500">Loading collaborative slides...</div>;
 
   return (
     <div className="w-full h-full flex overflow-hidden">
@@ -554,16 +883,33 @@ function SlidesEditor({ workspaceMode, projectId, currentUser }: { workspaceMode
           </div>
         ))}
       </div>
-      
+
       {/* Main Canvas */}
-      <div className="flex-1 overflow-auto bg-slate-100 flex items-center justify-center p-8 relative">
+      <div
+        className="flex-1 overflow-auto bg-slate-100 flex flex-col items-center justify-center p-8 relative"
+        onKeyDown={(e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleSlidesUndo(); }
+          if ((e.ctrlKey || e.metaKey) && (e.key === 'Z' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); handleSlidesRedo(); }
+        }}
+        tabIndex={0}
+      >
+         {/* Undo/Redo toolbar */}
+         <div className="flex items-center gap-1 mb-4">
+           <button onClick={handleSlidesUndo} disabled={!canUndo} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors" title="Undo (Ctrl+Z)">
+             <Undo2 className="w-4 h-4 text-slate-600" />
+           </button>
+           <button onClick={handleSlidesRedo} disabled={!canRedo} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors" title="Redo (Ctrl+Shift+Z)">
+             <Redo2 className="w-4 h-4 text-slate-600" />
+           </button>
+         </div>
+
          {!loaded && (
              <div className="absolute inset-0 flex items-center justify-center bg-slate-100/80 z-10">
                 <div className="text-slate-500 animate-pulse">Loading canvas engine...</div>
              </div>
          )}
          <div className="shadow-2xl bg-white ring-1 ring-slate-200 flex items-center justify-center overflow-hidden">
-            <canvas ref={canvasRef} />
+            <canvas ref={localCanvasRef} />
          </div>
       </div>
     </div>

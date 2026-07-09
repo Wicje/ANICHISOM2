@@ -168,7 +168,7 @@ const DesktopWindow = React.memo(
 );
 
 export function Desktop() {
-  const { currentUser, setCurrentUser, logout, windows, snapshots, performanceMode, setPerformanceMode, workspaceMode, setWorkspaceMode, activeWorkspace, setActiveWorkspace, installedApps, recentApps, openWindow, minimizeWindow, focusWindow, applyWorkspaceLayout, loadProject, saveSnapshot, restoreSnapshot, wipeSession, wallpaper, themeColor, fontFamily, screenShader } = useOS();
+  const { currentUser, setCurrentUser, logout, windows, snapshots, performanceMode, setPerformanceMode, workspaceMode, setWorkspaceMode, activeWorkspace, setActiveWorkspace, installedApps, recentApps, openWindow, closeWindow, minimizeWindow, focusWindow, applyWorkspaceLayout, loadProject, saveSnapshot, restoreSnapshot, wipeSession, wallpaper, themeColor, fontFamily, screenShader } = useOS();
   const [showSnapshots, setShowSnapshots] = useState(false);
   const [showActionCenter, setShowActionCenter] = useState(false);
   const [customApps, setCustomApps] = useState<any[]>([]);
@@ -187,7 +187,37 @@ export function Desktop() {
 
   const refreshDesktop = async () => {
     try {
-      const files = await FS.readDir('Desktop');
+      let files = await FS.readDir('Desktop');
+      if (files.length === 0) {
+        await FS.write('Desktop/Welcome to Ziklag OS.txt', `Welcome to Ziklag OS!
+
+This is a local-first web operating system designed for managing multiple ventures seamlessly.
+
+Quick Start:
+1. Double click files in the File Manager to open them.
+2. Drag and drop local files from your computer into the OS window to import them.
+3. Use the App Hub to install ecosystem packs like Ziklag Diagnostics or Clothing Brand.
+4. Try System AI in the dock for natural language control.
+
+Enjoy your workspace!`);
+        await FS.write('Documents/Project Brief.txt', `Project Brief: Nike Campaign 2026
+
+Goal: Relaunch the Nike Force 40th anniversary interactive landing page.
+Deliverables:
+- Campaign landing page live preview
+- Design specs and moodboards
+- Budget proposals
+
+Status: In Review`);
+        await FS.write('Downloads/Minified Specs.json', JSON.stringify({
+          projectName: "ANICHISOM OS",
+          version: "2.0.0",
+          codename: "Ziklag",
+          environment: "Production"
+        }, null, 2));
+        
+        files = await FS.readDir('Desktop');
+      }
       setDesktopFiles(files || []);
     } catch (e) {
       console.warn("Failed to read desktop files", e);
@@ -295,6 +325,8 @@ export function Desktop() {
       'alt+b': 'open:browser',
       'alt+c': 'open:code',
       'ctrl+space': 'action:launchpad',
+      'ctrl+w': 'action:close-active-window',
+      'ctrl+m': 'action:minimize-active-window',
     };
     
     import('@/lib/fs').then(({ FS }) => {
@@ -335,7 +367,20 @@ export function Desktop() {
             openWindow(action.replace('open:', ''));
          } else if (action === 'action:launchpad') {
             setShowLaunchpad(prev => !prev);
+         } else if (action === 'action:close-active-window') {
+            const activeW = windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined);
+            const focused = activeW.find(w => !w.isMinimized && w.zIndex >= Math.max(...activeW.map(win => win.zIndex)));
+            if (focused) closeWindow(focused.id);
+         } else if (action === 'action:minimize-active-window') {
+            const activeW = windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined);
+            const focused = activeW.find(w => !w.isMinimized && w.zIndex >= Math.max(...activeW.map(win => win.zIndex)));
+            if (focused) minimizeWindow(focused.id);
          }
+      }
+
+      // Escape closes context menu
+      if (e.key === 'Escape' && contextMenu) {
+        closeContextMenu();
       }
     };
 
@@ -344,7 +389,7 @@ export function Desktop() {
        window.removeEventListener('os:config-updated', handleConfigUpdate);
        window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [openWindow]);
+  }, [openWindow, windows, activeWorkspace, closeWindow, minimizeWindow, contextMenu]);
 
   // Idle Timer for Lock Screen
   useEffect(() => {
@@ -475,7 +520,7 @@ export function Desktop() {
       />
 
       {/* OS Menu Bar */}
-      <header className="h-7 flex items-center shrink-0 w-full bg-black/20 backdrop-blur-3xl border-b border-white/10 z-[260] px-4 sticky top-0 text-[13px] font-medium text-white/90">
+      <header role="menubar" aria-label="OS menu bar" className="h-7 flex items-center shrink-0 w-full bg-black/20 backdrop-blur-3xl border-b border-white/10 z-[260] px-4 sticky top-0 text-[13px] font-medium text-white/90">
         <div className="flex items-center gap-6">
           <div className="font-bold text-white flex items-center gap-2 cursor-pointer hover:scale-110 transition-transform" onClick={() => setShowLaunchpad(!showLaunchpad)}>
             
@@ -490,29 +535,29 @@ export function Desktop() {
           <div className="hidden sm:flex gap-4">
             {/* OS Native Menus */}
             <div className="group relative">
-               <button className="hover:bg-white/20 px-2 py-0.5 rounded transition-colors cursor-default">File</button>
-               <div className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left bg-black/80 backdrop-blur-xl border border-white/10 text-white text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]">
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Saved State', message: 'OS State saved to IndexedDB.' }}))}>Save Desktop State</button>
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => window.dispatchEvent(new CustomEvent('os:open-spotlight'))}>New File (Spotlight)</button>
+               <button role="menuitem" className="hover:bg-white/20 px-2 py-0.5 rounded transition-colors cursor-default">File</button>
+               <div role="menu" className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left bg-black/80 backdrop-blur-xl border border-white/10 text-white text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]">
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Saved State', message: 'OS State saved to IndexedDB.' }}))}>Save Desktop State</button>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => window.dispatchEvent(new CustomEvent('os:open-spotlight'))}>New File (Spotlight)</button>
                   <div className="h-px bg-white/10 my-1"></div>
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-rose-500 hover:text-white transition-colors" onClick={() => wipeSession()}>Wipe Local Data</button>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-rose-500 hover:text-white transition-colors" onClick={() => wipeSession()}>Wipe Local Data</button>
                </div>
             </div>
             <div className="group relative">
-               <button className="hover:bg-white/20 px-2 py-0.5 rounded transition-colors cursor-default">Edit</button>
-               <div className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left bg-black/80 backdrop-blur-xl border border-white/10 text-white text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]">
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors text-white/50">Undo (Cmd+Z)</button>
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors text-white/50">Redo (Cmd+Shift+Z)</button>
+               <button role="menuitem" className="hover:bg-white/20 px-2 py-0.5 rounded transition-colors cursor-default">Edit</button>
+               <div role="menu" className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left bg-black/80 backdrop-blur-xl border border-white/10 text-white text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]">
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors text-white/50">Undo (Cmd+Z)</button>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors text-white/50">Redo (Cmd+Shift+Z)</button>
                   <div className="h-px bg-white/10 my-1"></div>
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => setShowLaunchpad(true)}>Edit OS Apps</button>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => setShowLaunchpad(true)}>Edit OS Apps</button>
                </div>
             </div>
             <div className="group relative">
-               <button className="hover:bg-white/20 px-2 py-0.5 rounded transition-colors cursor-default">View</button>
-               <div className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left bg-black/80 backdrop-blur-xl border border-white/10 text-white text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]">
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors flex items-center justify-between" onClick={() => applyWorkspaceLayout('creative-split')}>Multi-View Workspace</button>
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => setShowMissionControl(true)}>Mission Control</button>
-                  <button className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => setShowSnapshots(!showSnapshots)}>Time Machine</button>
+               <button role="menuitem" className="hover:bg-white/20 px-2 py-0.5 rounded transition-colors cursor-default">View</button>
+               <div role="menu" className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left bg-black/80 backdrop-blur-xl border border-white/10 text-white text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]">
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors flex items-center justify-between" onClick={() => applyWorkspaceLayout('creative-split')}>Multi-View Workspace</button>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => setShowMissionControl(true)}>Mission Control</button>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => setShowSnapshots(!showSnapshots)}>Time Machine</button>
                </div>
             </div>
             
@@ -939,31 +984,33 @@ export function Desktop() {
 
       {/* macOS Style Dock */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[260] pointer-events-none">
-        <div className="flex items-end gap-3 px-3 py-2 bg-white/20 backdrop-blur-3xl border border-white/20 rounded-3xl shadow-2xl pointer-events-auto">
+        <nav role="toolbar" aria-label="Application dock" className="flex items-end gap-3 px-3 py-2 bg-white/20 backdrop-blur-3xl border border-white/20 rounded-3xl shadow-2xl pointer-events-auto">
           {/* Launchpad & Mission Control Buttons */}
           <div className="relative group flex flex-col items-center justify-end">
             <button
+              aria-label="Launchpad"
               onClick={() => setShowLaunchpad(prev => {
                  if (!prev) setShowMissionControl(false);
                  return !prev;
               })}
               className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 transform origin-bottom hover:scale-125 hover:mx-2 bg-white/80 hover:bg-white"
             >
-              <Grid className="w-7 h-7 text-black" />
+              <Grid className="w-7 h-7 text-black" aria-hidden="true" />
             </button>
-            <div className="absolute -top-12 scale-0 group-hover:scale-100 transition-transform px-3 py-1 bg-black/60 backdrop-blur text-white text-xs font-medium rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50">Launchpad</div>
+            <div role="tooltip" className="absolute -top-12 scale-0 group-hover:scale-100 transition-transform px-3 py-1 bg-black/60 backdrop-blur text-white text-xs font-medium rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50">Launchpad</div>
           </div>
           <div className="relative group flex flex-col items-center justify-end">
             <button
+              aria-label="Mission Control"
               onClick={() => setShowMissionControl(prev => {
                  if (!prev) setShowLaunchpad(false);
                  return !prev;
               })}
               className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 transform origin-bottom hover:scale-125 hover:mx-2 bg-white/80 hover:bg-white"
             >
-              <Layers className="w-7 h-7 text-black" />
+              <Layers className="w-7 h-7 text-black" aria-hidden="true" />
             </button>
-            <div className="absolute -top-12 scale-0 group-hover:scale-100 transition-transform px-3 py-1 bg-black/60 backdrop-blur text-white text-xs font-medium rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50">Mission Control</div>
+            <div role="tooltip" className="absolute -top-12 scale-0 group-hover:scale-100 transition-transform px-3 py-1 bg-black/60 backdrop-blur text-white text-xs font-medium rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50">Mission Control</div>
           </div>
           <div className="w-px h-10 bg-white/20 mx-1"></div>
 
@@ -980,6 +1027,7 @@ export function Desktop() {
             return (
               <div key={appId} className="relative group flex flex-col items-center justify-end">
                 <button
+                  aria-label={config.title}
                   onClick={() => {
                     const existingWindow = activeWindows.find(w => w.appId === appId);
                     if (existingWindow) {
@@ -998,38 +1046,40 @@ export function Desktop() {
                   )}
                 >
                   <Icon className={cn(
-                    "w-7 h-7 transition-colors duration-300", 
+                    "w-7 h-7 transition-colors duration-300",
                     "text-black"
-                  )} />
+                  )} aria-hidden="true" />
                 </button>
                 {/* Active Indicator */}
                 {isOpen && (
-                  <span className="absolute -bottom-1.5 w-1 h-1 rounded-full bg-white shadow-sm" />
+                  <span aria-hidden="true" className="absolute -bottom-1.5 w-1 h-1 rounded-full bg-white shadow-sm" />
                 )}
-                
+
                 {/* Tooltip */}
-                <div className="absolute -top-12 scale-0 group-hover:scale-100 transition-transform px-3 py-1 bg-black/60 backdrop-blur text-white text-xs font-medium rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50">
+                <div role="tooltip" className="absolute -top-12 scale-0 group-hover:scale-100 transition-transform px-3 py-1 bg-black/60 backdrop-blur text-white text-xs font-medium rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50">
                   {config.title}
                 </div>
               </div>
             )
           })}
-        </div>
+        </nav>
       </div>
-
       {/* Global Context Menu */}
       {contextMenu && (
-        <div 
+        <div
+          role="menu"
+          aria-label="Desktop context menu"
           className="absolute z-[9999] bg-black/70 backdrop-blur-3xl border border-white/20 shadow-2xl rounded-xl py-2 min-w-[200px] animate-in fade-in zoom-in-95 duration-100"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
           {contextMenu.items.map((item, i) => (
-            <button 
-              key={i} 
+            <button
+              key={i}
+              role="menuitem"
               className="w-full text-left px-4 py-2 text-sm text-white/90 hover:bg-blue-500 hover:text-white flex items-center gap-3 transition-colors"
               onClick={() => { item.onClick(); closeContextMenu(); }}
             >
-              {item.icon && <item.icon className="w-4 h-4 opacity-70" />}
+              {item.icon && <item.icon className="w-4 h-4 opacity-70" aria-hidden="true" />}
               {item.label}
             </button>
           ))}

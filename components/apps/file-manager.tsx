@@ -17,13 +17,28 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   const [currentPath, setCurrentPath] = useState<string>('Desktop');
   const [search, setSearch] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
-  
+  const objectUrlsRef = useRef<Set<string>>(new Set());
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const revokeObjectUrls = () => {
+    for (const url of objectUrlsRef.current) {
+      URL.revokeObjectURL(url);
+    }
+    objectUrlsRef.current.clear();
+  };
 
   const fetchFiles = async () => {
     setIsLoaded(false);
+    revokeObjectUrls();
     try {
       const entries = await FS.readDir(currentPath === 'Root' ? '' : currentPath);
+      // Track object URLs for cleanup
+      for (const entry of entries || []) {
+        if (entry.content && entry.content.startsWith('blob:')) {
+          objectUrlsRef.current.add(entry.content);
+        }
+      }
       setFiles(entries || []);
     } catch (err) {
       console.error("Failed to read local files:", err);
@@ -34,6 +49,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
 
   useEffect(() => {
     fetchFiles();
+    return () => revokeObjectUrls();
   }, [currentPath]);
 
   const handleFileOpen = (file: LocalFile) => {

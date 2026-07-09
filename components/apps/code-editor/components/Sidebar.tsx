@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ActivityTab, FileNode } from '../types';
 import { FS } from '@/lib/fs';
-import { Settings, File as FileIcon, Search, Plus, RefreshCcw, GitBranch, Bug, ChevronDown, ChevronRight, Folder, Check } from 'lucide-react';
+import { Settings, File as FileIcon, Search, Plus, RefreshCcw, GitBranch, Bug, ChevronDown, ChevronRight, Folder, Check, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getInitialCode } from '../hooks/useCodeEditorState';
 
@@ -16,9 +16,178 @@ interface SidebarProps {
   projectId: string;
 }
 
+interface TreeNode {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  children: Record<string, TreeNode>;
+}
+
 export function Sidebar({ activityTab, setActivityTab, files, activeFileId, setActiveFileId, refreshFiles, setCode, projectId }: SidebarProps) {
-  const [expandedFolders, setExpandedFolders] = useState<string[]>(['src', 'root']);
+  const [expandedFolders, setExpandedFolders] = useState<string[]>(['src', 'root', 'Desktop', 'Documents', 'Downloads', 'Media']);
   const [commitMsg, setCommitMsg] = useState('');
+
+  // Build a hierarchical tree of files from flat paths
+  const buildTree = (filesList: FileNode[]): TreeNode => {
+    const root: TreeNode = { name: 'root', path: '', type: 'directory', children: {} };
+
+    filesList.forEach(file => {
+      const parts = file.id.split('/').filter(Boolean);
+      let current = root;
+      let accumulatedPath = '';
+
+      parts.forEach((part, index) => {
+        accumulatedPath = accumulatedPath ? `${accumulatedPath}/${part}` : part;
+        const isLast = index === parts.length - 1;
+
+        if (!current.children[part]) {
+          current.children[part] = {
+            name: part,
+            path: accumulatedPath,
+            type: isLast ? 'file' : 'directory',
+            children: {}
+          };
+        }
+        current = current.children[part];
+      });
+    });
+
+    return root;
+  };
+
+  const fileTree = buildTree(files);
+
+  const handleCreateRootFile = async () => {
+    const name = prompt("Enter file name (e.g. package.json):");
+    if (!name) return;
+    await FS.write(name, '// new file\n');
+    await refreshFiles();
+  };
+
+  const handleCreateRootFolder = async () => {
+    const name = prompt("Enter folder name (e.g. src):");
+    if (!name) return;
+    await FS.write(`${name}/.keep`, '');
+    await refreshFiles();
+  };
+
+  const renderNode = (node: TreeNode, depth: number) => {
+    const isDir = node.type === 'directory';
+    const isExpanded = expandedFolders.includes(node.path);
+
+    if (node.path === '') {
+      return Object.values(node.children)
+        .sort((a, b) => {
+          if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+          return a.name.localeCompare(b.name);
+        })
+        .map(child => renderNode(child, 0));
+    }
+
+    const handleToggle = () => {
+      if (isExpanded) {
+        setExpandedFolders(prev => prev.filter(p => p !== node.path));
+      } else {
+        setExpandedFolders(prev => [...prev, node.path]);
+      }
+    };
+
+    const handleCreateFile = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const name = prompt(`Enter new file path inside ${node.name}:`);
+      if (!name) return;
+      const filePath = `${node.path}/${name}`;
+      await FS.write(filePath, '// new file\n');
+      await refreshFiles();
+      setExpandedFolders(prev => prev.includes(node.path) ? prev : [...prev, node.path]);
+    };
+
+    const handleCreateFolder = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const name = prompt(`Enter new folder name inside ${node.name}:`);
+      if (!name) return;
+      const folderPath = `${node.path}/${name}`;
+      await FS.write(`${folderPath}/.keep`, '');
+      await refreshFiles();
+      setExpandedFolders(prev => prev.includes(node.path) ? prev : [...prev, node.path]);
+    };
+
+    const handleDelete = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (window.confirm(`Delete ${node.name} and all its contents?`)) {
+        await FS.delete(node.path);
+        await refreshFiles();
+      }
+    };
+
+    const handleFileClick = async () => {
+      setActiveFileId(node.path);
+      const localFile = await FS.read(node.path);
+      setCode(localFile?.content || getInitialCode(projectId, ''));
+    };
+
+    return (
+      <div key={node.path} className="select-none">
+        {isDir ? (
+          <div 
+            onClick={handleToggle}
+            className="group flex items-center justify-between px-2 py-1.5 cursor-pointer hover:bg-[#2a2d2e] text-[#cccccc] text-xs font-semibold"
+            style={{ paddingLeft: `${depth * 8 + 8}px` }}
+          >
+            <div className="flex items-center gap-1.5 overflow-hidden">
+              {isExpanded ? <ChevronDown className="w-3.5 h-3.5 shrink-0 text-white/60" /> : <ChevronRight className="w-3.5 h-3.5 shrink-0 text-white/60" />}
+              <Folder className="w-3.5 h-3.5 text-blue-400 shrink-0" fill="currentColor" />
+              <span className="truncate text-white/90">{node.name}</span>
+            </div>
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
+              <button onClick={handleCreateFile} title="New File" className="p-0.5 hover:bg-white/10 rounded text-slate-400 hover:text-white">
+                <Plus className="w-3 h-3" />
+              </button>
+              <button onClick={handleCreateFolder} title="New Folder" className="p-0.5 hover:bg-white/10 rounded text-slate-400 hover:text-white">
+                <Folder className="w-3 h-3 text-blue-400" />
+              </button>
+              <button onClick={handleDelete} title="Delete Folder" className="p-0.5 hover:bg-white/10 rounded text-red-400 hover:text-red-300">
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          node.name !== '.keep' && (
+            <div 
+              onClick={handleFileClick}
+              className={cn(
+                "group flex items-center justify-between px-2 py-1.5 cursor-pointer text-xs transition-colors hover:bg-[#2a2d2e]",
+                activeFileId === node.path ? "bg-[#37373d] text-white border-l-2 border-blue-500" : "text-[#cccccc]"
+              )}
+              style={{ paddingLeft: `${depth * 8 + 22}px` }}
+            >
+              <div className="flex items-center gap-1.5 overflow-hidden">
+                <FileIcon className={cn("w-3.5 h-3.5 shrink-0", node.name.endsWith('.tsx') || node.name.endsWith('.ts') || node.name.endsWith('.js') ? "text-[#e3c14a]" : "text-[#519aba]")} />
+                <span className="truncate">{node.name}</span>
+              </div>
+              <button 
+                className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-white/10 rounded text-rose-400 hover:text-rose-300 shrink-0 ml-2"
+                onClick={handleDelete}
+                title="Delete File"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          )
+        )}
+        {isDir && isExpanded && (
+          <div className="flex flex-col">
+            {Object.values(node.children)
+              .sort((a, b) => {
+                if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+                return a.name.localeCompare(b.name);
+              })
+              .map(child => renderNode(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -55,65 +224,20 @@ export function Sidebar({ activityTab, setActivityTab, files, activeFileId, setA
              <div className="p-3 flex items-center justify-between text-[#cccccc] text-[11px] font-semibold uppercase tracking-wider">
                <span>Explorer</span>
                <div className="flex items-center gap-1">
-                 <button onClick={async () => {
-                   const name = prompt("Enter folder path (e.g. components):");
-                   if (name) { await FS.write(`${name}/.keep`, ''); await refreshFiles(); }
-                 }} className="p-0.5 hover:bg-[#3c3c3c] rounded" title="New Folder"><Folder className="w-3.5 h-3.5" /></button>
-                 <button onClick={async () => {
-                   const name = prompt("Enter file path (e.g. src/app.tsx):");
-                   if (name) { await FS.write(name, '// new file\\n'); await refreshFiles(); }
-                 }} className="p-0.5 hover:bg-[#3c3c3c] rounded" title="New File"><Plus className="w-3.5 h-3.5" /></button>
-                 <button onClick={refreshFiles} className="p-0.5 hover:bg-[#3c3c3c] rounded" title="Refresh"><RefreshCcw className="w-3.5 h-3.5" /></button>
+                 <button onClick={handleCreateRootFolder} className="p-0.5 hover:bg-[#3c3c3c] rounded text-slate-400 hover:text-white" title="New Root Folder">
+                   <Folder className="w-3.5 h-3.5" />
+                 </button>
+                 <button onClick={handleCreateRootFile} className="p-0.5 hover:bg-[#3c3c3c] rounded text-slate-400 hover:text-white" title="New Root File">
+                   <Plus className="w-3.5 h-3.5" />
+                 </button>
+                 <button onClick={refreshFiles} className="p-0.5 hover:bg-[#3c3c3c] rounded text-slate-400 hover:text-white" title="Refresh">
+                   <RefreshCcw className="w-3.5 h-3.5" />
+                 </button>
                </div>
              </div>
              
-             <div className="flex flex-col mt-1">
-               {Object.entries(
-                 files.reduce((acc, file) => {
-                    const parts = file.id.split('/');
-                    const folder = parts.length > 1 ? parts[0] : 'root';
-                    if (!acc[folder]) acc[folder] = [];
-                    acc[folder].push(file);
-                    return acc;
-                 }, {} as Record<string, typeof files>)
-               ).map(([folderName, folderFiles]) => (
-                 <React.Fragment key={folderName}>
-                   <div 
-                     className="flex items-center gap-1 px-2 py-1 cursor-pointer hover:bg-[#2a2d2e] text-[#cccccc] text-sm font-semibold"
-                     onClick={() => setExpandedFolders(prev => prev.includes(folderName) ? prev.filter(f => f !== folderName) : [...prev, folderName])}
-                   >
-                     {expandedFolders.includes(folderName) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                     <Folder className="w-4 h-4 text-blue-400" />
-                     <span>{folderName.toUpperCase()}</span>
-                   </div>
-                   {expandedFolders.includes(folderName) && folderFiles.map(file => (
-                     <div 
-                       key={file.id} 
-                       onClick={async () => { 
-                         setActiveFileId(file.id); 
-                         const localFile = await FS.read(file.id);
-                         setCode(localFile?.content || getInitialCode(projectId, '')); 
-                       }}
-                       className={cn("flex items-center justify-between pl-8 pr-2 py-1 cursor-pointer text-[13px] group", activeFileId === file.id ? "bg-[#37373d] text-white" : "text-[#cccccc] hover:bg-[#2a2d2e]")}
-                     >
-                       <div className="flex items-center gap-2 overflow-hidden">
-                         <FileIcon className={cn("w-4 h-4 shrink-0", file.name.endsWith('.tsx') || file.name.endsWith('.ts') || file.name.endsWith('.js') ? "text-[#e3c14a]" : "text-[#519aba]")} />
-                         <span className="truncate">{file.id.includes('/') ? file.id.substring(file.id.indexOf('/') + 1) : file.name}</span>
-                       </div>
-                       <button 
-                         className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-white/10 rounded text-rose-400"
-                         onClick={async (e) => {
-                            e.stopPropagation();
-                            if (window.confirm(`Delete ${file.id}?`)) {
-                               await FS.delete(file.id);
-                               await refreshFiles();
-                            }
-                         }}
-                       >✖</button>
-                     </div>
-                   ))}
-                 </React.Fragment>
-               ))}
+             <div className="flex flex-col mt-1 px-1">
+                {renderNode(fileTree, 0)}
              </div>
            </>
          )}

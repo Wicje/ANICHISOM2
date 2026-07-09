@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { motion, useDragControls } from 'motion/react';
+import { motion, useDragControls, useReducedMotion } from 'motion/react';
 import { useOS, OSWindow } from '@/lib/os-context';
 import { X, Minus, Maximize2, Square, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -16,7 +16,8 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
   const { id, title, isMaximized, isMinimized, zIndex, x, y, width, height } = osWindow;
   const { closeWindow, minimizeWindow, maximizeWindow, focusWindow, updateWindowDimensions, windows, performanceMode } = useOS();
   const dragControls = useDragControls();
-  
+  const shouldReduceMotion = useReducedMotion();
+
   const windowRef = useRef<HTMLDivElement>(null);
   const resizeHandlers = useRef<{ move?: (e: PointerEvent) => void, up?: () => void }>({});
   
@@ -135,15 +136,17 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
   return (
     <motion.div
       ref={windowRef}
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ 
-        opacity: 1, 
+      role="dialog"
+      aria-label={title}
+      initial={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.95 }}
+      animate={{
+        opacity: 1,
         scale: 1,
         width: isMaximized ? '100vw' : currentWidth,
         height: isMaximized ? 'calc(100vh - 28px)' : currentHeight,
         x: isMaximized ? 0 : currentX,
         y: isMaximized ? 28 : currentY,
-        transition: isResizing ? { duration: 0 } : {
+        transition: isResizing || shouldReduceMotion ? { duration: 0 } : {
           type: "spring",
           stiffness: 300,
           damping: 30,
@@ -228,23 +231,26 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
       >
         <div className="flex gap-2 items-center">
           {/* Mac OS style window controls */}
-          <button 
+          <button
+            aria-label="Close window"
             onClick={(e) => { e.stopPropagation(); closeWindow(id); }}
             className="w-3 h-3 rounded-full bg-slate-600 hover:bg-rose-500 transition-colors flex items-center justify-center group"
           >
-            <X className="w-2 h-2 opacity-0 group-hover:opacity-100 text-black" />
+            <X className="w-2 h-2 opacity-0 group-hover:opacity-100 text-black" aria-hidden="true" />
           </button>
-          <button 
+          <button
+            aria-label="Minimize window"
             onClick={(e) => { e.stopPropagation(); minimizeWindow(id); }}
             className="w-3 h-3 rounded-full bg-slate-600 hover:bg-amber-400 transition-colors flex items-center justify-center group"
           >
-            <Minus className="w-2 h-2 opacity-0 group-hover:opacity-100 text-black" />
+            <Minus className="w-2 h-2 opacity-0 group-hover:opacity-100 text-black" aria-hidden="true" />
           </button>
-          <button 
+          <button
+            aria-label="Maximize window"
             onClick={(e) => { e.stopPropagation(); maximizeWindow(id); }}
             className="w-3 h-3 rounded-full bg-slate-600 hover:bg-emerald-400 transition-colors flex items-center justify-center group"
           >
-            <Maximize2 className="w-2 h-2 opacity-0 group-hover:opacity-100 text-black shrink-0" />
+            <Maximize2 className="w-2 h-2 opacity-0 group-hover:opacity-100 text-black shrink-0" aria-hidden="true" />
           </button>
         </div>
         

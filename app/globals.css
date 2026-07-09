@@ -33,3 +33,30 @@ body {
   margin: 0;
   padding: 0;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-in,
+  .fade-in,
+  .zoom-in,
+  .zoom-in-95,
+  .slide-in-from-top-*,
+  .slide-in-from-bottom-*,
+  .slide-in-from-left-*,
+  .slide-in-from-right-* {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  [class*="hover:scale"] {
+    --tw-scale-x: 1 !important;
+    --tw-scale-y: 1 !important;
+  }
+}

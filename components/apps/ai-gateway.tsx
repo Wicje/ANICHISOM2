@@ -5,6 +5,7 @@ import { OSWindow, useOS } from '@/lib/os-context';
 import { Bot, Save, Server, Globe, Power, Zap, Lock, Send, User, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { generateChatResponse } from '@/app/actions';
+import { StorageAdapter } from '@/lib/storage';
 
 type Message = {
   id: string;
@@ -29,14 +30,12 @@ export function AIGateway({ window }: { window: OSWindow }) {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    import('idb-keyval').then(({ get }) => {
-      get('anichisom_os_ai_config').then((config) => {
-        if (config) {
-          if (config.model) setModel(config.model);
-          if (config.apiKey) setApiKey(config.apiKey);
-        }
-        setIsLoaded(true);
-      });
+    storage.get<{ model?: string; apiKey?: string }>('config').then((config) => {
+      if (config) {
+        if (config.model) setModel(config.model);
+        if (config.apiKey) setApiKey(config.apiKey);
+      }
+      setIsLoaded(true);
     });
   }, []);
 
@@ -47,13 +46,13 @@ export function AIGateway({ window }: { window: OSWindow }) {
   }, [messages, loading]);
 
   const saveConfig = () => {
-    import('idb-keyval').then(({ set }) => {
-      set('anichisom_os_ai_config', { model, apiKey });
-      alert("AI Configuration saved locally.");
+    storage.set('config', { model, apiKey }).then(() => {
+      notify?.("AI Configuration saved.");
     });
   };
 
-  const { openWindow, setThemeColor, setScreenShader, notify } = useOS();
+  const { openWindow, setThemeColor, setScreenShader, notify, workspaceMode } = useOS();
+  const storage = useRef(new StorageAdapter('ai-gateway', workspaceMode)).current;
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;

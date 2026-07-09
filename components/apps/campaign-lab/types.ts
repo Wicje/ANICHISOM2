@@ -5,6 +5,11 @@ export type Block = {
   type: BlockType;
   content: string;
   checked?: boolean;
+  children?: Block[];
+  rows?: string[][];
+  columns?: string[];
+  language?: string;
+  icon?: string;
 };
 
 export type Page = {

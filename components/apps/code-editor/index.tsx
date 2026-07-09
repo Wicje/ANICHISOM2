@@ -5,8 +5,6 @@ import { OSWindow, useOS } from '@/lib/os-context';
 import { Layout, Search, Users, RefreshCcw, Server, File as FileIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Editor, { useMonaco } from '@monaco-editor/react';
-import * as Y from 'yjs';
-import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from 'y-monaco';
 
 import { ActivityTab } from './types';
@@ -15,11 +13,22 @@ import { Sidebar } from './components/Sidebar';
 import { TerminalPanel } from './components/Terminal';
 import { CopilotPanel } from './components/Copilot';
 import { StatusBar } from './components/StatusBar';
+import { useCollaborativeDoc, CollaborativeDocState } from '@/lib/hooks/useCollaborativeDoc';
 
 export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
   const { openWindow, currentUser, workspaceMode } = useOS();
   const projectId = osWindow.data?.projectId || 'default';
-  const roomId = `code-${projectId}-${osWindow.data?.content || 'app.tsx'}`; // Simplification for hook
+  const roomId = `code-${projectId}-${osWindow.data?.content || 'app.tsx'}`;
+
+  // useCollaborativeDoc for IndexedDB persistence (all modes) + WebSocket (agency mode)
+  const collab = useCollaborativeDoc({
+    appPrefix: 'code',
+    docId: `${projectId}-${osWindow.data?.content || 'app.tsx'}`,
+    sharedTypes: [
+      { name: 'monaco', kind: 'Text' },
+    ],
+    undoTrackingTypes: ['monaco'],
+  });
 
   const {
     files,
@@ -41,32 +50,31 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
 
   const editorRef = useRef<any>(null);
   const bindingRef = useRef<any>(null);
-  const providerRef = useRef<any>(null);
   const monaco = useMonaco();
+  const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
 
   const handleEditorDidMount = (editor: any, monacoInstance: any) => {
     editorRef.current = editor;
-    
-    // YJS Bindings
-    if (workspaceMode === 'agency') {
-       const ydoc = new Y.Doc();
-       const wsUrl = typeof window !== 'undefined' && window.location.protocol === 'https:' 
-          ? `wss://${window.location.hostname}:1234` 
-          : 'ws://localhost:1234';
-       const provider = new WebsocketProvider(wsUrl, roomId, ydoc);
-       const type = ydoc.getText('monaco');
-       
-       const binding = new MonacoBinding(type, editor.getModel(), new Set([editor]), provider.awareness);
-       
-       providerRef.current = provider;
+
+    editor.onDidChangeCursorPosition((e: any) => {
+      setCursorPosition({ line: e.position.lineNumber, column: e.position.column });
+    });
+
+    // YJS Bindings — use Y.Text from useCollaborativeDoc
+    if (workspaceMode === 'agency' && collab.synced) {
+       const yText = collab.sharedTypesRef.current.monaco;
+       const wsProvider = collab.wsProviderRef.current;
+       if (!yText || !wsProvider) return;
+
+       const binding = new MonacoBinding(yText, editor.getModel(), new Set([editor]), wsProvider.awareness);
        bindingRef.current = binding;
     }
   };
 
+  // Cleanup: destroy MonacoBinding (Y.Doc + WS provider owned by useCollaborativeDoc)
   useEffect(() => {
     return () => {
-      if (bindingRef.current) bindingRef.current.destroy();
-      if (providerRef.current) providerRef.current.destroy();
+      if (bindingRef.current) { bindingRef.current.destroy(); bindingRef.current = null; }
     };
   }, [roomId, workspaceMode]);
 
@@ -205,7 +213,7 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
         <CopilotPanel agentOpen={agentOpen} setAgentOpen={setAgentOpen} />
       </div>
       
-      <StatusBar code={code} fileName={fileName} />
+      <StatusBar cursorPosition={cursorPosition} fileName={fileName} />
       
       <style dangerouslySetInnerHTML={{__html: `
         .custom-scrollbar::-webkit-scrollbar { width: 10px; height: 10px; }

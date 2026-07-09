@@ -1,17 +1,29 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { OSWindow } from '@/lib/os-context';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { OSWindow, useOS } from '@/lib/os-context';
 import { Play, Pause, SkipForward, SkipBack, Volume2, Maximize, Film, Music, ListVideo, X, LayoutGrid } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FS, LocalFile } from '@/lib/fs';
+import { useCollaborativeDoc, CollaborativeDocState } from '@/lib/hooks/useCollaborativeDoc';
 
 export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
+  const { workspaceMode } = useOS();
+  const collab = useCollaborativeDoc({
+    appPrefix: 'media',
+    docId: osWindow.id,
+    sharedTypes: [
+      { name: 'playlist', kind: 'Array' },
+      { name: 'playback', kind: 'Map' },
+    ],
+    undoTrackingTypes: ['playlist'],
+  });
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [mediaFiles, setMediaFiles] = useState<LocalFile[]>([]);
-  
+
   const [currentFileUrl, setCurrentFileUrl] = useState<string | undefined>(osWindow.data?.fileUrl);
   const [currentMimeType, setCurrentMimeType] = useState<string | undefined>(osWindow.data?.mimeType);
   const [currentTitle, setCurrentTitle] = useState<string | undefined>('Now Playing');
@@ -21,7 +33,7 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
   const isAudio = currentMimeType?.startsWith('audio/');
   const isVideo = currentMimeType?.startsWith('video/') || (!isAudio && currentFileUrl);
 
-  // Fetch playlist (all media files in OS)
+  // Fetch local media files from OS filesystem
   useEffect(() => {
     const fetchMedia = async () => {
       try {
@@ -31,7 +43,7 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
         const media = await FS.readDir('Media');
         const all = [...(root||[]), ...(desktop||[]), ...(downloads||[]), ...(media||[])];
         const unique = Array.from(new Map(all.map(item => [item.id, item])).values());
-        
+
         const onlyMedia = unique.filter(f => f.mimeType?.startsWith('video/') || f.mimeType?.startsWith('audio/'));
         setMediaFiles(onlyMedia);
       } catch (e) {
@@ -40,6 +52,62 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
     };
     fetchMedia();
   }, []);
+
+  // Sync local media files into Y.Array playlist when synced
+  useEffect(() => {
+    if (!collab.synced) return;
+    const playlistArray = collab.sharedTypesRef.current.playlist;
+    if (!playlistArray) return;
+
+    // Only seed the playlist if it's empty and we have local files
+    if (playlistArray.length === 0 && mediaFiles.length > 0) {
+      for (const file of mediaFiles) {
+        playlistArray.push([JSON.stringify({ url: file.content || file.id, mimeType: file.mimeType, name: file.name })]);
+      }
+    }
+  }, [collab.synced, mediaFiles]);
+
+  // Observe Y.Array playlist for remote additions/removals
+  useEffect(() => {
+    if (!collab.synced) return;
+    const playlistArray = collab.sharedTypesRef.current.playlist;
+    if (!playlistArray) return;
+
+    const observer = () => {
+      // Rebuild mediaFiles from collaborative playlist + local files
+      const remoteTracks: LocalFile[] = [];
+      for (let i = 0; i < playlistArray.length; i++) {
+        const item = playlistArray.get(i) as string;
+        try {
+          const parsed = JSON.parse(item);
+          remoteTracks.push({
+            id: `remote-${i}`,
+            name: parsed.name,
+            mimeType: parsed.mimeType,
+            content: parsed.url,
+          });
+        } catch {}
+      }
+      // Merge: local files first, then remote-only tracks
+      const localIds = new Set(mediaFiles.map(f => f.content || f.id));
+      const merged = [...mediaFiles, ...remoteTracks.filter(r => !localIds.has(r.content || r.id))];
+      setMediaFiles(merged);
+    };
+
+    playlistArray.observe(observer);
+    return () => playlistArray.unobserve(observer);
+  }, [collab.synced]);
+
+  // Broadcast current track to Y.Map 'playback' for peers
+  const broadcastPlayback = useCallback((url: string, mimeType: string | undefined, name: string | undefined, playing: boolean) => {
+    if (!collab.synced) return;
+    const playbackMap = collab.sharedTypesRef.current.playback;
+    if (!playbackMap) return;
+    playbackMap.set('currentUrl', url);
+    playbackMap.set('currentMimeType', mimeType || '');
+    playbackMap.set('currentTitle', name || 'Now Playing');
+    playbackMap.set('isPlaying', playing);
+  }, [collab.synced, collab.sharedTypesRef]);
 
   useEffect(() => {
     if (mediaRef.current) {
@@ -84,16 +152,41 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
     }
   };
 
+  // Observe Y.Map 'playback' for remote playback state (agency mode)
+  useEffect(() => {
+    if (!collab.synced || workspaceMode !== 'agency') return;
+    const playbackMap = collab.sharedTypesRef.current.playback;
+    if (!playbackMap) return;
+
+    const observer = () => {
+      const remoteUrl = playbackMap.get('currentUrl') as string | undefined;
+      const remoteMimeType = playbackMap.get('currentMimeType') as string | undefined;
+      const remoteTitle = playbackMap.get('currentTitle') as string | undefined;
+      const remotePlaying = playbackMap.get('isPlaying') as boolean | undefined;
+      if (remoteUrl && remoteUrl !== currentFileUrl) {
+        setCurrentFileUrl(remoteUrl);
+        setCurrentMimeType(remoteMimeType || '');
+        setCurrentTitle(remoteTitle || 'Now Playing');
+        if (remotePlaying !== undefined) setIsPlaying(remotePlaying);
+      }
+    };
+
+    playbackMap.observe(observer);
+    return () => playbackMap.unobserve(observer);
+  }, [collab.synced, workspaceMode]);
+
   const playNext = () => {
     if (mediaFiles.length === 0) return;
     const currentIndex = mediaFiles.findIndex(f => (f.content || f.id) === currentFileUrl);
     const nextIndex = (currentIndex + 1) % mediaFiles.length;
     const nextFile = mediaFiles[nextIndex];
     if (nextFile) {
-      setCurrentFileUrl(nextFile.content || nextFile.id);
+      const url = nextFile.content || nextFile.id;
+      setCurrentFileUrl(url);
       setCurrentMimeType(nextFile.mimeType);
       setCurrentTitle(nextFile.name);
       setIsPlaying(true);
+      broadcastPlayback(url, nextFile.mimeType, nextFile.name, true);
     }
   };
 
@@ -103,10 +196,12 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
     const prevIndex = currentIndex <= 0 ? mediaFiles.length - 1 : currentIndex - 1;
     const prevFile = mediaFiles[prevIndex];
     if (prevFile) {
-      setCurrentFileUrl(prevFile.content || prevFile.id);
+      const url = prevFile.content || prevFile.id;
+      setCurrentFileUrl(url);
       setCurrentMimeType(prevFile.mimeType);
       setCurrentTitle(prevFile.name);
       setIsPlaying(true);
+      broadcastPlayback(url, prevFile.mimeType, prevFile.name, true);
     }
   };
 

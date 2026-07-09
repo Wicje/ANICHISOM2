@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Block } from '../types';
-import { Database, Columns, LayoutList, Clock, Calendar, Plus } from 'lucide-react';
+import { Database, Columns, LayoutList, Clock, Calendar, Plus, GalleryHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function DatabaseView({ block }: { block: Block }) {
-  const [view, setView] = useState<'table' | 'board' | 'list' | 'timeline' | 'calendar'>('table');
+  const [view, setView] = useState<'table' | 'board' | 'list' | 'timeline' | 'calendar' | 'gallery'>('table');
   const d = {
     columns: ['Name', 'Status', 'Date', 'Assignee'],
     rows: [
@@ -18,6 +18,7 @@ export function DatabaseView({ block }: { block: Block }) {
     table: Database,
     board: Columns,
     list: LayoutList,
+    gallery: GalleryHorizontal,
     timeline: Clock,
     calendar: Calendar
   }[view];
@@ -35,6 +36,7 @@ export function DatabaseView({ block }: { block: Block }) {
           { id: 'table', label: 'Table', Icon: Database },
           { id: 'board', label: 'Board', Icon: Columns },
           { id: 'list', label: 'List', Icon: LayoutList },
+          { id: 'gallery', label: 'Gallery', Icon: GalleryHorizontal },
           { id: 'timeline', label: 'Timeline', Icon: Clock },
           { id: 'calendar', label: 'Calendar', Icon: Calendar }
         ].map((v) => (
@@ -128,6 +130,44 @@ export function DatabaseView({ block }: { block: Block }) {
                  </div>
                </div>
              ))}
+          </div>
+        )}
+
+        {view === 'gallery' && (
+          <div className="p-4 bg-[#f7f7f5] rounded-b-lg">
+            <div className="grid grid-cols-3 gap-3 min-h-[300px]">
+              {d.rows.map(r => (
+                <div key={r.id} className="bg-white border border-black/5 rounded-lg overflow-hidden hover:shadow-md transition-shadow cursor-pointer group/card">
+                  <div className={cn(
+                    "h-32 flex items-center justify-center text-2xl font-bold text-white",
+                    r.Status === 'Done' ? "bg-gradient-to-br from-emerald-400 to-emerald-600" :
+                    r.Status === 'In Progress' ? "bg-gradient-to-br from-blue-400 to-blue-600" :
+                    "bg-gradient-to-br from-slate-300 to-slate-400"
+                  )}>
+                    {r.Name.split(' ').map(w => w[0]).join('').substring(0, 3)}
+                  </div>
+                  <div className="p-3">
+                    <div className="font-medium text-[#37352f] mb-2">{r.Name}</div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className={cn(
+                        "px-2 py-0.5 rounded text-xs font-medium",
+                        r.Status === 'Done' ? "bg-emerald-100 text-emerald-700" :
+                        r.Status === 'In Progress' ? "bg-blue-100 text-blue-700" :
+                        "bg-slate-100 text-slate-700"
+                      )}>{r.Status}</span>
+                      <span className="text-xs text-[#37352f]/40 flex items-center gap-1"><Calendar className="w-3 h-3"/> {r.Date}</span>
+                      <span className="ml-auto bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-xs font-medium">{r.Assignee}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="bg-white/50 border border-black/5 rounded-lg flex items-center justify-center hover:bg-white hover:shadow-sm transition-all cursor-pointer">
+                <div className="text-center text-[#37352f]/30">
+                  <Plus className="w-8 h-8 mx-auto mb-1" />
+                  <span className="text-xs">New card</span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

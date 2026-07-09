@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
 import { motion, useDragControls } from 'motion/react';
-import { MousePointer2, GripHorizontal, Type, Image as ImageIcon, Trash2, Video, Link as LinkIcon, Upload, MessageSquare, Heart, X as XIcon, CheckCircle, Plus } from 'lucide-react';
+import { MousePointer2, GripHorizontal, Type, Trash2, Link as LinkIcon, Upload, MessageSquare, Heart, X as XIcon, CheckCircle, Plus, Undo2, Redo2 } from 'lucide-react';
 import { get, set } from 'idb-keyval';
 import { cn } from '@/lib/utils';
-import { db, doc, onSnapshot, setDoc } from '@/lib/firebase';
+import { useCollaborativeDoc } from '@/lib/hooks/useCollaborativeDoc';
 import { PerfectCursor } from 'perfect-cursors';
 
 function usePerfectCursor(cb: (point: number[]) => void, point?: number[]) {
@@ -121,101 +121,58 @@ function getEmbedDetails(url: string) {
 const isImageUrl = (url: string) => /\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i.test(url);
 
 export function Moodboard({ window: osWindow }: { window: OSWindow }) {
-  const { currentUser, workspaceMode } = useOS();
+  const { workspaceMode } = useOS();
+  const projectId = osWindow.data?.projectId || osWindow.id;
+
+  const collab = useCollaborativeDoc({
+    appPrefix: 'moodboard',
+    docId: projectId,
+    sharedTypes: [
+      { name: 'nodes', kind: 'Map' },
+      { name: 'comments', kind: 'Map' },
+    ],
+    undoTrackingTypes: ['nodes', 'comments'],
+    onFirstSync: (_ydoc: any, types: Record<string, any>) => {
+      if (types.nodes.size === 0) {
+        const initNode: BoardNode = { id: '1', type: 'text', x: 100, y: 100, content: `CAMPAIGN: "${projectId.toUpperCase()}"\n\n${workspaceMode === 'agency' ? 'Agency Shared Mode' : 'Private Mode'}` };
+        types.nodes.set(initNode.id, initNode);
+      }
+    },
+  });
+
   const [nodes, setNodes] = useState<BoardNode[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [camera, setCamera] = useState({ x: 0, y: 0, z: 1 });
   const [isPanning, setIsPanning] = useState(false);
   const [voteMode, setVoteMode] = useState(false);
   const [currentVoteIndex, setCurrentVoteIndex] = useState(0);
-  
-  const colorRef = useRef<string>('#000');
-  const isSyncingRef = useRef(false);
 
-  // Use window.id as fallback so each new window instance has a fresh scratchpad
-  const projectId = osWindow.data?.projectId || osWindow.id;
-  const roomId = `moodboard-${workspaceMode}-${projectId}`;
-  
-  // Realtime Cursors and Local-First CRDT (Yjs) (Phase 2 & 3)
-  const [awarenessInfo, setAwarenessInfo] = useState<any[]>([]);
-  
+  // Sync Yjs shared types → React state
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsLoaded(false);
-    colorRef.current = `hsl(${Math.round(Math.random() * 360)}, 100%, 50%)`;
-    
-    // Abstracted Storage Layer & Sync Manager imports
-    import('yjs').then(Y => {
-        import('y-indexeddb').then(({ IndexeddbPersistence }) => {
-            const ydoc = new Y.Doc();
-            const yNodes = ydoc.getMap<BoardNode>('nodes');
-            const yComments = ydoc.getArray<Comment>('comments');
-            
-            // Local IndexedDB persistence
-            const provider = new IndexeddbPersistence(roomId, ydoc);
-            
-            // Let's bind UI
-            const syncUiToYjs = () => {
-                setNodes(Array.from(yNodes.values()));
-                setComments(yComments.toArray());
-            };
-            
-            provider.on('synced', () => {
-                if (yNodes.size === 0) {
-                    const initNode: BoardNode = { id: '1', type: 'text', x: 100, y: 100, content: `CAMPAIGN: "${projectId.toUpperCase()}"\n\n${workspaceMode === 'agency' ? 'Agency Shared Mode' : 'Private Mode'}` };
-                    yNodes.set(initNode.id, initNode);
-                }
-                syncUiToYjs();
-                setIsLoaded(true);
-            });
-            
-            yNodes.observe(syncUiToYjs);
-            yComments.observe(syncUiToYjs);
+    if (!collab.synced) return;
+    const yNodes = collab.sharedTypesRef.current.nodes;
+    const yComments = collab.sharedTypesRef.current.comments;
 
-            let webrtcProvider: any = null;
-            if (workspaceMode === 'agency') {
-                import('y-webrtc').then(({ WebrtcProvider }) => {
-                   webrtcProvider = new WebrtcProvider(roomId, ydoc, { signaling: ['wss://signaling.yjs.dev'] });
-                   webrtcProvider.awareness.setLocalStateField('user', {
-                     name: currentUser?.name || 'Anonymous',
-                     color: colorRef.current,
-                     avatar: currentUser?.avatarUrl
-                   });
-                   
-                   webrtcProvider.awareness.on('change', () => {
-                     const states = Array.from(webrtcProvider.awareness.getStates().entries())
-                       .filter((entry: any) => entry[0] !== webrtcProvider.doc.clientID && entry[1].user && entry[1].cursor)
-                       .map((entry: any) => ({ clientId: entry[0], ...entry[1] }));
-                     setAwarenessInfo(states);
-                   });
-                   
-                   // Store on window object to update cursors easily
-                   (globalThis.window as any)[`webrtc_${osWindow.id}`] = webrtcProvider;
-                });
-            }
+    const syncUi = () => {
+      setNodes(Array.from(yNodes.values()));
+      setComments(Array.from(yComments.values()));
+    };
 
-            // Sync down to our state setter refs mapping (to mock React's setState behavior)
-            (globalThis.window as any)[`ydoc_${osWindow.id}`] = yNodes;
-
-            return () => {
-                provider.destroy();
-                if (webrtcProvider) {
-                   webrtcProvider.destroy();
-                }
-                delete (globalThis.window as any)[`webrtc_${osWindow.id}`];
-                delete (globalThis.window as any)[`ydoc_${osWindow.id}`];
-            };
-        });
-    });
-  }, [roomId, workspaceMode, currentUser, projectId, osWindow.id]);
+    syncUi();
+    yNodes.observe(syncUi);
+    yComments.observe(syncUi);
+    return () => {
+      yNodes.unobserve(syncUi);
+      yComments.unobserve(syncUi);
+    };
+  }, [collab.synced, collab.sharedTypesRef]);
 
   // Handle inject data from window param on first load
   useEffect(() => {
-     if (isLoaded && osWindow.data?.url) {
-        const yNodes = (globalThis.window as any)[`ydoc_${osWindow.id}`];
+     if (collab.synced && osWindow.data?.url) {
+        const yNodes = collab.sharedTypesRef.current.nodes;
         if (yNodes) {
            const existing = Array.from(yNodes.values()).find((n: any) => n.content === osWindow.data?.url);
            if (!existing) {
@@ -224,7 +181,7 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
            }
         }
      }
-  }, [osWindow.data?.url, isLoaded, osWindow.id]);
+  }, [osWindow.data?.url, collab.synced, collab.sharedTypesRef]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -262,12 +219,28 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
 
   // Update helper for Yjs writes
   const _updateYNode = (newVals: Partial<BoardNode> & { id: string }) => {
-     const yNodes = (globalThis.window as any)[`ydoc_${osWindow.id}`];
+     const yNodes = collab.sharedTypesRef.current.nodes;
      if (yNodes) {
         const existing = yNodes.get(newVals.id) || {};
         yNodes.set(newVals.id, { ...existing, ...newVals });
      }
   };
+
+  const _updateYComment = (newVals: Partial<Comment> & { id: string }) => {
+     const yComments = collab.sharedTypesRef.current.comments;
+     if (yComments) {
+        const existing = yComments.get(newVals.id) || {};
+        yComments.set(newVals.id, { ...existing, ...newVals });
+     }
+  };
+
+  const _deleteYComment = (id: string) => {
+     const yComments = collab.sharedTypesRef.current.comments;
+     if (yComments) yComments.delete(id);
+  };
+
+  const undo = collab.undo;
+  const redo = collab.redo;
 
   const addText = () => {
     const x = (osWindow.width / 2 - camera.x) / camera.z;
@@ -319,7 +292,7 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
   };
 
   const deleteNode = (id: string) => {
-    const yNodes = (globalThis.window as any)[`ydoc_${osWindow.id}`];
+    const yNodes = collab.sharedTypesRef.current.nodes;
     if (yNodes) yNodes.delete(id);
   };
   
@@ -394,7 +367,7 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
         id: crypto.randomUUID(),
         x, y, text: 'New comment...', author: 'Guest'
       };
-      setComments(prev => [...prev, newComment]);
+      _updateYComment(newComment);
       setMode('select');
     }
   };
@@ -408,19 +381,12 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
       }));
     }
     
-    // Broadcast WebRTC cursor (Phase 3)
-    const webrtc = (globalThis.window as any)[`webrtc_${osWindow.id}`];
-    if (webrtc && webrtc.awareness) {
-      const now = Date.now();
-      if (!webrtc.lastCursorUpdate || now - webrtc.lastCursorUpdate > 50) {
-        webrtc.lastCursorUpdate = now;
-        const rect = containerRef.current?.getBoundingClientRect();
-        if (rect) {
-          const x = (e.clientX - rect.left - camera.x) / camera.z;
-          const y = (e.clientY - rect.top - camera.y) / camera.z;
-          webrtc.awareness.setLocalStateField('cursor', { x, y });
-        }
-      }
+    // Broadcast cursor via collaborative hook
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (rect) {
+      const x = (e.clientX - rect.left - camera.x) / camera.z;
+      const y = (e.clientY - rect.top - camera.y) / camera.z;
+      collab.setLocalCursor(x, y);
     }
   };
 
@@ -429,7 +395,7 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     e.currentTarget.releasePointerCapture(e.pointerId);
   };
 
-  if (!isLoaded) return null;
+  if (!collab.synced) return null;
 
   return (
     <div 
@@ -442,6 +408,10 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onKeyDown={(e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'Z' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+      }}
       onContextMenu={(e) => e.preventDefault()}
       tabIndex={0} 
     >
@@ -462,7 +432,15 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
           <span className="text-[8px] opacity-70">Context</span>
         </div>
         <div className="w-px h-6 bg-black/10 mx-[-4px]" />
-        
+
+        <button onClick={undo} disabled={!collab.canUndo} className="w-8 h-8 rounded flex items-center justify-center text-black/60 hover:bg-slate-100 hover:text-black transition-colors disabled:opacity-30 disabled:hover:bg-transparent" title="Undo (Ctrl+Z)">
+          <Undo2 className="w-4 h-4" />
+        </button>
+        <button onClick={redo} disabled={!collab.canRedo} className="w-8 h-8 rounded flex items-center justify-center text-black/60 hover:bg-slate-100 hover:text-black transition-colors disabled:opacity-30 disabled:hover:bg-transparent" title="Redo (Ctrl+Shift+Z)">
+          <Redo2 className="w-4 h-4" />
+        </button>
+        <div className="w-px h-4 bg-black/10 mx-2" />
+
         <button onClick={() => setMode('select')} className={cn("w-8 h-8 rounded flex items-center justify-center transition-colors", mode === 'select' ? "bg-black text-white" : "text-black/60 hover:bg-slate-100 hover:text-black")}>
           <MousePointer2 className="w-4 h-4" />
         </button>
@@ -527,27 +505,26 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
             style={{ left: comment.x, top: comment.y }}
             onPointerDown={(e) => e.stopPropagation()}
           >
-             <button 
-                onClick={() => setComments(c => c.filter(x => x.id !== comment.id))}
+             <button
+                onClick={() => { _deleteYComment(comment.id); }}
                 className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
              >
                 ×
              </button>
              <div className="text-[10px] uppercase font-bold text-black/40 mb-1">{comment.author}</div>
-             <textarea 
+             <textarea
                className="w-full bg-transparent border-none outline-none resize-none"
                value={comment.text}
-               onChange={(e) => setComments(c => c.map(x => x.id === comment.id ? { ...x, text: e.target.value } : x))}
+               onChange={(e) => _updateYComment({ id: comment.id, text: e.target.value })}
                placeholder="Write comment..."
                rows={2}
                autoFocus={i === comments.length - 1}
              />
           </div>
         ))}
-        {awarenessInfo.map((state) => {
-          if (!state.cursor || !state.user) return null;
-          return <CursorOverlay key={state.clientId} state={state} />;
-        })}
+        {collab.remoteCursors.map((cursor) => (
+          <CursorOverlay key={cursor.userId} state={{ cursor: { x: cursor.x, y: cursor.y }, user: { name: cursor.name, color: cursor.color } }} />
+        ))}
       </div>
 
       {/* Moodboard Mill Voting Overlay */}

@@ -2,18 +2,33 @@ import React, { useState, useRef, useEffect } from 'react';
 import { OSWindow } from '@/lib/os-context';
 import { Sparkles, Send, Bot, User } from 'lucide-react';
 import { useOS } from '@/lib/os-context';
+import { StorageAdapter } from '@/lib/storage';
+
+const INITIAL_MESSAGE: { role: 'ai'; text: string } = { role: 'ai', text: 'Hello! I am your OS System Assistant. I can open apps, change themes, or toggle screen shaders. How can I help you today?' };
 
 export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
-  const { openWindow, setThemeColor, setScreenShader, notify } = useOS();
+  const { openWindow, setThemeColor, setScreenShader, notify, workspaceMode } = useOS();
+  const storage = useRef(new StorageAdapter('assistant', workspaceMode)).current;
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<{ role: 'user' | 'ai', text: string }[]>([
-    { role: 'ai', text: 'Hello! I am your OS System Assistant. I can open apps, change themes, or toggle screen shaders. How can I help you today?' }
-  ]);
+  const [messages, setMessages] = useState<{ role: 'user' | 'ai', text: string }[]>([INITIAL_MESSAGE]);
+  const [isLoaded, setIsLoaded] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    storage.get<{ role: 'user' | 'ai', text: string }[]>('chat_history').then(saved => {
+      if (saved && saved.length > 0) setMessages(saved);
+      setIsLoaded(true);
+    });
+  }, [storage]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    storage.set('chat_history', messages);
+  }, [messages, isLoaded, storage]);
 
   const handleCommand = (text: string) => {
     const cmd = text.toLowerCase();
@@ -55,6 +70,8 @@ export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
     handleCommand(input);
     setInput('');
   };
+
+  if (!isLoaded) return <div className="p-8 text-[#888]">Loading Assistant...</div>;
 
   return (
     <div className="flex flex-col w-full h-full bg-[#111] text-white font-sans overflow-hidden">

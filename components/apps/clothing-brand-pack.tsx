@@ -1,15 +1,23 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
-import { Shirt, Scissors, Cuboid, Cpu, PenTool, Layers, Type, Download, Maximize, Target, Zap, Bot, Search, ShoppingBag, TrendingUp } from 'lucide-react';
+import { Shirt, Scissors, Cuboid, Cpu, PenTool, Layers, Type, Download, Maximize, Target, Zap, Bot, Search, ShoppingBag, TrendingUp, Undo2, Redo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { Storage } from '@/lib/storage';
 import '@google/model-viewer';
+import { useCollaborativeDoc, CollaborativeDocState } from '@/lib/hooks/useCollaborativeDoc';
 
 export function ClothingBrandPack({ window: osWindow }: { window: OSWindow }) {
   const { workspaceMode } = useOS();
   const [activeTab, setActiveTab] = useState<'sketching' | 'drafting' | '3d-prototype' | 'production' | 'shopify'>('sketching');
+
+  const collab = useCollaborativeDoc({
+    appPrefix: 'clothing',
+    docId: osWindow.id,
+    sharedTypes: [
+      { name: 'sketch', kind: 'Map' },
+    ],
+  });
   
   const [shopifyData, setShopifyData] = useState<any[]>([
     { name: 'Mon', sales: 1200 }, { name: 'Tue', sales: 1900 }, { name: 'Wed', sales: 2400 },
@@ -37,7 +45,7 @@ export function ClothingBrandPack({ window: osWindow }: { window: OSWindow }) {
         </div>
       </div>
       <div className="flex-1 overflow-y-auto bg-gray-50/50">
-        {activeTab === 'sketching' && <SketchingTab windowId={osWindow.id} />}
+        {activeTab === 'sketching' && <SketchingTab windowId={osWindow.id} collab={collab} />}
         {activeTab === 'drafting' && <DraftingTab />}
         {activeTab === '3d-prototype' && <Prototype3DTab />}
         {activeTab === 'production' && <ProductionTab />}
@@ -50,42 +58,142 @@ export function ClothingBrandPack({ window: osWindow }: { window: OSWindow }) {
 // ---------------------------------------------------------
 // 1. Digital Sketching & Illustration (Fabric.js)
 // ---------------------------------------------------------
-function SketchingTab({ windowId }: { windowId: string }) {
+function SketchingTab({ windowId, collab }: { windowId: string; collab: CollaborativeDocState }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<any>(null);
   const [tool, setTool] = useState<'draw' | 'select' | 'text'>('draw');
+  const undoStackRef = useRef<string[]>([]);
+  const redoStackRef = useRef<string[]>([]);
+  const previousStateRef = useRef<string>('');
+  const isSyncingRef = useRef(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  const handleSketchUndo = () => {
+    if (!fabricCanvas || undoStackRef.current.length === 0) return;
+    const prev = undoStackRef.current.pop()!;
+    redoStackRef.current.push(JSON.stringify(fabricCanvas.toJSON()));
+    isSyncingRef.current = true;
+    fabricCanvas.loadFromJSON(prev, () => {
+      fabricCanvas.renderAll();
+      const state = JSON.stringify(fabricCanvas.toJSON());
+      previousStateRef.current = state;
+      isSyncingRef.current = false;
+      const sketchMap = collab.sharedTypesRef.current.sketch;
+      if (sketchMap) sketchMap.set('state', state);
+    });
+    setCanUndo(undoStackRef.current.length > 0);
+    setCanRedo(redoStackRef.current.length > 0);
+  };
+
+  const handleSketchRedo = () => {
+    if (!fabricCanvas || redoStackRef.current.length === 0) return;
+    const next = redoStackRef.current.pop()!;
+    undoStackRef.current.push(JSON.stringify(fabricCanvas.toJSON()));
+    isSyncingRef.current = true;
+    fabricCanvas.loadFromJSON(next, () => {
+      fabricCanvas.renderAll();
+      const state = JSON.stringify(fabricCanvas.toJSON());
+      previousStateRef.current = state;
+      isSyncingRef.current = false;
+      const sketchMap = collab.sharedTypesRef.current.sketch;
+      if (sketchMap) sketchMap.set('state', state);
+    });
+    setCanUndo(undoStackRef.current.length > 0);
+    setCanRedo(redoStackRef.current.length > 0);
+  };
+
+  // Sync Fabric canvas state to Y.Map on local changes
+  const syncToYjs = useCallback(() => {
+    if (!fabricCanvas || isSyncingRef.current) return;
+    const state = JSON.stringify(fabricCanvas.toJSON());
+    if (previousStateRef.current) {
+      undoStackRef.current.push(previousStateRef.current);
+      redoStackRef.current = [];
+      setCanUndo(undoStackRef.current.length > 0);
+      setCanRedo(false);
+    }
+    previousStateRef.current = state;
+    const sketchMap = collab.sharedTypesRef.current.sketch;
+    if (sketchMap) sketchMap.set('state', state);
+  }, [fabricCanvas, collab]);
 
   useEffect(() => {
     let canvas: any = null;
     import('fabric').then((fabricModule) => {
       const fabric = (fabricModule as any).fabric || fabricModule;
       if (!canvasRef.current || !containerRef.current) return;
-      
+
       canvas = new fabric.Canvas(canvasRef.current, {
         width: Math.max(containerRef.current.clientWidth - 40, 600),
         height: Math.max(containerRef.current.clientHeight - 40, 400),
         isDrawingMode: true,
         backgroundColor: '#ffffff'
       });
-      
+
       canvas.freeDrawingBrush.color = '#000000';
       canvas.freeDrawingBrush.width = 3;
-      
+
+      canvas.on('path:created', () => syncToYjs());
+      canvas.on('object:modified', () => syncToYjs());
+
       setFabricCanvas(canvas);
-      
+
       // Load a template mannequin outline
       fabric.Image.fromURL('https://cdn-icons-png.flaticon.com/512/77/77305.png', (img: any) => {
          img.set({ left: canvas.width / 2 - 100, top: 50, scaleX: 0.5, scaleY: 0.5, opacity: 0.1, selectable: false });
          canvas.add(img);
          canvas.sendToBack(img);
+         canvas.renderAll();
+         previousStateRef.current = JSON.stringify(canvas.toJSON());
       });
     });
 
     return () => {
       if (canvas) canvas.dispose();
     };
-  }, []);
+  }, [syncToYjs]);
+
+  // Load remote canvas state from Y.Map when synced
+  useEffect(() => {
+    if (!collab.synced || !fabricCanvas) return;
+    const sketchMap = collab.sharedTypesRef.current.sketch;
+    if (!sketchMap) return;
+
+    const remoteState = sketchMap.get('state') as string | undefined;
+    if (remoteState) {
+      isSyncingRef.current = true;
+      fabricCanvas.loadFromJSON(remoteState, () => {
+        fabricCanvas.renderAll();
+        previousStateRef.current = JSON.stringify(fabricCanvas.toJSON());
+        isSyncingRef.current = false;
+      });
+    }
+  }, [collab.synced, fabricCanvas]);
+
+  // Observe Y.Map for remote canvas updates
+  useEffect(() => {
+    if (!collab.synced) return;
+    const sketchMap = collab.sharedTypesRef.current.sketch;
+    if (!sketchMap || !fabricCanvas) return;
+
+    const observer = () => {
+      if (isSyncingRef.current) return;
+      const remoteState = sketchMap.get('state') as string | undefined;
+      if (remoteState) {
+        isSyncingRef.current = true;
+        fabricCanvas.loadFromJSON(remoteState, () => {
+          fabricCanvas.renderAll();
+          previousStateRef.current = JSON.stringify(fabricCanvas.toJSON());
+          isSyncingRef.current = false;
+        });
+      }
+    };
+
+    sketchMap.observe(observer);
+    return () => sketchMap.unobserve(observer);
+  }, [collab.synced, fabricCanvas]);
 
   useEffect(() => {
      if (!fabricCanvas) return;
@@ -97,11 +205,21 @@ function SketchingTab({ windowId }: { windowId: string }) {
   }, [tool, fabricCanvas]);
 
   return (
-    <div className="flex h-full p-4 gap-4">
+    <div
+      className="flex h-full p-4 gap-4"
+      onKeyDown={(e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleSketchUndo(); }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'Z' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); handleSketchRedo(); }
+      }}
+      tabIndex={0}
+    >
       <div className="w-16 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col items-center py-4 gap-4 shrink-0">
          <button onClick={() => setTool('select')} className={cn("p-2 rounded-lg transition-colors", tool === 'select' ? "bg-black text-white" : "hover:bg-gray-100")}><Target className="w-5 h-5" /></button>
          <button onClick={() => setTool('draw')} className={cn("p-2 rounded-lg transition-colors", tool === 'draw' ? "bg-black text-white" : "hover:bg-gray-100")}><PenTool className="w-5 h-5" /></button>
          <button onClick={() => setTool('text')} className={cn("p-2 rounded-lg transition-colors", tool === 'text' ? "bg-black text-white" : "hover:bg-gray-100")}><Type className="w-5 h-5" /></button>
+         <div className="w-8 h-px bg-gray-200 my-2" />
+         <button onClick={handleSketchUndo} disabled={!canUndo} className="p-2 rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent hover:bg-gray-100" title="Undo (Ctrl+Z)"><Undo2 className="w-5 h-5" /></button>
+         <button onClick={handleSketchRedo} disabled={!canRedo} className="p-2 rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent hover:bg-gray-100" title="Redo (Ctrl+Shift+Z)"><Redo2 className="w-5 h-5" /></button>
          <div className="w-8 h-px bg-gray-200 my-2" />
          <button className="p-2 rounded-lg hover:bg-gray-100 text-blue-600" title="Apply Textile Map"><Layers className="w-5 h-5" /></button>
       </div>

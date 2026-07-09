@@ -66,5 +66,14 @@ service cloud.firestore {
     match /codes/{roomId} {
       allow read, write: if isSignedIn();
     }
+
+    // Video call signaling — any signed-in user can create/join/leave calls
+    match /calls/{callId} {
+      allow read, create, update, delete: if isSignedIn();
+      // ICE candidate subcollections
+      match /{subcollection=caller_candidates|callee_candidates}/{candidateId} {
+        allow read, create: if isSignedIn();
+      }
+    }
   }
 }

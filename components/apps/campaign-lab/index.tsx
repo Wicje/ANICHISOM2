@@ -1,18 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { OSWindow } from '@/lib/os-context';
 import { useOS } from '@/lib/os-context';
-import { 
-  Plus, MoreHorizontal, Smile, PanelLeftClose, PanelLeft, 
+import {
+  Plus, MoreHorizontal, Smile, PanelLeftClose, PanelLeft,
   ChevronRight, Globe, Lock, Search, Image as ImageIcon, Palette, Layout, CheckCircle, Send,
-  Type, AtSign, Copy, Share2
+  Type, AtSign, Copy, Share2, Undo2, Redo2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { Page, Block } from './types';
-import { TEMPLATES } from './data';
-import { useCampaignState } from './hooks/useCampaignState';
+import { TEMPLATES, DEFAULT_PAGES } from './data';
+import { useCollaborativeDoc } from '@/lib/hooks/useCollaborativeDoc';
 import { CursorOverlay } from './components/CursorOverlay';
 import { PageTree } from './components/PageTree';
 import { BlockEditor } from './components/BlockEditor';
@@ -27,15 +27,53 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
   const [campaignPhase, setCampaignPhase] = useState<'discovery' | 'design' | 'delivery'>('design');
 
   const projectId = osWindow.data?.projectId || 'global';
-  const roomId = `campaign-${workspaceMode}-${projectId}`;
 
-  const {
-    pages,
-    isLoaded,
-    awarenessInfo,
-    updateYPage,
-    deleteYPage
-  } = useCampaignState(roomId, workspaceMode, currentUser, osWindow.id);
+  const collab = useCollaborativeDoc({
+    appPrefix: 'campaign',
+    docId: projectId,
+    sharedTypes: [{ name: 'pages', kind: 'Map' }],
+    undoTrackingTypes: ['pages'],
+    onFirstSync: (ydoc, types) => {
+      DEFAULT_PAGES.forEach(p => types.pages.set(p.id, p));
+    },
+  });
+
+  const [pages, setPages] = useState<Page[]>([]);
+
+  // Observe Y.Map 'pages' and sync to React state
+  useEffect(() => {
+    if (!collab.synced) return;
+    const yPages = collab.sharedTypesRef.current.pages;
+    if (!yPages) return;
+
+    const syncPages = () => {
+      const arr = Array.from(yPages.values()) as Page[];
+      arr.sort((a, b) => a.updatedAt - b.updatedAt);
+      setPages(arr);
+    };
+
+    syncPages();
+    yPages.observe(syncPages);
+    return () => yPages.unobserve(syncPages);
+  }, [collab.synced]);
+
+  const updateYPage = (newVals: Partial<Page> & { id: string }) => {
+    const yPages = collab.sharedTypesRef.current.pages;
+    if (yPages) {
+      const existing = yPages.get(newVals.id) || {};
+      yPages.set(newVals.id, { ...existing, ...newVals, updatedAt: Date.now() });
+    }
+  };
+
+  const deleteYPage = (id: string) => {
+    const yPages = collab.sharedTypesRef.current.pages;
+    if (yPages) yPages.delete(id);
+  };
+
+  const canUndo = collab.canUndo;
+  const canRedo = collab.canRedo;
+  const undo = collab.undo;
+  const redo = collab.redo;
 
   const activePage = pages.find((p) => p.id === activePageId);
 
@@ -108,19 +146,16 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
   const updateBlocks = (pageId: string, newBlocks: Block[]) => updateYPage({ id: pageId, blocks: newBlocks });
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    const ws = (globalThis.window as any)[`ws_${osWindow.id}`];
-    if (ws && ws.awareness) {
-      const container = document.getElementById(`campaign-scroll-container-${osWindow.id}`);
-      if (container) {
-        const rect = container.getBoundingClientRect();
-        const x = e.clientX - rect.left + container.scrollLeft;
-        const y = e.clientY - rect.top + container.scrollTop;
-        ws.awareness.setLocalStateField('cursor', { x, y });
-      }
+    const container = document.getElementById(`campaign-scroll-container-${osWindow.id}`);
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left + container.scrollLeft;
+      const y = e.clientY - rect.top + container.scrollTop;
+      collab.setLocalCursor(x, y);
     }
   };
 
-  if (!isLoaded) return null;
+  if (!collab.synced) return null;
 
   return (
     <div className="w-full h-full flex bg-white text-[#37352f] font-sans relative">
@@ -198,10 +233,14 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
         )} 
         id={`campaign-scroll-container-${osWindow.id}`}
         onPointerMove={handlePointerMove}
+        onKeyDown={(e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+          if ((e.ctrlKey || e.metaKey) && (e.key === 'Z' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+        }}
+        tabIndex={0}
       >
-        {awarenessInfo.map((state) => {
-          if (!state.cursor || !state.user) return null;
-          return <CursorOverlay key={state.clientId} state={state} />;
+        {collab.remoteCursors.map((cursor) => {
+          return <CursorOverlay key={cursor.userId} state={{ cursor: { x: cursor.x, y: cursor.y }, user: { name: cursor.name, color: cursor.color } }} />;
         })}
         
         <div className={cn("sticky top-0 z-40 w-full flex items-center justify-between p-3 border-b backdrop-blur-md transition-colors duration-500", 
@@ -228,6 +267,12 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
             )}
           </div>
           <div className="flex items-center gap-2 relative">
+            <button onClick={undo} disabled={!canUndo} className="p-1 hover:bg-black/5 rounded disabled:opacity-30 disabled:hover:bg-transparent transition-colors" title="Undo (Ctrl+Z)">
+              <Undo2 className="w-4 h-4 text-[#37352f]/70" />
+            </button>
+            <button onClick={redo} disabled={!canRedo} className="p-1 hover:bg-black/5 rounded disabled:opacity-30 disabled:hover:bg-transparent transition-colors" title="Redo (Ctrl+Shift+Z)">
+              <Redo2 className="w-4 h-4 text-[#37352f]/70" />
+            </button>
             {/* Streamlined right side tools */}
             <button className="p-1 hover:bg-black/5 rounded relative" onClick={() => setShareMenuOpen(!shareMenuOpen)}>
               <MoreHorizontal className="w-4 h-4 text-[#37352f]/70" />

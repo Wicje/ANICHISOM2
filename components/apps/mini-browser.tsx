@@ -1,10 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
-import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, ExternalLink, Search, Maximize2, Minimize2, Download, Plus, X, Star, Bookmark } from 'lucide-react';
+import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, ExternalLink, Search, Maximize2, Minimize2, Download, Plus, X, Star, Bookmark, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+
+type BookmarkItem = {
+  id: string;
+  url: string;
+  title: string;
+};
 
 type BrowserTab = {
   id: string;
@@ -13,6 +19,24 @@ type BrowserTab = {
   history: string[];
   historyIndex: number;
 };
+
+const BOOKMARKS_KEY = 'anichisom_browser_bookmarks';
+
+function loadBookmarks(): BookmarkItem[] {
+  try {
+    const raw = localStorage.getItem(BOOKMARKS_KEY);
+    return raw ? JSON.parse(raw) : [
+      { id: 'b1', url: 'https://github.com', title: 'GitHub' },
+      { id: 'b2', url: 'https://figma.com', title: 'Figma' },
+      { id: 'b3', url: 'https://vercel.com', title: 'Vercel' },
+      { id: 'b4', url: 'https://news.ycombinator.com', title: 'HackerNews' },
+    ];
+  } catch { return []; }
+}
+
+function saveBookmarks(bookmarks: BookmarkItem[]) {
+  localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+}
 
 export function MiniBrowser({ window }: { window: OSWindow }) {
   const { performanceMode, updateWindowData, maximizeWindow, currentUser } = useOS();
@@ -25,9 +49,12 @@ export function MiniBrowser({ window }: { window: OSWindow }) {
   );
   const [activeTabId, setActiveTabId] = useState<string>(window.data?.activeTabId || tabs[0].id);
   const [isFocusMode, setIsFocusMode] = useState(window.data?.isFocusMode || false);
-  
+  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>(loadBookmarks());
+
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
   const [inputUrl, setInputUrl] = useState(activeTab.url);
+
+  const isBookmarked = bookmarks.some(b => b.url === activeTab.url);
 
   // Keep input bar in sync when switching tabs or history changes
   useEffect(() => {
@@ -42,6 +69,42 @@ export function MiniBrowser({ window }: { window: OSWindow }) {
   const updateActiveTab = (updates: Partial<BrowserTab>) => {
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, ...updates } : t));
   };
+
+  const navigateToUrl = useCallback((url: string) => {
+    const newHistory = activeTab.history.slice(0, activeTab.historyIndex + 1);
+    newHistory.push(url);
+    updateActiveTab({
+      url,
+      title: getDomainTitle(url),
+      history: newHistory,
+      historyIndex: newHistory.length - 1
+    });
+  }, [activeTab.history, activeTab.historyIndex, activeTabId]);
+
+  const toggleBookmark = useCallback(() => {
+    if (!activeTab.url) return;
+    if (isBookmarked) {
+      setBookmarks(prev => {
+        const next = prev.filter(b => b.url !== activeTab.url);
+        saveBookmarks(next);
+        return next;
+      });
+    } else {
+      setBookmarks(prev => {
+        const next = [...prev, { id: `bm-${Date.now()}`, url: activeTab.url, title: activeTab.title }];
+        saveBookmarks(next);
+        return next;
+      });
+    }
+  }, [activeTab.url, activeTab.title, isBookmarked]);
+
+  const deleteBookmark = useCallback((bookmarkId: string) => {
+    setBookmarks(prev => {
+      const next = prev.filter(b => b.id !== bookmarkId);
+      saveBookmarks(next);
+      return next;
+    });
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,24 +198,6 @@ export function MiniBrowser({ window }: { window: OSWindow }) {
     }
   };
 
-  const pinToDesktop = async () => {
-    if (!activeTab.url) return;
-    try {
-      const { addDoc, collection } = await import('firebase/firestore');
-      const { db } = await import('@/lib/firebase');
-      await addDoc(collection(db, 'apps'), {
-        title: activeTab.title || 'New App',
-        url: activeTab.url,
-        icon: 'Globe',
-        ownerId: currentUser?.id || 'unknown',
-        color: 'text-neon-blue'
-      });
-      alert(`Pinned ${activeTab.title} to Workspace Desktop!`);
-    } catch (e: any) {
-      alert("Failed to pin app: " + e.message);
-    }
-  };
-
   return (
     <div className="w-full h-full flex flex-col bg-white text-black font-sans relative group/browser">
       {/* Floating Unfocus Button (Visible only in Focus Mode) */}
@@ -230,8 +275,8 @@ export function MiniBrowser({ window }: { window: OSWindow }) {
                 placeholder="Search Google or enter web address"
                 className="flex-1 bg-transparent border-none outline-none text-sm text-slate-700"
               />
-              <button type="button" onClick={pinToDesktop} className="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-400 group relative" title="Pin to Workspace Desktop">
-                 <Star className="w-3.5 h-3.5 group-hover:text-amber-400 transition-colors" />
+              <button type="button" onClick={toggleBookmark} className={cn("p-1 hover:bg-slate-100 rounded-full transition-colors", isBookmarked ? "text-amber-400" : "text-slate-400")} title={isBookmarked ? "Remove bookmark" : "Add bookmark"}>
+                 <Star className="w-3.5 h-3.5" fill={isBookmarked ? "currentColor" : "none"} />
               </button>
             </form>
 
@@ -252,11 +297,28 @@ export function MiniBrowser({ window }: { window: OSWindow }) {
           </div>
 
           {/* Bookmarks Bar */}
-          <div className="h-8 bg-slate-50 px-4 flex items-center gap-4 text-xs font-medium text-slate-600 overflow-x-auto border-t border-black/5">
-             <button onClick={() => updateActiveTab({ url: 'https://github.com' })} className="flex items-center gap-1.5 hover:bg-black/5 px-2 py-1 rounded transition-colors"><Bookmark className="w-3 h-3 text-slate-400"/> GitHub</button>
-             <button onClick={() => updateActiveTab({ url: 'https://figma.com' })} className="flex items-center gap-1.5 hover:bg-black/5 px-2 py-1 rounded transition-colors"><Bookmark className="w-3 h-3 text-slate-400"/> Figma</button>
-             <button onClick={() => updateActiveTab({ url: 'https://vercel.com' })} className="flex items-center gap-1.5 hover:bg-black/5 px-2 py-1 rounded transition-colors"><Bookmark className="w-3 h-3 text-slate-400"/> Vercel</button>
-             <button onClick={() => updateActiveTab({ url: 'https://news.ycombinator.com' })} className="flex items-center gap-1.5 hover:bg-black/5 px-2 py-1 rounded transition-colors"><Bookmark className="w-3 h-3 text-slate-400"/> HackerNews</button>
+          <div className="h-8 bg-slate-50 px-4 flex items-center gap-1 text-xs font-medium text-slate-600 overflow-x-auto border-t border-black/5">
+             {bookmarks.length === 0 && (
+               <span className="text-slate-400 italic">No bookmarks yet — click the ★ star to add one</span>
+             )}
+             {bookmarks.map(bm => (
+               <div key={bm.id} className="group flex items-center gap-1.5 hover:bg-black/5 px-2 py-1 rounded transition-colors cursor-pointer shrink-0">
+                 <Bookmark className="w-3 h-3 text-slate-400" />
+                 <button
+                   onClick={() => navigateToUrl(bm.url)}
+                   className="text-slate-600 hover:text-black transition-colors"
+                 >
+                   {bm.title}
+                 </button>
+                 <button
+                   onClick={(e) => { e.stopPropagation(); deleteBookmark(bm.id); }}
+                   className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-black/10 rounded text-slate-400 hover:text-red-500 transition-all"
+                   title="Remove bookmark"
+                 >
+                   <Trash2 className="w-2.5 h-2.5" />
+                 </button>
+               </div>
+             ))}
           </div>
         </div>
       )}
@@ -329,34 +391,13 @@ export function MiniBrowser({ window }: { window: OSWindow }) {
        </div>
          ) : (
            <div className="w-full h-full relative">
-              {/* Overlay message if sites block iframes via headers */}
-             {tab.url && ['figma.com', 'framer.com', 'github.com', 'x.com', 'twitter.com', 'linkedin.com', 'claude.ai', 'youtube.com'].some(domain => {
-               try {
-                 const hostname = new URL(tab.url).hostname;
-                 return hostname === domain || hostname.endsWith(`.${domain}`);
-               } catch (e) {
-                 return false;
-               }
-             }) ? (
-               <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-50 text-slate-800 p-8 text-center">
-                 <Lock className="w-12 h-12 text-slate-400 mb-6" />
-                 <h2 className="text-2xl font-semibold mb-2">Web App Requires Native Tab</h2>
-                 <p className="text-slate-500 max-w-md mb-8">
-                   For security and session persistence (X-Frame-Options), this site must run in a native browser context. Your OS will remember the URL and session state natively.
-                 </p>
-                 <a href={tab.url} target="_blank" rel="noopener noreferrer" className="bg-black text-white px-6 py-3 rounded-full flex items-center gap-2 hover:bg-slate-800 transition-colors">
-                   Open {new URL(tab.url).hostname} <ExternalLink className="w-4 h-4" />
-                 </a>
-               </div>
-             ) : (
-               <iframe 
-                 src={tab.url} 
-                 className="w-full h-full border-none bg-white absolute inset-0 z-20" 
+               <iframe
+                 src={tab.url.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(tab.url)}` : tab.url}
+                 className="w-full h-full border-none bg-white absolute inset-0 z-20"
                  title={`Browser Tab ${tab.id}`}
-                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups" 
+                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                  loading={performanceMode === 'light' ? 'lazy' : 'eager'}
                />
-             )}
            </div>
          )}
           </div>

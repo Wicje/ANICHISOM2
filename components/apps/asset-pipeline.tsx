@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useOS, OSWindow } from '@/lib/os-context';
 import { Folder, FileText, Image as ImageIcon, Video, Code, Layout, Archive, RefreshCw, Plus, Search, File, HardDrive, Filter, Type, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { get, set, entries, keys } from 'idb-keyval';
+import { StorageAdapter } from '@/lib/storage';
 import { PerfectCursor } from 'perfect-cursors';
 
 function BlobViewer({ asset, onClose }: { asset: any, onClose: () => void }) {
@@ -65,6 +65,7 @@ function BlobViewer({ asset, onClose }: { asset: any, onClose: () => void }) {
 
 export function AssetPipeline({ window: osWindow }: { window: OSWindow }) {
   const { currentUser, workspaceMode } = useOS();
+  const storage = React.useRef(new StorageAdapter('asset-pipeline', workspaceMode)).current;
   const [activeTab, setActiveTab] = useState<'snippets' | 'modules' | 'videos'>('snippets');
   const [assets, setAssets] = useState<any[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -74,17 +75,20 @@ export function AssetPipeline({ window: osWindow }: { window: OSWindow }) {
   const loadAssets = React.useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const allEntries = await entries();
-      const pipelineAssets = allEntries
-        .filter(([key]) => String(key).startsWith(`asset_${activeTab}_`))
-        .map(([key, value]) => ({ key, ...(value as any) }));
+      const index = await storage.get<{ ids: string[] }>(`index_${activeTab}`) || { ids: [] };
+      const loaded = await Promise.all(
+        index.ids.map(id => storage.get<any>(id))
+      );
+      const pipelineAssets = loaded
+        .filter(a => a !== null)
+        .map(a => ({ key: a.id, ...a }));
       setAssets(pipelineAssets);
     } catch (e) {
       console.error("Failed to load assets", e);
     } finally {
       setIsRefreshing(false);
     }
-  }, [activeTab]);
+  }, [activeTab, storage]);
 
   useEffect(() => {
     Promise.resolve().then(() => {
@@ -103,21 +107,24 @@ export function AssetPipeline({ window: osWindow }: { window: OSWindow }) {
 
     try {
       const assetId = `asset_${activeTab}_${crypto.randomUUID()}`;
-      
+
       const newAsset = {
-        id: crypto.randomUUID(),
+        id: assetId,
         name: file.name,
         size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
         date: new Date().toISOString(),
         type: file.type,
       };
 
-      await set(assetId, { metadata: newAsset, data: file });
+      await storage.set(assetId, { id: assetId, metadata: newAsset, data: file });
+      const index = await storage.get<{ ids: string[] }>(`index_${activeTab}`) || { ids: [] };
+      index.ids.push(assetId);
+      await storage.set(`index_${activeTab}`, index);
       await loadAssets();
     } catch (err) {
-       console.error("Error saving file to IDB", err);
+       console.error("Error saving file to storage", err);
     }
-    
+
     e.target.value = '';
   };
 

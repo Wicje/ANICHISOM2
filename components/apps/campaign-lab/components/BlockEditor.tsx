@@ -2,15 +2,19 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Block, BlockType } from '../types';
 import { SLASH_COMMANDS, TEAM_MEMBERS } from '../data';
 import { DatabaseView } from './DatabaseView';
-import { GripVertical, CheckSquare, Square, Image as ImageIcon, Trash2, AtSign } from 'lucide-react';
+import { GripVertical, CheckSquare, Square, Image as ImageIcon, Trash2, AtSign, ChevronRight, Copy, Table2, Code2, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useOS } from '@/lib/os-context';
+
+const CALLOUT_ICONS = ['💡', '⚠️', '📌', '✅', '❌', '🔥', '📝', '🎯', '💬', '⭐'];
+const CODE_LANGUAGES = ['plaintext', 'javascript', 'typescript', 'python', 'html', 'css', 'json', 'bash', 'sql', 'markdown'];
 
 export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (blocks: Block[]) => void }) {
   const { openWindow } = useOS();
   const [slashMenu, setSlashMenu] = useState<{ index: number, x: number, y: number, query: string, selectedIndex: number } | null>(null);
   const [mentionMenu, setMentionMenu] = useState<{ index: number, x: number, y: number, query: string, selectedIndex: number } | null>(null);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  const [toggleOpen, setToggleOpen] = useState<Record<string, boolean>>({});
   const menuRef = useRef<HTMLDivElement>(null);
 
   const updateBlock = (index: number, updates: Partial<Block>) => {
@@ -168,7 +172,21 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
        openWindow('assistant', cmdId.replace('action-', 'AI '));
        newBlocks[index] = { ...block, content: textBeforeSlash };
     } else {
-       newBlocks[index] = { ...block, type: cmdId as BlockType, content: textBeforeSlash };
+       const extra: Partial<Block> = {};
+       if (cmdId === 'table') {
+         extra.columns = ['Column 1', 'Column 2', 'Column 3'];
+         extra.rows = [['', '', ''], ['', '', '']];
+       }
+       if (cmdId === 'toggle') {
+         extra.children = [{ id: `child-${Date.now()}`, type: 'p', content: '' }];
+       }
+       if (cmdId === 'code') {
+         extra.language = 'plaintext';
+       }
+       if (cmdId === 'callout') {
+         extra.icon = '💡';
+       }
+       newBlocks[index] = { ...block, type: cmdId as BlockType, content: textBeforeSlash, ...extra };
     }
     
     onChange(newBlocks);
@@ -233,7 +251,7 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
           block.type === 'callout' && "text-base bg-[#f7f7f5] p-4 rounded-lg my-2 flex items-start gap-3",
           block.type === 'divider' && "h-0 text-transparent min-h-0 py-2 my-2 border-b border-black/10 select-none",
           block.type === 'code' && "text-sm font-mono bg-[#f7f7f5] border border-black/5 p-4 rounded-lg text-[#37352f] min-h-[80px] my-2 w-full",
-          ['image', 'database', 'board', 'calendar', 'list', 'gallery', 'timeline', 'linked', 'video', 'audio', 'file', 'web'].includes(block.type) && "hidden"
+          ['image', 'database', 'board', 'calendar', 'list', 'gallery', 'timeline', 'linked', 'video', 'audio', 'file', 'web', 'table'].includes(block.type) && "hidden"
         );
 
         return (
@@ -257,14 +275,22 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
                 <div className="mt-1 mr-2 ml-1 text-sm text-[#37352f]/60 font-medium shrink-0">{index + 1}.</div>
              )}
              {block.type === 'toggle' && (
-                <div className="mt-1.5 mr-1 cursor-pointer shrink-0">
-                  <div className="w-4 h-4 flex items-center justify-center hover:bg-black/5 rounded">
-                     <div className="w-0 h-0 border-t-[4px] border-t-transparent border-l-[6px] border-l-[#37352f]/60 border-b-[4px] border-b-transparent" />
+                <div className="mt-1.5 mr-1 cursor-pointer shrink-0" onClick={() => setToggleOpen(prev => ({ ...prev, [block.id]: !prev[block.id] }))}>
+                  <div className="w-4 h-4 flex items-center justify-center hover:bg-black/5 rounded transition-transform" style={{ transform: toggleOpen[block.id] ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+                     <ChevronRight className="w-3 h-3 text-[#37352f]/60" />
                   </div>
                 </div>
              )}
              {block.type === 'callout' && (
-                <div className="mt-5 mr-3 shrink-0 text-xl ml-2">💡</div>
+                <div className="mt-5 mr-3 shrink-0 text-xl ml-2 cursor-pointer group/callout relative" onClick={() => {
+                  const currentIcon = block.icon || '💡';
+                  const currentIdx = CALLOUT_ICONS.indexOf(currentIcon);
+                  const nextIcon = CALLOUT_ICONS[(currentIdx + 1) % CALLOUT_ICONS.length];
+                  updateBlock(index, { icon: nextIcon });
+                }}>
+                  {block.icon || '💡'}
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] text-black/30 opacity-0 group-hover/callout:opacity-100 transition-opacity whitespace-nowrap">click to change</span>
+                </div>
              )}
 
              <div className="flex-1 min-w-0">
@@ -280,7 +306,7 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
                       <div className="bg-slate-50 border border-black/10 rounded-lg p-4 flex flex-col gap-2 relative">
                         <div className="text-sm font-medium text-[#37352f]/70 mb-1 flex items-center gap-2"><ImageIcon className="w-4 h-4" /> Embed Image</div>
                         <input autoFocus type="text" placeholder="Paste image URL and press Enter..." className="w-full bg-white border border-black/10 rounded p-2 text-sm outline-none focus:border-blue-500"
-                          onKeyDown={(e) => { 
+                          onKeyDown={(e) => {
                             if(e.key === 'Enter') { e.preventDefault(); updateBlock(index, { content: e.currentTarget.value }); }
                             if(e.key === 'Backspace' && e.currentTarget.value === '') updateBlock(index, { type: 'p' });
                           }}
@@ -288,6 +314,10 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
                       </div>
                     )}
                   </div>
+                ) : block.type === 'table' ? (
+                  <TableBlock block={block} index={index} updateBlock={updateBlock} />
+                ) : block.type === 'code' ? (
+                  <CodeBlock block={block} index={index} updateBlock={updateBlock} handleChange={handleChange} handleKeyDown={handleKeyDown} />
                 ) : ['database', 'board', 'calendar', 'list', 'gallery', 'timeline', 'linked', 'form'].includes(block.type) ? (
                   <DatabaseView block={block} />
                 ) : ['video', 'audio', 'file', 'web'].includes(block.type) ? (
@@ -297,7 +327,7 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
                            <ImageIcon className="w-4 h-4" /> Embed {block.type}
                         </div>
                         <input type="text" placeholder={`Paste ${block.type} URL and press Enter...`} className="w-full bg-white border border-black/10 rounded p-2 text-sm outline-none focus:border-blue-500"
-                          onKeyDown={(e) => { 
+                          onKeyDown={(e) => {
                             if(e.key === 'Backspace' && e.currentTarget.value === '') updateBlock(index, { type: 'p' });
                           }}
                         />
@@ -318,6 +348,49 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
                   </div>
                 )}
              </div>
+             {block.type === 'toggle' && toggleOpen[block.id] && block.children && block.children.length > 0 && (
+               <div className="ml-6 mt-1 border-l-2 border-black/10 pl-4">
+                 {block.children.map((child, childIdx) => (
+                   <div key={child.id} className="py-0.5">
+                     <textarea
+                       id={`block-${child.id}`}
+                       className={cn(
+                         "w-full resize-none border-none outline-none bg-transparent overflow-hidden leading-relaxed text-base text-[#37352f] min-h-[24px]",
+                         child.checked && "line-through text-[#37352f]/40"
+                       )}
+                       value={child.content}
+                       placeholder="Type '/' for commands..."
+                       onChange={(e) => {
+                         e.target.style.height = 'auto';
+                         e.target.style.height = `${e.target.scrollHeight}px`;
+                         const newChildren = [...block.children!];
+                         newChildren[childIdx] = { ...newChildren[childIdx], content: e.target.value };
+                         updateBlock(index, { children: newChildren });
+                       }}
+                       onKeyDown={(e) => {
+                         if (e.key === 'Enter' && !e.shiftKey) {
+                           e.preventDefault();
+                           const cursor = e.currentTarget.selectionStart;
+                           const textBefore = child.content.substring(0, cursor);
+                           const textAfter = child.content.substring(cursor);
+                           const newChildren = [...block.children!];
+                           newChildren[childIdx] = { ...newChildren[childIdx], content: textBefore };
+                           const newChild: Block = { id: crypto.randomUUID(), type: child.type === 'todo' ? 'todo' : child.type === 'bullet' ? 'bullet' : 'p', content: textAfter };
+                           newChildren.splice(childIdx + 1, 0, newChild);
+                           updateBlock(index, { children: newChildren });
+                           setTimeout(() => {
+                             const nextEl = document.getElementById(`block-${newChild.id}`) as HTMLTextAreaElement;
+                             if (nextEl) { nextEl.focus(); nextEl.setSelectionRange(0, 0); }
+                           }, 0);
+                         }
+                       }}
+                       rows={1}
+                       spellCheck={false}
+                     />
+                   </div>
+                 ))}
+               </div>
+             )}
           </div>
         )
       })}
@@ -352,4 +425,145 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
       ))}
     </div>
   )
+}
+
+function TableBlock({ block, index, updateBlock }: { block: Block, index: number, updateBlock: (index: number, updates: Partial<Block>) => void }) {
+  const defaultCols = ['Column 1', 'Column 2', 'Column 3'];
+  const defaultRows = [['', '', ''], ['', '', '']];
+  const columns = block.columns || defaultCols;
+  const rows = block.rows || defaultRows;
+
+  const updateCell = (rowIdx: number, colIdx: number, value: string) => {
+    const newRows = [...rows];
+    newRows[rowIdx] = [...newRows[rowIdx]];
+    newRows[rowIdx][colIdx] = value;
+    updateBlock(index, { rows: newRows, columns });
+  };
+
+  const updateColumn = (colIdx: number, value: string) => {
+    const newCols = [...columns];
+    newCols[colIdx] = value;
+    updateBlock(index, { rows, columns: newCols });
+  };
+
+  const addRow = () => {
+    const newRows = [...rows, Array(columns.length).fill('')];
+    updateBlock(index, { rows: newRows, columns });
+  };
+
+  const addColumn = () => {
+    const newCols = [...columns, `Column ${columns.length + 1}`];
+    const newRows = rows.map(r => [...r, '']);
+    updateBlock(index, { rows: newRows, columns: newCols });
+  };
+
+  const deleteRow = (rowIdx: number) => {
+    if (rows.length <= 1) return;
+    const newRows = rows.filter((_, i) => i !== rowIdx);
+    updateBlock(index, { rows: newRows, columns });
+  };
+
+  const deleteColumn = (colIdx: number) => {
+    if (columns.length <= 1) return;
+    const newCols = columns.filter((_, i) => i !== colIdx);
+    const newRows = rows.map(r => r.filter((_, i) => i !== colIdx));
+    updateBlock(index, { rows: newRows, columns: newCols });
+  };
+
+  return (
+    <div className="my-2 border border-black/10 rounded-xl overflow-hidden bg-white shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+      <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-black/5">
+        <Table2 className="w-4 h-4 text-[#37352f]/50" />
+        <span className="text-xs font-medium text-[#37352f]/50">Table</span>
+        <button onClick={addRow} className="ml-auto text-xs text-blue-600 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50">+ Row</button>
+        <button onClick={addColumn} className="text-xs text-blue-600 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50">+ Col</button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse text-sm">
+          <thead>
+            <tr>
+              {columns.map((col, colIdx) => (
+                <th key={colIdx} className="relative p-2 border-b border-black/10 bg-slate-50/50 group/th">
+                  <input
+                    className="w-full bg-transparent outline-none font-medium text-[#37352f]/50 text-xs uppercase tracking-wider"
+                    value={col}
+                    onChange={(e) => updateColumn(colIdx, e.target.value)}
+                  />
+                  {columns.length > 1 && (
+                    <button className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/th:opacity-100 text-[#37352f]/30 hover:text-red-500 transition-opacity" onClick={() => deleteColumn(colIdx)}>
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, rowIdx) => (
+              <tr key={rowIdx} className="border-b border-black/5 last:border-0 group/tr hover:bg-slate-50/30">
+                {row.map((cell, colIdx) => (
+                  <td key={colIdx} className="p-2">
+                    <input
+                      className="w-full bg-transparent outline-none text-[#37352f] text-sm"
+                      value={cell}
+                      onChange={(e) => updateCell(rowIdx, colIdx, e.target.value)}
+                      placeholder="—"
+                    />
+                  </td>
+                ))}
+                {rows.length > 1 && (
+                  <td className="w-6 opacity-0 group-hover/tr:opacity-100 transition-opacity">
+                    <button className="text-[#37352f]/30 hover:text-red-500" onClick={() => deleteRow(rowIdx)}>
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CodeBlock({ block, index, updateBlock, handleChange, handleKeyDown }: { block: Block, index: number, updateBlock: (index: number, updates: Partial<Block>) => void, handleChange: (e: React.ChangeEvent<HTMLTextAreaElement>, index: number) => void, handleKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>, index: number) => void }) {
+  const language = block.language || 'plaintext';
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(block.content);
+    window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Copied', message: 'Code copied to clipboard.' } }));
+  };
+
+  return (
+    <div className="my-2 relative">
+      <div className="flex items-center justify-between px-4 py-1 bg-[#f7f7f5] border border-black/5 rounded-t-lg">
+        <div className="flex items-center gap-2">
+          <Code2 className="w-3.5 h-3.5 text-[#37352f]/40" />
+          <select
+            className="text-xs bg-transparent outline-none text-[#37352f]/50 border-none cursor-pointer font-medium"
+            value={language}
+            onChange={(e) => updateBlock(index, { language: e.target.value })}
+          >
+            {CODE_LANGUAGES.map(lang => (
+              <option key={lang} value={lang}>{lang}</option>
+            ))}
+          </select>
+        </div>
+        <button onClick={copyCode} className="text-xs text-[#37352f]/40 hover:text-[#37352f] flex items-center gap-1 px-2 py-1 rounded hover:bg-black/5 transition-colors">
+          <Copy className="w-3 h-3" /> Copy
+        </button>
+      </div>
+      <textarea
+        id={`block-${block.id}`}
+        className="w-full resize-none border-none outline-none bg-[#f7f7f5] border border-black/5 border-t-0 rounded-b-lg p-4 text-sm font-mono text-[#37352f] min-h-[80px] overflow-hidden leading-relaxed"
+        value={block.content}
+        placeholder="Write code..."
+        onChange={(e) => handleChange(e, index)}
+        onKeyDown={(e) => handleKeyDown(e, index)}
+        rows={1}
+        spellCheck={false}
+      />
+    </div>
+  );
 }

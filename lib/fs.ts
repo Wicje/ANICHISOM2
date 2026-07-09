@@ -10,6 +10,13 @@ export interface LocalFile {
 }
 
 export const FS = {
+  /** Revoke an object URL previously created by FS.read or FS.readDir */
+  revokeUrl: (url: string) => {
+    if (url.startsWith('blob:')) {
+      URL.revokeObjectURL(url);
+    }
+  },
+
   // Helper to resolve nested directories in OPFS
   _resolvePath: async (path: string, createDirs = false) => {
      const parts = path.split('/').filter(Boolean);
