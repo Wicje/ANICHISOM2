@@ -1,4 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
+import { resolveSession } from '@/lib/session-store';
 
 const PROXY_BASE = '/api/proxy';
 
@@ -45,12 +46,21 @@ function isPrivateUrl(urlStr: string): boolean {
 const proxyRateLimits = new Map<string, { count: number; resetAt: number }>();
 const PROXY_RATE_LIMIT_MAX = 60;       // 60 requests per window
 const PROXY_RATE_LIMIT_WINDOW = 60000; // 1 minute window
+const PROXY_RATE_LIMIT_MAX_KEYS = 10000;
 
 function checkProxyRateLimit(ip: string): { allowed: boolean; remaining: number } {
   const now = Date.now();
   const record = proxyRateLimits.get(ip);
 
   if (!record || now >= record.resetAt) {
+    if (proxyRateLimits.size >= PROXY_RATE_LIMIT_MAX_KEYS) {
+      cleanupProxyRateLimits();
+      if (proxyRateLimits.size >= PROXY_RATE_LIMIT_MAX_KEYS) {
+        const oldestKey = proxyRateLimits.keys().next().value;
+        if (oldestKey) proxyRateLimits.delete(oldestKey);
+      }
+    }
+
     proxyRateLimits.set(ip, { count: 1, resetAt: now + PROXY_RATE_LIMIT_WINDOW });
     return { allowed: true, remaining: PROXY_RATE_LIMIT_MAX - 1 };
   }
@@ -64,17 +74,25 @@ function checkProxyRateLimit(ip: string): { allowed: boolean; remaining: number 
 }
 
 // Cleanup rate limit entries every 5 minutes
-setInterval(() => {
+function cleanupProxyRateLimits(): void {
   const now = Date.now();
   for (const [key, record] of proxyRateLimits.entries()) {
     if (now >= record.resetAt) proxyRateLimits.delete(key);
   }
-}, 5 * 60 * 1000);
+}
+
+const globalForProxy = globalThis as any;
+if (!globalForProxy.__anichisom_proxy_rate_limit_cleanup_interval) {
+  const interval = setInterval(cleanupProxyRateLimits, 5 * 60 * 1000);
+  if (typeof interval === 'object' && 'unref' in interval) interval.unref();
+  globalForProxy.__anichisom_proxy_rate_limit_cleanup_interval = interval;
+}
 
 // --- Security: Auth check (session cookie must exist) ---
 function hasAuthSession(request: NextRequest): boolean {
   const sessionCookie = request.cookies.get('anichisom_session');
-  return !!sessionCookie && !!sessionCookie.value && sessionCookie.value.length > 0;
+  if (!sessionCookie?.value) return false;
+  return !!resolveSession(sessionCookie.value);
 }
 
 // --- URL rewriting ---

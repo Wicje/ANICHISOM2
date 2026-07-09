@@ -13,10 +13,20 @@ export function PluginSandbox({ pluginUrl, pluginId, permissions }: PluginSandbo
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { emitEvent, currentUser } = useOS();
   const [isReady, setIsReady] = useState(false);
+  const pluginOrigin = (() => {
+    try {
+      if (typeof window === 'undefined') return '';
+      return new URL(pluginUrl, window.location.href).origin;
+    } catch {
+      return '';
+    }
+  })();
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      // In production, verify event.origin matches the plugin's registered origin
+      if (!iframeRef.current || event.source !== iframeRef.current.contentWindow) return;
+      if (!pluginOrigin || event.origin !== pluginOrigin) return;
+
       if (event.data?.type === 'PLUGIN_RPC') {
         const { method, args } = event.data;
         
@@ -41,7 +51,7 @@ export function PluginSandbox({ pluginUrl, pluginId, permissions }: PluginSandbo
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [emitEvent, pluginId, permissions, currentUser]);
+  }, [emitEvent, pluginId, permissions, currentUser, pluginOrigin]);
 
   return (
     <div className="w-full h-full bg-white relative">
@@ -54,7 +64,7 @@ export function PluginSandbox({ pluginUrl, pluginId, permissions }: PluginSandbo
         ref={iframeRef}
         src={pluginUrl}
         className="w-full h-full border-none"
-        sandbox="allow-scripts allow-forms allow-popups" // strict sandbox, no allow-same-origin
+        sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
         onLoad={() => setIsReady(true)}
         title={`Plugin Sandbox: ${pluginId}`}
       />

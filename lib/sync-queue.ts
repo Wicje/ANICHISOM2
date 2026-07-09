@@ -19,6 +19,8 @@ interface QueuedEvent {
 const MAX_RETRIES = 5;
 const INITIAL_DELAY_MS = 1000; // 1 second
 const MAX_DELAY_MS = 60000; // 1 minute
+const PERSIST_BATCH_SIZE = 5;
+const PERSIST_DEBOUNCE_MS = 500;
 
 /**
  * SyncQueue manages reliable event delivery with exponential backoff
@@ -33,6 +35,8 @@ export class SyncQueue {
   private queue: Map<string, QueuedEvent> = new Map();
   private processing = false;
   private timeoutId: NodeJS.Timeout | null = null;
+  private persistTimeoutId: NodeJS.Timeout | null = null;
+  private pendingPersistMutations = 0;
 
   constructor() {
     this.loadFromIndexedDB();
@@ -60,7 +64,7 @@ export class SyncQueue {
       createdAt: Date.now(),
     });
 
-    this.persistToIndexedDB();
+    this.schedulePersist();
     this.triggerProcessing();
   }
 
@@ -108,6 +112,10 @@ export class SyncQueue {
       clearTimeout(this.timeoutId);
       this.timeoutId = null;
     }
+    if (this.persistTimeoutId) {
+      clearTimeout(this.persistTimeoutId);
+      this.persistTimeoutId = null;
+    }
   }
 
   /**
@@ -147,7 +155,7 @@ export class SyncQueue {
       }
 
       if (processed > 0) {
-        this.persistToIndexedDB();
+        this.schedulePersist(true);
       }
     } finally {
       this.processing = false;
@@ -187,7 +195,7 @@ export class SyncQueue {
    */
   clear(): void {
     this.queue.clear();
-    this.persistToIndexedDB();
+    this.schedulePersist(true);
     if (this.timeoutId) {
       clearTimeout(this.timeoutId);
       this.timeoutId = null;
@@ -222,12 +230,37 @@ export class SyncQueue {
    */
   private async persistToIndexedDB(): Promise<void> {
     try {
+      if (this.persistTimeoutId) {
+        clearTimeout(this.persistTimeoutId);
+        this.persistTimeoutId = null;
+      }
+      this.pendingPersistMutations = 0;
+
       const { set } = await import('idb-keyval');
       const items = Array.from(this.queue.values());
       await set('anichisom_sync_queue', items);
     } catch (error) {
       // Silently fail if IndexedDB not available
     }
+  }
+
+  /**
+   * Persist after a small batch or debounce window to avoid writing IndexedDB
+   * for every high-frequency event.
+   */
+  private schedulePersist(force = false): void {
+    this.pendingPersistMutations++;
+
+    if (force || this.pendingPersistMutations >= PERSIST_BATCH_SIZE) {
+      void this.persistToIndexedDB();
+      return;
+    }
+
+    if (this.persistTimeoutId) return;
+
+    this.persistTimeoutId = setTimeout(() => {
+      void this.persistToIndexedDB();
+    }, PERSIST_DEBOUNCE_MS);
   }
 
   // ============================================================================

@@ -546,3 +546,9 @@ Users who prefer Notion or Milanote can:
 ---
 
 *This plan builds on what we've built (Phases 1–3) and evolves it toward what VISION.md v2.0 demands. Every step preserves existing functionality. We're making our apps the best in class — but never forcing users to abandon their preferred tools. The OS AI connects to any model. Files connects to any storage. The plugin ecosystem lets anyone extend, use, and share.*
+
+---
+
+## Current Handoff
+
+If a new agent picks this up on another machine, start with [NEXT_AGENT_HANDOFF.md](./NEXT_AGENT_HANDOFF.md).

@@ -47,6 +47,23 @@ export interface OSPluginAPI {
 let requestIdCounter = 0;
 const pendingRequests = new Map<string, { resolve: (v: any) => void; reject: (e: any) => void }>();
 
+function getParentOrigin(): string {
+  if (typeof window === 'undefined') return '*';
+
+  const ancestorOrigin = window.location.ancestorOrigins?.[0];
+  if (ancestorOrigin) return ancestorOrigin;
+
+  if (document.referrer) {
+    try {
+      return new URL(document.referrer).origin;
+    } catch {
+      // Fall through to same-origin default.
+    }
+  }
+
+  return window.location.origin;
+}
+
 function rpcCall(method: string, ...args: any[]): Promise<any> {
   return new Promise((resolve, reject) => {
     const id = `rpc_${++requestIdCounter}_${Date.now()}`;
@@ -54,7 +71,7 @@ function rpcCall(method: string, ...args: any[]): Promise<any> {
 
     window.parent.postMessage(
       { type: 'PLUGIN_RPC', method, args, id },
-      '*',
+      getParentOrigin(),
     );
 
     // Timeout after 10s
@@ -70,13 +87,15 @@ function rpcCall(method: string, ...args: any[]): Promise<any> {
 function rpcNotify(method: string, ...args: any[]): void {
   window.parent.postMessage(
     { type: 'PLUGIN_RPC', method, args, id: undefined },
-    '*',
+    getParentOrigin(),
   );
 }
 
 // Listen for RPC results from the parent
 function listenForResults() {
   window.addEventListener('message', (event: MessageEvent) => {
+    if (event.origin !== getParentOrigin()) return;
+
     const { type, id, result, error } = event.data || {};
     if (type === 'PLUGIN_RPC_RESULT' && id && pendingRequests.has(id)) {
       const { resolve } = pendingRequests.get(id)!;
@@ -100,6 +119,8 @@ export function initPluginAPI(): Promise<OSPluginAPI> {
     // Establish handshake: the parent (PluginSandbox) sends INIT_CONTEXT
     // when it receives OS_READY from this plugin.
     const onMessage = (event: MessageEvent) => {
+      if (event.origin !== getParentOrigin()) return;
+
       const { type } = event.data || {};
       if (type === 'INIT_CONTEXT') {
         window.removeEventListener('message', onMessage);
@@ -123,6 +144,8 @@ export function initPluginAPI(): Promise<OSPluginAPI> {
             emit: (type: string, payload: any) => rpcNotify('events.emit', type, payload),
             subscribe: (type: string, callback: (payload: any) => void) => {
               const handler = (event: MessageEvent) => {
+                if (event.origin !== getParentOrigin()) return;
+
                 const { type: msgType, payload } = event.data || {};
                 if (msgType === 'PLUGIN_EVENT' && event.data?.eventType === type) {
                   callback(payload);
@@ -173,7 +196,7 @@ export function initPluginAPI(): Promise<OSPluginAPI> {
     window.addEventListener('message', onMessage);
 
     // Notify parent that the plugin is ready
-    window.parent.postMessage({ type: 'OS_READY', payload: {} }, '*');
+    window.parent.postMessage({ type: 'OS_READY', payload: {} }, getParentOrigin());
 
     // Fallback: if no INIT_CONTEXT within 2s, resolve with a minimal working API
     setTimeout(() => {
@@ -195,6 +218,8 @@ export function initPluginAPI(): Promise<OSPluginAPI> {
           emit: (type: string, payload: any) => rpcNotify('events.emit', type, payload),
           subscribe: (type: string, callback: (payload: any) => void) => {
             const handler = (event: MessageEvent) => {
+              if (event.origin !== getParentOrigin()) return;
+
               const { data: msg } = event;
               if (msg?.type === 'PLUGIN_EVENT' && msg?.eventType === type) {
                 callback(msg.payload);

@@ -110,11 +110,12 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
   // ─── Breadcrumbs ──────────────────────────────────────────
   const breadcrumbs = useMemo(() => {
     if (!activePage) return [];
+    const pageById = new Map(pages.map(page => [page.id, page]));
     const trail: Page[] = [];
-    let current = activePage;
+    let current: Page | null = activePage;
     while (current) {
       trail.unshift(current);
-      current = pages.find(p => p.id === current.parentId) || null;
+      current = current.parentId ? pageById.get(current.parentId) || null : null;
     }
     return trail;
   }, [activePage, pages]);

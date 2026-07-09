@@ -29,7 +29,7 @@ export type Snapshot = {
 
 export type PerformanceMode = 'light' | 'heavy';
 
-export type OSRole = 'admin' | 'filmmaker' | 'technician';
+export type OSRole = 'admin' | 'filmmaker' | 'technician' | 'user';
 
 export type OSUser = {
   id: string;
@@ -182,8 +182,20 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     };
 
     checkSession();
-    const interval = setInterval(checkSession, 5 * 60 * 1000); // Check every 5 minutes
-    return () => clearInterval(interval);
+
+    const checkWhenVisible = () => {
+      if (document.visibilityState === 'visible') void checkSession();
+    };
+
+    window.addEventListener('focus', checkSession);
+    window.addEventListener('online', checkSession);
+    document.addEventListener('visibilitychange', checkWhenVisible);
+
+    return () => {
+      window.removeEventListener('focus', checkSession);
+      window.removeEventListener('online', checkSession);
+      document.removeEventListener('visibilitychange', checkWhenVisible);
+    };
   }, []);
 
   // Global Desktop State Serialization (Phase 4)
@@ -215,14 +227,14 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     }, 2000);
     
     return () => clearTimeout(t);
-  }, [windows, workspaceMode, currentUser, wallpaper, themeColor, fontFamily, screenShader]);
+  }, [windows, workspaceMode, installedApps, recentApps, currentUser, wallpaper, themeColor, fontFamily, screenShader]);
 
   const saveSnapshot = useCallback((name: string) => {
     const newSnapshot: Snapshot = {
       id: crypto.randomUUID(),
       timestamp: Date.now(),
       name,
-      windows: JSON.parse(JSON.stringify(windows))
+      windows: structuredClone(windows)
     };
     setSnapshots(prev => {
       const updated = [newSnapshot, ...prev];
@@ -234,7 +246,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
   const restoreSnapshot = useCallback((id: string) => {
     const snap = snapshots.find(s => s.id === id);
     if (snap) {
-      setWindows(JSON.parse(JSON.stringify(snap.windows)));
+      setWindows(structuredClone(snap.windows));
       const highest = Math.max(10, ...snap.windows.map(w => w.zIndex));
       highestZIndexRef.current = highest;
     }

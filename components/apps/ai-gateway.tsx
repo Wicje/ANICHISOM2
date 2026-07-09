@@ -126,7 +126,7 @@ export function AIGateway({ window }: { window: OSWindow }) {
           } else {
             // Use default model for the selected provider
             const pInfo = providerMap.get(savedProvider);
-            if (pInfo?.models.length > 0) {
+            if (pInfo && (pInfo.models?.length ?? 0) > 0) {
               setSelectedModel(pInfo.models[0].id);
             }
           }

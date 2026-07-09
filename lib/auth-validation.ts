@@ -90,6 +90,7 @@ export function validateRequiredFields(
  * For production, use Redis or external service
  */
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+const MAX_RATE_LIMIT_KEYS = 10000;
 
 export function checkRateLimit(
   key: string,
@@ -101,6 +102,14 @@ export function checkRateLimit(
 
   if (!record || now >= record.resetAt) {
     // New window
+    if (rateLimitStore.size >= MAX_RATE_LIMIT_KEYS) {
+      cleanupRateLimits();
+      if (rateLimitStore.size >= MAX_RATE_LIMIT_KEYS) {
+        const oldestKey = rateLimitStore.keys().next().value;
+        if (oldestKey) rateLimitStore.delete(oldestKey);
+      }
+    }
+
     const newRecord = { count: 1, resetAt: now + windowMs };
     rateLimitStore.set(key, newRecord);
     return { allowed: true, remaining: maxAttempts - 1, resetAt: newRecord.resetAt };
@@ -128,5 +137,10 @@ export function cleanupRateLimits(): void {
 
 // Cleanup every 10 minutes
 if (typeof setInterval !== 'undefined') {
-  setInterval(cleanupRateLimits, 10 * 60 * 1000);
+  const globalForAuthValidation = globalThis as any;
+  if (!globalForAuthValidation.__anichisom_rate_limit_cleanup_interval) {
+    const interval = setInterval(cleanupRateLimits, 10 * 60 * 1000);
+    if (typeof interval === 'object' && 'unref' in interval) interval.unref();
+    globalForAuthValidation.__anichisom_rate_limit_cleanup_interval = interval;
+  }
 }

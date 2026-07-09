@@ -9,6 +9,18 @@ export interface IStorageAdapter {
   deleteDoc: (collection: string, id: string) => Promise<void>;
 }
 
+const LOCAL_STORAGE_CHANNEL = 'anichisom-local-storage';
+type LocalStorageMessage = {
+  type: 'set' | 'delete';
+  key: string;
+  value?: unknown;
+};
+
+function createLocalStorageChannel(): BroadcastChannel | null {
+  if (typeof BroadcastChannel === 'undefined') return null;
+  return new BroadcastChannel(LOCAL_STORAGE_CHANNEL);
+}
+
 // 1. Firebase Adapter
 export const FirebaseAdapter: IStorageAdapter = {
   getDoc: async <T,>(collectionName: string, id: string) => {
@@ -47,33 +59,42 @@ export const LocalAdapter: IStorageAdapter = {
   setDoc: async <T,>(collectionName: string, id: string, data: Partial<T>) => {
     const key = `anichisom_os_${collectionName}_${id}`;
     const existing = await get(key) || {};
-    await set(key, { ...existing, ...data });
+    const value = { ...existing, ...data };
+    await set(key, value);
+
+    const channel = createLocalStorageChannel();
+    channel?.postMessage({ type: 'set', key, value } satisfies LocalStorageMessage);
+    channel?.close();
   },
   subscribe: <T,>(collectionName: string, id: string, callback: (data: T | null) => void) => {
-    // Basic polling or one-time fetch for local since multiple tabs could change it
-    // In a real robust system, use BroadcastChannel to sync tabs
     const key = `anichisom_os_${collectionName}_${id}`;
-    let lastStr = '';
+    const channel = createLocalStorageChannel();
+    let active = true;
     
     // Initial fetch
     get(key).then(val => {
-       lastStr = JSON.stringify(val);
-       callback(val as T | null);
+       if (active) callback(val as T | null);
     });
 
-    const interval = setInterval(async () => {
-      const val = await get(key);
-      const str = JSON.stringify(val);
-      if (str !== lastStr) {
-         lastStr = str;
-         callback(val as T | null);
-      }
-    }, 1000);
+    if (channel) {
+      channel.onmessage = (event: MessageEvent<LocalStorageMessage>) => {
+        if (!active || event.data?.key !== key) return;
+        callback((event.data.type === 'delete' ? null : event.data.value) as T | null);
+      };
+    }
     
-    return () => clearInterval(interval);
+    return () => {
+      active = false;
+      channel?.close();
+    };
   },
   deleteDoc: async (collectionName: string, id: string) => {
-    await del(`anichisom_os_${collectionName}_${id}`);
+    const key = `anichisom_os_${collectionName}_${id}`;
+    await del(key);
+
+    const channel = createLocalStorageChannel();
+    channel?.postMessage({ type: 'delete', key } satisfies LocalStorageMessage);
+    channel?.close();
   }
 };
 
@@ -123,4 +144,3 @@ export class StorageAdapter {
     return Storage.deleteDoc(this.collection, id, this.mode);
   }
 }
-

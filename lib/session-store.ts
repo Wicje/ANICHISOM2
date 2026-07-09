@@ -17,6 +17,7 @@ export interface SessionData {
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days (matches cookie maxAge)
 const DEV_SESSION_TTL_MS = 24 * 60 * 60 * 1000;   // 24 hours for dev bypass
+const MAX_SESSIONS = 5000;
 
 const store = new Map<string, SessionData>();
 
@@ -25,6 +26,13 @@ const store = new Map<string, SessionData>();
  */
 export function createSession(token: string, userId: string, uniqueId: string, role: string, ttlMs?: number): void {
   const now = Date.now();
+  pruneExpiredSessions();
+
+  if (store.size >= MAX_SESSIONS) {
+    const oldestToken = store.keys().next().value;
+    if (oldestToken) store.delete(oldestToken);
+  }
+
   store.set(token, {
     userId,
     uniqueId,
@@ -81,5 +89,10 @@ export function pruneExpiredSessions(): number {
 
 // Auto-prune every 10 minutes
 if (typeof setInterval !== 'undefined') {
-  setInterval(pruneExpiredSessions, 10 * 60 * 1000);
+  const globalForSessionStore = globalThis as any;
+  if (!globalForSessionStore.__anichisom_session_prune_interval) {
+    const interval = setInterval(pruneExpiredSessions, 10 * 60 * 1000);
+    if (typeof interval === 'object' && 'unref' in interval) interval.unref();
+    globalForSessionStore.__anichisom_session_prune_interval = interval;
+  }
 }

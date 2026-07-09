@@ -71,7 +71,7 @@ export function Sidebar({ activityTab, setActivityTab, files, activeFileId, setA
     await refreshFiles();
   };
 
-  const renderNode = (node: TreeNode, depth: number) => {
+  const renderNode = (node: TreeNode, depth: number): React.ReactNode => {
     const isDir = node.type === 'directory';
     const isExpanded = expandedFolders.includes(node.path);
 

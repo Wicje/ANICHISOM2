@@ -65,7 +65,7 @@ export async function GET(
       );
     }
 
-    const result = await connector.handleCallback(userId, code, state);
+    const result = await connector.handleCallback(userId, code, state ?? undefined);
 
     // Redirect back to Files app with success
     return NextResponse.redirect(

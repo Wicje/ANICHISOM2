@@ -68,6 +68,7 @@ export function useCollaborativeDoc(config: CollaborativeDocConfig): Collaborati
   const { workspaceMode, currentUser } = useOS();
 
   const roomId = `${config.appPrefix}-${workspaceMode}-${config.docId}`;
+  const currentUserId = currentUser?.id || 'anonymous';
 
   const [synced, setSynced] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -205,9 +206,14 @@ export function useCollaborativeDoc(config: CollaborativeDocConfig): Collaborati
         wsProviderRef.current = wsProvider;
         setConnected(true);
 
+        const userHue = Array.from(currentUserId).reduce(
+          (hash, char) => (hash * 31 + char.charCodeAt(0)) % 360,
+          0,
+        );
+
         wsProvider.awareness.setLocalStateField('user', {
           name: currentUser?.name || 'Anonymous',
-          color: `hsl(${Math.round(Math.random() * 360)}, 100%, 50%)`,
+          color: `hsl(${userHue}, 100%, 50%)`,
           avatar: currentUser?.avatarUrl
         });
 
@@ -267,7 +273,7 @@ export function useCollaborativeDoc(config: CollaborativeDocConfig): Collaborati
       }
       sharedTypesRef.current = {};
     };
-  }, [roomId, workspaceMode, currentUser?.name, currentUser?.avatarUrl]);
+  }, [roomId, workspaceMode, currentUserId]);
 
   return {
     synced,

@@ -1,5 +1,53 @@
 import { get, set, del, keys } from 'idb-keyval';
 
+const objectUrlsByKey = new Map<string, string>();
+
+function rememberObjectUrl(key: string, blob: Blob): string {
+  const existing = objectUrlsByKey.get(key);
+  if (existing) URL.revokeObjectURL(existing);
+
+  const next = URL.createObjectURL(blob);
+  objectUrlsByKey.set(key, next);
+  return next;
+}
+
+function revokeObjectUrlForKey(key: string): void {
+  const existing = objectUrlsByKey.get(key);
+  if (existing) {
+    URL.revokeObjectURL(existing);
+    objectUrlsByKey.delete(key);
+  }
+}
+
+function revokeObjectUrlsUnderPath(path: string): void {
+  const prefix = path ? `${path}/` : '';
+  for (const [key, url] of objectUrlsByKey.entries()) {
+    if (key === path || (prefix && key.startsWith(prefix))) {
+      URL.revokeObjectURL(url);
+      objectUrlsByKey.delete(key);
+    }
+  }
+}
+
+if (typeof window !== 'undefined') {
+  const cleanup = () => {
+    for (const url of objectUrlsByKey.values()) {
+      URL.revokeObjectURL(url);
+    }
+    objectUrlsByKey.clear();
+  };
+
+  const previousCleanup = (window as any).__anichisom_fs_url_cleanup;
+  if (previousCleanup) {
+    window.removeEventListener('pagehide', previousCleanup);
+    window.removeEventListener('beforeunload', previousCleanup);
+  }
+
+  window.addEventListener('pagehide', cleanup);
+  window.addEventListener('beforeunload', cleanup);
+  (window as any).__anichisom_fs_url_cleanup = cleanup;
+}
+
 // Abstraction for File System operations allowing seamless pivot to Tauri.
 export interface LocalFile {
   id: string;
@@ -14,6 +62,9 @@ export const FS = {
   revokeUrl: (url: string) => {
     if (url.startsWith('blob:')) {
       URL.revokeObjectURL(url);
+      for (const [key, storedUrl] of objectUrlsByKey.entries()) {
+        if (storedUrl === url) objectUrlsByKey.delete(key);
+      }
     }
   },
 
@@ -40,7 +91,7 @@ export const FS = {
         let content = '';
         // Use Object URLs for large binaries to prevent RAM exhaustion. Text files use raw strings.
         if (file.type.startsWith('image/') || file.type.startsWith('video/') || file.type.includes('pdf') || file.type.includes('octet-stream')) {
-           content = URL.createObjectURL(file);
+           content = rememberObjectUrl(`read:${path}`, file);
         } else {
            content = await file.text(); 
         }
@@ -73,6 +124,8 @@ export const FS = {
         const writable = await handle.createWritable();
         await writable.write(content);
         await writable.close();
+        revokeObjectUrlForKey(`read:${path}`);
+        revokeObjectUrlForKey(`dir:${path}`);
         return;
       }
     } catch (e) {
@@ -109,7 +162,7 @@ export const FS = {
                     // Generate Object URLs so apps can instantly render images/videos in grids without fetching payloads
                     let contentUrl = '';
                     if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-                       contentUrl = URL.createObjectURL(file);
+                       contentUrl = rememberObjectUrl(`dir:${fullPath}`, file);
                     }
                     files.push({
                       id: fullPath,
@@ -148,6 +201,8 @@ export const FS = {
 
   // Delete a file or directory
   delete: async (path: string): Promise<void> => {
+    revokeObjectUrlForKey(`read:${path}`);
+    revokeObjectUrlsUnderPath(`dir:${path}`);
     try {
       if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
         const { dir, name } = await FS._resolvePath(path);

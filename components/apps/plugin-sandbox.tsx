@@ -9,6 +9,14 @@ export function PluginSandbox({ window: osWindow }: { window: OSWindow }) {
   const [isReady, setIsReady] = useState(false);
 
   const pluginUrl = osWindow.data?.pluginUrl || '/plugin-mock.html';
+  const pluginOrigin = (() => {
+    try {
+      if (typeof window === 'undefined') return '';
+      return new URL(pluginUrl, window.location.href).origin;
+    } catch {
+      return '';
+    }
+  })();
 
   // ─── RPC method handlers ──────────────────────────────────────────────
 
@@ -125,16 +133,17 @@ export function PluginSandbox({ window: osWindow }: { window: OSWindow }) {
         error
           ? { type: 'PLUGIN_RPC_ERROR', id: requestId, error }
           : { type: 'PLUGIN_RPC_RESULT', id: requestId, result },
-        '*',
+        pluginOrigin,
       );
     }
-  }, [currentUser, openWindow, emitEvent, workspaceId, osWindow.id]);
+  }, [currentUser, openWindow, emitEvent, workspaceId, osWindow.id, pluginOrigin]);
 
   // ─── Message handler ──────────────────────────────────────────────────
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (!iframeRef.current || event.source !== iframeRef.current.contentWindow) return;
+      if (!pluginOrigin || event.origin !== pluginOrigin) return;
 
       const { type, payload, method, args, id } = event.data || {};
 
@@ -148,7 +157,7 @@ export function PluginSandbox({ window: osWindow }: { window: OSWindow }) {
               userName: currentUser?.name,
               theme: 'dark',
             },
-          }, '*');
+          }, pluginOrigin);
           break;
 
         case 'PLUGIN_RPC':
@@ -173,7 +182,7 @@ export function PluginSandbox({ window: osWindow }: { window: OSWindow }) {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [currentUser, openWindow, emitEvent, workspaceId, osWindow.id, handleRPC]);
+  }, [currentUser, openWindow, emitEvent, workspaceId, osWindow.id, handleRPC, pluginOrigin]);
 
   return (
     <div className="w-full h-full flex flex-col bg-black overflow-hidden relative">
@@ -193,7 +202,7 @@ export function PluginSandbox({ window: osWindow }: { window: OSWindow }) {
         ref={iframeRef}
         src={pluginUrl}
         className="flex-1 w-full border-none bg-white"
-        sandbox="allow-scripts"
+        sandbox="allow-scripts allow-same-origin"
         title={`Plugin ${osWindow.title}`}
       />
     </div>
