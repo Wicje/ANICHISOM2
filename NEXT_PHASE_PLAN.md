@@ -35,6 +35,29 @@
 
 ---
 
+## Recent Progress
+
+- Completed Google Drive connector updates in `lib/storage-connectors/google-drive-connector.ts`.
+- Added refresh-token support, upload/create-folder handling, safer download proxy URL encoding, and full Drive OAuth write scope.
+- Fixed connector token handling by awaiting `getValidToken()` calls in list/read flows.
+
+## Next Agent Start
+
+- Start from `lib/storage-connectors/google-drive-connector.ts` to validate the connector implementation and ensure cloud storage methods work end-to-end.
+- Then continue with the storage API routes in `app/api/storage/files/route.ts` and `app/api/storage/download/[provider]/[fileId]/route.ts` for flow/error handling.
+- After that, move to `components/apps/file-manager.tsx` for cloud source UI, connect/disconnect state, and browse/download interactions.
+
+### Next Agent Tasks
+
+1. Validate Google Drive connector functionality:
+   - OAuth connection and callback handling
+   - token refresh behavior
+   - file listing, downloads, upload, create folder and delete operations
+2. Verify storage API route behavior for connected/unauthenticated states and proxy download responses.
+3. Confirm file manager UI uses provider state correctly, displays cloud connectors, and handles cloud navigation and downloads smoothly.
+
+---
+
 ## I. Vision Gap Analysis — What's Missing
 
 ### A. Layer 1 — The Core (Platform Infrastructure)
