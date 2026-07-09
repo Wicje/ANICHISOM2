@@ -16,8 +16,12 @@ const server = new Server(
   }
 );
 
-// Connect to the OS Bridge
-const socket = io("http://localhost:3000", { path: "/api/socketio" });
+// Connect to the OS Bridge — pass session token for auth (S-09)
+const MCP_SESSION_TOKEN = process.env.ANICHISOM_SESSION_TOKEN || '';
+const socket = io("http://localhost:3000", {
+  path: "/api/socketio",
+  auth: { token: MCP_SESSION_TOKEN },
+});
 
 // Wait for the Socket connection
 socket.on("connect", () => {

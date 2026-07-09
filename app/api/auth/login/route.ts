@@ -20,6 +20,7 @@ import {
   sanitizeInput,
 } from '@/lib/auth-validation';
 import { getAuthProvider } from '@/lib/auth-providers/provider-factory';
+import { createSession, createDevMasterSession } from '@/lib/session-store';
 
 export async function POST(request: NextRequest) {
   try {
@@ -101,8 +102,11 @@ export async function POST(request: NextRequest) {
     // Get configured auth provider
     const authProvider = getAuthProvider();
 
-    // Master key bypass
-    if (uniqueId === 'ANICHISOM') {
+    // Dev-only master key bypass — NEVER available in production
+    if (process.env.NODE_ENV === 'development' && uniqueId === 'ANICHISOM') {
+      const crypto = await import('crypto');
+      const devToken = 'dev-master-' + crypto.randomBytes(32).toString('hex');
+      createDevMasterSession(devToken);
       const response = NextResponse.json(
         {
           success: true,
@@ -115,15 +119,14 @@ export async function POST(request: NextRequest) {
         { status: 200 }
       );
 
-      const isProduction = process.env.NODE_ENV === 'production';
       response.cookies.set({
         name: 'anichisom_session',
-        value: 'master-session-token-override',
+        value: devToken,
         httpOnly: true,
-        secure: isProduction,
+        secure: false, // Dev only, no HTTPS required locally
         sameSite: 'strict',
         path: '/',
-        maxAge: 30 * 24 * 60 * 60, // 30 days
+        maxAge: 24 * 60 * 60, // 24 hours — shorter for dev bypass
       });
 
       return response;
@@ -147,8 +150,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use token from provider if available, otherwise fallback to uniqueId
-    const sessionToken = result.token || uniqueId;
+    // Generate crypto-random session token — never use userId as token (S-06)
+    const crypto = await import('crypto');
+    const sessionToken = result.token || crypto.randomBytes(32).toString('hex');
+
+    // Register session in store so the session route can resolve token → user
+    createSession(
+      sessionToken,
+      result.user.id,
+      result.user.name || uniqueId,
+      result.user.role || 'user',
+    );
 
     // Create response with secure session cookie
     const response = NextResponse.json(

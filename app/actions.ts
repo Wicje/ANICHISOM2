@@ -1,53 +1,69 @@
 'use server';
 
-import { GoogleGenAI } from '@google/genai';
+import { chatWithFallback, getAiProvider } from '@/lib/ai-providers/ai-provider-factory';
 
-export async function generateChatResponse(prompt: string, customSystemPrompt: string = 'You are a helpful AI assistant.', model: string = 'gemini-3.5-flash', apiKey?: string) {
+export async function generateChatResponse(
+  prompt: string,
+  customSystemPrompt: string = 'You are a helpful AI assistant.',
+  model?: string,
+  provider?: string,
+) {
   try {
-    const key = apiKey || process.env.GEMINI_API_KEY;
-    if (!key) throw new Error('API Key is missing.');
-    const ai = new GoogleGenAI({ apiKey: key });
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: `${customSystemPrompt}\n\nUser: ${prompt}` }]
-        }
-      ]
-    });
-    
-    return { success: true, text: response.text || 'No response.' };
-  } catch (error: any) {
-    console.error('Gemini error:', error);
-    if (error?.status === 503 || error?.message?.includes('503')) {
-      return { success: false, error: 'AI Gateway Error: Model is currently experiencing high demand. Please try again later.' };
+    const chatOptions = {
+      messages: [{ role: 'user' as const, content: prompt }],
+      systemPrompt: customSystemPrompt,
+      model,
+      maxTokens: 4096,
+      temperature: 0.7,
+    };
+
+    if (provider) {
+      const aiProvider = getAiProvider(provider);
+      if (!(await aiProvider.isAvailable())) {
+        return { success: false, error: `Provider "${provider}" is not available. Check server configuration.` };
+      }
+      const response = await aiProvider.chat(chatOptions);
+      return { success: true, text: response.text };
     }
-    return { success: false, error: 'AI Gateway Error: ' + (error?.message || 'Ensure GEMINI_API_KEY is configured.') };
+
+    const response = await chatWithFallback(chatOptions);
+    return { success: true, text: response.text };
+  } catch (error: any) {
+    console.error('[AI] Chat error:', error);
+    if (error?.message?.includes('All AI providers')) {
+      return { success: false, error: 'All AI providers failed. Ensure at least one is configured in server settings.' };
+    }
+    return { success: false, error: 'AI Gateway Error: ' + (error?.message || 'Unknown error.') };
   }
 }
 
-export async function generateTerminalResponse(prompt: string, model: string = 'gemini-3.5-flash', apiKey?: string) {
+export async function generateTerminalResponse(
+  prompt: string,
+  model?: string,
+  provider?: string,
+) {
   try {
-    const key = apiKey || process.env.GEMINI_API_KEY;
-    if (!key) throw new Error('API Key is missing.');
-    const ai = new GoogleGenAI({ apiKey: key });
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: `You are an AI assistant integrated into a web-based operating system terminal (Anichisom OS). Respond concisely and technically to the user's prompt as if it's a CLI output. Prompt: ${prompt}` }]
-        }
-      ]
-    });
-    
-    return { success: true, text: response.text || 'No response.' };
-  } catch (error: any) {
-    console.error('Gemini error:', error);
-    if (error?.status === 503 || error?.message?.includes('503')) {
-      return { success: false, error: 'AI Gateway Error: Model is currently experiencing high demand. Please try again later.' };
+    const chatOptions = {
+      messages: [{ role: 'user' as const, content: prompt }],
+      systemPrompt: 'You are an AI assistant integrated into a web-based operating system terminal (Anichisom OS). Respond concisely and technically as if producing CLI output.',
+      model,
+      maxTokens: 2048,
+      temperature: 0.4,
+    };
+
+    if (provider) {
+      const aiProvider = getAiProvider(provider);
+      if (!(await aiProvider.isAvailable())) {
+        return { success: false, error: `Provider "${provider}" is not available.` };
+      }
+      const response = await aiProvider.chat(chatOptions);
+      return { success: true, text: response.text };
     }
-    return { success: false, error: 'AI Gateway Error: ' + (error?.message || 'Ensure GEMINI_API_KEY is configured.') };
+
+    const response = await chatWithFallback(chatOptions);
+    return { success: true, text: response.text };
+  } catch (error: any) {
+    console.error('[AI] Terminal error:', error);
+    return { success: false, error: 'AI Gateway Error: ' + (error?.message || 'Unknown error.') };
   }
 }

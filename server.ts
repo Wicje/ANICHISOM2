@@ -8,26 +8,59 @@ import { parse } from 'url';
 import { WebSocketServer } from 'ws';
 // @ts-ignore
 import { setupWSConnection } from 'y-websocket/bin/utils';
+import { resolveSession } from './lib/session-store';
 
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
+// S-05: Restrict CORS to known origins — never wildcard
+const ALLOWED_ORIGINS = dev
+  ? ['http://localhost:3000', 'http://127.0.0.1:3000']
+  : (process.env.ALLOWED_ORIGINS?.split(',') || []);
+
 app.prepare().then(async () => {
   const server = express();
   const httpServer = createServer(server);
-  
+
   // y-websocket server for real-time collaboration
   const wss = new WebSocketServer({ port: 1234 });
   wss.on('connection', setupWSConnection);
   console.log('Yjs WebSocket Server listening on ws://localhost:1234');
-  
-  
+
+
   const io = new Server(httpServer, {
     cors: {
-      origin: "*",
-      methods: ["GET", "POST"]
+      origin: dev ? ALLOWED_ORIGINS : (origin, callback) => {
+        // In production, validate against configured origins
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
+      methods: ["GET", "POST"],
+      credentials: true,
     }
+  });
+
+  // S-09: Auth middleware — reject connections without valid session
+  io.use((socket, next) => {
+    const sessionToken = socket.handshake.auth?.token ||
+                         socket.handshake.query?.token;
+
+    if (!sessionToken) {
+      return next(new Error('Authentication required'));
+    }
+
+    const sessionData = resolveSession(sessionToken as string);
+    if (!sessionData) {
+      return next(new Error('Invalid or expired session'));
+    }
+
+    // Attach user data to socket for use in handlers
+    socket.data.user = sessionData;
+    next();
   });
 
   let pubClient: any = null;
@@ -46,6 +79,8 @@ app.prepare().then(async () => {
   const rooms = new Map<string, any>();
 
   io.on('connection', (socket) => {
+    const user = socket.data.user;
+
     socket.on('join-room', async (roomId) => {
       socket.join(roomId);
       if (pubClient) {
@@ -76,19 +111,21 @@ app.prepare().then(async () => {
     socket.on('cursor-move', ({ roomId, cursor }) => {
       socket.to(roomId).emit('cursor-update', { id: socket.id, ...cursor });
     });
-    
+
     socket.on('add-comment', ({ roomId, comment }) => {
       socket.to(roomId).emit('comment-added', comment);
     });
 
-    // --- MCP Bridge ---
+    // --- MCP Bridge (S-09: authenticated) ---
     socket.on('mcp-request', (data) => {
-      // Broadcast from MCP Server -> OS Host
+      // Only relay MCP requests from authenticated connections
+      if (!user) return;
       socket.broadcast.emit('mcp-request', data);
     });
-    
+
     socket.on('mcp-response', (data) => {
-      // Broadcast from OS Host -> MCP Server
+      // Only relay MCP responses from authenticated connections
+      if (!user) return;
       socket.broadcast.emit('mcp-response', data);
     });
 

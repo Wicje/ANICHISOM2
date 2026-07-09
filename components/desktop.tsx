@@ -1,18 +1,19 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { useOS, OSRole, OSUser, OSWindow } from '@/lib/os-context';
 import { WindowFrame } from '@/components/window-frame';
 import { CommandPalette } from '@/components/command-palette';
 import { WorkspaceSelector } from '@/components/workspace-selector';
 import { PresenceIndicator } from '@/components/presence-indicator';
-import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Code2, Search, LayoutTemplate, Clock, Save, Cloud, RefreshCw, ShieldCheck, Power, Figma, Framer, HardDrive, Github, BookOpen, Zap, ZapOff, Briefcase, Brain, User, AlertCircle, Play, Plus, Users, Server, Archive, FileText, Video, Store, Shirt, Cpu, Camera, Code, Box, Settings, Pipette, Layers, Grid, Sliders, Cpu as CpuIcon, Lock, StickyNote, Activity, FilePlus, Bot, Film, Compass, X } from 'lucide-react';
+import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Code2, Search, LayoutTemplate, Clock, Save, Cloud, RefreshCw, ShieldCheck, Power, Figma, Framer, HardDrive, Github, BookOpen, Zap, ZapOff, Briefcase, Brain, User, AlertCircle, Play, Plus, Users, Server, Archive, FileText, Video, Store, Shirt, Cpu, Camera, Code, Box, Settings, Pipette, Layers, Grid, Sliders, Cpu as CpuIcon, Lock, StickyNote, Activity, FilePlus, Bot, Film, Compass, X, Puzzle } from 'lucide-react';
 import { ControlCenter } from '@/components/control-center';
 import { FS, LocalFile } from '@/lib/fs';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { LoginScreen } from '@/components/login-screen';
+import { registerBuiltinPlugins, loadInstallStates, persistInstallStates, getAllPlugins, subscribe, PluginManifest, isPluginActive } from '@/lib/plugin-registry';
 
 const TerminalBox = dynamic(() => import('@/components/apps/terminal').then(mod => mod.TerminalBox), { ssr: false });
 const FileManager = dynamic(() => import('@/components/apps/file-manager').then(mod => mod.FileManager), { ssr: false });
@@ -172,7 +173,57 @@ export function Desktop() {
   const [showSnapshots, setShowSnapshots] = useState(false);
   const [showActionCenter, setShowActionCenter] = useState(false);
   const [customApps, setCustomApps] = useState<any[]>([]);
+  const [registryVersion, setRegistryVersion] = useState(0);
   const [showSwitcher, setShowSwitcher] = useState(false);
+
+  // Initialize plugin registry on mount
+  useEffect(() => {
+    loadInstallStates();
+    registerBuiltinPlugins(Object.keys(APPS));
+  }, []);
+
+  // Listen for registry changes to trigger re-render
+  useEffect(() => {
+    const unsub = subscribe(() => {
+      setRegistryVersion(v => v + 1);
+      persistInstallStates();
+    });
+    return unsub;
+  }, []);
+
+  // Merge dynamic registry plugins into the APPS structure
+  const mergedApps = useMemo(() => {
+    const merged = { ...APPS } as Record<string, { component: React.ComponentType<any>; icon: any; title: string; roles: string[]; isCore: boolean }>;
+
+    getAllPlugins().forEach(plugin => {
+      if (merged[plugin.id]) {
+        // Override title/description for built-in apps from registry metadata
+        if (plugin.name !== plugin.id) {
+          merged[plugin.id] = { ...merged[plugin.id], title: plugin.name };
+        }
+      } else if (plugin.runtime === 'iframe' && plugin.entryUrl) {
+        // iframe plugin → render via PluginSandbox with entryUrl as window data
+        merged[plugin.id] = {
+          component: PluginSandbox,
+          icon: Puzzle,
+          title: plugin.name,
+          roles: plugin.roles || ['admin', 'filmmaker', 'technician', 'designer', 'client', 'user'],
+          isCore: false,
+        };
+      } else if (plugin.runtime === 'native' && plugin.component) {
+        // Native plugin → render with its own React component
+        merged[plugin.id] = {
+          component: plugin.component,
+          icon: Puzzle,
+          title: plugin.name,
+          roles: plugin.roles || ['admin', 'filmmaker', 'technician', 'designer', 'client', 'user'],
+          isCore: plugin.isCore || false,
+        };
+      }
+    });
+
+    return merged;
+  }, [registryVersion]);
   const [switcherIndex, setSwitcherIndex] = useState(0);
   const [showLaunchpad, setShowLaunchpad] = useState(false);
   const [showMissionControl, setShowMissionControl] = useState(false);
@@ -233,11 +284,20 @@ Status: In Review`);
       setCustomApps(apps);
     });
     
-    // --- MCP Bridge Listener ---
+    // --- MCP Bridge Listener (with WS auth) ---
     let mcpSocket: any = null;
-    import('socket.io-client').then(({ io }) => {
-      mcpSocket = io({ path: '/api/socketio' });
-      mcpSocket.on('mcp-request', async (req: any) => {
+    import('socket.io-client').then(async ({ io }) => {
+      // Fetch a short-lived WS auth token using the httpOnly session cookie
+      try {
+        const tokenRes = await fetch('/api/auth/socket-token');
+        if (!tokenRes.ok) return; // Not authenticated — skip WS connection
+        const { token } = await tokenRes.json();
+
+        mcpSocket = io({ path: '/api/socketio', auth: { token } });
+        mcpSocket.on('connect_error', (err: any) => {
+          console.warn('[MCP] WS auth failed:', err.message);
+        });
+        mcpSocket.on('mcp-request', async (req: any) => {
         try {
           if (req.method === 'openWindow') {
             openWindow(req.params.appId, req.params.title, req.params.data);
@@ -255,6 +315,9 @@ Status: In Review`);
           mcpSocket.emit('mcp-response', { id: req.id, success: false, error: err.message });
         }
       });
+      } catch (wsErr) {
+        console.warn('[MCP] Failed to get WS auth token:', wsErr);
+      }
     });
 
     return () => {
@@ -459,8 +522,8 @@ Status: In Review`);
     return <LoginScreen />;
   }
 
-  const allowedApps = Object.entries(APPS).filter(([appId, config]) => 
-    config.roles.includes(currentUser.role) && (config.isCore || installedApps.includes(appId))
+  const allowedApps = Object.entries(mergedApps).filter(([appId, config]) =>
+    config.roles.includes(currentUser.role) && (config.isCore || installedApps.includes(appId) || isPluginActive(appId))
   );
   const isSuperUser = currentUser.role === 'admin';
 
@@ -793,7 +856,7 @@ Status: In Review`);
         {windows
           .filter(win => win.workspace === activeWorkspace || win.workspace === undefined)
           .map(win => {
-            const AppConfig = APPS[win.appId as keyof typeof APPS];
+            const AppConfig = mergedApps[win.appId];
             if (!AppConfig) return null;
 
             return (
@@ -873,7 +936,7 @@ Status: In Review`);
         <div className="absolute inset-0 z-[300] flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-auto">
           <div className="bg-black/80 border border-white/20 p-8 rounded-3xl shadow-2xl flex gap-6 items-center flex-wrap max-w-4xl justify-center">
             {windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined).map((win, idx) => {
-               const AppConfig = APPS[win.appId as keyof typeof APPS];
+               const AppConfig = mergedApps[win.appId];
                const Icon = AppConfig?.icon || Folder;
                return (
                  <div key={win.id} className={cn("flex flex-col items-center gap-4 p-5 rounded-2xl transition-all duration-200", switcherIndex === idx ? "bg-white/20 scale-110 shadow-xl" : "opacity-50 hover:opacity-80")}>
@@ -901,9 +964,9 @@ Status: In Review`);
              />
           </div>
           <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-x-4 gap-y-12 max-w-6xl mx-auto mt-24 px-8">
-            {Object.entries(APPS).map(([appId, config]) => {
+            {Object.entries(mergedApps).map(([appId, config]) => {
               if (!config.roles.includes(currentUser.role) && !isSuperUser) return null;
-              if (!config.isCore && !installedApps.includes(appId)) return null;
+              if (!config.isCore && !installedApps.includes(appId) && !isPluginActive(appId)) return null;
               const Icon = config.icon;
                return (
                  <button 
@@ -954,7 +1017,7 @@ Status: In Review`);
           {/* Windows Overview */}
           <div className="flex-1 p-12 flex flex-wrap content-start gap-8 justify-center overflow-y-auto">
              {windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined).map(win => {
-                const AppConfig = APPS[win.appId as keyof typeof APPS];
+                const AppConfig = mergedApps[win.appId];
                 const Icon = AppConfig?.icon || Folder;
                 return (
                   <button

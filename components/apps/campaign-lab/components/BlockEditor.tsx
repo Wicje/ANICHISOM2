@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Block, BlockType } from '../types';
+import { Block, BlockType, DatabaseSchema, DatabaseStore } from '../types';
 import { SLASH_COMMANDS, TEAM_MEMBERS } from '../data';
 import { DatabaseView } from './DatabaseView';
 import { GripVertical, CheckSquare, Square, Image as ImageIcon, Trash2, AtSign, ChevronRight, Copy, Table2, Code2, Lightbulb } from 'lucide-react';
@@ -9,7 +9,16 @@ import { useOS } from '@/lib/os-context';
 const CALLOUT_ICONS = ['💡', '⚠️', '📌', '✅', '❌', '🔥', '📝', '🎯', '💬', '⭐'];
 const CODE_LANGUAGES = ['plaintext', 'javascript', 'typescript', 'python', 'html', 'css', 'json', 'bash', 'sql', 'markdown'];
 
-export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (blocks: Block[]) => void }) {
+interface BlockEditorProps {
+  blocks: Block[];
+  onChange: (blocks: Block[]) => void;
+  databaseStore: DatabaseStore;
+  onUpdateDatabase: (dbId: string, updates: Partial<DatabaseSchema>) => void;
+  pageId: string;
+  onUpdateBlockInEditor: (blockId: string, updates: Partial<Block>) => void;
+}
+
+export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase, pageId, onUpdateBlockInEditor }: BlockEditorProps) {
   const { openWindow } = useOS();
   const [slashMenu, setSlashMenu] = useState<{ index: number, x: number, y: number, query: string, selectedIndex: number } | null>(null);
   const [mentionMenu, setMentionMenu] = useState<{ index: number, x: number, y: number, query: string, selectedIndex: number } | null>(null);
@@ -319,7 +328,12 @@ export function BlockEditor({ blocks, onChange }: { blocks: Block[], onChange: (
                 ) : block.type === 'code' ? (
                   <CodeBlock block={block} index={index} updateBlock={updateBlock} handleChange={handleChange} handleKeyDown={handleKeyDown} />
                 ) : ['database', 'board', 'calendar', 'list', 'gallery', 'timeline', 'linked', 'form'].includes(block.type) ? (
-                  <DatabaseView block={block} />
+                  <DatabaseView
+                    block={block}
+                    databaseStore={databaseStore}
+                    onUpdateDatabase={onUpdateDatabase}
+                    onUpdateBlock={(updates) => onUpdateBlockInEditor(block.id, updates)}
+                  />
                 ) : ['video', 'audio', 'file', 'web'].includes(block.type) ? (
                   <div className="py-2">
                       <div className="bg-slate-50 border border-black/10 rounded-lg p-4 flex flex-col gap-2 relative">
