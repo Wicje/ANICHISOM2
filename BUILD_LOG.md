@@ -16,6 +16,72 @@
 
 ## Session Log
 
+### Session 7 — 2026-07-11: Phase 6A Plugin Marketplace
+
+**Focus:** Plugin lifecycle management, Zustand store, permission enforcement, 48 new tests
+
+**What was done:**
+
+- [x] **6A.1 — Plugin Zustand Store:** `lib/stores/plugin.store.ts`
+  - Reactive Zustand wrapper around the existing plugin registry module
+  - Tracks all registered plugins, active plugins, install states
+  - Loading/error state management for async operations
+  - Computed selectors: `searchPlugins()`, `getPluginsByCategory()`, `getPluginsBySource()`
+  - `isPermissionGranted()` with privacy override support
+  - Auto-syncs with registry via `registrySubscribe`
+  - Persistence via `persistInstallStates()` on every mutation
+- [x] **6A.2 — Plugin Service:** `lib/services/plugin.service.ts`
+  - Full install lifecycle: validate → check conflicts → permission pre-check → install → persist
+  - Uninstall lifecycle: disable → remove → persist
+  - Toggle enabled/disabled
+  - Permission enforcement: `checkPermissions()`, `isRpcMethodAllowed()` (maps 15 RPC methods to permissions)
+  - Version checking: semver comparison, update detection
+  - `openPlugin()` — returns window data (URL for iframe, appId for native)
+  - `registerFromUrl()` — fetch + validate + register remote manifest
+  - `validateManifest()` — validates required fields and semver format
+- [x] **6A.3 — Permission System in PluginSandbox:** `components/apps/plugin-sandbox.tsx`
+  - Real permission checks on every RPC call via `PluginService.isRpcMethodAllowed()`
+  - Denied permission counter in status bar
+  - Granted permissions count in status bar
+  - `auth.hasPermission` now delegates to `pluginStore.isPermissionGranted()` (not hardcoded `true`)
+  - `OPEN_APP` and `NOTIFY` messages gated by `window:open` and `notifications:send` permissions
+  - Plugin ID passed through INIT_CONTEXT for sandbox-side identification
+- [x] **6A.4 — Wired Plugin Store into Components:**
+  - `app-store.tsx` — install/uninstall/toggle/privacy use PluginService and plugin store
+  - `plugin-sandbox.tsx` — permission checks use PluginService
+  - Publish tab uses `PluginService.validateManifest()` before submission
+- [x] **Tests:** 48 new tests across 2 new test files — all passing
+  - `__tests__/stores/plugin.store.test.ts` — 20 tests (bootstrap, register, install, toggle, privacy, selectors, loading)
+  - `__tests__/services/plugin.service.test.ts` — 28 tests (install, uninstall, toggle, permissions, RPC gating, version, open, validate)
+- [x] **Verified:** `npx tsc --noEmit --incremental false` passes clean
+- [x] **Verified:** `npx vitest run` — 214/214 tests pass across 16 files
+
+**Files created:**
+
+| File | Purpose |
+|---|---|
+| `lib/stores/plugin.store.ts` | Zustand plugin state store |
+| `lib/services/plugin.service.ts` | Plugin lifecycle and permission enforcement |
+| `__tests__/stores/plugin.store.test.ts` | Plugin store tests (20 tests) |
+| `__tests__/services/plugin.service.test.ts` | Plugin service tests (28 tests) |
+
+**Files modified:**
+
+| File | Changes |
+|---|---|
+| `components/apps/plugin-sandbox.tsx` | Added real permission enforcement, denied counter, granted count, plugin ID tracking |
+| `components/apps/app-store.tsx` | Wired PluginService for install/uninstall/toggle/privacy/validate |
+
+**What's next:**
+
+- Phase 6B: First-Party Packs (Creative Pack, Forensics Pack, Side Gigs Pack)
+- Phase 6C: Plugin Marketplace UI upgrade (ratings, reviews, search, install counts)
+- Wire moodboard/file stores into their respective components
+- Complete desktop decomposition
+- Create local PWA icon files
+
+---
+
 ### Session 6 — 2026-07-11: Phase 5C PWA + Offline
 
 **Focus:** Service Worker upgrade, offline state restore, install prompt, background sync, 19 new tests
@@ -431,8 +497,8 @@
 | Phase 4C (Campaign Lab) | ✅ Complete | 5/5 |
 | Phase 5A (Files Bridge) | ✅ Complete | 4/6 |
 | Phase 5B (Moodboard) | ✅ Complete | 5/5 |
-| Phase 5C (PWA) | ⬜ Not started | 0/4 |
-| Phase 6A (Marketplace) | ⬜ Not started | 0/4 |
+| Phase 5C (PWA) | ✅ Complete | 4/4 |
+| Phase 6A (Marketplace) | ✅ Complete | 4/4 |
 | Phase 6B (First-Party Packs) | ⬜ Not started | 0/3 |
 | Phase 7 (Security & Privacy) | ⬜ Not started | 0/4 |
 | Phase 8 (Rust Backend) | ⬜ Not started | 0/5 |
@@ -441,15 +507,17 @@
 
 ## Notes for Next Agent
 
-- **Phase 5A + 5B complete** — Files Bridge (OneDrive, local folder, file store, smart routing, version history) + Moodboard (store, browser clipping, export, voting)
-- **Next: Phase 5C** — PWA + Offline (Service Worker, offline state restore, install prompt, background sync)
+- **Phase 6A complete** — Plugin lifecycle (install/uninstall), Zustand store, permission enforcement, sandbox RPC gating
+- **Next: Phase 6B** — First-Party Packs (Creative Pack, Forensics Pack, Side Gigs Pack)
 - **Wire stores into components** — moodboard.store.ts and file.store.ts exist but components still use local state for some operations
 - **Complete desktop decomposition** — original `components/desktop.tsx` (1,163 lines) still exists; replace with `components/desktop/index.tsx`
 - **Read `ARCHITECTURE.md` Section 8** for the detailed architecture improvement plan
 - **Read `VISION.md`** for the authoritative product vision
-- **Tests:** Run with `npm test` or `npx vitest run` — 147 tests across 12 files
+- **Tests:** Run with `npm test` or `npx vitest run` — 214 tests across 16 files
 - **TypeScript:** Verify with `npx tsc --noEmit --incremental false`
 - **34 env vars** documented in `.env.example` — check before adding new ones
+- **Plugin store** (`lib/stores/plugin.store.ts`) — Zustand reactive state for plugin registry
+- **Plugin service** (`lib/services/plugin.service.ts`) — lifecycle, permissions, version checks
 - **Power Browser** (`components/apps/power-browser.tsx`) — has clip button, wired to BrowserClipService
 - **Campaign store** (`lib/stores/campaign.store.ts`) — Zustand store with hierarchy, databases, sharing, notifications
 - **File store** (`lib/stores/file.store.ts`) — multi-source navigation, smart routing, version history
@@ -457,4 +525,4 @@
 
 ---
 
-*Last updated: 2026-07-11 | Session: Phase 5A Files Bridge + 5B Moodboard*
+*Last updated: 2026-07-11 | Session: Phase 6A Plugin Marketplace*

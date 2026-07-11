@@ -160,13 +160,15 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 | Component | File | Status | Notes |
 |---|---|---|---|
 | Plugin SDK | `lib/plugin-sdk.ts` | ✅ Complete | postMessage RPC, 8 namespaces, origin verification |
-| Plugin Registry | `lib/plugin-registry.ts` | ✅ Complete | Manifest registry |
-| Plugin Sandbox | `components/apps/plugin-sandbox.tsx` | ✅ Complete | Origin-verified iframe sandbox |
+| Plugin Registry | `lib/plugin-registry.ts` | ✅ Complete | Manifest registry, install states, persistence |
+| Plugin Store | `lib/stores/plugin.store.ts` | ✅ Complete | Zustand reactive state, selectors, privacy overrides |
+| Plugin Service | `lib/services/plugin.service.ts` | ✅ Complete | Lifecycle management, permission enforcement, version checks |
+| Plugin Sandbox | `components/apps/plugin-sandbox.tsx` | ✅ Complete | Origin-verified iframe, real permission gating, denied counter |
 | Plugin API Routes | `app/api/plugins/` (2 routes) | ✅ Complete | CRUD for plugins |
-| Marketplace UI | `components/apps/marketplace.tsx` | ⚠️ Stub | Only "Add Custom Web App" URL pinning |
-| Permission System | — | ❌ Not started | Per-plugin permission enforcement |
-| Install/Uninstall Lifecycle | — | ❌ Not started | Full plugin lifecycle management |
-| Version Management | — | ❌ Not started | Plugin versioning and updates |
+| Marketplace UI | `components/apps/app-store.tsx` | ✅ Complete | Discover/Installed/Developer/Publish with permission toggles |
+| Permission System | `lib/services/plugin.service.ts` | ✅ Complete | Per-RPC-method permission mapping, privacy overrides |
+| Install/Uninstall Lifecycle | `lib/services/plugin.service.ts` | ✅ Complete | Full lifecycle: validate → install → persist → uninstall |
+| Version Management | — | ⚠️ Partial | `checkVersion()` detects updates, no auto-update yet |
 
 ### 3.7 Security
 
@@ -627,12 +629,12 @@ rust/
 
 ### Phase 6A — Plugin Marketplace (Weeks 13-14)
 
-| # | Task | Deliverable | Priority |
-|---|---|---|---|
-| 6A.1 | Install/uninstall lifecycle | Full plugin management | HIGH |
-| 6A.2 | Permission system (per-plugin access control) | Permission UI + enforcement | HIGH |
-| 6A.3 | Private registry (GitHub-based) | Plugin hosting | MEDIUM |
-| 6A.4 | Marketplace UI (browse, install, rate) | Store interface | MEDIUM |
+| # | Task | Deliverable | Priority | Status |
+|---|---|---|---|---|
+| 6A.1 | Install/uninstall lifecycle | Full plugin management | HIGH | ✅ Complete |
+| 6A.2 | Permission system (per-plugin access control) | Permission UI + enforcement | HIGH | ✅ Complete |
+| 6A.3 | Private registry (GitHub-based) | Plugin hosting | MEDIUM | ⬜ Not started |
+| 6A.4 | Marketplace UI (browse, install, rate) | Store interface | MEDIUM | ⚠️ Partial |
 
 ### Phase 6B — First-Party Packs (Weeks 15-16)
 

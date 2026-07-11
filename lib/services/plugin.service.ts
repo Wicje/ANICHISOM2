@@ -186,7 +186,8 @@ export const PluginService = {
     if (!manifest) return null;
 
     const store = usePluginStore.getState();
-    if (!store.isPluginActive(pluginId)) return null;
+    const installState = store.getInstallState(pluginId);
+    if (!installState?.enabled) return null;
 
     if (manifest.runtime === 'iframe' && manifest.entryUrl) {
       return {
