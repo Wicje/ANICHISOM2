@@ -1,44 +1,20 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useRef } from 'react';
 import { get, set, clear, del } from 'idb-keyval';
 import { syncQueue } from '@/lib/sync-queue';
 import { Workspace, Event } from '@/lib/workspace-types';
+import { initSessionKeyRandom, isSessionUnlocked, lockSession } from '@/lib/services/session-encryption.service';
+import { useAuthStore, OSUser, OSRole } from '@/lib/stores/auth.store';
+import { useWindowStore, OSWindow } from '@/lib/stores/window.store';
+import { useThemeStore, PerformanceMode } from '@/lib/stores/theme.store';
+import { useWorkspaceStore, WorkspaceMode, Snapshot } from '@/lib/stores/workspace.store';
 
-export type OSWindow = {
-  id: string;
-  appId: string;
-  title: string;
-  isMinimized: boolean;
-  isMaximized: boolean;
-  zIndex: number;
-  width: number;
-  height: number;
-  x: number;
-  y: number;
-  data?: any; // For passing initial state or props to the app
-  workspace?: number;
-};
-
-export type Snapshot = {
-  id: string;
-  timestamp: number;
-  name: string;
-  windows: OSWindow[];
-};
-
-export type PerformanceMode = 'light' | 'heavy';
-
-export type OSRole = 'admin' | 'filmmaker' | 'technician' | 'user';
-
-export type OSUser = {
-  id: string;
-  name: string;
-  role: OSRole;
-  avatarUrl?: string; // Add avatar support
-};
-
-export type WorkspaceMode = 'private' | 'agency';
+export type { OSWindow } from '@/lib/stores/window.store';
+export type { Snapshot } from '@/lib/stores/workspace.store';
+export type { PerformanceMode } from '@/lib/stores/theme.store';
+export type { OSRole, OSUser } from '@/lib/stores/auth.store';
+export type { WorkspaceMode } from '@/lib/stores/workspace.store';
 
 type OSContextType = {
   currentUser: OSUser | null;
@@ -68,7 +44,6 @@ type OSContextType = {
   saveSnapshot: (name: string) => void;
   restoreSnapshot: (id: string) => void;
   wipeSession: () => Promise<void>;
-  // Phase 1: Workspace extensions
   workspaceId: string;
   setWorkspaceId: (id: string) => void;
   workspaces: Workspace[];
@@ -90,44 +65,75 @@ type OSContextType = {
 const OSContext = createContext<OSContextType | undefined>(undefined);
 
 export function OSProvider({ children }: { children: React.ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<OSUser | null>(null);
-  const [windows, setWindows] = useState<OSWindow[]>([]);
-  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
-  const [performanceMode, setPerformanceMode] = useState<PerformanceMode>('heavy');
-  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('private');
-  const [activeWorkspace, setActiveWorkspace] = useState(0);
-  const [installedApps, setInstalledApps] = useState<string[]>([]);
-  const [recentApps, setRecentApps] = useState<string[]>([]);
-  const highestZIndexRef = useRef(10);
   const isHydratedRef = useRef(false);
-  // Phase 1: Workspace state
-  const [workspaceId, setWorkspaceId] = useState<string>('personal');
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [mode, setMode] = useState<'create' | 'review' | 'present'>('create');
-  const [wallpaper, setWallpaper] = useState<string>('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop');
-  const [themeColor, setThemeColor] = useState<string>('#00f0ff');
-  const [fontFamily, setFontFamily] = useState<string>('system-ui, sans-serif');
-  const [screenShader, setScreenShader] = useState<string>('none');
+
+  // ─── Subscribe to Zustand stores ──────────────────────────────────
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const authSetCurrentUser = useAuthStore((s) => s.setCurrentUser);
+  const authLogout = useAuthStore((s) => s.logout);
+  const authWipeSession = useAuthStore((s) => s.wipeSession);
+  const authCheckSession = useAuthStore((s) => s.checkSession);
+
+  const windows = useWindowStore((s) => s.windows);
+  const windowOpenWindow = useWindowStore((s) => s.openWindow);
+  const windowCloseWindow = useWindowStore((s) => s.closeWindow);
+  const windowFocusWindow = useWindowStore((s) => s.focusWindow);
+  const windowMinimizeWindow = useWindowStore((s) => s.minimizeWindow);
+  const windowMaximizeWindow = useWindowStore((s) => s.maximizeWindow);
+  const windowUpdateDimensions = useWindowStore((s) => s.updateWindowDimensions);
+  const windowUpdateData = useWindowStore((s) => s.updateWindowData);
+  const windowSetWindows = useWindowStore((s) => s.setWindows);
+  const windowLoadProject = useWindowStore((s) => s.loadProject);
+  const windowApplyLayout = useWindowStore((s) => s.applyWorkspaceLayout);
+
+  const wallpaper = useThemeStore((s) => s.wallpaper);
+  const themeColor = useThemeStore((s) => s.themeColor);
+  const fontFamily = useThemeStore((s) => s.fontFamily);
+  const screenShader = useThemeStore((s) => s.screenShader);
+  const performanceMode = useThemeStore((s) => s.performanceMode);
+  const themeSetWallpaper = useThemeStore((s) => s.setWallpaper);
+  const themeSetThemeColor = useThemeStore((s) => s.setThemeColor);
+  const themeSetFontFamily = useThemeStore((s) => s.setFontFamily);
+  const themeSetScreenShader = useThemeStore((s) => s.setScreenShader);
+  const themeSetPerformanceMode = useThemeStore((s) => s.setPerformanceMode);
+
+  const workspaceMode = useWorkspaceStore((s) => s.workspaceMode);
+  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
+  const installedApps = useWorkspaceStore((s) => s.installedApps);
+  const recentApps = useWorkspaceStore((s) => s.recentApps);
+  const snapshots = useWorkspaceStore((s) => s.snapshots);
+  const workspaceId = useWorkspaceStore((s) => s.workspaceId);
+  const workspaces = useWorkspaceStore((s) => s.workspaces);
+  const mode = useWorkspaceStore((s) => s.mode);
+  const wsSetWorkspaceMode = useWorkspaceStore((s) => s.setWorkspaceMode);
+  const wsSetActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace);
+  const wsInstallApp = useWorkspaceStore((s) => s.installApp);
+  const wsUninstallApp = useWorkspaceStore((s) => s.uninstallApp);
+  const wsSaveSnapshot = useWorkspaceStore((s) => s.saveSnapshot);
+  const wsRestoreSnapshot = useWorkspaceStore((s) => s.restoreSnapshot);
+  const wsSetWorkspaceId = useWorkspaceStore((s) => s.setWorkspaceId);
+  const wsSetWorkspaces = useWorkspaceStore((s) => s.setWorkspaces);
+  const wsSetMode = useWorkspaceStore((s) => s.setMode);
+  const wsEmitEvent = useWorkspaceStore((s) => s.emitEvent);
+  const wsLoadPersisted = useWorkspaceStore((s) => s.loadPersisted);
+  const wsAddRecentApp = useWorkspaceStore((s) => s.addRecentApp);
+
+  // ─── Session check on mount ───────────────────────────────────────
 
   useEffect(() => {
-    // Load local snapshots
-    get('anichisom_os_snapshots').then(data => {
-      if (data) setSnapshots(data);
-    });
+    wsLoadPersisted();
 
-    // Check session via API endpoint (replaces Firebase auth)
     const checkSession = async () => {
       try {
         const response = await fetch('/api/auth/session', {
           method: 'GET',
-          credentials: 'include', // Include cookies
+          credentials: 'include',
         });
 
         if (!response.ok) {
-          // Session invalid or expired
-          setCurrentUser(null);
+          authSetCurrentUser(null);
           del('anichisom_os_user_cache');
-          setWindows([]);
+          windowSetWindows([]);
           return;
         }
 
@@ -138,42 +144,58 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
           role: (data.user.role as OSRole) || 'user',
         };
 
-        setCurrentUser(osUser);
+        authSetCurrentUser(osUser);
         set('anichisom_os_user_cache', osUser);
 
-        // Load local desktop state if not hydrated
+        // Initialize session encryption
+        if (!isSessionUnlocked()) {
+          try {
+            await initSessionKeyRandom();
+          } catch (e) {
+            console.warn('[OSContext] Failed to init session encryption:', e);
+          }
+        }
+
+        // Hydrate desktop state from IDB
         if (!isHydratedRef.current) {
           const localData = await get('anichisom_os_desktop');
           if (localData && localData.windows) {
-            setWindows(localData.windows);
-            if (localData.workspaceMode) setWorkspaceMode(localData.workspaceMode);
-            if (localData.installedApps) setInstalledApps(localData.installedApps);
-            if (localData.recentApps) setRecentApps(localData.recentApps);
-            if (localData.wallpaper) setWallpaper(localData.wallpaper);
-            if (localData.themeColor) setThemeColor(localData.themeColor);
-            if (localData.fontFamily) setFontFamily(localData.fontFamily);
-            if (localData.screenShader) setScreenShader(localData.screenShader);
-            const highest = Math.max(10, ...localData.windows.map((w: any) => w.zIndex || 10));
-            highestZIndexRef.current = highest;
+            windowSetWindows(localData.windows);
+            if (localData.workspaceMode) wsSetWorkspaceMode(localData.workspaceMode);
+            if (localData.installedApps) {
+              localData.installedApps.forEach((id: string) => wsInstallApp(id));
+            }
+            if (localData.recentApps) {
+              // Set recent apps directly through workspace store
+              useWorkspaceStore.setState({ recentApps: localData.recentApps });
+            }
+            if (localData.wallpaper) themeSetWallpaper(localData.wallpaper);
+            if (localData.themeColor) themeSetThemeColor(localData.themeColor);
+            if (localData.fontFamily) themeSetFontFamily(localData.fontFamily);
+            if (localData.screenShader) themeSetScreenShader(localData.screenShader);
           }
           isHydratedRef.current = true;
         }
       } catch (error) {
-        // Fallback to cached user if offline
+        // Fallback to cached user
         const cachedUser = await get('anichisom_os_user_cache');
         if (cachedUser) {
-          setCurrentUser(cachedUser);
+          authSetCurrentUser(cachedUser);
           if (!isHydratedRef.current) {
             const localData = await get('anichisom_os_desktop');
             if (localData && localData.windows) {
-              setWindows(localData.windows);
-              if (localData.workspaceMode) setWorkspaceMode(localData.workspaceMode);
-              if (localData.installedApps) setInstalledApps(localData.installedApps);
-              if (localData.recentApps) setRecentApps(localData.recentApps);
-              if (localData.wallpaper) setWallpaper(localData.wallpaper);
-              if (localData.themeColor) setThemeColor(localData.themeColor);
-              if (localData.fontFamily) setFontFamily(localData.fontFamily);
-              if (localData.screenShader) setScreenShader(localData.screenShader);
+              windowSetWindows(localData.windows);
+              if (localData.workspaceMode) wsSetWorkspaceMode(localData.workspaceMode);
+              if (localData.installedApps) {
+                localData.installedApps.forEach((id: string) => wsInstallApp(id));
+              }
+              if (localData.recentApps) {
+                useWorkspaceStore.setState({ recentApps: localData.recentApps });
+              }
+              if (localData.wallpaper) themeSetWallpaper(localData.wallpaper);
+              if (localData.themeColor) themeSetThemeColor(localData.themeColor);
+              if (localData.fontFamily) themeSetFontFamily(localData.fontFamily);
+              if (localData.screenShader) themeSetScreenShader(localData.screenShader);
             }
             isHydratedRef.current = true;
           }
@@ -198,17 +220,24 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Global Desktop State Serialization (Phase 4)
+  // ─── Desktop state persistence (throttled) ────────────────────────
+
   useEffect(() => {
     if (!currentUser || !isHydratedRef.current) return;
     
-    // Throttle save to prevent hammering DB and IndexedDB
     const t = setTimeout(async () => {
       try {
-        // Save to IndexedDB (local fast path)
-        await set('anichisom_os_desktop', { windows, workspaceMode, installedApps, recentApps, wallpaper, themeColor, fontFamily, screenShader });
+        await set('anichisom_os_desktop', {
+          windows,
+          workspaceMode,
+          installedApps,
+          recentApps,
+          wallpaper,
+          themeColor,
+          fontFamily,
+          screenShader,
+        });
         
-        // Sync to server for Cross-Device Resumé (async)
         try {
           await fetch('/api/workspaces/sync', {
             method: 'POST',
@@ -218,57 +247,63 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
               desktopState: { windows, workspaceMode, installedApps, recentApps, wallpaper, themeColor, fontFamily, screenShader, lastUpdated: Date.now() }
             }),
           });
-        } catch (e) {
+        } catch {
           // Silently fail if offline
         }
-      } catch (e) {
-        // Silently fail if sync not available
+      } catch {
+        // Silently fail
       }
     }, 2000);
     
     return () => clearTimeout(t);
   }, [windows, workspaceMode, installedApps, recentApps, currentUser, wallpaper, themeColor, fontFamily, screenShader]);
 
-  const saveSnapshot = useCallback((name: string) => {
-    const newSnapshot: Snapshot = {
-      id: crypto.randomUUID(),
-      timestamp: Date.now(),
-      name,
-      windows: structuredClone(windows)
-    };
-    setSnapshots(prev => {
-      const updated = [newSnapshot, ...prev];
-      set('anichisom_os_snapshots', updated);
-      return updated;
-    });
-  }, [windows]);
+  // ─── Wrapper callbacks (preserving API compatibility) ──────────────
 
-  const restoreSnapshot = useCallback((id: string) => {
-    const snap = snapshots.find(s => s.id === id);
-    if (snap) {
-      setWindows(structuredClone(snap.windows));
-      const highest = Math.max(10, ...snap.windows.map(w => w.zIndex));
-      highestZIndexRef.current = highest;
-    }
-  }, [snapshots]);
+  const setCurrentUser = useCallback((user: OSUser | null) => {
+    authSetCurrentUser(user);
+  }, [authSetCurrentUser]);
+
+  const logout = useCallback(async () => {
+    lockSession();
+    await authLogout();
+    windowSetWindows([]);
+  }, [authLogout, windowSetWindows]);
+
+  const wipeSession = useCallback(async () => {
+    await clear();
+    localStorage.clear();
+    window.location.reload();
+  }, []);
 
   const installApp = useCallback(async (appId: string) => {
-    setInstalledApps(prev => {
-      const next = prev.includes(appId) ? prev : [...prev, appId];
-      set('anichisom_os_desktop', { windows, workspaceMode, installedApps: next, recentApps, wallpaper, themeColor, fontFamily, screenShader });
-      return next;
-    });
-  }, [windows, workspaceMode, recentApps, wallpaper, themeColor, fontFamily, screenShader]);
+    wsInstallApp(appId);
+  }, [wsInstallApp]);
 
   const uninstallApp = useCallback(async (appId: string) => {
-    setInstalledApps(prev => {
-      const next = prev.filter(id => id !== appId);
-      set('anichisom_os_desktop', { windows, workspaceMode, installedApps: next, recentApps, wallpaper, themeColor, fontFamily, screenShader });
-      return next;
-    });
+    wsUninstallApp(appId);
     // Also close the app if it's open
-    setWindows(curr => curr.filter(w => w.appId !== appId));
-  }, [windows, workspaceMode, recentApps, wallpaper, themeColor, fontFamily, screenShader]);
+    const currentWindows = useWindowStore.getState().windows;
+    currentWindows
+      .filter((w) => w.appId === appId)
+      .forEach((w) => windowCloseWindow(w.id));
+  }, [wsUninstallApp, windowCloseWindow]);
+
+  const saveSnapshot = useCallback((name: string) => {
+    wsSaveSnapshot(name, windows);
+  }, [wsSaveSnapshot, windows]);
+
+  const restoreSnapshot = useCallback((id: string) => {
+    const snap = wsRestoreSnapshot(id);
+    if (snap) {
+      windowSetWindows(structuredClone(snap.windows));
+    }
+  }, [wsRestoreSnapshot, windowSetWindows]);
+
+  const openWindow = useCallback((appId: string, title?: string, data?: any) => {
+    wsAddRecentApp(appId);
+    windowOpenWindow(appId, title, data, activeWorkspace);
+  }, [windowOpenWindow, activeWorkspace]);
 
   const notify = useCallback((title: string, options?: NotificationOptions) => {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
@@ -284,258 +319,13 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const logout = useCallback(async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    } catch (e) {
-      console.error('Logout error:', e);
-    }
-    setCurrentUser(null);
-    await del('anichisom_os_user_cache');
-    setWindows([]);
-  }, []);
-
-  const wipeSession = useCallback(async () => {
-    // Leave no trace - clear indexdb and local storage
-    await clear();
-    localStorage.clear();
-    window.location.reload();
-  }, []);
-
-  const focusWindow = useCallback((id: string) => {
-    highestZIndexRef.current += 1;
-    const nextZ = highestZIndexRef.current;
-    
-    setWindows((curr) => 
-      curr.map((w) => w.id === id ? { ...w, zIndex: nextZ, isMinimized: false } : w)
-    );
-  }, []);
-
-  const openWindow = useCallback((appId: string, title?: string, data?: any) => {
-    // Add to recent apps
-    setRecentApps(prev => {
-      const next = [appId, ...prev.filter(id => id !== appId)].slice(0, 5); // Keep top 5 recent
-      set('anichisom_os_desktop', { windows, workspaceMode, installedApps, recentApps: next, wallpaper, themeColor, fontFamily, screenShader });
-      return next;
-    });
-
-    const defaultTitles: Record<string, string> = {
-      'terminal': 'Terminal',
-      'browser': 'Mini Browser',
-      'files': 'File Manager',
-      'moodboard': 'Moodboard',
-      'code': 'Code Editor',
-      'campaign': 'Campaign Lab'
-    };
-
-    const newId = `${appId}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    const windowTitle = title || defaultTitles[appId] || 'App';
-    
-    highestZIndexRef.current += 1;
-    const nextZ = highestZIndexRef.current;
-
-    setWindows((curr) => {
-      // Prevent duplicate instances for single-instance apps
-      const singleInstanceApps = ['terminal', 'files', 'settings', 'store', 'campaign', 'admin'];
-      const existing = singleInstanceApps.includes(appId) ? curr.find((w) => w.appId === appId && w.workspace === activeWorkspace) : null;
-      if (existing) {
-        return curr.map((w) => 
-          (w.appId === appId && w.workspace === activeWorkspace)
-            ? { ...w, zIndex: nextZ, isMinimized: false } 
-            : w
-        );
-      }
-      
-      const offset = (curr.length % 5) * 40;
-      const newWindow: OSWindow = {
-        id: newId,
-        appId,
-        title: windowTitle,
-        isMinimized: false,
-        isMaximized: false,
-        zIndex: nextZ,
-        width: 800,
-        height: 600,
-        x: 100 + offset,
-        y: 100 + offset,
-        data,
-        workspace: activeWorkspace,
-      };
-      
-      return [...curr, newWindow];
-    });
-  }, [activeWorkspace, windows, workspaceMode, installedApps, wallpaper, themeColor, fontFamily, screenShader]);
-
-  const closeWindow = useCallback((id: string) => {
-    setWindows((curr) => curr.filter((w) => w.id !== id));
-  }, []);
-
-  const minimizeWindow = useCallback((id: string) => {
-    setWindows((curr) => curr.map((w) => w.id === id ? { ...w, isMinimized: true } : w));
-  }, []);
-
-  const maximizeWindow = useCallback((id: string) => {
-    setWindows((curr) => curr.map((w) => w.id === id ? { ...w, isMaximized: !w.isMaximized } : w));
-  }, []);
-
-  const updateWindowDimensions = useCallback((id: string, x: number, y: number, width: number, height: number) => {
-    setWindows((curr) => curr.map((w) => w.id === id ? { ...w, x, y, width, height } : w));
-  }, []);
-
-  const updateWindowData = useCallback((id: string, data: any) => {
-    setWindows((curr) => curr.map((w) => w.id === id ? { ...w, data: { ...w.data, ...data } } : w));
-  }, []);
-
-  const loadProject = useCallback((projectId: string) => {
-    // Determine project specific layout
-    const padding = 40;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    const topSpace = 30; // menubar
-    const gap = 10;
-    
-    // Clear all windows
-    setWindows([]);
-    
-    setTimeout(() => {
-      let nextZ = highestZIndexRef.current;
-      
-      const newWindows: OSWindow[] = [];
-      const halfW = (w - (padding * 2) - gap) / 2;
-      const termH = Math.min(300, h * 0.3);
-      const topH = h - topSpace - padding - padding - termH - gap;
-
-      newWindows.push({
-        id: `browser-${Date.now()}-1`,
-        appId: 'browser',
-        title: `${projectId} - Live Preview`,
-        isMinimized: false,
-        isMaximized: false,
-        zIndex: ++nextZ,
-        width: halfW,
-        height: topH,
-        x: padding,
-        y: topSpace + padding,
-        data: { projectId },
-        workspace: activeWorkspace
-      });
-
-      newWindows.push({
-        id: `code-${Date.now()}-2`,
-        appId: 'code',
-        title: `${projectId} - Source Code`,
-        isMinimized: false,
-        isMaximized: false,
-        zIndex: ++nextZ,
-        width: halfW,
-        height: topH,
-        x: padding + halfW + gap,
-        y: topSpace + padding,
-        data: { projectId },
-        workspace: activeWorkspace
-      });
-
-      newWindows.push({
-        id: `moodboard-${Date.now()}-3`,
-        appId: 'moodboard',
-        title: `${projectId} - Moodboard`,
-        isMinimized: true, // Start minimized so they can open it from dock
-        isMaximized: false,
-        zIndex: ++nextZ,
-        width: 800,
-        height: 600,
-        x: 100,
-        y: 100,
-        data: { projectId },
-        workspace: activeWorkspace
-      });
-
-      newWindows.push({
-        id: `terminal-${Date.now()}-4`,
-        appId: 'terminal',
-        title: `Terminal`,
-        isMinimized: false,
-        isMaximized: false,
-        zIndex: ++nextZ,
-        width: w - (padding * 2),
-        height: termH,
-        x: padding,
-        y: topSpace + padding + topH + gap,
-        data: { projectId },
-        workspace: activeWorkspace
-      });
-
-      setWindows(newWindows);
-      highestZIndexRef.current = nextZ;
-    }, 100);
-  }, [activeWorkspace]);
-  // Phase 1: Emit event to sync queue
   const emitEvent = useCallback((eventData: Omit<Event, 'id' | 'timestamp'>) => {
-    const event: Event = {
-      ...eventData,
-      id: crypto.randomUUID(),
-      timestamp: new Date(),
-    };
-    syncQueue.enqueue(event);
-  }, []);
+    wsEmitEvent(eventData);
+  }, [wsEmitEvent]);
 
-  const applyWorkspaceLayout = useCallback((layout: 'creative-split') => {
-    if (layout === 'creative-split') {
-      const padding = 40;
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const topSpace = 30; // menubar
-      
-      const gap = 10;
-      const halfW = (w - (padding * 2) - gap) / 2;
-      const termH = Math.min(300, h * 0.3);
-      const topH = h - topSpace - padding - padding - termH - gap;
-      
-      // We will ensure moodboard, code, and terminal exist
-      let nextZ = highestZIndexRef.current;
+  // ─── Context value ────────────────────────────────────────────────
 
-      setWindows(curr => {
-        const layoutApps = ['moodboard', 'code', 'terminal'];
-        
-        let newWindows = [...curr];
-        
-        layoutApps.forEach(appId => {
-           if (!newWindows.find(w => w.appId === appId)) {
-             newWindows.push({
-                id: `${appId}-preset`,
-                appId,
-                title: appId === 'code' ? 'Code Editor' : appId === 'moodboard' ? 'Moodboard' : 'Terminal',
-                isMinimized: false,
-                isMaximized: false,
-                zIndex: ++nextZ,
-                width: 400,
-                height: 400,
-                x: 0,
-                y: 0,
-                workspace: activeWorkspace
-             });
-           }
-        });
-
-        // Set dimensions
-        return newWindows.map(win => {
-          if (win.appId === 'moodboard') {
-            return { ...win, x: padding, y: topSpace + padding, width: halfW, height: topH, isMaximized: false, isMinimized: false, zIndex: ++nextZ };
-          }
-          if (win.appId === 'code') {
-            return { ...win, x: padding + halfW + gap, y: topSpace + padding, width: halfW, height: topH, isMaximized: false, isMinimized: false, zIndex: ++nextZ };
-          }
-          if (win.appId === 'terminal') {
-            return { ...win, x: padding, y: topSpace + padding + topH + gap, width: w - (padding * 2), height: termH, isMaximized: false, isMinimized: false, zIndex: ++nextZ };
-          }
-          return win;
-        });
-      });
-      highestZIndexRef.current = nextZ;
-    }
-  }, [activeWorkspace]);
-
-  const value = useMemo(() => ({
+  const value: OSContextType = {
     currentUser,
     setCurrentUser,
     logout,
@@ -543,44 +333,43 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     snapshots,
     performanceMode,
     workspaceMode,
+    setWorkspaceMode: wsSetWorkspaceMode,
     activeWorkspace,
-    setActiveWorkspace,
-    setWorkspaceMode,
-    setPerformanceMode,
+    setActiveWorkspace: wsSetActiveWorkspace,
+    setPerformanceMode: themeSetPerformanceMode,
     installedApps,
     recentApps,
     installApp,
     uninstallApp,
     openWindow,
-    closeWindow,
-    focusWindow,
-    minimizeWindow,
-    maximizeWindow,
-    updateWindowDimensions,
-    updateWindowData,
-    applyWorkspaceLayout,
-    loadProject,
+    closeWindow: windowCloseWindow,
+    focusWindow: windowFocusWindow,
+    minimizeWindow: windowMinimizeWindow,
+    maximizeWindow: windowMaximizeWindow,
+    updateWindowDimensions: windowUpdateDimensions,
+    updateWindowData: windowUpdateData,
+    applyWorkspaceLayout: windowApplyLayout,
+    loadProject: windowLoadProject,
     saveSnapshot,
     restoreSnapshot,
     wipeSession,
-    // Phase 1: Workspace extensions
     workspaceId,
-    setWorkspaceId,
+    setWorkspaceId: wsSetWorkspaceId,
     workspaces,
-    setWorkspaces,
+    setWorkspaces: wsSetWorkspaces,
     mode,
-    setMode,
+    setMode: wsSetMode,
     emitEvent,
     wallpaper,
-    setWallpaper,
+    setWallpaper: themeSetWallpaper,
     themeColor,
-    setThemeColor,
+    setThemeColor: themeSetThemeColor,
     fontFamily,
-    setFontFamily,
+    setFontFamily: themeSetFontFamily,
     screenShader,
-    setScreenShader,
+    setScreenShader: themeSetScreenShader,
     notify,
-  }), [currentUser, logout, windows, snapshots, performanceMode, workspaceMode, activeWorkspace, installedApps, recentApps, installApp, uninstallApp, openWindow, closeWindow, focusWindow, minimizeWindow, maximizeWindow, updateWindowDimensions, updateWindowData, applyWorkspaceLayout, loadProject, saveSnapshot, restoreSnapshot, wipeSession, workspaceId, workspaces, mode, emitEvent, wallpaper, themeColor, fontFamily, screenShader, notify]);
+  };
 
   return <OSContext.Provider value={value}>{children}</OSContext.Provider>;
 }

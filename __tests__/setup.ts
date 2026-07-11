@@ -1,12 +1,13 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
-// Mock idb-keyval
+// Mock idb-keyval with in-memory store
+const idbStore = new Map<string, unknown>();
 vi.mock('idb-keyval', () => ({
-  get: vi.fn().mockResolvedValue(undefined),
-  set: vi.fn().mockResolvedValue(undefined),
-  del: vi.fn().mockResolvedValue(undefined),
-  clear: vi.fn().mockResolvedValue(undefined),
+  get: vi.fn((key: string) => Promise.resolve(idbStore.get(key))),
+  set: vi.fn((key: string, value: unknown) => { idbStore.set(key, value); return Promise.resolve(); }),
+  del: vi.fn((key: string) => { idbStore.delete(key); return Promise.resolve(); }),
+  clear: vi.fn(() => { idbStore.clear(); return Promise.resolve(); }),
 }));
 
 // Mock sync-queue

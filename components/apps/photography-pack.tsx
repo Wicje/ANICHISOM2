@@ -4,6 +4,7 @@ import { OSWindow, useOS } from '@/lib/os-context';
 import { Camera, Printer, Shield, Send, Image as ImageIcon, Download, Share2, Info, Plus, CheckCircle, Copy, Link as LinkIcon, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FS, LocalFile } from '@/lib/fs';
+import { usePhotographyStore, Shoot, PhotoGallery, Client, PrintOrder, WatermarkPreset } from '@/lib/stores/photography.store';
 
 export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
   const [activeTab, setActiveTab] = useState<'gallery' | 'delivery' | 'watermark' | 'prints'>('gallery');
@@ -11,7 +12,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
   const [images, setImages] = useState<LocalFile[]>([]);
 
   // Delivery Portal State
-  const [galleries, setGalleries] = useState<any[]>([]);
+  const [localGalleries, setLocalGalleries] = useState<any[]>([]);
   const [newGalleryName, setNewGalleryName] = useState('');
   const [viewedGallery, setViewedGallery] = useState<any>(null);
 
@@ -19,11 +20,36 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
   const [isWatermarking, setIsWatermarking] = useState(false);
   const [watermarkText, setWatermarkText] = useState('PROOF ONLY');
 
+  // Store hooks
+  const {
+    shoots, galleries: storeGalleries, clients, printOrders, watermarkPresets,
+    createShoot, updateShoot, createGallery: createStoreGallery, updateGallery,
+    createClient, createPrintOrder, updatePrintOrder,
+    getShootsByStatus, getGalleriesByStatus, getPrintOrdersByStatus,
+    getActiveWatermarkPreset, setActiveWatermarkPreset,
+    createWatermarkPreset,
+  } = usePhotographyStore();
+
+  // Shoot form state
+  const [newShootName, setNewShootName] = useState('');
+  const [newShootDate, setNewShootDate] = useState('');
+  const [newShootLocation, setNewShootLocation] = useState('');
+
+  // Print order form state
+  const [newOrderGalleryId, setNewOrderGalleryId] = useState('');
+  const [newOrderSize, setNewOrderSize] = useState('8x10');
+  const [newOrderQty, setNewOrderQty] = useState(1);
+  const [newOrderFinish, setNewOrderFinish] = useState<'matte' | 'glossy' | 'metallic' | 'canvas'>('matte');
+
+  // Watermark preset form state
+  const [newPresetName, setNewPresetName] = useState('');
+  const [newPresetText, setNewPresetText] = useState('');
+
   const loadGalleries = async () => {
       try {
          const file = await FS.read('galleries.json');
          if (file?.content) {
-            setGalleries(JSON.parse(file.content as string));
+            setLocalGalleries(JSON.parse(file.content as string));
          }
       } catch (e) {
          // No galleries file yet
@@ -31,7 +57,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
   };
 
   const saveGalleries = async (newGalleries: any[]) => {
-      setGalleries(newGalleries);
+      setLocalGalleries(newGalleries);
       await FS.write('galleries.json', JSON.stringify(newGalleries));
   };
 
@@ -44,6 +70,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
   useEffect(() => {
      loadImages();
      loadGalleries();
+     usePhotographyStore.getState().hydrate();
   }, []);
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,7 +92,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
         expires: '30 days',
         pin: Math.floor(1000 + Math.random() * 9000).toString()
      };
-     saveGalleries([newGal, ...galleries]);
+      saveGalleries([newGal, ...localGalleries]);
      setNewGalleryName('');
   };
 
@@ -146,6 +173,45 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                    </label>
                 </div>
              </div>
+             
+             {/* Shoots Panel */}
+             <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                   <h3 className="font-bold text-lg">Shoots</h3>
+                   <span className="text-xs text-zinc-500">{Object.keys(shoots).length} total</span>
+                </div>
+                {Object.values(shoots).length === 0 ? (
+                   <p className="text-sm text-zinc-400">No shoots yet. Create one below.</p>
+                ) : (
+                   <div className="flex flex-col gap-2 mb-4">
+                      {Object.values(shoots).map(s => (
+                         <div key={s.id} className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl border border-zinc-100">
+                            <div className="flex items-center gap-3">
+                               <div className={cn("w-2 h-2 rounded-full", s.status === 'completed' ? "bg-green-500" : s.status === 'in-progress' ? "bg-amber-500" : s.status === 'post-processed' ? "bg-indigo-500" : "bg-zinc-300")} />
+                               <div>
+                                  <div className="text-sm font-bold">{s.name}</div>
+                                  <div className="text-xs text-zinc-500">{s.location} &middot; {s.date}</div>
+                               </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                               <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold uppercase", s.status === 'completed' ? "bg-green-100 text-green-700" : s.status === 'in-progress' ? "bg-amber-100 text-amber-700" : s.status === 'post-processed' ? "bg-indigo-100 text-indigo-700" : "bg-zinc-100 text-zinc-600")}>
+                                  {s.status}
+                               </span>
+                            </div>
+                         </div>
+                      ))}
+                   </div>
+                )}
+                <div className="flex flex-col sm:flex-row gap-2">
+                   <input value={newShootName} onChange={e => setNewShootName(e.target.value)} placeholder="Shoot name..." className="px-3 py-2 border border-zinc-200 rounded-lg text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                   <input type="date" value={newShootDate} onChange={e => setNewShootDate(e.target.value)} className="px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                   <input value={newShootLocation} onChange={e => setNewShootLocation(e.target.value)} placeholder="Location..." className="px-3 py-2 border border-zinc-200 rounded-lg text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                   <button onClick={() => { if (!newShootName.trim() || !newShootDate) return; createShoot(newShootName, newShootDate, newShootLocation); setNewShootName(''); setNewShootDate(''); setNewShootLocation(''); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 whitespace-nowrap">
+                      + New Shoot
+                   </button>
+                </div>
+             </div>
+
              <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
                 {images.length === 0 ? (
                    <div className="text-zinc-500 text-sm py-12 col-span-full text-center bg-white border border-zinc-200 border-dashed rounded-2xl">
@@ -207,7 +273,18 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                 </div>
              </div>
              
-             {galleries.map((gallery) => (
+             {[...localGalleries, ...Object.values(storeGalleries).map(g => {
+                  const now = Date.now();
+                  return {
+                    id: g.id,
+                    name: g.name,
+                    date: new Date(g.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                    status: g.status === 'delivered' ? 'Delivered' : g.status === 'reviewing' ? 'Reviewing' : g.status === 'archived' ? 'Archived' : 'Draft',
+                    expires: g.expiresAt > now ? `${Math.ceil((g.expiresAt - now) / (1000 * 60 * 60 * 24))} days` : 'Expired',
+                    pin: g.pin,
+                    _isStore: true,
+                  };
+               })].map((gallery) => (
                 <div key={gallery.id} className="p-6 bg-white border border-zinc-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                       <div>
@@ -350,6 +427,37 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                          className="px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-center text-lg uppercase tracking-widest bg-zinc-50"
                       />
                    </div>
+
+                   {/* Watermark Presets */}
+                   {Object.keys(watermarkPresets).length > 0 && (
+                      <div className="flex flex-col text-left mt-2">
+                         <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Saved Presets</label>
+                         <div className="flex flex-col gap-1.5">
+                            {Object.values(watermarkPresets).map(p => {
+                               const active = getActiveWatermarkPreset()?.id === p.id;
+                               return (
+                                  <button key={p.id} onClick={() => { setActiveWatermarkPreset(active ? null : p.id); if (!active) { setWatermarkText(p.text); } }}
+                                     className={cn("flex items-center justify-between px-3 py-2 rounded-lg text-sm border transition-all", active ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "bg-white border-zinc-200 hover:border-zinc-300")}>
+                                     <span className="font-bold">{p.name}</span>
+                                     <span className="text-xs opacity-60">"{p.text}" &middot; {Math.round(p.opacity * 100)}%</span>
+                                  </button>
+                               );
+                            })}
+                         </div>
+                      </div>
+                   )}
+
+                   {/* New Preset Form */}
+                   <div className="flex flex-col text-left mt-2">
+                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Create Preset</label>
+                      <div className="flex gap-2">
+                         <input value={newPresetName} onChange={e => setNewPresetName(e.target.value)} placeholder="Preset name..." className="px-3 py-2 border border-zinc-200 rounded-lg text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                         <input value={newPresetText} onChange={e => setNewPresetText(e.target.value)} placeholder="Text..." className="px-3 py-2 border border-zinc-200 rounded-lg text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                         <button onClick={() => { if (!newPresetName.trim() || !newPresetText.trim()) return; createWatermarkPreset(newPresetName, newPresetText); setNewPresetName(''); setNewPresetText(''); }} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 whitespace-nowrap">
+                            Save
+                         </button>
+                      </div>
+                   </div>
                 </div>
 
                 <div className="w-full flex flex-col items-center gap-3">
@@ -375,11 +483,78 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
         )}
 
         {activeTab === 'prints' && (
-          <div className="flex flex-col items-center justify-center h-full text-center max-w-md mx-auto">
-             <Printer className="w-16 h-16 text-indigo-200 mb-6" />
-             <h3 className="text-2xl font-bold mb-2">Print Fulfillment Labs</h3>
-             <p className="text-zinc-500 mb-8">Automatically route client print orders to WHCC or Miller's Lab via direct API integration.</p>
-             <button className="px-6 py-3 bg-white border-2 border-zinc-200 text-zinc-800 rounded-xl font-bold hover:border-indigo-500 hover:text-indigo-600 transition-all w-full">Connect Lab Account</button>
+          <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
+             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-2">
+                <div>
+                   <h2 className="text-2xl font-bold tracking-tight">Print Fulfillment Labs</h2>
+                   <p className="text-zinc-500 text-sm">Automatically route client print orders to WHCC or Miller's Lab via direct API integration.</p>
+                </div>
+             </div>
+
+             {/* Print Orders */}
+             {Object.keys(printOrders).length === 0 ? (
+                <div className="text-center py-12 bg-white border border-zinc-200 border-dashed rounded-2xl">
+                   <Printer className="w-12 h-12 text-zinc-300 mx-auto mb-3" />
+                   <p className="text-sm text-zinc-500">No print orders yet. Create one below.</p>
+                </div>
+             ) : (
+                <div className="flex flex-col gap-3">
+                   {Object.values(printOrders).map(order => (
+                      <div key={order.id} className="p-5 bg-white border border-zinc-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+                         <div className="flex items-center justify-between mb-3">
+                            <div className="font-bold text-sm">{order.id}</div>
+                            <span className={cn("px-3 py-1 rounded-full text-xs font-bold uppercase", order.status === 'delivered' ? "bg-green-100 text-green-700" : order.status === 'shipped' ? "bg-blue-100 text-blue-700" : order.status === 'processing' ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-600")}>
+                               {order.status}
+                            </span>
+                         </div>
+                         <div className="flex flex-wrap gap-2 text-xs text-zinc-500 mb-2">
+                            {order.items.map((item, i) => (
+                               <span key={i} className="px-2 py-1 bg-zinc-50 border border-zinc-100 rounded-lg">
+                                  {item.size} {item.finish} x{item.quantity}
+                               </span>
+                            ))}
+                         </div>
+                         <div className="text-sm font-bold text-indigo-600">${order.total.toFixed(2)}</div>
+                      </div>
+                   ))}
+                </div>
+             )}
+
+             {/* New Print Order Form */}
+             <div className="p-6 bg-white border border-zinc-200 rounded-2xl shadow-sm">
+                <h4 className="font-bold text-sm mb-4">New Print Order</h4>
+                <div className="flex flex-col sm:flex-row gap-3">
+                   <select value={newOrderGalleryId} onChange={e => setNewOrderGalleryId(e.target.value)} className="px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                      <option value="">Select gallery...</option>
+                      {Object.values(storeGalleries).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                   </select>
+                   <select value={newOrderSize} onChange={e => setNewOrderSize(e.target.value)} className="px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                      <option value="5x7">5x7</option>
+                      <option value="8x10">8x10</option>
+                      <option value="11x14">11x14</option>
+                      <option value="16x20">16x20</option>
+                      <option value="20x24">20x24</option>
+                      <option value="24x36">24x36</option>
+                   </select>
+                   <input type="number" min={1} value={newOrderQty} onChange={e => setNewOrderQty(Number(e.target.value))} className="w-20 px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                   <select value={newOrderFinish} onChange={e => setNewOrderFinish(e.target.value as any)} className="px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                      <option value="matte">Matte</option>
+                      <option value="glossy">Glossy</option>
+                      <option value="metallic">Metallic</option>
+                      <option value="canvas">Canvas</option>
+                   </select>
+                   <button onClick={() => {
+                      if (!newOrderGalleryId) return;
+                      const prices: Record<string, number> = { '5x7': 15, '8x10': 25, '11x14': 40, '16x20': 60, '20x24': 80, '24x36': 120 };
+                      const base = prices[newOrderSize] || 25;
+                      const finishMultiplier = newOrderFinish === 'canvas' ? 2.5 : newOrderFinish === 'metallic' ? 1.5 : 1;
+                      createPrintOrder(newOrderGalleryId, [{ size: newOrderSize, quantity: newOrderQty, finish: newOrderFinish, price: Math.round(base * finishMultiplier * 100) / 100 }]);
+                      setNewOrderQty(1);
+                   }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 whitespace-nowrap">
+                      + Create Order
+                   </button>
+                </div>
+             </div>
           </div>
         )}
       </div>

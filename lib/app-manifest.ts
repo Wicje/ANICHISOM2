@@ -57,6 +57,9 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
   'hardware-pack': () => import('@/components/apps/hardware-pack'),
   'ziklag-tools': () => import('@/components/apps/ziklag-tools'),
   'assistant': () => import('@/components/apps/assistant'),
+  'brand-guides': () => import('@/components/apps/brand-guides'),
+  'client-portal': () => import('@/components/apps/client-portal'),
+  'privacy-settings': () => import('@/components/apps/privacy-settings'),
 };
 
 // Static metadata — loaded eagerly (tiny)
@@ -69,11 +72,14 @@ export const APP_MANIFEST: AppManifestEntry[] = [
   { id: 'admin', component: null as any, icon: Shield, title: 'Admin Panel', roles: ['admin'], isCore: true, category: 'admin', description: 'User and system administration' },
   { id: 'config-manager', component: null as any, icon: Wrench, title: 'Config Manager', roles: ['admin', 'filmmaker', 'technician'], isCore: false, category: 'system', description: 'System configuration management' },
   { id: 'plugin-sandbox', component: null as any, icon: Puzzle, title: 'Plugin Sandbox', roles: ['admin', 'filmmaker', 'technician'], isCore: false, category: 'system', description: 'Run third-party plugins safely' },
+  { id: 'privacy-settings', component: null as any, icon: Shield, title: 'Privacy Settings', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'system', description: 'Per-app privacy controls and encryption settings' },
   { id: 'marketplace', component: null as any, icon: Store, title: 'Marketplace', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'system', description: 'Browse and install apps' },
   { id: 'history', component: null as any, icon: Clock, title: 'History', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'system', description: 'Activity history' },
 
   // Creative
   { id: 'moodboard', component: null as any, icon: Palette, title: 'Moodboard', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'Visual inspiration board' },
+  { id: 'brand-guides', component: null as any, icon: Palette, title: 'Brand Guides', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'Brand style guide editor' },
+  { id: 'client-portal', component: null as any, icon: Eye, title: 'Client Portal', roles: ['admin', 'filmmaker', 'client'], isCore: false, category: 'creative', description: 'Client-facing project portal' },
   { id: 'color-picker', component: null as any, icon: Palette, title: 'Color Picker', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'Pick and manage colors' },
   { id: 'photography-pack', component: null as any, icon: Camera, title: 'Photography Pack', roles: ['admin', 'filmmaker', 'technician'], isCore: false, category: 'creative', description: 'Photography tools suite' },
 

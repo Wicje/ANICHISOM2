@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import '@google/model-viewer';
 import { useCollaborativeDoc, CollaborativeDocState } from '@/lib/hooks/useCollaborativeDoc';
+import { useClothingStore, Design, Collection, ProductionOrder } from '@/lib/stores/clothing.store';
 
 export function ClothingBrandPack({ window: osWindow }: { window: OSWindow }) {
   const { workspaceMode } = useOS();
@@ -19,10 +20,17 @@ export function ClothingBrandPack({ window: osWindow }: { window: OSWindow }) {
     ],
   });
   
+  const { designs, collections, orders, createDesign, createCollection, createOrder, updateOrder, updateDesign, getDesignsByStatus, getPatternsForDesign } = useClothingStore();
+  const [selectedDesignId, setSelectedDesignId] = useState<string | null>(null);
+
   const [shopifyData, setShopifyData] = useState<any[]>([
     { name: 'Mon', sales: 1200 }, { name: 'Tue', sales: 1900 }, { name: 'Wed', sales: 2400 },
     { name: 'Thu', sales: 1800 }, { name: 'Fri', sales: 3200 }, { name: 'Sat', sales: 4100 }, { name: 'Sun', sales: 3800 }
   ]);
+
+  useEffect(() => {
+    useClothingStore.getState().hydrate();
+  }, []);
 
   return (
     <div className="w-full h-full flex flex-col bg-white text-black font-sans overflow-hidden">
@@ -45,11 +53,11 @@ export function ClothingBrandPack({ window: osWindow }: { window: OSWindow }) {
         </div>
       </div>
       <div className="flex-1 overflow-y-auto bg-gray-50/50">
-        {activeTab === 'sketching' && <SketchingTab windowId={osWindow.id} collab={collab} />}
+        {activeTab === 'sketching' && <SketchingTab windowId={osWindow.id} collab={collab} designs={Object.values(designs)} selectedDesignId={selectedDesignId} onSelectDesign={setSelectedDesignId} onCreateDesign={createDesign} onUpdateDesign={updateDesign} />}
         {activeTab === 'drafting' && <DraftingTab />}
         {activeTab === '3d-prototype' && <Prototype3DTab />}
-        {activeTab === 'production' && <ProductionTab />}
-        {activeTab === 'shopify' && <ShopifyTab data={shopifyData} />}
+        {activeTab === 'production' && <ProductionTab orders={Object.values(orders)} designs={Object.values(designs)} onCreateOrder={createOrder} onUpdateOrder={updateOrder} />}
+        {activeTab === 'shopify' && <ShopifyTab data={shopifyData} collections={Object.values(collections)} onCreateCollection={createCollection} />}
       </div>
     </div>
   );
@@ -58,7 +66,10 @@ export function ClothingBrandPack({ window: osWindow }: { window: OSWindow }) {
 // ---------------------------------------------------------
 // 1. Digital Sketching & Illustration (Fabric.js)
 // ---------------------------------------------------------
-function SketchingTab({ windowId, collab }: { windowId: string; collab: CollaborativeDocState }) {
+function SketchingTab({ windowId, collab, designs, selectedDesignId, onSelectDesign, onCreateDesign, onUpdateDesign }: { windowId: string; collab: CollaborativeDocState; designs: Design[]; selectedDesignId: string | null; onSelectDesign: (id: string | null) => void; onCreateDesign: (name: string, category: Design['category']) => string; onUpdateDesign: (id: string, updates: Partial<Design>) => void }) {
+  const [showDesignLibrary, setShowDesignLibrary] = useState(false);
+  const [newDesignName, setNewDesignName] = useState('');
+  const [newDesignCategory, setNewDesignCategory] = useState<Design['category']>('top');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<any>(null);
@@ -245,9 +256,42 @@ function SketchingTab({ windowId, collab }: { windowId: string; collab: Collabor
              </div>
            </div>
          )}
-         <div className="mt-auto">
-            <button className="w-full py-2 bg-black text-white rounded-lg text-sm font-bold shadow-sm">Save Sketch</button>
-         </div>
+          <div className="mt-auto">
+             <button onClick={() => {
+               const sketchData = fabricCanvas ? JSON.stringify(fabricCanvas.toJSON()) : '';
+                const id = onCreateDesign(newDesignName || 'Untitled Design', newDesignCategory);
+                onUpdateDesign(id, { sketchData });
+               onSelectDesign(id);
+               setNewDesignName('');
+             }} className="w-full py-2 bg-black text-white rounded-lg text-sm font-bold shadow-sm">Save Sketch</button>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-bold text-gray-500 uppercase">Design Name</label>
+            <input type="text" value={newDesignName} onChange={e => setNewDesignName(e.target.value)} placeholder="e.g. Cargo Tee" className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-black" />
+            <label className="text-xs font-bold text-gray-500 uppercase mt-1">Category</label>
+            <select value={newDesignCategory} onChange={e => setNewDesignCategory(e.target.value as Design['category'])} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-black">
+              {['top', 'bottom', 'outerwear', 'accessory', 'footwear'].map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <button onClick={() => setShowDesignLibrary(!showDesignLibrary)} className="w-full py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-200 transition-colors">{showDesignLibrary ? 'Hide' : 'Show'} Design Library</button>
+          {showDesignLibrary && (
+            <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+              {designs.length === 0 && <p className="text-xs text-gray-400 italic">No saved designs yet.</p>}
+              {designs.map(d => (
+                <button key={d.id} onClick={() => {
+                  onSelectDesign(d.id);
+                  setNewDesignName(d.name);
+                  setNewDesignCategory(d.category);
+                  if (d.sketchData && fabricCanvas) {
+                    fabricCanvas.loadFromJSON(d.sketchData, () => fabricCanvas.renderAll());
+                  }
+                }} className={cn("text-left px-2 py-1.5 rounded text-xs border transition-colors", selectedDesignId === d.id ? "bg-black text-white border-black" : "border-transparent hover:bg-gray-100")}>
+                  <div className="font-bold truncate">{d.name}</div>
+                  <div className={cn("text-[10px]", selectedDesignId === d.id ? "text-white/70" : "text-gray-400")}>{d.category} · {d.status}</div>
+                </button>
+              ))}
+            </div>
+          )}
       </div>
     </div>
   );
@@ -377,12 +421,74 @@ function Prototype3DTab() {
 // ---------------------------------------------------------
 // 4. AI & Production Tools
 // ---------------------------------------------------------
-function ProductionTab() {
+function ProductionTab({ orders, designs, onCreateOrder, onUpdateOrder }: { orders: ProductionOrder[]; designs: Design[]; onCreateOrder: (designId: string, quantity: number, manufacturer: string, unitCost: number, dueDate: string) => string; onUpdateOrder: (id: string, updates: Partial<Omit<ProductionOrder, 'id' | 'createdAt'>>) => void }) {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  
+  const [showNewOrder, setShowNewOrder] = useState(false);
+  const [orderDesignId, setOrderDesignId] = useState('');
+  const [orderQty, setOrderQty] = useState('100');
+  const [orderManufacturer, setOrderManufacturer] = useState('');
+  const [orderCost, setOrderCost] = useState('5.00');
+  const [orderDue, setOrderDue] = useState('');
+
+  const handleCreateOrder = () => {
+    if (!orderDesignId || !orderManufacturer || !orderDue) return;
+    onCreateOrder(orderDesignId, parseInt(orderQty) || 100, orderManufacturer, parseFloat(orderCost) || 5, orderDue);
+    setShowNewOrder(false);
+    setOrderDesignId(''); setOrderQty('100'); setOrderManufacturer(''); setOrderCost('5.00'); setOrderDue('');
+  };
+
+  const statusColors: Record<string, string> = {
+    'pending': 'bg-yellow-100 text-yellow-800',
+    'confirmed': 'bg-blue-100 text-blue-800',
+    'in-production': 'bg-indigo-100 text-indigo-800',
+    'shipped': 'bg-purple-100 text-purple-800',
+    'delivered': 'bg-green-100 text-green-800',
+  };
+
   return (
     <div className="flex flex-col h-full p-4 gap-6">
+       {/* Orders Panel */}
+       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+         <div className="flex items-center justify-between mb-3">
+           <h3 className="font-bold">Production Orders</h3>
+           <button onClick={() => setShowNewOrder(!showNewOrder)} className="px-3 py-1 bg-black text-white rounded-lg text-xs font-bold hover:bg-gray-800 transition-colors">{showNewOrder ? 'Cancel' : '+ New Order'}</button>
+         </div>
+         {showNewOrder && (
+           <div className="flex gap-2 mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200 flex-wrap">
+             <select value={orderDesignId} onChange={e => setOrderDesignId(e.target.value)} className="border border-gray-300 rounded px-2 py-1 text-xs">
+               <option value="">Select design...</option>
+               {designs.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+             </select>
+             <input type="number" value={orderQty} onChange={e => setOrderQty(e.target.value)} placeholder="Qty" className="border border-gray-300 rounded px-2 py-1 text-xs w-20" />
+             <input type="text" value={orderManufacturer} onChange={e => setOrderManufacturer(e.target.value)} placeholder="Manufacturer" className="border border-gray-300 rounded px-2 py-1 text-xs flex-1 min-w-[120px]" />
+             <input type="number" step="0.01" value={orderCost} onChange={e => setOrderCost(e.target.value)} placeholder="Unit cost" className="border border-gray-300 rounded px-2 py-1 text-xs w-20" />
+             <input type="date" value={orderDue} onChange={e => setOrderDue(e.target.value)} className="border border-gray-300 rounded px-2 py-1 text-xs" />
+             <button onClick={handleCreateOrder} className="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold hover:bg-indigo-700">Create</button>
+           </div>
+         )}
+         {orders.length === 0 ? (
+           <p className="text-xs text-gray-400 italic">No orders yet.</p>
+         ) : (
+           <div className="flex flex-col gap-1 max-h-32 overflow-y-auto">
+             {orders.map(o => {
+               const design = designs.find(d => d.id === o.designId);
+               return (
+                 <div key={o.id} className="flex items-center justify-between text-xs px-2 py-1 rounded hover:bg-gray-50">
+                   <span className="font-bold truncate max-w-[150px]">{design?.name ?? 'Unknown'}</span>
+                   <span className="text-gray-500">x{o.quantity}</span>
+                   <span className="text-gray-500">{o.manufacturer}</span>
+                   <span className={cn("px-1.5 py-0.5 rounded-full font-bold", statusColors[o.status] ?? 'bg-gray-100')}>{o.status}</span>
+                   <select value={o.status} onChange={e => onUpdateOrder(o.id, { status: e.target.value as ProductionOrder['status'] })} className="border border-gray-200 rounded px-1 py-0.5 text-[10px]">
+                     {['pending', 'confirmed', 'in-production', 'shipped', 'delivered'].map(s => <option key={s} value={s}>{s}</option>)}
+                   </select>
+                 </div>
+               );
+             })}
+           </div>
+         )}
+       </div>
+
        <div className="flex-1 grid grid-cols-2 gap-6">
           {/* AI Concept Generation */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col">
@@ -465,9 +571,58 @@ function ProductionTab() {
 // ---------------------------------------------------------
 // 5. Shopify Integration (Kept from original)
 // ---------------------------------------------------------
-function ShopifyTab({ data }: { data: any[] }) {
+function ShopifyTab({ data, collections, onCreateCollection }: { data: any[]; collections: Collection[]; onCreateCollection: (name: string, season: Collection['season']) => string }) {
+  const [showNewCollection, setShowNewCollection] = useState(false);
+  const [collName, setCollName] = useState('');
+  const [collSeason, setCollSeason] = useState<Collection['season']>('spring');
+
+  const handleCreateCollection = () => {
+    if (!collName) return;
+    onCreateCollection(collName, collSeason);
+    setCollName('');
+    setShowNewCollection(false);
+  };
+
+  const seasonColors: Record<string, string> = {
+    spring: 'bg-green-100 text-green-800', summer: 'bg-yellow-100 text-yellow-800',
+    fall: 'bg-orange-100 text-orange-800', winter: 'bg-blue-100 text-blue-800', resort: 'bg-purple-100 text-purple-800',
+  };
+
   return (
     <div className="flex flex-col gap-6 p-6 h-full">
+       {/* Collections Panel */}
+       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+         <div className="flex items-center justify-between mb-3">
+           <h3 className="font-bold">Collections</h3>
+           <button onClick={() => setShowNewCollection(!showNewCollection)} className="px-3 py-1 bg-[#95BF47] text-white rounded-lg text-xs font-bold hover:bg-[#7a9d3a] transition-colors">{showNewCollection ? 'Cancel' : '+ New Collection'}</button>
+         </div>
+         {showNewCollection && (
+           <div className="flex gap-2 mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+             <input type="text" value={collName} onChange={e => setCollName(e.target.value)} placeholder="Collection name" className="border border-gray-300 rounded px-2 py-1 text-xs flex-1" />
+             <select value={collSeason} onChange={e => setCollSeason(e.target.value as Collection['season'])} className="border border-gray-300 rounded px-2 py-1 text-xs">
+               {['spring', 'summer', 'fall', 'winter', 'resort'].map(s => <option key={s} value={s}>{s}</option>)}
+             </select>
+             <button onClick={handleCreateCollection} className="px-3 py-1 bg-[#95BF47] text-white rounded text-xs font-bold hover:bg-[#7a9d3a]">Create</button>
+           </div>
+         )}
+         {collections.length === 0 ? (
+           <p className="text-xs text-gray-400 italic">No collections yet. Create one to get started.</p>
+         ) : (
+           <div className="flex gap-2 flex-wrap">
+             {collections.map(c => (
+               <div key={c.id} className="border border-gray-200 rounded-lg px-3 py-2 text-xs hover:shadow-sm transition-shadow">
+                 <div className="font-bold">{c.name}</div>
+                 <div className="flex items-center gap-2 mt-1">
+                   <span className={cn("px-1.5 py-0.5 rounded-full font-bold", seasonColors[c.season])}>{c.season}</span>
+                   <span className="text-gray-400">{c.designIds.length} designs</span>
+                   <span className={cn("px-1.5 py-0.5 rounded-full font-bold", c.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600')}>{c.status}</span>
+                 </div>
+               </div>
+             ))}
+           </div>
+         )}
+       </div>
+
       <div className="flex items-center justify-between">
          <div className="flex items-center gap-2">
            <div className="w-8 h-8 rounded-full bg-[#95BF47] flex items-center justify-center">

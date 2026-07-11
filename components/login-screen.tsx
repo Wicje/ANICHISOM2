@@ -1,11 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOS, OSRole } from '@/lib/os-context';
-import { Power, Key, Loader2, AlertCircle, Terminal } from 'lucide-react';
+import { Power, Key, Loader2, AlertCircle, Terminal, Fingerprint } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
+import {
+  isWebAuthnSupported,
+  isPlatformAuthenticatorAvailable,
+  registerPasskey,
+  authenticateWithPasskey,
+  getPasskeyMetadata,
+} from '@/lib/services/webauthn.service';
+import { initSessionEncryption } from '@/lib/services/session-encryption.service';
 
 const AVATARS = [
   { id: 'founder', name: 'Founder', role: 'admin', avatarUrl: 'https://api.dicebear.com/9.x/micah/svg?seed=Founder&backgroundColor=transparent' },
@@ -26,6 +33,50 @@ export function LoginScreen() {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [passkey, setPasskey] = useState('');
   const [showOverride, setShowOverride] = useState(false);
+  const [webAuthnSupported, setWebAuthnSupported] = useState(false);
+  const [hasPasskeys, setHasPasskeys] = useState(false);
+  const [isAuthenticatingPasskey, setIsAuthenticatingPasskey] = useState(false);
+
+  useEffect(() => {
+    const check = async () => {
+      const supported = isWebAuthnSupported();
+      setWebAuthnSupported(supported);
+      if (supported) {
+        const meta = await getPasskeyMetadata();
+        setHasPasskeys(meta.length > 0);
+      }
+    };
+    check();
+  }, []);
+
+  const completeLogin = async (userId: string, userName: string, userRole: string, avatarUrl: string) => {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uniqueId: userId }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Login failed');
+    }
+
+    setCurrentUser({
+      id: data.user.id,
+      name: userName,
+      role: data.user.role as OSRole,
+      avatarUrl,
+    } as any);
+
+    // Initialize session encryption after successful login
+    try {
+      await initSessionEncryption(userId);
+    } catch (e) {
+      console.warn('[Login] Session encryption init failed (non-blocking):', e);
+    }
+
+    router.push('/');
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,32 +90,67 @@ export function LoginScreen() {
     setError('');
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uniqueId: selectedUser.id }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || 'Login failed');
-        setIsLoading(false);
-        return;
-      }
-
-      setCurrentUser({
-        id: data.user.id,
-        name: selectedUser.name,
-        role: data.user.role as OSRole,
-        avatarUrl: selectedUser.avatarUrl,
-      } as any);
-
-      router.push('/');
+      await completeLogin(selectedUser.id, selectedUser.name, selectedUser.role, selectedUser.avatarUrl);
     } catch (err: any) {
       setError(err.message || 'Failed to login. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePasskeyLogin = async () => {
+    if (!selectedUser) {
+      setError('Please select a user first');
+      return;
+    }
+
+    setIsAuthenticatingPasskey(true);
+    setError('');
+
+    try {
+      const meta = await getPasskeyMetadata();
+      if (meta.length === 0) {
+        // No passkeys registered — register one now
+        const result = await registerPasskey(
+          selectedUser.id,
+          selectedUser.id,
+          selectedUser.name,
+        );
+        // Save metadata locally
+        const { savePasskeyMetadata } = await import('@/lib/services/webauthn.service');
+        await savePasskeyMetadata(result);
+
+        // Also register with the Rust auth service if available
+        try {
+          const { rustAuth } = await import('@/lib/services/rust-client');
+          await rustAuth.passkeyRegisterStart(selectedUser.id, selectedUser.name);
+          await rustAuth.passkeyRegisterFinish({
+            username: selectedUser.id,
+            credential_id: result.credentialId,
+            public_key: result.publicKey,
+            label: result.label,
+          });
+        } catch {
+          // Rust service may not be available — continue with local registration
+        }
+
+        await completeLogin(selectedUser.id, selectedUser.name, selectedUser.role, selectedUser.avatarUrl);
+        return;
+      }
+
+      // Authenticate with existing passkey
+      const credentialIds = meta.map((m) => m.credentialId);
+      const authResult = await authenticateWithPasskey(credentialIds);
+
+      await completeLogin(selectedUser.id, selectedUser.name, selectedUser.role, selectedUser.avatarUrl);
+    } catch (err: any) {
+      if (err.message.includes('cancelled')) {
+        setError('Passkey authentication was cancelled');
+      } else {
+        setError(err.message || 'Passkey login failed');
+      }
+    } finally {
+      setIsAuthenticatingPasskey(false);
     }
   };
 
@@ -121,7 +207,7 @@ export function LoginScreen() {
             ))}
           </div>
         ) : (
-          /* Passkey Login Card */
+          /* Login Card */
           <div className="w-full max-w-sm flex flex-col gap-8 p-10 bg-black border border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] animate-in fade-in zoom-in-95 duration-300">
             <div className="flex flex-col items-center gap-5 mb-2">
               <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-white bg-white/10">
@@ -138,6 +224,38 @@ export function LoginScreen() {
               </div>
             </div>
 
+            {/* Passkey / Biometric Login */}
+            {webAuthnSupported && (
+              <button
+                type="button"
+                onClick={handlePasskeyLogin}
+                disabled={isAuthenticatingPasskey}
+                className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white disabled:opacity-50 disabled:cursor-not-allowed font-bold py-4 transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs"
+              >
+                {isAuthenticatingPasskey ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Authenticating...
+                  </>
+                ) : (
+                  <>
+                    <Fingerprint className="w-4 h-4" />
+                    {hasPasskeys ? 'Sign in with Passkey' : 'Register Passkey'}
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Divider */}
+            {webAuthnSupported && (
+              <div className="flex items-center gap-4">
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-white/20 text-[9px] uppercase tracking-widest">or</span>
+                <div className="flex-1 h-px bg-white/10" />
+              </div>
+            )}
+
+            {/* Password Login */}
             <form onSubmit={handleLogin} className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">
                 <input
@@ -200,27 +318,9 @@ export function LoginScreen() {
                     if (val === 'ANICHISOM') {
                       setIsLoading(true);
                       try {
-                        const response = await fetch('/api/auth/login', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ uniqueId: 'ANICHISOM' }),
-                        });
-                        const data = await response.json();
-                        if (response.ok) {
-                          setCurrentUser({
-                            id: data.user?.id || 'master',
-                            name: 'ANICHISOM',
-                            role: 'admin',
-                            avatarUrl: 'https://api.dicebear.com/9.x/micah/svg?seed=Master&backgroundColor=transparent',
-                          } as any);
-                          router.push('/');
-                        } else {
-                          setError(data.error || 'Override failed');
-                          setIsLoading(false);
-                          setShowOverride(false);
-                        }
+                        await completeLogin('ANICHISOM', 'ANICHISOM', 'admin', 'https://api.dicebear.com/9.x/micah/svg?seed=Master&backgroundColor=transparent');
                       } catch (err: any) {
-                        setError('Override failed');
+                        setError(err.message || 'Override failed');
                         setIsLoading(false);
                         setShowOverride(false);
                       }

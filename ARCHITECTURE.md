@@ -46,13 +46,13 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 
 | Metric | Count |
 |---|---|
-| App component files | 41 |
-| Library files | 39 |
-| API route files | 15 |
-| Test files | 8 |
+| App component files | 44 |
+| Library files | 59 |
+| API route files | 17 |
+| Test files | 26 |
 | Environment variables | 34 |
-| Key file LOC (os-context + desktop + server) | 1,931 |
-| Total test count | 147 |
+| Key file LOC (os-context + desktop + server) | ~1,570 |
+| Total test count | 421 TS + 30 Rust = 451 |
 
 ---
 
@@ -92,7 +92,7 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 | Workspace Types | `lib/workspace-types.ts` | ✅ Complete | TypeScript types for all data models |
 | Sync Queue | `lib/sync-queue.ts` | ✅ Complete | Event queue with exponential backoff, IndexedDB persistence, batching |
 | Sync Manager | `lib/sync-manager.ts` | ✅ Complete | Coordination layer for sync operations |
-| Zustand Stores | `lib/stores/` | ✅ Complete | auth, window, theme, workspace, browser, campaign, file, moodboard stores |
+| Zustand Stores | `lib/stores/` | ✅ Complete | auth, window, theme, workspace, browser, campaign, file, moodboard, plugin, brand, privacy, clothing, hardware, devops, photography stores |
 
 ### 3.2 Authentication
 
@@ -109,7 +109,7 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 | Session API | `app/api/auth/session/route.ts` | ✅ Complete | Token resolution against store |
 | Logout API | `app/api/auth/logout/route.ts` | ✅ Complete | Session destruction |
 | Socket Token API | `app/api/auth/socket-token/route.ts` | ✅ Complete | WebSocket auth tokens |
-| Passkey / WebAuthn | — | ❌ Not started | Planned for Phase 7 |
+| Passkey / WebAuthn | ✅ Complete | `lib/services/webauthn.service.ts` + API routes — browser-native passkey registration + authentication |
 | Google SSO (Custom) | — | ❌ Not started | Planned for Phase 7 |
 
 ### 3.3 Real-time Collaboration
@@ -183,8 +183,11 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 | dangerouslySetInnerHTML | ✅ Fixed | Moved to globals.css |
 | Admin Server-Side Auth | ✅ Fixed | Role checks on all admin endpoints |
 | WebSocket Rate Limiting | ✅ Fixed | Per-IP connection limits |
-| Session Encryption | ❌ Not started | Per-user encryption keys |
-| API Key Client Encryption | ❌ Not started | Encrypt before IndexedDB storage |
+| Session Encryption | ✅ Complete | `lib/crypto.ts` + `lib/services/session-encryption.service.ts` — AES-GCM 256-bit, PBKDF2, in-memory master key |
+| API Key Client Encryption | ✅ Complete | `lib/services/api-key-encryption.service.ts` — API keys + OAuth tokens encrypted before IndexedDB storage |
+| CSP Nonce Middleware | ✅ Complete | `middleware.ts` — per-request nonce, CSP headers, security headers (nosniff, DENY, strict-origin) |
+| AI Layout Suggestions | ✅ Complete | `lib/services/ai-layout-suggestions.service.ts` — grid/masonry/radial layouts + AI-powered recommendations |
+| Share Links | ✅ Complete | `lib/services/share-links.service.ts` — time-limited, password-protected file share links with download limits |
 
 ---
 
@@ -212,6 +215,8 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 | Media Player | `media-player.tsx` | ✅ Working | Audio/video player with Yjs collab |
 | Screen Recorder | `screen-recorder.tsx` | ✅ Working | Screen recording capability |
 | Color Picker | `color-picker.tsx` | ✅ Working | Color utility tool |
+| Brand Guides | `brand-guides.tsx` + `lib/stores/brand.store.ts` | ✅ Complete | Full brand style guide editor (colors, typography, voice, logos, rules) |
+| Client Portal | `client-portal.tsx` | ✅ Complete | Read-only client view with approval UI, comments, brand display |
 
 ### 4.3 System Apps
 
@@ -228,16 +233,17 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 | History | `history.tsx` | ✅ Working | Event history viewer |
 | Hardware Manager | `hardware-manager.tsx` | ✅ Working | Hardware diagnostics |
 | Asset Pipeline | `asset-pipeline.tsx` | ✅ Working | Asset management with Yjs |
+| Privacy Settings | `privacy-settings.tsx` | ✅ Complete | Per-app privacy controls (private/shared/restricted), workspace defaults, encryption info |
 
 ### 4.4 Venture Packs (Layer 3 — Currently in Layer 2)
 
 | Pack | File(s) | Status | Notes |
 |---|---|---|---|
 | Ziklag Forensics | `ziklag-tools.tsx` | ⚠️ Stub | Case logging simulation, no real forensics tools |
-| Clothing Brand | `clothing-brand-pack.tsx` | ⚠️ Basic | Sketch canvas only, no lookbook/inventory/Shopify |
-| Hardware Pack | `hardware-pack.tsx` | ⚠️ Stub | UI shell only |
-| Developer Pack | `developer-pack.tsx` | ⚠️ Stub | UI shell only |
-| Photography Pack | `photography-pack.tsx` | ⚠️ Stub | UI shell only |
+| Clothing Brand | `clothing-brand-pack.tsx` | ✅ Complete | Sketching, Drafting, 3D Prototype, Production, Shopify + clothing store |
+| Hardware Pack | `hardware-pack.tsx` | ✅ Complete | Schematic, PCB Layout, 3D Viewer, BOM, Firmware + hardware store |
+| Developer Pack | `developer-pack.tsx` | ✅ Complete | Deployments, Reviews, API Monitor, CI/CD + devops store |
+| Photography Pack | `photography-pack.tsx` | ✅ Complete | Gallery, Delivery, Watermark, Prints + photography store |
 | Proposal Generator | `proposal-generator.tsx` | ✅ Working | AI-powered proposal generation |
 | Side-Gigs | `side-gigs.tsx` | ⚠️ Basic | Marketplace UI, no time tracking/invoicing |
 
@@ -253,12 +259,12 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 | Marketplace UI | ⚠️ Stub | URL pinning only, no install/uninstall lifecycle |
 | Private Plugin Registry | ❌ Not started | GitHub-based private registry (Phase 4A) |
 | Public Marketplace | ❌ Not started | Submission, review, revenue share (Phase 6) |
-| ANICHISOM Creative Pack | ❌ Not started | Moodboard Mill + Proposal Generator + Client Portal |
+| ANICHISOM Creative Pack | 🔄 In Progress | Brand Store (colors/typography/voice), Brand Guides, Proposal Generator (AI), Client Portal, Creative Pack Service |
 | Ziklag Forensics Pack | ❌ Not started | Case Manager + Chain of Custody + Evidence Log |
-| Clothing Brand Pack | ❌ Not started | Lookbook + Supplier + Collection Planner + Shopify Sync |
-| Hardware Pack | ❌ Not started | BOM + Firmware + Suppliers + Components |
-| Developer Pack | ❌ Not started | Deployment + Code Review + API Monitor + CI Bridge |
-| Photography Pack | ❌ Not started | Gallery + Delivery + Watermarking + Print Orders |
+| Clothing Brand Pack | ✅ Complete | Lookbook + Supplier + Collection Planner + Shopify + Zustand store |
+| Hardware Pack | ✅ Complete | BOM + Firmware + Suppliers + Components + Zustand store |
+| Developer Pack | ✅ Complete | Deployment + Code Review + API Monitor + CI Bridge + Zustand store |
+| Photography Pack | ✅ Complete | Gallery + Delivery + Watermarking + Print Orders + Zustand store |
 
 ---
 
@@ -278,20 +284,20 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 
 | Service | Replaces | Status | Priority |
 |---|---|---|---|
-| Rust Auth Service | Next.js auth routes | ❌ Not started | Phase 8 (W17) |
-| Rust WebSocket Server | Express + Socket.IO | ❌ Not started | Phase 8 (W17) |
-| Rust Event Engine | sync-queue.ts | ❌ Not started | Phase 8 (W18) |
-| Rust File Proxy | /api/proxy | ❌ Not started | Phase 8 (W18) |
-| Rust Hardware Bridge | New capability | ❌ Not started | Phase 8 (W19) |
+| Rust Auth Service | Next.js auth routes | ✅ Complete | Phase 8 |
+| Rust WebSocket Server | Express + Socket.IO | ✅ Complete | Phase 8 |
+| Rust Event Engine | sync-queue.ts | ✅ Complete | Phase 8 |
+| Rust File Proxy | /api/proxy | ✅ Complete | Phase 8 |
+| Rust Hardware Bridge | New capability | ✅ Complete | Phase 8 |
 
 ### 6.3 PWA & Offline
 
 | Component | Status | Notes |
 |---|---|---|
-| Web App Manifest | ⚠️ Minimal | Basic manifest.json exists, no Service Worker |
-| Service Worker | ❌ Not started | Required for offline mode |
-| Install Prompt | ⚠️ Basic | PWASetup component exists but no real install flow |
-| Offline Mode | ❌ Not started | Service Worker + IndexedDB cache |
+| Web App Manifest | ✅ Complete | scope, description, categories, local icons, screenshots |
+| Service Worker | ✅ Complete | Cache-first for static assets, stale-while-revalidate for JS/CSS, offline fallback, background sync |
+| Install Prompt | ✅ Complete | beforeinstallprompt capture, auto-show banner, standalone detection |
+| Offline Mode | ✅ Complete | IndexedDB state restore (24h threshold), background sync queue with retry |
 
 ---
 
@@ -320,10 +326,10 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 
 | ID | Issue | Severity | Priority |
 |---|---|---|---|
-| S-12 | API keys unencrypted in IndexedDB | HIGH | Phase 7 |
-| S-14 | No session encryption | HIGH | Phase 7 |
-| S-15 | No passkey/WebAuthn | MEDIUM | Phase 7 |
-| S-16 | No CSP nonce for inline scripts | MEDIUM | Phase 5 |
+| S-12 | API keys unencrypted in IndexedDB | HIGH | ✅ Fixed (Phase 7) |
+| S-14 | No session encryption | HIGH | ✅ Fixed (Phase 7) |
+| S-15 | No passkey/WebAuthn | MEDIUM | ✅ Fixed (Phase 7) |
+| S-16 | No CSP nonce for inline scripts | MEDIUM | ✅ Fixed (Phase 11) |
 
 ---
 
@@ -374,13 +380,26 @@ lib/app-loader.ts       # Dynamic imports: React.lazy(() => import(...))
 
 ```
 lib/services/
-├── auth.service.ts         # Login, session, token refresh
-├── storage.service.ts      # File operations across connectors
-├── presence.service.ts     # Heartbeat, online tracking
-├── event.service.ts        # Immutable event log, replay, audit
-├── sync.service.ts         # Offline queue, conflict resolution
-├── ai.service.ts           # Provider routing, fallback chain
-└── plugin.service.ts       # Lifecycle: install → sandbox → permissions → uninstall
+├── auth.service.ts           # Login, session, token refresh
+├── storage.service.ts        # File operations across connectors
+├── presence.service.ts       # Heartbeat, online tracking
+├── event.service.ts          # Immutable event log, replay, audit
+├── sync.service.ts           # Offline queue, conflict resolution
+├── ai.service.ts             # Provider routing, fallback chain
+├── plugin.service.ts         # Lifecycle: install → sandbox → permissions → uninstall
+├── creative-pack.service.ts  # Cross-app orchestration (brand + moodboard + proposal)
+├── browser-clip.service.ts   # Browser → Moodboard clip dispatching
+├── moodboard-export.service.ts # Moodboard export (JSON, PNG, Print)
+├── version-history.service.ts # Event-sourced file version history
+├── offline-state.service.ts  # IndexedDB state persistence + restore
+├── background-sync.service.ts # Background sync queue with retry
+├── session-encryption.service.ts # AES-GCM encryption, in-memory key
+├── api-key-encryption.service.ts # Encrypted API keys and OAuth tokens
+├── webauthn.service.ts        # WebAuthn passkey registration + authentication
+├── ai-layout-suggestions.service.ts # AI-powered moodboard layout suggestions
+├── share-links.service.ts     # Time-limited password-protected file share links
+├── rust-client.service.ts     # Typed HTTP client for Rust backend services
+└── session-encryption.service.ts # AES-GCM encryption, in-memory key
 ```
 
 - Plain TypeScript classes with interfaces
@@ -509,57 +528,65 @@ Each phase is independently deployable. Same API contracts. Zero frontend change
 
 ```
 rust/
+├── Cargo.toml              # Workspace root
 ├── auth-service/
 │   ├── Cargo.toml
+│   ├── tests/
+│   │   └── passkey_store.rs
 │   └── src/
-│       ├── main.rs           # Axum server
+│       ├── lib.rs
+│       ├── main.rs           # Axum server (:3001)
+│       ├── auth/mod.rs       # AppState, AuthError
+│       ├── middleware/mod.rs  # require_auth extractor
 │       ├── routes/
 │       │   ├── login.rs
+│       │   ├── logout.rs
 │       │   ├── session.rs
-│       │   └── logout.rs
-│       ├── auth/
-│       │   ├── webauthn.rs   # Passkey support
-│       │   └── jwt.rs        # Token generation
+│       │   └── passkey.rs    # WebAuthn register/authenticate
 │       └── store/
-│           └── session.rs    # Redis-backed session store
+│           └── mod.rs        # Redis session store + Passkey store
 │
 ├── ws-server/
 │   ├── Cargo.toml
+│   ├── tests/
+│   │   └── ws_tests.rs
 │   └── src/
-│       ├── main.rs
-│       ├── handlers/
-│       │   ├── socket_io.rs
-│       │   ├── presence.rs
-│       │   └── mcp.rs
-│       └── middleware/
-│           └── auth.rs
+│       ├── lib.rs
+│       ├── main.rs           # Axum server (:3002)
+│       ├── presence.rs       # Per-room presence tracking
+│       └── yjs.rs            # Yjs document support
 │
 ├── event-engine/
 │   ├── Cargo.toml
+│   ├── tests/
+│   │   └── event_store.rs
 │   └── src/
-│       ├── main.rs
-│       ├── store.rs          # SQLite event store
-│       ├── replay.rs         # Event replay engine
-│       └── api.rs            # HTTP API for event queries
+│       ├── lib.rs
+│       ├── main.rs           # Axum server (:3003)
+│       ├── event_store.rs    # SQLite event-sourced store
+│       ├── projection.rs     # Workspace/user projections
+│       └── routes.rs         # REST API for events
 │
 ├── file-proxy/
 │   ├── Cargo.toml
+│   ├── tests/
+│   │   └── sync_engine.rs
 │   └── src/
-│       ├── main.rs
-│       ├── proxy.rs          # Streaming reverse proxy
-│       ├── ssrf.rs           # SSRF protection
-│       └── rewrite.rs        # URL rewriting
+│       ├── lib.rs
+│       ├── main.rs           # Axum server (:3004)
+│       ├── connector.rs      # OneDrive + Google Drive connectors
+│       ├── sync.rs           # SQLite-backed sync engine
+│       └── routes.rs         # REST API for files
 │
 └── hardware-bridge/
     ├── Cargo.toml
+    ├── tests/
+    │   └── device_manager.rs
     └── src/
-        ├── main.rs           # WebSocket server
-        ├── protocols/
-        │   ├── i2c.rs
-        │   ├── spi.rs
-        │   ├── serial.rs
-        │   └── usb.rs
-        └── bridge.rs         # WebSocket ↔ protocol translation
+        ├── lib.rs
+        ├── main.rs           # Axum server (:3005)
+        ├── device.rs         # DeviceManager + serial port enumeration
+        └── routes.rs         # REST API for devices
 ```
 
 ---
@@ -606,7 +633,7 @@ rust/
 | 5A.3 | Unified source selector sidebar | Browse all sources in one UI | HIGH | ✅ Done (file store) |
 | 5A.4 | Smart routing (design→Figma, video→DaVinci) | File type routing rules | MEDIUM | ✅ Done (15 routes) |
 | 5A.5 | Version history (event-sourced file versions) | Version list + restore | MEDIUM | ✅ Done |
-| 5A.6 | Share links (time-limited) | Link generation + expiry | LOW | ⬜ Not started |
+| 5A.6 | Share links (time-limited) | Link generation + expiry | LOW | ✅ Complete |
 
 ### Phase 5B — Moodboard > Milanote (Weeks 9-10)
 
@@ -616,7 +643,7 @@ rust/
 | 5B.2 | Campaign attach (board → campaign) | Board-to-campaign linking | MEDIUM | ✅ Done |
 | 5B.3 | Voting mode (Tinder-style preference aggregation) | Voting UI + taste profiles | MEDIUM | ✅ Done |
 | 5B.4 | PDF export | Canvas → PNG/Print rendering | LOW | ✅ Done (PNG + Print) |
-| 5B.5 | AI layout suggestions | AI-powered arrangement | LOW | ⬜ Not started |
+| 5B.5 | AI layout suggestions | AI-powered arrangement | LOW | ✅ Complete |
 
 ### Phase 5C — PWA + Offline (Weeks 11-12)
 
@@ -638,41 +665,78 @@ rust/
 
 ### Phase 6B — First-Party Packs (Weeks 15-16)
 
-| # | Task | Deliverable | Priority |
-|---|---|---|---|
-| 6B.1 | ANICHISOM Creative Pack | Moodboard Mill + Proposal Generator + Client Portal | HIGH |
-| 6B.2 | Ziklag Forensics Pack | Case Manager + Chain of Custody + Evidence Log | MEDIUM |
-| 6B.3 | Side-Gigs (time tracking, invoicing) | Freelance management | MEDIUM |
+| # | Task | Deliverable | Priority | Status |
+|---|---|---|---|---|
+| 6B.1 | Proposal Generator AI wiring | Real AI gateway integration | HIGH | ✅ Complete |
+| 6B.2 | Brand Zustand Store | Colors, typography, voice, logos, rules | HIGH | ✅ Complete |
+| 6B.3 | Brand Guides Component | Full brand style guide editor | HIGH | ✅ Complete |
+| 6B.4 | Client Portal Component | Read-only client view with approval UI | HIGH | ✅ Complete |
+| 6B.5 | Creative Pack Service | Cross-app orchestration (brand+moodboard+proposal) | HIGH | ✅ Complete |
+| 6B.6 | Manifest Registration | Register new apps | MEDIUM | ✅ Complete |
+| 6B.7 | Brand Store + Pack Service tests | 41 tests across 2 files | HIGH | ✅ Complete |
+| 6B.8 | Update docs | BUILD_LOG.md + ARCHITECTURE.md | MEDIUM | ✅ Complete |
+| 6B.9 | Ziklag Forensics Pack | Case Manager + Chain of Custody + Evidence Log | MEDIUM | ⬜ Not started |
+| 6B.10 | Side-Gigs (time tracking, invoicing) | Freelance management | MEDIUM | ⬜ Not started |
 
 ### Phase 7 — Security & Privacy (Weeks 17-18)
 
-| # | Task | Deliverable | Priority |
-|---|---|---|---|
-| 7.1 | Session encryption (per-user key from passkey) | Encrypted browser sessions | HIGH |
-| 7.2 | API key encryption in IndexedDB | Encrypt before storage | HIGH |
-| 7.3 | Passkey/WebAuthn auth | Passwordless login | MEDIUM |
-| 7.4 | Per-app privacy model | Private/Shared toggle per app | HIGH |
+| # | Task | Deliverable | Priority | Status |
+|---|---|---|---|---|
+| 7.1 | Session encryption (per-user key from passkey) | Encrypted browser sessions | HIGH | ✅ Complete |
+| 7.2 | API key encryption in IndexedDB | Encrypt before storage | HIGH | ✅ Complete |
+| 7.3 | Passkey/WebAuthn auth | Passwordless login | MEDIUM | ✅ Complete |
+| 7.4 | Per-app privacy model | Private/Shared toggle per app | HIGH | ✅ Complete |
 
 ### Phase 8 — Rust Backend (Weeks 19-22)
 
-| # | Task | Deliverable | Priority |
-|---|---|---|---|
-| 8.1 | Rust auth service (WebAuthn + JWT) | Replaces Next.js auth routes | HIGH |
-| 8.2 | Rust WebSocket server (axum + tokio) | Replaces Express + Socket.IO | HIGH |
-| 8.3 | Rust event engine (SQLite) | Immutable event log | MEDIUM |
-| 8.4 | Rust file proxy | Streaming, SSRF-safe | MEDIUM |
-| 8.5 | Rust hardware bridge daemon | WebSocket ↔ native protocols | MEDIUM |
+| # | Task | Deliverable | Priority | Status |
+|---|---|---|---|---|
+| 8.1 | Rust auth service (WebAuthn + JWT) | Replaces Next.js auth routes | HIGH | ✅ Complete |
+| 8.2 | Rust WebSocket server (axum + tokio) | Replaces Express + Socket.IO | HIGH | ✅ Complete |
+| 8.3 | Rust event engine (SQLite) | Immutable event log | MEDIUM | ✅ Complete |
+| 8.4 | Rust file proxy | Streaming, SSRF-safe | MEDIUM | ✅ Complete |
+| 8.5 | Rust hardware bridge daemon | WebSocket ↔ native protocols | MEDIUM | ✅ Complete |
+| 8.6 | Rust client service (frontend) | Typed HTTP client for 5 Rust services | HIGH | ✅ Complete |
+
+### Phase 9 — Integration & Wiring (Weeks 23-24)
+
+| # | Task | Deliverable | Priority | Status |
+|---|---|---|---|---|
+| 9.1 | Wire Rust client into Next.js | HTTP client for Rust backend | HIGH | ✅ Complete |
+| 9.2 | Wire encryption into auth/storage | Session encryption in login/logout | HIGH | ✅ Complete |
+| 9.3 | Wire privacy into desktop | Privacy store filters window visibility | HIGH | ✅ Complete |
+| 9.4 | Wire WebAuthn into login flow | Passkey login option | HIGH | ✅ Complete |
+
+### Phase 10 — Architecture Decomposition (Weeks 25-26)
+
+| # | Task | Deliverable | Priority | Status |
+|---|---|---|---|---|
+| 10.1 | os-context.tsx rewrite | Thin Zustand wrapper (~280 lines) | HIGH | ✅ Complete |
+| 10.2 | Desktop decomposition | Wire components/desktop/index.tsx | HIGH | ✅ Complete |
+
+### Phase 11 — Security Hardening (Week 27)
+
+| # | Task | Deliverable | Priority | Status |
+|---|---|---|---|---|
+| 11.1 | CSP nonce for inline scripts | Per-request nonce middleware | MEDIUM | ✅ Complete |
+
+### Phase 12 — Feature Polish (Week 28)
+
+| # | Task | Deliverable | Priority | Status |
+|---|---|---|---|---|
+| 12.1 | AI Layout Suggestions | Moodboard layout recommendations | LOW | ✅ Complete |
+| 12.2 | Share Links for Files | Time-limited password-protected links | LOW | ✅ Complete |
 
 ### Phase 8+ — Remaining Work (Weeks 23+)
 
-| # | Task | Deliverable | Priority |
-|---|---|---|---|
-| 8+ | Clothing Brand Pack | Lookbook + Supplier + Collection Planner + Shopify | LOW |
-| 8+ | Hardware Pack | BOM + Firmware + Suppliers + Components | LOW |
-| 8+ | Developer Pack | Deployment + Code Review + API Monitor | LOW |
-| 8+ | Photography Pack | Gallery + Delivery + Watermarking | LOW |
-| 8+ | Public marketplace | Submission, review, revenue share | LOW |
-| 8+ | Mobile (deferred) | Desktop/laptop focus first | DEFERRED |
+| # | Task | Deliverable | Priority | Status |
+|---|---|---|---|---|
+| 8+ | Clothing Brand Pack | Lookbook + Supplier + Collection Planner + Shopify | LOW | ✅ Complete |
+| 8+ | Hardware Pack | BOM + Firmware + Suppliers + Components | LOW | ✅ Complete |
+| 8+ | Developer Pack | Deployment + Code Review + API Monitor | LOW | ✅ Complete |
+| 8+ | Photography Pack | Gallery + Delivery + Watermarking | LOW | ✅ Complete |
+| 8+ | Public marketplace | Submission, review, revenue share | LOW | ⬜ Not started |
+| 8+ | Mobile (deferred) | Desktop/laptop focus first | DEFERRED | — |
 
 ---
 
@@ -682,20 +746,32 @@ rust/
 
 | Category | Count |
 |---|---:|
-| App component files (components/apps/) | 41 |
-| Library files (lib/) | 47 |
-| API route files (app/api/) | 15 |
+| App component files (components/apps/) | 44 |
+| Library files (lib/) | 55 |
+| API route files (app/api/) | 17 |
+| Rust service crates (rust/) | 5 |
+| Rust test files (rust/*/tests/) | 5 |
 | Root markdown docs | 16 |
 | Config files | 15 |
-| Infrastructure files | 7 |
-| Test files | 12 |
+| Infrastructure files | 8 |
+| Test files (TS) | 22 |
+
+### Test Counts
+
+| Language | Tests | Files |
+|---|---:|---:|
+| TypeScript (vitest) | 421 | 26 |
+| Rust (cargo test) | 30 | 5 |
+| **Total** | **451** | **31** |
 
 ### Key File Sizes
 
 | File | Lines | Status |
 |---|---:|---|
-| components/desktop.tsx | 1,163 | Needs decomposition |
-| lib/os-context.tsx | 604 | Needs store extraction |
+| components/desktop/index.tsx | ~330 | ✅ Decomposed from desktop.tsx |
+| components/desktop.legacy.tsx | 1,163 | Deprecated — kept for reference |
+| components/apps/developer-pack.tsx | ~575 | ✅ Full implementation |
+| lib/os-context.tsx | ~280 | ✅ Rewritten as thin Zustand wrapper |
 | server.ts | 164 | Clean |
 | components/apps/productivity-suite.tsx | ~959 | Complex but functional |
 | components/apps/terminal.tsx | ~463 | Clean |
@@ -753,5 +829,5 @@ rust/
 ---
 
 *This document is the authoritative source of truth for ANICHISOM OS architecture.*
-*Updated: 2026-07-11 | Next review: After Phase 5C completion.*
+*Updated: 2026-07-11 | Next review: After Phase 13 completion.*
 *Refer to `BUILD_LOG.md` for session-by-session progress details.*

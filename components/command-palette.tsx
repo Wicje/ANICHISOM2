@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOS } from '@/lib/os-context';
 import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Search, Archive, Clipboard, AppWindow, File } from 'lucide-react';
-import { APPS } from '@/components/desktop';
+import { APP_MANIFEST as APPS } from '@/lib/app-manifest';
 import { FS } from '@/lib/fs';
 
 export function CommandPalette() {

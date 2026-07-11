@@ -1,14 +1,17 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
-import { Cpu, Layers, Box, List, Terminal, Zap, CheckCircle, AlertTriangle, Download, Search, Bot, Send, Microchip, CircuitBoard, Wrench } from 'lucide-react';
+import { Cpu, Layers, Box, List, Terminal, Zap, CheckCircle, AlertTriangle, Download, Search, Bot, Send, Microchip, CircuitBoard, Wrench, Plus, X, Link as LinkIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import '@google/model-viewer';
 import { Storage } from '@/lib/storage';
+import { useHardwareStore, HwComponent, Schematic, FirmwareVersion, Supplier } from '@/lib/stores/hardware.store';
 
 export function HardwarePack({ window: osWindow }: { window: OSWindow }) {
   const { workspaceMode } = useOS();
   const [activeTab, setActiveTab] = useState<'schematic' | 'pcb-layout' | '3d-viewer' | 'bom' | 'firmware'>('schematic');
+
+  const { components, schematics, firmwareVersions, suppliers, createComponent, updateComponent, deleteComponent, createSchematic, updateSchematic, getComponentsByType, createFirmware, updateFirmware, getDeployedFirmware, addSupplier, linkSupplier, unlinkSupplier } = useHardwareStore();
   
   const [bomData, setBomData] = useState<any[]>([
     { id: '1', part: 'ESP32-S3-WROOM', desc: 'WiFi/BT MCU Module', qty: 1, cost: 3.40, footprint: 'MOD-ESP32-S3' },
@@ -20,7 +23,7 @@ export function HardwarePack({ window: osWindow }: { window: OSWindow }) {
   useEffect(() => {
      const roomId = `hardware-${osWindow.id}`;
      const unsub = Storage.subscribe('docs', roomId, workspaceMode, (state: any) => {
-        if (state && state.bom) setBomData(state.bom);
+       if (state && state.bom) setBomData(state.bom);
      });
      return () => unsub();
   }, [workspaceMode, osWindow.id]);
@@ -51,11 +54,11 @@ export function HardwarePack({ window: osWindow }: { window: OSWindow }) {
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {activeTab === 'schematic' && <SchematicTab />}
+        {activeTab === 'schematic' && <SchematicTab components={components} />}
         {activeTab === 'pcb-layout' && <PcbLayoutTab />}
         {activeTab === '3d-viewer' && <Prototype3DTab />}
-        {activeTab === 'bom' && <BomTab bomData={bomData} />}
-        {activeTab === 'firmware' && <FirmwareTab />}
+        {activeTab === 'bom' && <BomTab bomData={bomData} components={components} suppliers={suppliers} linkSupplier={linkSupplier} unlinkSupplier={unlinkSupplier} />}
+        {activeTab === 'firmware' && <FirmwareTab firmwareVersions={firmwareVersions} createFirmware={createFirmware} updateFirmware={updateFirmware} />}
       </div>
     </div>
   );
@@ -64,12 +67,16 @@ export function HardwarePack({ window: osWindow }: { window: OSWindow }) {
 // ---------------------------------------------------------
 // 1. Schematic Capture & AI Co-pilot
 // ---------------------------------------------------------
-function SchematicTab() {
+function SchematicTab({ components }: { components: Record<string, HwComponent> }) {
   const [prompt, setPrompt] = useState('');
   const [chat, setChat] = useState<{role: string, text: string}[]>([
     { role: 'ai', text: 'I am your Hardware Co-pilot. I can help select parts, draft sub-circuits, and verify your schematic against datasheets. What are we building today?' }
   ]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [componentFilter, setComponentFilter] = useState<HwComponent['type'] | 'all'>('all');
+
+  const componentList = Object.values(components);
+  const filteredComponents = componentFilter === 'all' ? componentList : componentList.filter(c => c.type === componentFilter);
 
   const handleSend = () => {
     if(!prompt.trim()) return;
@@ -84,6 +91,45 @@ function SchematicTab() {
 
   return (
     <div className="flex h-full p-4 gap-4">
+      {/* Component Picker Sidebar */}
+      <div className="w-56 bg-[#111] rounded-xl border border-white/10 shadow-sm flex flex-col overflow-hidden shrink-0">
+        <div className="p-3 border-b border-white/10 bg-black/40">
+          <h3 className="font-bold text-xs text-emerald-400 uppercase tracking-widest mb-2">Component Picker</h3>
+          <select
+            value={componentFilter}
+            onChange={e => setComponentFilter(e.target.value as any)}
+            className="w-full bg-[#222] border border-white/10 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 transition-colors"
+          >
+            <option value="all">All Types</option>
+            <option value="mcu">MCU</option>
+            <option value="sensor">Sensor</option>
+            <option value="passive">Passive</option>
+            <option value="ic">IC</option>
+            <option value="connector">Connector</option>
+            <option value="power">Power</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1">
+          {filteredComponents.length === 0 && (
+            <div className="text-[10px] text-white/30 text-center py-4">No components in library.</div>
+          )}
+          {filteredComponents.map((c) => (
+            <div
+              key={c.id}
+              className="p-2 bg-white/5 rounded-lg border border-transparent hover:border-emerald-500/30 hover:bg-emerald-500/5 cursor-pointer transition-colors group"
+            >
+              <div className="flex items-center gap-2 mb-0.5">
+                <Microchip className="w-3 h-3 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span className="text-xs font-bold text-white/90 truncate">{c.name}</span>
+              </div>
+              <div className="text-[10px] text-white/40 font-mono">{c.value} &middot; {c.footprint}</div>
+              <div className="text-[10px] text-white/30 mt-0.5">{c.manufacturer}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Canvas */}
       <div className="flex-1 bg-[#fcfcfc] rounded-xl border border-white/10 relative overflow-hidden flex items-center justify-center shadow-inner">
          <div className="absolute inset-0 opacity-[0.15] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#005f73 1px, transparent 1px), linear-gradient(90deg, #005f73 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
@@ -327,7 +373,9 @@ function Prototype3DTab() {
 // ---------------------------------------------------------
 // 4. Component Libraries, Sourcing & BOM
 // ---------------------------------------------------------
-function BomTab({ bomData }: { bomData: any[] }) {
+function BomTab({ bomData, components, suppliers, linkSupplier, unlinkSupplier }: { bomData: any[]; components: Record<string, HwComponent>; suppliers: Record<string, Supplier>; linkSupplier: (id: string) => void; unlinkSupplier: (id: string) => void }) {
+  const storeComponentList = Object.values(components);
+
   return (
     <div className="flex flex-col gap-6 p-6 h-full font-sans">
        <div className="flex items-center justify-between">
@@ -343,29 +391,65 @@ function BomTab({ bomData }: { bomData: any[] }) {
        </div>
 
        <div className="flex-1 grid grid-cols-[1fr_300px] gap-6 min-h-0">
-          <div className="bg-[#111] rounded-xl border border-white/10 overflow-auto shadow-sm">
-             <table className="w-full text-left text-sm border-collapse">
-               <thead>
-                 <tr className="border-b border-white/10 text-white/50 bg-white/5 sticky top-0">
-                   <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Part #</th>
-                   <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Description</th>
-                   <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Footprint</th>
-                   <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Qty</th>
-                   <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Est. Cost</th>
-                 </tr>
-               </thead>
-               <tbody>
-                 {bomData.map((item, i) => (
-                   <tr key={item.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                     <td className="p-4 text-emerald-400 font-bold font-mono">{item.part}</td>
-                     <td className="p-4 text-white/80">{item.desc}</td>
-                     <td className="p-4 text-white/60 font-mono text-xs">{item.footprint}</td>
-                     <td className="p-4 text-white/80 font-bold">{item.qty}</td>
-                     <td className="p-4 text-white">${(item.cost * item.qty).toFixed(2)}</td>
+          <div className="flex flex-col gap-4 min-h-0">
+            {/* Legacy BOM table */}
+            <div className="bg-[#111] rounded-xl border border-white/10 overflow-auto shadow-sm">
+               <table className="w-full text-left text-sm border-collapse">
+                 <thead>
+                   <tr className="border-b border-white/10 text-white/50 bg-white/5 sticky top-0">
+                     <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Part #</th>
+                     <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Description</th>
+                     <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Footprint</th>
+                     <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Qty</th>
+                     <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Est. Cost</th>
                    </tr>
-                 ))}
-               </tbody>
-             </table>
+                 </thead>
+                 <tbody>
+                   {bomData.map((item, i) => (
+                     <tr key={item.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                       <td className="p-4 text-emerald-400 font-bold font-mono">{item.part}</td>
+                       <td className="p-4 text-white/80">{item.desc}</td>
+                       <td className="p-4 text-white/60 font-mono text-xs">{item.footprint}</td>
+                       <td className="p-4 text-white/80 font-bold">{item.qty}</td>
+                       <td className="p-4 text-white">${(item.cost * item.qty).toFixed(2)}</td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
+            </div>
+
+            {/* Store component library */}
+            {storeComponentList.length > 0 && (
+              <div className="bg-[#111] rounded-xl border border-white/10 overflow-auto shadow-sm flex-1 min-h-0">
+                <div className="p-4 border-b border-white/10 bg-white/5 sticky top-0">
+                  <h3 className="font-bold uppercase tracking-wider text-[10px] text-emerald-400">Component Library (Store)</h3>
+                </div>
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b border-white/10 text-white/50">
+                      <th className="p-3 font-bold uppercase tracking-wider text-[10px]">Name</th>
+                      <th className="p-3 font-bold uppercase tracking-wider text-[10px]">Type</th>
+                      <th className="p-3 font-bold uppercase tracking-wider text-[10px]">Value</th>
+                      <th className="p-3 font-bold uppercase tracking-wider text-[10px]">Footprint</th>
+                      <th className="p-3 font-bold uppercase tracking-wider text-[10px]">Mfr.</th>
+                      <th className="p-3 font-bold uppercase tracking-wider text-[10px]">Unit $</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {storeComponentList.map((c) => (
+                      <tr key={c.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <td className="p-3 text-emerald-400 font-bold font-mono">{c.name}</td>
+                        <td className="p-3 text-white/60 font-mono text-xs">{c.type}</td>
+                        <td className="p-3 text-white/80">{c.value}</td>
+                        <td className="p-3 text-white/60 font-mono text-xs">{c.footprint}</td>
+                        <td className="p-3 text-white/60">{c.manufacturer}</td>
+                        <td className="p-3 text-white">${c.unitCost.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-4">
@@ -376,12 +460,24 @@ function BomTab({ bomData }: { bomData: any[] }) {
                    <input type="text" placeholder="Search Octopart..." className="w-full bg-black border border-white/10 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors" />
                 </div>
                 <div className="flex flex-col gap-3">
-                   {['DigiKey', 'Mouser', 'LCSC'].map(supplier => (
-                     <div key={supplier} className="flex items-center justify-between p-3 bg-white/5 rounded border border-transparent hover:border-white/10 cursor-pointer">
-                        <div className="font-bold text-sm text-white/90">{supplier}</div>
-                        <div className="text-xs text-emerald-400 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Linked</div>
+                   {Object.values(suppliers).length > 0 ? Object.values(suppliers).map((s) => (
+                     <div key={s.id} className="flex items-center justify-between p-3 bg-white/5 rounded border border-transparent hover:border-white/10 cursor-pointer">
+                        <div className="font-bold text-sm text-white/90">{s.name}</div>
+                        <button
+                          onClick={() => s.linked ? unlinkSupplier(s.id) : linkSupplier(s.id)}
+                          className={cn("text-xs flex items-center gap-1", s.linked ? "text-emerald-400" : "text-white/40 hover:text-emerald-400")}
+                        >
+                          {s.linked ? <><CheckCircle className="w-3 h-3" /> Linked</> : <><LinkIcon className="w-3 h-3" /> Link</>}
+                        </button>
                      </div>
-                   ))}
+                   )) : (
+                     ['DigiKey', 'Mouser', 'LCSC'].map(supplier => (
+                       <div key={supplier} className="flex items-center justify-between p-3 bg-white/5 rounded border border-transparent hover:border-white/10 cursor-pointer">
+                          <div className="font-bold text-sm text-white/90">{supplier}</div>
+                          <div className="text-xs text-emerald-400 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Linked</div>
+                       </div>
+                     ))
+                   )}
                 </div>
              </div>
 
@@ -399,10 +495,14 @@ function BomTab({ bomData }: { bomData: any[] }) {
 // ---------------------------------------------------------
 // 5. Firmware Deployment (WebSerial / WebUSB) - Kept intact
 // ---------------------------------------------------------
-function FirmwareTab() {
+function FirmwareTab({ firmwareVersions, createFirmware, updateFirmware }: { firmwareVersions: Record<string, FirmwareVersion>; createFirmware: (name: string, version: string, changelog?: string) => string; updateFirmware: (id: string, updates: Partial<Omit<FirmwareVersion, 'id'>>) => void }) {
   const [logs, setLogs] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [port, setPort] = useState<any>(null);
+  const [newFwName, setNewFwName] = useState('');
+  const [newFwVersion, setNewFwVersion] = useState('');
+
+  const firmwareList = Object.values(firmwareVersions).sort((a, b) => b.deployedAt ?? 0 - (a.deployedAt ?? 0));
 
   const connectSerial = async () => {
     try {
@@ -446,55 +546,144 @@ function FirmwareTab() {
   };
 
   return (
-    <div className="flex flex-col gap-4 h-full p-6 font-sans">
-      <div className="flex items-center justify-between">
-         <div>
-            <h2 className="text-2xl font-bold text-emerald-400 tracking-tight">Firmware Deployment</h2>
-            <p className="text-sm text-white/50">Flash compiled binaries and monitor serial output directly via browser APIs.</p>
-         </div>
-         <div className="flex gap-2">
-           {!isConnected ? (
+    <div className="flex gap-4 h-full p-6 font-sans">
+      <div className="flex flex-col gap-4 flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+           <div>
+              <h2 className="text-2xl font-bold text-emerald-400 tracking-tight">Firmware Deployment</h2>
+              <p className="text-sm text-white/50">Flash compiled binaries and monitor serial output directly via browser APIs.</p>
+           </div>
+           <div className="flex gap-2">
+             {!isConnected ? (
+               <button 
+                 onClick={connectSerial}
+                 className="px-4 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-sm font-bold hover:bg-emerald-500/30 transition-colors"
+               >
+                 Connect WebSerial
+               </button>
+             ) : (
+               <button 
+                 onClick={disconnectSerial}
+                 className="px-4 py-2 bg-rose-500/20 text-rose-500 border border-rose-500/30 rounded-lg text-sm font-bold hover:bg-rose-500/30 transition-colors"
+               >
+                 Disconnect
+               </button>
+             )}
              <button 
-               onClick={connectSerial}
-               className="px-4 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-sm font-bold hover:bg-emerald-500/30 transition-colors"
+               onClick={async () => {
+                 try {
+                    const device = await (navigator as any).usb.requestDevice({ filters: [] });
+                    setLogs(prev => [...prev, `> Connected to WebUSB Device: ${device.productName}`]);
+                 } catch (e) {
+                    setLogs(prev => [...prev, `> USB Connection failed: ${e}`]);
+                 }
+               }}
+               className="px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-sm font-bold hover:bg-blue-500/30 transition-colors"
              >
-               Connect WebSerial
+               Connect WebUSB
              </button>
-           ) : (
-             <button 
-               onClick={disconnectSerial}
-               className="px-4 py-2 bg-rose-500/20 text-rose-500 border border-rose-500/30 rounded-lg text-sm font-bold hover:bg-rose-500/30 transition-colors"
-             >
-               Disconnect
-             </button>
+           </div>
+        </div>
+        <div className="flex-1 bg-[#0a0a0a] rounded-xl border border-white/10 p-5 font-mono text-sm text-white/70 overflow-auto shadow-inner flex flex-col gap-1 whitespace-pre-wrap min-h-0">
+           {!isConnected && logs.length === 0 && (
+             <>
+               <div className="text-emerald-500 mb-6 font-bold">{`> Awaiting hardware connection...`} <br/>{`> Use the buttons above to grant WebUSB or WebSerial access to physical boards.`}</div>
+               {firmwareList.length > 0 ? firmwareList.map((fw) => (
+                 <div key={fw.id} className="mb-3">
+                   <span className="text-blue-400 font-bold">[{fw.version}]</span> - {fw.changelog || fw.name}
+                   <span className={cn("ml-2 text-[10px] px-1.5 py-0.5 rounded",
+                     fw.status === 'deployed' ? "bg-emerald-500/20 text-emerald-400" :
+                     fw.status === 'staged' ? "bg-yellow-500/20 text-yellow-400" :
+                     fw.status === 'archived' ? "bg-white/10 text-white/40" :
+                     "bg-white/5 text-white/30"
+                   )}>{fw.status}</span>
+                 </div>
+               )) : (
+                 <>
+                   <div className="mb-3"><span className="text-blue-400 font-bold">[v1.2.4]</span> - OTA deployed to 1,204 devices successfully.</div>
+                   <div className="mb-3"><span className="text-blue-400 font-bold">[v1.2.3]</span> - Fixed I2C clock stretching issue on BME280.</div>
+                 </>
+               )}
+               <div className="mb-3 text-white/40">Ready to write to flash at 0x10000...</div>
+             </>
            )}
-           <button 
-             onClick={async () => {
-               try {
-                  const device = await (navigator as any).usb.requestDevice({ filters: [] });
-                  setLogs(prev => [...prev, `> Connected to WebUSB Device: ${device.productName}`]);
-               } catch (e) {
-                  setLogs(prev => [...prev, `> USB Connection failed: ${e}`]);
-               }
-             }}
-             className="px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-sm font-bold hover:bg-blue-500/30 transition-colors"
-           >
-             Connect WebUSB
-           </button>
-         </div>
+           {logs.map((log, i) => (
+             <div key={i}>{log}</div>
+           ))}
+        </div>
       </div>
-      <div className="flex-1 bg-[#0a0a0a] rounded-xl border border-white/10 p-5 font-mono text-sm text-white/70 overflow-auto shadow-inner flex flex-col gap-1 whitespace-pre-wrap">
-         {!isConnected && logs.length === 0 && (
-           <>
-             <div className="text-emerald-500 mb-6 font-bold">{`> Awaiting hardware connection...`} <br/>{`> Use the buttons above to grant WebUSB or WebSerial access to physical boards.`}</div>
-             <div className="mb-3"><span className="text-blue-400 font-bold">[v1.2.4]</span> - OTA deployed to 1,204 devices successfully.</div>
-             <div className="mb-3"><span className="text-blue-400 font-bold">[v1.2.3]</span> - Fixed I2C clock stretching issue on BME280.</div>
-             <div className="mb-3 text-white/40">Ready to write to flash at 0x10000...</div>
-           </>
-         )}
-         {logs.map((log, i) => (
-           <div key={i}>{log}</div>
-         ))}
+
+      {/* Firmware Version History Sidebar */}
+      <div className="w-72 bg-[#111] border border-white/10 rounded-xl flex flex-col shrink-0 overflow-hidden">
+        <div className="p-4 border-b border-white/10 bg-black/40 flex items-center justify-between">
+          <h3 className="font-bold text-sm text-emerald-400 uppercase tracking-widest">Version History</h3>
+          <button
+            onClick={() => {
+              if (newFwName.trim() && newFwVersion.trim()) {
+                createFirmware(newFwName.trim(), newFwVersion.trim());
+                setNewFwName('');
+                setNewFwVersion('');
+              }
+            }}
+            className="p-1 bg-emerald-500/20 hover:bg-emerald-500/30 rounded text-emerald-400 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <div className="p-3 border-b border-white/10 bg-black/20 flex flex-col gap-2">
+          <input
+            value={newFwName}
+            onChange={e => setNewFwName(e.target.value)}
+            placeholder="Version name"
+            className="w-full bg-[#222] border border-white/10 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 transition-colors"
+          />
+          <input
+            value={newFwVersion}
+            onChange={e => setNewFwVersion(e.target.value)}
+            placeholder="e.g. 1.3.0"
+            className="w-full bg-[#222] border border-white/10 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 transition-colors"
+          />
+        </div>
+        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+          {firmwareList.length === 0 && (
+            <div className="text-xs text-white/30 text-center py-4">No firmware versions yet.</div>
+          )}
+          {firmwareList.map((fw) => (
+            <div key={fw.id} className="p-3 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-emerald-400 font-bold font-mono text-xs">{fw.version}</span>
+                <span className={cn("text-[9px] px-1.5 py-0.5 rounded uppercase font-bold",
+                  fw.status === 'deployed' ? "bg-emerald-500/20 text-emerald-400" :
+                  fw.status === 'staged' ? "bg-yellow-500/20 text-yellow-400" :
+                  fw.status === 'archived' ? "bg-white/10 text-white/40" :
+                  "bg-white/5 text-white/30"
+                )}>{fw.status}</span>
+              </div>
+              <div className="text-xs text-white/60 mb-1">{fw.name}</div>
+              {fw.changelog && <div className="text-[10px] text-white/40">{fw.changelog}</div>}
+              <div className="flex gap-1 mt-2">
+                {fw.status !== 'deployed' && (
+                  <button
+                    onClick={() => updateFirmware(fw.id, { status: 'deployed', deployedAt: Date.now() })}
+                    className="text-[9px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded hover:bg-emerald-500/30 transition-colors"
+                  >Deploy</button>
+                )}
+                {fw.status === 'deployed' && (
+                  <button
+                    onClick={() => updateFirmware(fw.id, { status: 'archived' })}
+                    className="text-[9px] px-2 py-0.5 bg-white/10 text-white/50 rounded hover:bg-white/20 transition-colors"
+                  >Archive</button>
+                )}
+                {fw.status === 'draft' && (
+                  <button
+                    onClick={() => updateFirmware(fw.id, { status: 'staged' })}
+                    className="text-[9px] px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded hover:bg-yellow-500/30 transition-colors"
+                  >Stage</button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

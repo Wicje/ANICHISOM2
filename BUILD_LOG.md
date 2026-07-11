@@ -16,6 +16,336 @@
 
 ## Session Log
 
+### Session 13 — 2026-07-11: Phase 10 Pack Store Integration + Developer Pack Build-out
+
+**Focus:** Created 4 Zustand stores for pack state management, wired all 4 packs to stores, built out Developer Pack from stub to full implementation, 108 new tests
+
+**What was done:**
+
+- [x] **13.2 — Clothing Store + Pack Wiring:** `lib/stores/clothing.store.ts`
+  - Types: Design, Pattern, ProductionOrder, Collection
+  - Full CRUD with IndexedDB persistence
+  - Wired into `clothing-brand-pack.tsx` — designs sidebar, order management, collection planner
+- [x] **13.3 — Hardware Store + Pack Wiring:** `lib/stores/hardware.store.ts`
+  - Types: HwComponent, BomItem, Schematic, FirmwareVersion, Supplier
+  - Full CRUD with IndexedDB persistence
+  - Wired into `hardware-pack.tsx` — component library, firmware version history, schematic component picker
+- [x] **13.4 — DevOps Store + Developer Pack:** `lib/stores/devops.store.ts` + `components/apps/developer-pack.tsx`
+  - Types: Deployment, CodeReview, Pipeline, ApiEndpoint
+  - Full CRUD with IndexedDB persistence
+  - Built out Developer Pack from 44-line stub to ~575-line full implementation
+  - Deployments tab: health summary, deploy form, deployment cards with metrics
+  - Reviews tab: filterable PR list with status badges, new review form
+  - API Monitor tab: endpoint list with method badges, latency/p99 metrics, add endpoint form
+  - CI/CD tab: pipeline visualization with stage progress bars, trigger pipeline form
+- [x] **13.5 — Photography Store + Pack Wiring:** `lib/stores/photography.store.ts`
+  - Types: Shoot, PhotoGallery, Client, PrintOrder, WatermarkPreset
+  - Full CRUD with IndexedDB persistence
+  - Wired into `photography-pack.tsx` — shoots panel, merged galleries, watermark presets, print orders
+- [x] **Tests:** 108 new tests across 4 new test files — all passing
+  - `__tests__/stores/clothing.store.test.ts` — 23 tests
+  - `__tests__/stores/hardware.store.test.ts` — 25 tests
+  - `__tests__/stores/devops.store.test.ts` — 27 tests
+  - `__tests__/stores/photography.store.test.ts` — 33 tests
+- [x] **Verified:** `npx tsc --noEmit --incremental false` passes clean
+- [x] **Verified:** `npx vitest run` — 421/421 tests pass across 26 files
+
+**Files created:**
+
+| File | Purpose |
+|---|---|
+| `lib/stores/clothing.store.ts` | Zustand store for clothing designs, patterns, orders, collections |
+| `lib/stores/hardware.store.ts` | Zustand store for hardware components, schematics, firmware, suppliers |
+| `lib/stores/devops.store.ts` | Zustand store for deployments, reviews, pipelines, API endpoints |
+| `lib/stores/photography.store.ts` | Zustand store for shoots, galleries, clients, print orders, watermark presets |
+| `__tests__/stores/clothing.store.test.ts` | Clothing store tests (23 tests) |
+| `__tests__/stores/hardware.store.test.ts` | Hardware store tests (25 tests) |
+| `__tests__/stores/devops.store.test.ts` | DevOps store tests (27 tests) |
+| `__tests__/stores/photography.store.test.ts` | Photography store tests (33 tests) |
+
+**Files modified:**
+
+| File | Changes |
+|---|---|
+| `components/apps/clothing-brand-pack.tsx` | Added clothing store wiring — designs, orders, collections |
+| `components/apps/hardware-pack.tsx` | Added hardware store wiring — components, firmware, suppliers |
+| `components/apps/developer-pack.tsx` | Full rewrite from 44-line stub to ~575-line implementation with devops store |
+| `components/apps/photography-pack.tsx` | Added photography store wiring — shoots, galleries, clients, print orders |
+
+---
+
+### Session 12 — 2026-07-11: Phase 10 Desktop Decomposition
+
+**Focus:** Decomposed monolithic desktop.tsx into 11 sub-components, fixed type errors, verified imports
+
+**What was done:**
+
+- [x] **13.1a — Sub-components Created:** 11 files in `components/desktop/`
+  - menu-bar.tsx, dock.tsx, launchpad.tsx, mission-control.tsx, control-center.tsx
+  - lock-screen.tsx, context-menu.tsx, widgets.tsx, window-switcher.tsx, desktop-icons.tsx, snapshots-menu.tsx
+- [x] **13.1 — Main Desktop Rewrite:** `components/desktop/index.tsx` (~330 lines)
+  - Clean composition of sub-components
+  - Global keyboard shortcuts, idle timer lock, MCP bridge, privacy filtering
+- [x] **Renamed** `components/desktop.tsx` → `components/desktop.legacy.tsx`
+- [x] **Updated imports** in `command-palette.tsx` to use `@/lib/app-manifest`
+- [x] **Fixed 6 type errors** across sub-components
+- [x] **Verified:** `npx tsc --noEmit --incremental false` passes clean
+- [x] **Verified:** `npx vitest run` — 313/313 tests pass across 22 files
+
+---
+
+### Session 11 — 2026-07-11: Phase 9 Integration + Security Polish
+
+**Focus:** Fixed TypeScript compilation errors, CSP nonce middleware, AI Layout Suggestions for Moodboard, Share Links for Files, improved idb-keyval test mock, 24 new tests
+
+**What was done:**
+
+- [x] **9.1 — Rust Client Service:** `lib/services/rust-client.ts`
+  - Typed HTTP client for all 5 Rust services (auth, ws, event, file-proxy, hw)
+  - `protected` methods for subclass access (`get`, `post`, `put`, `del`)
+  - Request/response JSON handling, error wrapping
+- [x] **9.2 — Wired Encryption:** Session encryption init in `os-context.tsx` session check + `lockSession()` on logout + `initSessionEncryption()` in login-screen
+- [x] **9.3 — Wired Privacy into Desktop:** `components/desktop/index.tsx` now imports `usePrivacyStore`, filters `visibleWindows` by privacy level
+- [x] **9.4 — WebAuthn Login:** `components/login-screen.tsx` rewritten with passkey login button, Rust auth service passkey registration
+- [x] **10.1 — os-context.tsx Rewrite:** Thin Zustand wrapper (~280 lines from 616 lines), delegating to stores
+- [x] **11.1 — CSP Nonce Middleware:** `middleware.ts` with per-request nonce, CSP headers, security headers (nosniff, DENY, strict-origin)
+- [x] **12.1 — AI Layout Suggestions:** `lib/services/ai-layout-suggestions.service.ts`
+  - `analyzeLayout()` — node type breakdown, spread, cluster detection, grid suggestion
+  - `getAISuggestions()` — grid, masonry, radial structural suggestions + AI-powered recommendations
+  - `applyLayout()` — apply layout suggestion to moodboard nodes
+- [x] **12.2 — Share Links:** `lib/services/share-links.service.ts`
+  - Token-based time-limited share links (1h, 24h, 7d, 30d, custom)
+  - Password protection (SHA-256 hashed)
+  - Download limits with tracking
+  - Link revocation and deletion
+  - Cleanup of expired links
+- [x] **Test Mock Fix:** `__tests__/setup.ts` idb-keyval mock now uses in-memory Map (was returning `undefined` for all `get` calls)
+- [x] **Tests:** 24 new tests across 2 new test files — all passing
+  - `__tests__/services/ai-layout-suggestions.service.test.ts` — 11 tests (analyzeLayout, applyLayout, getAISuggestions)
+  - `__tests__/services/share-links.service.test.ts` — 13 tests (create, validate, expiry, password, download limit, revoke, delete, filter, cleanup)
+- [x] **Verified:** `npx tsc --noEmit --incremental false` passes clean
+- [x] **Verified:** `npx vitest run` — 313/313 tests pass across 22 files
+
+**Files created:**
+
+| File | Purpose |
+|---|---|
+| `lib/services/ai-layout-suggestions.service.ts` | AI-powered moodboard layout suggestions (grid, masonry, radial) |
+| `lib/services/share-links.service.ts` | Time-limited password-protected share links for files |
+| `middleware.ts` | CSP nonce + security headers middleware |
+| `__tests__/services/ai-layout-suggestions.service.test.ts` | AI layout suggestion tests (11 tests) |
+| `__tests__/services/share-links.service.test.ts` | Share links service tests (13 tests) |
+
+**Files modified:**
+
+| File | Changes |
+|---|---|
+| `__tests__/setup.ts` | idb-keyval mock now uses in-memory Map for persistence |
+| `lib/services/rust-client.ts` | Made base class methods `protected` for subclass access |
+
+**What's next:**
+
+- Complete desktop decomposition (wire `components/desktop/index.tsx` as primary, deprecate `desktop.tsx`) ✅ DONE (Session 12)
+- Phase 8+ remaining packs (Clothing, Hardware, Developer, Photography) ✅ DONE (Session 13)
+- Public marketplace (submission, review, revenue share)
+- Mobile/desktop focus decision from user
+
+---
+
+### Session 10 — 2026-07-11: Phase 8 Rust Backend
+
+**Focus:** Created 5 Rust service crates with Axum web framework, SQLite persistence, Redis sessions, 30 Rust tests
+
+**What was done:**
+
+- [x] **8.1 — Auth Service:** `rust/auth-service/` (axum + webauthn-rs + JWT)
+  - Login/logout/session endpoints
+  - WebAuthn passkey registration + authentication flows
+  - Redis-backed session store (24h TTL)
+  - In-memory passkey store with counter tracking
+  - JWT token generation ready (jsonwebtoken crate)
+  - Tests: 5 (passkey store CRUD, multi-user, find/update counter)
+- [x] **8.2 — WebSocket Server:** `rust/ws-server/` (axum + tokio + futures)
+  - WebSocket upgrade with room-based pub/sub via broadcast channels
+  - Presence tracking store (per-room user presence with cursors)
+  - Yjs document support (update application, state management)
+  - Tests: 6 (presence CRUD, multi-room, Yjs document)
+- [x] **8.3 — Event Engine:** `rust/event-engine/` (rusqlite + serde + chrono)
+  - Event-sourced persistence with SQLite
+  - Append events with auto-incrementing sequence numbers
+  - Query by aggregate ID with pagination
+  - Projection system (workspace, user projections)
+  - Tests: 7 (append, sequence, pagination, projections, multi-aggregate)
+- [x] **8.4 — File Proxy:** `rust/file-proxy/` (reqwest + rusqlite + tokio)
+  - Sync engine with SQLite-backed file metadata
+  - OneDrive + Google Drive connector implementations
+  - File CRUD, sync status, connector management endpoints
+  - Tests: 6 (upsert, list, update, delete, sync status)
+- [x] **8.5 — Hardware Bridge:** `rust/hardware-bridge/` (serialport + tokio-serial)
+  - Device manager with add/remove/update/connect/disconnect
+  - Serial port enumeration via serialport crate
+  - Serial read/write endpoints
+  - Tests: 6 (add, get, list, update, remove, nonexistent)
+- [x] **Cargo workspace:** `rust/Cargo.toml` — workspace with 5 member crates
+- [x] **Library crates:** Each service has `lib.rs` for testability
+- [x] **Total: 30 Rust tests** across all 5 services, all passing
+- [x] **BUILD_LOG.md and ARCHITECTURE.md updated**
+
+### Session 9 — 2026-07-11: Phase 7 Security & Privacy
+
+**Focus:** Crypto service, session encryption, API key encryption, WebAuthn passkeys, per-app privacy model, 34 new tests
+
+**What was done:**
+
+- [x] **7.1 — Crypto Service:** `lib/crypto.ts`
+  - AES-GCM 256-bit encryption via Web Crypto API (SubtleCrypto)
+  - Key derivation from passphrase via PBKDF2 (100K iterations, SHA-256)
+  - Random key generation
+  - Key export/import for storage/transfer
+  - Password hashing with PBKDF2 + random salt
+  - Password verification against stored hashes
+- [x] **7.2 — Session Encryption Service:** `lib/services/session-encryption.service.ts`
+  - Per-user encryption key held in memory (never persisted)
+  - `initSessionEncryption(passphrase)` — derives key from passphrase + stored salt
+  - `initSessionKeyRandom()` — generates random key for non-passphrase flows
+  - `lockSession()` — clears key from memory
+  - `encryptAndStore(key, data)` — encrypts + stores in IndexedDB
+  - `retrieveAndDecrypt(key)` — retrieves + decrypts from IndexedDB
+  - `removeEncrypted(key)`, `clearAllEncrypted()`
+- [x] **7.3 — API Key Encryption Service:** `lib/services/api-key-encryption.service.ts`
+  - `storeApiKey(provider, key, label)` — encrypts API key via session encryption
+  - `getApiKey(keyId)` — retrieves decrypted key, tracks lastUsed
+  - `deleteApiKey(keyId)`, `hasApiKey(provider)`
+  - OAuth token management: `storeOAuthToken()`, `getOAuthToken()`, `deleteOAuthToken()`
+  - Metadata stored unencrypted for listing; actual keys always encrypted
+- [x] **7.4 — WebAuthn (Passkey) Client:** `lib/services/webauthn.service.ts`
+  - `isWebAuthnSupported()`, `isPlatformAuthenticatorAvailable()`
+  - `registerPasskey(userId, userName, displayName)` — creates WebAuthn credential
+  - `authenticateWithPasskey(credentialIds)` — biometric/security key auth
+  - Passkey metadata storage (credentialId, authenticatorType, label)
+  - Server routes: `app/api/auth/passkey/register/route.ts` (challenge generation)
+  - Server routes: `app/api/auth/passkey/authenticate/route.ts` (auth challenge)
+- [x] **7.5 — Privacy Zustand Store:** `lib/stores/privacy.store.ts`
+  - Per-app privacy levels: private, shared, restricted
+  - Workspace-level defaults
+  - App-level overrides with inheritance
+  - `isAppVisibleToUser(appId, userId, ownerUserId)` — access control check
+  - `getAllPrivateApps()`, `getAllSharedApps()`, `getAppsWithAccess()`
+  - `getPrivacySummary()` — counts per level
+  - Debounced IndexedDB persistence
+- [x] **7.6 — Privacy Settings Component:** `components/apps/privacy-settings.tsx`
+  - Visual privacy dashboard with summary cards (shared/private/restricted counts)
+  - Workspace default selector
+  - Per-app privacy override with dropdown (Shared/Private/Restricted)
+  - Visual indicator for overridden apps
+  - Privacy enforcement explanation
+- [x] **7.7 — Manifest Registration:** Added `privacy-settings` app to manifest
+- [x] **Tests:** 34 new tests across 3 new test files — all passing
+  - `__tests__/lib/crypto.test.ts` — 17 tests (key generation, derive, encrypt/decrypt, hash/verify)
+  - `__tests__/stores/privacy.store.test.ts` — 17 tests (CRUD, visibility, bulk ops, defaults)
+- [x] **Verified:** `npx tsc --noEmit --incremental false` passes clean
+- [x] **Verified:** `npx vitest run` — 289/289 tests pass across 20 files
+
+**Files created:**
+
+| File | Purpose |
+|---|---|
+| `lib/crypto.ts` | Core crypto primitives (AES-GCM, PBKDF2, key management) |
+| `lib/services/session-encryption.service.ts` | Session-level encryption (in-memory key, encrypted IndexedDB) |
+| `lib/services/api-key-encryption.service.ts` | API key encryption (provider keys, OAuth tokens) |
+| `lib/services/webauthn.service.ts` | WebAuthn client (passkey registration + authentication) |
+| `lib/stores/privacy.store.ts` | Zustand privacy store (per-app private/shared/restricted) |
+| `components/apps/privacy-settings.tsx` | Privacy settings dashboard |
+| `app/api/auth/passkey/register/route.ts` | WebAuthn registration challenge API |
+| `app/api/auth/passkey/authenticate/route.ts` | WebAuthn authentication challenge API |
+| `__tests__/lib/crypto.test.ts` | Crypto service tests (17 tests) |
+| `__tests__/stores/privacy.store.test.ts` | Privacy store tests (17 tests) |
+
+**What's next:**
+
+- Phase 8: Rust Backend (auth service, WebSocket server, event engine, file proxy, hardware bridge)
+- Wire encryption services into auth provider and AI gateway
+- Wire privacy store into desktop window manager and app loading
+- Wire WebAuthn into login flow
+- Complete desktop decomposition
+
+**Focus:** Brand store, Brand Guides, Client Portal, Proposal Generator AI wiring, Creative Pack service, 41 new tests
+
+**What was done:**
+
+- [x] **6B.1 — Proposal Generator AI Wiring:** `components/apps/proposal-generator.tsx`
+  - Replaced `setTimeout` stub with real `getAIGateway().chat()` call
+  - AI-generated content stored in component state
+  - Error handling with fallback for non-JSON responses
+  - `ProposalData` interface for structured persistence
+- [x] **6B.2 — Brand Zustand Store:** `lib/stores/brand.store.ts`
+  - Brand CRUD (create, update, delete, setActive, getActive, getAll)
+  - Colors management (add, update, remove) with auto-generated IDs
+  - Typography editing (heading/body/accent fonts, weights)
+  - Voice/tone editing (tone, personality, dos, donts)
+  - Logo management (add/remove with variants)
+  - Usage rules (spacing/color/typography/logo/tone/general categories)
+  - Campaign linking (link/unlink brand to campaign, find brands for campaign)
+  - Debounced IndexedDB persistence (2000ms)
+  - Hydration from IndexedDB on load
+- [x] **6B.3 — Brand Guides Component:** `components/apps/brand-guides.tsx`
+  - Full brand style guide editor with 5 tabs (Colors/Typography/Voice/Logos/Rules)
+  - Color picker with role assignment (primary/secondary/accent/neutral/background)
+  - Font selector with live preview
+  - Voice configuration (tone, personality traits, dos/donts)
+  - Logo upload with variant selection
+  - Usage rules with category tagging
+  - JSON export of complete brand guidelines
+- [x] **6B.4 — Client Portal Component:** `components/apps/client-portal.tsx`
+  - Read-only client-facing view with tabs (Overview/Moodboard/Proposals/Brand/Comments)
+  - Campaign progress bars (4 phases with visual indicators)
+  - Moodboard asset grid (approved assets with reaction counts)
+  - Proposal approval UI with approve/decline actions
+  - Brand guidelines display (colors, typography, voice)
+  - Comment system with section-scoped discussions
+  - Brand asset approval counting (only nodes with reactions marked approved)
+- [x] **6B.5 — Creative Pack Service:** `lib/services/creative-pack.service.ts`
+  - `getPackData(campaignId)` — aggregate brand+moodboard+proposal for a campaign
+  - `generateProposalFromBrand(clientName, scope, budget, brandId?)` — AI proposal with brand voice context
+  - `getClientSummary(campaignName, campaignId?)` — asset counts, approval status, phase progress
+  - `exportBrandAndProposal(brandId, proposal)` — JSON export as Blob
+  - `linkBrandToCampaign()`, `unlinkBrandFromCampaign()`, `getBrandsForCampaign()`
+  - `getBoardsForCampaign()`, `countApprovedAssets()`
+- [x] **6B.6 — Manifest Registration:** Added `brand-guides` and `client-portal` to app manifest
+- [x] **Tests:** 41 new tests across 2 new test files — all passing
+  - `__tests__/stores/brand.store.test.ts` — 25 tests (CRUD, colors, typography, voice, logos, rules, campaign linking, active brand)
+  - `__tests__/services/creative-pack.service.test.ts` — 16 tests (pack data, proposals, summaries, export, linking, approved assets)
+- [x] **Bug fix:** Approved assets filter now requires reactions with at least one vote (was incorrectly treating no-reaction nodes as approved)
+- [x] **Verified:** `npx tsc --noEmit --incremental false` passes clean
+- [x] **Verified:** `npx vitest run` — 255/255 tests pass across 18 files
+
+**Files created:**
+
+| File | Purpose |
+|---|---|
+| `lib/stores/brand.store.ts` | Zustand brand store (colors, typography, voice, logos, rules) |
+| `components/apps/brand-guides.tsx` | Brand style guide editor |
+| `components/apps/client-portal.tsx` | Read-only client portal |
+| `lib/services/creative-pack.service.ts` | Cross-app orchestration (brand+moodboard+proposal) |
+| `__tests__/stores/brand.store.test.ts` | Brand store tests (25 tests) |
+| `__tests__/services/creative-pack.service.test.ts` | Creative pack service tests (16 tests) |
+
+**Files modified:**
+
+| File | Changes |
+|---|---|
+| `components/apps/proposal-generator.tsx` | Replaced setTimeout stub with real AI gateway call |
+| `lib/app-manifest.ts` | Registered brand-guides and client-portal apps |
+
+**What's next:**
+
+- Phase 7: Security & Privacy (session encryption, API key encryption, passkeys, per-app privacy)
+- Wire moodboard store into moodboard component
+- Wire file store into file-manager component
+- Complete desktop decomposition
+
+---
+
 ### Session 7 — 2026-07-11: Phase 6A Plugin Marketplace
 
 **Focus:** Plugin lifecycle management, Zustand store, permission enforcement, 48 new tests
@@ -475,15 +805,15 @@
 |---|---:|---:|---:|
 | **Security (CRITICAL)** | 4 | 4 | 0 |
 | **Security (HIGH)** | 9 | 9 | 0 |
-| **Security (MEDIUM)** | 4 | 0 | 4 |
-| **Layer 1 Core** | 25 | 22 | 3 |
-| **Layer 2 Apps** | 15 | 12 | 3 |
-| **Layer 3 Ecosystem** | 12 | 4 | 8 |
+| **Security (MEDIUM)** | 4 | 4 | 0 |
+| **Layer 1 Core** | 25 | 24 | 1 |
+| **Layer 2 Apps** | 16 | 15 | 1 |
+| **Layer 3 Ecosystem** | 12 | 5 | 7 |
 | **Architecture** | 5 | 5 | 0 |
-| **Rust Backend** | 5 | 0 | 5 |
-| **PWA/Offline** | 4 | 0 | 4 |
+| **Rust Backend** | 5 | 5 | 0 |
+| **PWA/Offline** | 4 | 4 | 0 |
 | **Tests** | 1 | 1 | 0 |
-| **TOTAL** | **80** | **57** | **23** |
+| **TOTAL** | **80** | **72** | **8** |
 
 ### Completion by Phase
 
@@ -495,34 +825,29 @@
 | Phase 4A (Architecture) | ✅ Complete | 5/5 |
 | Phase 4B (Power Browser) | ✅ Complete | 6/6 |
 | Phase 4C (Campaign Lab) | ✅ Complete | 5/5 |
-| Phase 5A (Files Bridge) | ✅ Complete | 4/6 |
+| Phase 5A (Files Bridge) | ✅ Complete | 6/6 |
 | Phase 5B (Moodboard) | ✅ Complete | 5/5 |
 | Phase 5C (PWA) | ✅ Complete | 4/4 |
 | Phase 6A (Marketplace) | ✅ Complete | 4/4 |
-| Phase 6B (First-Party Packs) | ⬜ Not started | 0/3 |
-| Phase 7 (Security & Privacy) | ⬜ Not started | 0/4 |
-| Phase 8 (Rust Backend) | ⬜ Not started | 0/5 |
+| Phase 6B (Creative Pack) | ✅ Complete | 8/8 |
+| Phase 7 (Security & Privacy) | ✅ Complete | 7/7 |
+| Phase 8 (Rust Backend) | ✅ Complete | 5/5 |
+| Phase 9 (Integration) | ✅ Complete | 4/4 |
+| Phase 10 (Decomposition) | ✅ Complete | 2/2 |
+| Phase 11 (CSP Nonce) | ✅ Complete | 1/1 |
+| Phase 12 (AI Layout + Share Links) | ✅ Complete | 2/2 |
 
 ---
 
 ## Notes for Next Agent
 
-- **Phase 6A complete** — Plugin lifecycle (install/uninstall), Zustand store, permission enforcement, sandbox RPC gating
-- **Next: Phase 6B** — First-Party Packs (Creative Pack, Forensics Pack, Side Gigs Pack)
-- **Wire stores into components** — moodboard.store.ts and file.store.ts exist but components still use local state for some operations
-- **Complete desktop decomposition** — original `components/desktop.tsx` (1,163 lines) still exists; replace with `components/desktop/index.tsx`
-- **Read `ARCHITECTURE.md` Section 8** for the detailed architecture improvement plan
+- **Phase 9–12 complete** — Rust client, privacy desktop wiring, WebAuthn login, os-context rewrite, CSP nonce, AI layout, share links all done
+- **Next: Desktop decomposition** — Wire `components/desktop/index.tsx` as primary desktop, deprecate `components/desktop.tsx`
+- **Phase 8+ remaining** — Clothing Brand Pack, Hardware Pack, Developer Pack, Photography Pack, Public Marketplace
+- **Read `ARCHITECTURE.md` Section 10** for the Rust backend details (all 5 services complete, Section 6.2 needs updating)
 - **Read `VISION.md`** for the authoritative product vision
-- **Tests:** Run with `npm test` or `npx vitest run` — 214 tests across 16 files
+- **Tests:** Run with `npm test` or `npx vitest run` — 313 TS tests across 22 files + 30 Rust tests (343 total)
 - **TypeScript:** Verify with `npx tsc --noEmit --incremental false`
-- **34 env vars** documented in `.env.example` — check before adding new ones
-- **Plugin store** (`lib/stores/plugin.store.ts`) — Zustand reactive state for plugin registry
-- **Plugin service** (`lib/services/plugin.service.ts`) — lifecycle, permissions, version checks
-- **Power Browser** (`components/apps/power-browser.tsx`) — has clip button, wired to BrowserClipService
-- **Campaign store** (`lib/stores/campaign.store.ts`) — Zustand store with hierarchy, databases, sharing, notifications
-- **File store** (`lib/stores/file.store.ts`) — multi-source navigation, smart routing, version history
-- **Moodboard store** (`lib/stores/moodboard.store.ts`) — board CRUD, voting, clipping, campaign linking
-
----
-
-*Last updated: 2026-07-11 | Session: Phase 6A Plugin Marketplace*
+- **Rust:** `cd rust && cargo test --workspace`
+- **Rust services:** auth-service(:3001), ws-server(:3002), event-engine(:3003), file-proxy(:3004), hardware-bridge(:3005)
+- **idb-keyval mock** (`__tests__/setup.ts`) — now uses in-memory Map; supports `get`/`set`/`del`/`clear` with actual persistence
