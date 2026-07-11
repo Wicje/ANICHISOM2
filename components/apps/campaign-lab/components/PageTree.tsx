@@ -1,7 +1,22 @@
 import React, { useState, useMemo } from 'react';
-import { Page } from '../types';
-import { ChevronRight, Trash2, Plus, Star, StarOff, Search, Clock, Trash, RotateCcw } from 'lucide-react';
+import { Page, PageLevel } from '../types';
+import { ChevronRight, Trash2, Plus, Star, StarOff, Search, Clock, Trash, RotateCcw, Target, Layers, CheckSquare, ListTodo } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const LEVEL_BADGES: Record<PageLevel, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
+  campaign: { label: 'Campaign', color: 'bg-purple-100 text-purple-700', icon: Target },
+  phase:    { label: 'Phase',    color: 'bg-blue-100 text-blue-700',   icon: Layers },
+  task:     { label: 'Task',     color: 'bg-amber-100 text-amber-700', icon: CheckSquare },
+  subtask:  { label: 'Subtask',  color: 'bg-slate-100 text-slate-700', icon: ListTodo },
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  'todo':        'bg-slate-200 text-slate-600',
+  'in-progress': 'bg-blue-200 text-blue-700',
+  'review':      'bg-amber-200 text-amber-700',
+  'done':        'bg-emerald-200 text-emerald-700',
+  'blocked':     'bg-red-200 text-red-700',
+};
 
 interface PageTreeProps {
   pages: Page[];
@@ -88,6 +103,16 @@ export function PageTree({
               </div>
               <span className="shrink-0">{page.icon}</span>
               <span className="truncate flex-1 py-0.5">{page.title || 'Untitled'}</span>
+              {page.level && page.level !== 'campaign' && (
+                <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0", LEVEL_BADGES[page.level].color)}>
+                  {LEVEL_BADGES[page.level].label}
+                </span>
+              )}
+              {page.status && (page.level === 'task' || page.level === 'subtask') && (
+                <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0", STATUS_COLORS[page.status])}>
+                  {page.status}
+                </span>
+              )}
 
               {/* Favorite toggle */}
               <button

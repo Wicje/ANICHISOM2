@@ -66,3 +66,17 @@ body {
     --tw-scale-y: 1 !important;
   }
 }
+
+/* Code Editor scrollbar styles (S-10: moved from dangerouslySetInnerHTML) */
+.custom-scrollbar::-webkit-scrollbar { width: 10px; height: 10px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #424242; border: 2px solid #252526; border-radius: 5px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #4f4f4f; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Productivity Suite TipTap editor styles (S-10: moved from dangerouslySetInnerHTML) */
+.tiptap-editor .ProseMirror:focus { outline: none; }
+.tiptap-editor .ProseMirror > * + * { margin-top: 0.75em; }
+.tiptap-editor .ProseMirror ul,
+.tiptap-editor .ProseMirror ol { padding: 0 1rem; }
+.tiptap-editor .ProseMirror blockquote { border-left: 3px solid rgba(13, 13, 13, 0.1); padding-left: 1rem; }

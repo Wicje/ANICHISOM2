@@ -25,7 +25,26 @@ app.prepare().then(async () => {
 
   // y-websocket server for real-time collaboration
   const wss = new WebSocketServer({ port: 1234 });
-  wss.on('connection', setupWSConnection);
+  const wsConnections = new Map<string, number>(); // ip -> connection count
+  const WS_MAX_CONNECTIONS_PER_IP = 10;
+
+  wss.on('connection', (ws, req) => {
+    const clientIp = (req.headers['x-forwarded-for'] as string) ||
+                     (req.headers['x-client-ip'] as string) ||
+                     req.socket.remoteAddress || 'unknown';
+    const count = wsConnections.get(clientIp) || 0;
+    if (count >= WS_MAX_CONNECTIONS_PER_IP) {
+      ws.close(1008, 'Rate limit exceeded');
+      return;
+    }
+    wsConnections.set(clientIp, count + 1);
+    ws.on('close', () => {
+      const c = wsConnections.get(clientIp) || 1;
+      if (c <= 1) wsConnections.delete(clientIp);
+      else wsConnections.set(clientIp, c - 1);
+    });
+    setupWSConnection(ws, req);
+  });
   console.log('Yjs WebSocket Server listening on ws://localhost:1234');
 
 

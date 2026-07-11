@@ -102,8 +102,14 @@ export async function POST(request: NextRequest) {
     // Get configured auth provider
     const authProvider = getAuthProvider();
 
-    // Dev-only master key bypass — NEVER available in production
-    if (process.env.NODE_ENV === 'development' && uniqueId === 'ANICHISOM') {
+    // Dev-only master key bypass — requires DEV_MASTER_KEY env var (S-02 hardened)
+    // NEVER available in production; requires explicit opt-in via environment
+    const devMasterKey = process.env.DEV_MASTER_KEY;
+    if (
+      process.env.NODE_ENV === 'development' &&
+      devMasterKey &&
+      uniqueId === devMasterKey
+    ) {
       const crypto = await import('crypto');
       const devToken = 'dev-master-' + crypto.randomBytes(32).toString('hex');
       createDevMasterSession(devToken);
@@ -112,7 +118,7 @@ export async function POST(request: NextRequest) {
           success: true,
           user: {
             id: 'master-user-id',
-            uniqueId: 'ANICHISOM',
+            uniqueId: 'dev-master',
             role: 'admin',
           },
         },
@@ -123,10 +129,10 @@ export async function POST(request: NextRequest) {
         name: 'anichisom_session',
         value: devToken,
         httpOnly: true,
-        secure: false, // Dev only, no HTTPS required locally
+        secure: false,
         sameSite: 'strict',
         path: '/',
-        maxAge: 24 * 60 * 60, // 24 hours — shorter for dev bypass
+        maxAge: 24 * 60 * 60,
       });
 
       return response;

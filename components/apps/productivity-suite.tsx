@@ -486,12 +486,6 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser, on
       >
         <EditorContent editor={editor} />
       </div>
-      <style dangerouslySetInnerHTML={{__html: `
-        .tiptap-editor .ProseMirror:focus { outline: none; }
-        .tiptap-editor .ProseMirror > * + * { margin-top: 0.75em; }
-        .tiptap-editor .ProseMirror ul, .tiptap-editor .ProseMirror ol { padding: 0 1rem; }
-        .tiptap-editor .ProseMirror blockquote { border-left: 3px solid rgba(13, 13, 13, 0.1); padding-left: 1rem; }
-      `}} />
     </div>
   );
 }

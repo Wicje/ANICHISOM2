@@ -8,12 +8,14 @@ import {
   MessageSquare, Heart, X as XIcon, CheckCircle, Plus, Undo2, Redo2,
   ZoomIn, ZoomOut, Maximize, Download, Tag, Group, Minus, ArrowRight,
   Lock, Unlock, Palette, Eye, LayoutGrid, Pin, Star, Sparkles,
-  ChevronDown, ChevronRight, Send, Filter, Presentation, Scissors, ExternalLink
+  ChevronDown, ChevronRight, Send, Filter, Presentation, Scissors, ExternalLink,
+  Image as ImageIcon
 } from 'lucide-react';
 import { get, set } from 'idb-keyval';
 import { cn } from '@/lib/utils';
 import { useCollaborativeDoc } from '@/lib/hooks/useCollaborativeDoc';
 import { PerfectCursor } from 'perfect-cursors';
+import { MoodboardExportService } from '@/lib/services/moodboard-export.service';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -1143,6 +1145,28 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     setShowExportMenu(false);
   }, [nodes, comments, connections, groups, tags, projectId]);
 
+  const exportPNG = useCallback(async () => {
+    const exportNodes = nodes.map(n => ({
+      id: n.id, type: n.type, x: n.x, y: n.y, width: n.width, height: n.height,
+      content: n.content, label: n.label, backgroundColor: n.backgroundColor,
+      tags: n.tags, reactions: n.reactions,
+    }));
+    const { MoodboardExportService } = await import('@/lib/services/moodboard-export.service');
+    await MoodboardExportService.exportPNG(exportNodes, { format: 'png', filename: `moodboard-${projectId}.png` });
+    setShowExportMenu(false);
+  }, [nodes, projectId]);
+
+  const exportPrint = useCallback(() => {
+    const exportNodes = nodes.map(n => ({
+      id: n.id, type: n.type, x: n.x, y: n.y, width: n.width, height: n.height,
+      content: n.content, label: n.label, backgroundColor: n.backgroundColor,
+      tags: n.tags, reactions: n.reactions,
+    }));
+    const exportConns = connections.map(c => ({ fromId: c.fromId, toId: c.toId, label: c.label }));
+    MoodboardExportService.exportPrint(exportNodes, exportConns, `Moodboard: ${projectId}`);
+    setShowExportMenu(false);
+  }, [nodes, connections, projectId]);
+
   // ─── Campaign linking ────────────────────────────────────────────────────
 
   const linkToCampaign = useCallback((nodeId: string, campaignPageId: string) => {
@@ -1414,7 +1438,12 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
           <button onClick={exportJSON} className="w-full text-left px-3 py-2 text-xs hover:bg-slate-100 flex items-center gap-2">
             <Download className="w-3 h-3" /> Export as JSON
           </button>
-          <div className="px-3 py-1 text-[10px] text-black/30">PNG/PDF export requires html-to-image package</div>
+          <button onClick={exportPNG} className="w-full text-left px-3 py-2 text-xs hover:bg-slate-100 flex items-center gap-2">
+            <ImageIcon className="w-3 h-3" /> Export as PNG
+          </button>
+          <button onClick={exportPrint} className="w-full text-left px-3 py-2 text-xs hover:bg-slate-100 flex items-center gap-2">
+            <Presentation className="w-3 h-3" /> Print View
+          </button>
         </div>
       )}
 

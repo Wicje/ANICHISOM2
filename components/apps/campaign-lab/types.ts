@@ -92,6 +92,7 @@ export type BlockComment = {
   text: string;
   createdAt: number;
   resolved: boolean;
+  mentionedUserIds?: string[]; // @mentioned users in this comment
 };
 
 // ─── Sharing & Permissions ──────────────────────────────────
@@ -111,7 +112,9 @@ export type PageShare = {
   invitedUsers: Array<{ userId: string; name: string; permission: PermissionLevel }>;
 };
 
-// ─── Page ───────────────────────────────────────────────────
+// ─── Page Hierarchy ─────────────────────────────────────────
+export type PageLevel = 'campaign' | 'phase' | 'task' | 'subtask';
+
 export type Page = {
   id: string;
   parentId: string | null;
@@ -129,6 +132,53 @@ export type Page = {
   favorite?: boolean;
   trash?: boolean;           // soft-delete flag
   trashedAt?: number;
+  // Hierarchy
+  level?: PageLevel;         // campaign | phase | task | subtask
+  campaignId?: string;       // root campaign this page belongs to
+  sortOrder?: number;        // ordering within siblings
+  // Status (for tasks)
+  status?: 'todo' | 'in-progress' | 'review' | 'done' | 'blocked';
+  assignee?: string;
+  dueDate?: string;
+};
+
+// ─── Campaign Share (per-campaign sharing) ──────────────────
+export type CampaignShare = {
+  id: string;
+  campaignId: string;
+  token: string;              // shareable link token
+  permission: PermissionLevel;
+  createdAt: number;
+  expiresAt?: number;
+  label?: string;             // e.g. "Client: Nike"
+  clientName?: string;
+  clientEmail?: string;
+};
+
+// ─── Linked Database ────────────────────────────────────────
+export type LinkedDatabase = {
+  id: string;
+  sourceDbId: string;        // the original DatabaseSchema.id
+  targetCampaignId: string;  // which campaign this link points to
+  label?: string;            // display label for the link
+  syncDirection: 'source-to-target' | 'target-to-source' | 'bidirectional';
+};
+
+// ─── Notification ───────────────────────────────────────────
+export type NotificationType = 'mention' | 'comment' | 'status-change' | 'share' | 'assignment';
+
+export type Notification = {
+  id: string;
+  type: NotificationType;
+  userId: string;            // who to notify
+  fromUserId: string;        // who triggered it
+  fromUserName: string;
+  pageId: string;
+  campaignId?: string;
+  message: string;
+  read: boolean;
+  createdAt: number;
+  link?: string;             // deep link to relevant page/block
 };
 
 // ─── Database Store (global, keyed by db id) ────────────────

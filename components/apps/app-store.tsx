@@ -16,6 +16,8 @@ import {
   PluginManifest, PluginCategory, PluginPermission, PluginInstallState,
   subscribe,
 } from '@/lib/plugin-registry';
+import { usePluginStore } from '@/lib/stores/plugin.store';
+import { PluginService } from '@/lib/services/plugin.service';
 
 // ─── Static catalog for apps/packs not yet in the dynamic registry ──────
 
@@ -78,9 +80,9 @@ export function AppStoreApp({ window: osWindow }: { window: OSWindow }) {
   });
 
   const openApp = useCallback((id: string) => {
-    const plugin = getPlugin(id);
-    if (plugin?.runtime === 'iframe' && plugin.entryUrl) {
-      openWindow(id, plugin.name, { pluginUrl: plugin.entryUrl });
+    const result = PluginService.openPlugin(id);
+    if (result) {
+      openWindow(result.appId, result.title, result.data);
     } else {
       openWindow(id);
     }
@@ -140,16 +142,16 @@ export function AppStoreApp({ window: osWindow }: { window: OSWindow }) {
     return installedApps.includes(id) || isPluginActive(id);
   }, [installedApps]);
 
-  const handleInstall = useCallback((id: string) => {
+  const handleInstall = useCallback(async (id: string) => {
     if (!installedApps.includes(id)) {
       installApp(id);
     }
-    installPlugin(id);
+    await PluginService.install(id);
   }, [installedApps, installApp]);
 
-  const handleUninstall = useCallback((id: string) => {
+  const handleUninstall = useCallback(async (id: string) => {
     uninstallApp(id);
-    uninstallPlugin(id);
+    await PluginService.uninstall(id);
   }, [uninstallApp]);
 
   // ─── Detail View ────────────────────────────────────────────────────────
@@ -221,7 +223,7 @@ export function AppStoreApp({ window: osWindow }: { window: OSWindow }) {
                         </div>
                         {isInstalled(detailItem.id) && (
                           <button
-                            onClick={() => setPrivacyOverride(detailItem.id, perm, overridden !== false)}
+                            onClick={() => usePluginStore.getState().setPrivacyOverride(detailItem.id, perm, overridden !== false)}
                             className={cn(
                               "w-8 h-4 rounded-full transition-colors relative",
                               overridden === false ? "bg-red-500/30" : "bg-emerald-500/30",
@@ -490,7 +492,7 @@ export function AppStoreApp({ window: osWindow }: { window: OSWindow }) {
                     <div className="flex items-center gap-2">
                       {pluginState && (
                         <button
-                          onClick={() => togglePluginEnabled(appId)}
+                          onClick={() => usePluginStore.getState().togglePlugin(appId)}
                           className={cn(
                             "w-8 h-4 rounded-full transition-colors relative",
                             pluginState.enabled ? "bg-emerald-500/30" : "bg-white/10",
@@ -786,9 +788,14 @@ export function AppStoreApp({ window: osWindow }: { window: OSWindow }) {
                     installCount: 0,
                     publishedAt: Date.now(),
                   };
-                  // Register locally
-                  registerPlugin(manifest);
-                  installPlugin(manifest.id);
+                  const validation = PluginService.validateManifest(manifest);
+                  if (!validation.valid) {
+                    alert(`Validation errors:\n${validation.errors.join('\n')}`);
+                    return;
+                  }
+                  // Register locally via plugin store
+                  usePluginStore.getState().registerPlugin(manifest);
+                  PluginService.install(manifest.id);
                   handleInstall(manifest.id);
                   // Submit to server API
                   fetch('/api/plugins', {

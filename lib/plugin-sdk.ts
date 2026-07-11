@@ -47,21 +47,31 @@ export interface OSPluginAPI {
 let requestIdCounter = 0;
 const pendingRequests = new Map<string, { resolve: (v: any) => void; reject: (e: any) => void }>();
 
+// Resolved parent origin — set during INIT_CONTEXT handshake (S-07 hardened)
+let resolvedParentOrigin: string | null = null;
+
 function getParentOrigin(): string {
+  if (resolvedParentOrigin) return resolvedParentOrigin;
+
   if (typeof window === 'undefined') return '*';
 
   const ancestorOrigin = window.location.ancestorOrigins?.[0];
-  if (ancestorOrigin) return ancestorOrigin;
+  if (ancestorOrigin && ancestorOrigin !== 'null') {
+    resolvedParentOrigin = ancestorOrigin;
+    return resolvedParentOrigin;
+  }
 
   if (document.referrer) {
     try {
-      return new URL(document.referrer).origin;
+      resolvedParentOrigin = new URL(document.referrer).origin;
+      return resolvedParentOrigin;
     } catch {
-      // Fall through to same-origin default.
+      // Fall through
     }
   }
 
-  return window.location.origin;
+  // Last resort: use wildcard (parent sandbox validates origin anyway)
+  return '*';
 }
 
 function rpcCall(method: string, ...args: any[]): Promise<any> {
@@ -119,7 +129,14 @@ export function initPluginAPI(): Promise<OSPluginAPI> {
     // Establish handshake: the parent (PluginSandbox) sends INIT_CONTEXT
     // when it receives OS_READY from this plugin.
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== getParentOrigin()) return;
+      if (event.origin !== getParentOrigin() && resolvedParentOrigin === null) {
+        // First INIT_CONTEXT sets the canonical parent origin (S-07 hardened)
+        if (event.data?.type === 'INIT_CONTEXT' && event.origin && event.origin !== 'null') {
+          resolvedParentOrigin = event.origin;
+        } else {
+          return;
+        }
+      }
 
       const { type } = event.data || {};
       if (type === 'INIT_CONTEXT') {

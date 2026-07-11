@@ -1,60 +1,36 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useEffect, useMemo, useCallback } from 'react';
 import { OSWindow } from '@/lib/os-context';
 import { useOS } from '@/lib/os-context';
 import {
   Plus, MoreHorizontal, Smile, PanelLeftClose, PanelLeft,
   ChevronRight, Globe, Lock, Search, Image as ImageIcon, Palette, Layout, CheckCircle, Send,
   Type, AtSign, Copy, Share2, Undo2, Redo2, Star, Trash, Clock, Brain, Sparkles,
-  Eye, MessageSquare, Edit3, Shield, X, Users, Link2, Mail, ExternalLink, Camera
+  Eye, MessageSquare, Edit3, Shield, X, Users, Link2, Mail, ExternalLink, Camera,
+  Bell, Target, Layers, ListTodo
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-import { Page, Block, DatabaseSchema, DatabaseStore, PermissionLevel, BlockComment } from './types';
-import { TEMPLATES, DEFAULT_PAGES, DEFAULT_DATABASES, COVER_GRADIENTS, PERMISSION_LABELS } from './data';
+import { Page, Block, DatabaseSchema, PermissionLevel, BlockComment, PageLevel } from './types';
+import { TEMPLATES, DEFAULT_PAGES, DEFAULT_DATABASES, COVER_GRADIENTS, PERMISSION_LABELS, TEAM_MEMBERS } from './data';
 import { useCollaborativeDoc } from '@/lib/hooks/useCollaborativeDoc';
+import { useCampaignStore } from '@/lib/stores/campaign.store';
 import { CursorOverlay } from './components/CursorOverlay';
 import { SidebarSections } from './components/PageTree';
 import { BlockEditor } from './components/BlockEditor';
 import { DatabaseView } from './components/DatabaseView';
 
+const LEVEL_ICONS: Record<PageLevel, React.ComponentType<{ className?: string }>> = {
+  campaign: Target,
+  phase: Layers,
+  task: CheckCircle,
+  subtask: ListTodo,
+};
+
 export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
   const { currentUser, workspaceMode, openWindow } = useOS();
-  const [activePageId, setActivePageId] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [shareMenuOpen, setShareMenuOpen] = useState(false);
-  const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [clipperOpen, setClipperOpen] = useState(false);
-  const [formsOpen, setFormsOpen] = useState(false);
-  const [coverPickerOpen, setCoverPickerOpen] = useState(false);
-  const [campaignPhase, setCampaignPhase] = useState<'discovery' | 'design' | 'delivery'>('design');
-
-  // ─── Database Store ────────────────────────────────────────
-  const [databaseStore, setDatabaseStore] = useState<DatabaseStore>(() => {
-    const store: DatabaseStore = {};
-    DEFAULT_DATABASES.forEach(db => store[db.id] = db);
-    return store;
-  });
-
-  const updateDatabase = useCallback((dbId: string, updates: Partial<DatabaseSchema>) => {
-    setDatabaseStore(prev => ({
-      ...prev,
-      [dbId]: { ...prev[dbId], ...updates },
-    }));
-  }, []);
-
-  const updateBlockInEditor = useCallback((pageId: string, blockId: string, updates: Partial<Block>) => {
-    const yPages = collab.sharedTypesRef.current.pages;
-    if (!yPages) return;
-    const page = yPages.get(pageId) as Page | undefined;
-    if (!page) return;
-
-    const newBlocks = page.blocks.map(b =>
-      b.id === blockId ? { ...b, ...updates } : b
-    );
-    yPages.set(pageId, { ...page, blocks: newBlocks, updatedAt: Date.now() });
-  }, []);
+  const store = useCampaignStore();
 
   // ─── Collab ────────────────────────────────────────────────
   const projectId = osWindow.data?.projectId || 'global';
@@ -69,8 +45,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
     },
   });
 
-  const [pages, setPages] = useState<Page[]>([]);
-
+  // ─── Sync Yjs → Zustand ───────────────────────────────────
   useEffect(() => {
     if (!collab.synced) return;
     const yPages = collab.sharedTypesRef.current.pages;
@@ -78,8 +53,8 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
 
     const syncPages = () => {
       const arr = Array.from(yPages.values()) as Page[];
-      arr.sort((a, b) => a.updatedAt - b.updatedAt);
-      setPages(arr);
+      arr.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+      store.setPages(arr);
     };
 
     syncPages();
@@ -87,66 +62,49 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
     return () => yPages.unobserve(syncPages);
   }, [collab.synced]);
 
-  const updateYPage = (newVals: Partial<Page> & { id: string }) => {
+  const updateYPage = useCallback((newVals: Partial<Page> & { id: string }) => {
     const yPages = collab.sharedTypesRef.current.pages;
     if (yPages) {
       const existing = yPages.get(newVals.id) || {};
       yPages.set(newVals.id, { ...existing, ...newVals, updatedAt: Date.now() });
     }
-  };
+  }, [collab]);
 
-  const deleteYPage = (id: string) => {
+  const deleteYPage = useCallback((id: string) => {
     const yPages = collab.sharedTypesRef.current.pages;
     if (yPages) yPages.delete(id);
-  };
+  }, [collab]);
 
-  const canUndo = collab.canUndo;
-  const canRedo = collab.canRedo;
-  const undo = collab.undo;
-  const redo = collab.redo;
+  // ─── Store selectors ──────────────────────────────────────
+  const {
+    pages, databaseStore, notifications,
+    activePageId, sidebarOpen, shareModalOpen, coverPickerOpen,
+    setActivePageId, setSidebarOpen, setShareModalOpen, setCoverPickerOpen,
+    addPage: storeAddPage, updatePage: storeUpdatePage, deletePage: storeDeletePage, restorePage: storeRestorePage,
+    updateDatabase, getBreadcrumbs, getChildren,
+    createShareLink, getCampaignShares, addNotification,
+    addCommentWithMentions,
+  } = store;
 
-  const activePage = pages.find(p => p.id === activePageId && !p.trash);
-
-  // ─── Breadcrumbs ──────────────────────────────────────────
-  const breadcrumbs = useMemo(() => {
-    if (!activePage) return [];
-    const pageById = new Map(pages.map(page => [page.id, page]));
-    const trail: Page[] = [];
-    let current: Page | null = activePage;
-    while (current) {
-      trail.unshift(current);
-      current = current.parentId ? pageById.get(current.parentId) || null : null;
-    }
-    return trail;
-  }, [activePage, pages]);
+  const activePage = useMemo(() => pages.find(p => p.id === activePageId && !p.trash), [pages, activePageId]);
+  const breadcrumbs = useMemo(() => activePageId ? getBreadcrumbs(activePageId) : [], [activePageId, pages]);
+  const currentUserNotifications = useMemo(
+    () => notifications.filter(n => n.userId === currentUser?.id),
+    [notifications, currentUser?.id]
+  );
+  const unreadCount = useMemo(
+    () => currentUserNotifications.filter(n => !n.read).length,
+    [currentUserNotifications]
+  );
 
   // ─── Page Actions ─────────────────────────────────────────
-  const addPage = (parentId: string | null = null, e?: React.MouseEvent) => {
+  const addPage = useCallback((parentId: string | null = null, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    const newPage: Page = {
-      id: crypto.randomUUID(),
-      parentId,
-      title: '',
-      icon: '📄',
-      blocks: [{ id: crypto.randomUUID(), type: 'p', content: '' }],
-      updatedAt: Date.now(),
-      createdAt: Date.now(),
-      expanded: true,
-      shared: false,
-      favorite: false,
-      trash: false,
-    };
-
+    const newPage = storeAddPage(parentId);
     updateYPage(newPage);
-    if (parentId) {
-      const parent = pages.find(p => p.id === parentId);
-      if (parent && !parent.expanded) updateYPage({ id: parentId, expanded: true });
-    }
-    setActivePageId(newPage.id);
-  };
+  }, [storeAddPage, updateYPage]);
 
-  const applyTemplate = (template: typeof TEMPLATES[0]) => {
-    // Ensure template databases exist in the store
+  const applyTemplate = useCallback((template: typeof TEMPLATES[0]) => {
     if (template.databases) {
       template.databases.forEach(dbId => {
         if (!databaseStore[dbId]) {
@@ -170,63 +128,74 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
       expanded: true,
       favorite: false,
       trash: false,
+      level: 'campaign',
+      campaignId: parentId,
+      sortOrder: pages.length,
     };
     updateYPage(parentPage);
 
     template.pages.forEach((p, i) => {
-      const blocks = p.blocks as Block[];
+      const pageData = p as { title: string; icon: string; level?: PageLevel; blocks: Block[] };
       updateYPage({
         id: crypto.randomUUID(),
         parentId,
-        title: p.title,
-        icon: p.icon,
-        blocks,
+        title: pageData.title,
+        icon: pageData.icon,
+        blocks: pageData.blocks,
         updatedAt: Date.now() + i + 1,
         createdAt: Date.now() + i + 1,
         trash: false,
+        level: pageData.level || 'phase',
+        campaignId: parentId,
+        sortOrder: i,
       });
     });
     setActivePageId(parentId);
-  };
+  }, [databaseStore, updateDatabase, pages.length, updateYPage, setActivePageId]);
 
-  const deletePage = (id: string, e?: React.MouseEvent) => {
+  const deletePage = useCallback((id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-
-    // Soft-delete: move to trash (not permanent delete)
-    const getIdsToTrash = (pageId: string, pageList: Page[]): string[] => {
-      let ids = [pageId];
-      const children = pageList.filter(p => p.parentId === pageId && !p.trash);
-      children.forEach(c => ids = [...ids, ...getIdsToTrash(c.id, pageList)]);
-      return ids;
+    // Find all Yjs page IDs to delete
+    const collectDescendants = (pageId: string): string[] => {
+      const children = pages.filter(p => p.parentId === pageId);
+      return [pageId, ...children.flatMap(c => collectDescendants(c.id))];
     };
-
-    const idsToTrash = getIdsToTrash(id, pages);
+    const idsToTrash = collectDescendants(id);
     idsToTrash.forEach(trashId => updateYPage({ id: trashId, trash: true, trashedAt: Date.now() }));
+    storeDeletePage(id);
+  }, [pages, updateYPage, storeDeletePage]);
 
-    if (activePageId && idsToTrash.includes(activePageId)) {
-      const remaining = pages.filter(p => !idsToTrash.includes(p.id) && !p.trash);
-      setTimeout(() => setActivePageId(remaining.length > 0 ? remaining[0].id : null), 0);
-    }
-  };
-
-  const restorePage = (id: string) => {
-    // Restore from trash
-    const getIdsToRestore = (pageId: string, pageList: Page[]): string[] => {
-      let ids = [pageId];
-      // Also restore children that were trashed with this page
-      const children = pageList.filter(p => p.parentId === pageId && p.trash);
-      children.forEach(c => ids = [...ids, ...getIdsToRestore(c.id, pageList)]);
-      return ids;
+  const restorePage = useCallback((id: string) => {
+    const collectDescendants = (pageId: string): string[] => {
+      const children = pages.filter(p => p.parentId === pageId && p.trash);
+      return [pageId, ...children.flatMap(c => collectDescendants(c.id))];
     };
-
-    const idsToRestore = getIdsToRestore(id, pages);
+    const idsToRestore = collectDescendants(id);
     idsToRestore.forEach(restoreId => updateYPage({ id: restoreId, trash: false, trashedAt: undefined }));
-  };
+    storeRestorePage(id);
+  }, [pages, updateYPage, storeRestorePage]);
 
-  const updatePage = (id: string, updates: Partial<Page>) => updateYPage({ id, ...updates });
-  const updateBlocks = (pageId: string, newBlocks: Block[]) => updateYPage({ id: pageId, blocks: newBlocks });
+  const updatePage = useCallback((id: string, updates: Partial<Page>) => {
+    updateYPage({ id, ...updates });
+  }, [updateYPage]);
 
-  const handlePointerMove = (e: React.PointerEvent) => {
+  const updateBlocks = useCallback((pageId: string, newBlocks: Block[]) => {
+    updateYPage({ id: pageId, blocks: newBlocks });
+  }, [updateYPage]);
+
+  const updateBlockInEditor = useCallback((pageId: string, blockId: string, updates: Partial<Block>) => {
+    const yPages = collab.sharedTypesRef.current.pages;
+    if (!yPages) return;
+    const page = yPages.get(pageId) as Page | undefined;
+    if (!page) return;
+
+    const newBlocks = page.blocks.map(b =>
+      b.id === blockId ? { ...b, ...updates } : b
+    );
+    yPages.set(pageId, { ...page, blocks: newBlocks, updatedAt: Date.now() });
+  }, [collab]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
     const container = document.getElementById(`campaign-scroll-container-${osWindow.id}`);
     if (container) {
       const rect = container.getBoundingClientRect();
@@ -234,7 +203,12 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
       const y = e.clientY - rect.top + container.scrollTop;
       collab.setLocalCursor(x, y);
     }
-  };
+  }, [collab, osWindow.id]);
+
+  const canUndo = collab.canUndo;
+  const canRedo = collab.canRedo;
+  const undo = collab.undo;
+  const redo = collab.redo;
 
   if (!collab.synced) return null;
 
@@ -284,11 +258,11 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
           <div className="px-3 border-t border-black/5 pt-3 pb-1">
             <div className="text-xs font-semibold text-[#37352f]/50 uppercase tracking-wider mb-2">Tools</div>
             <div className="flex flex-col gap-1">
-              <button onClick={() => setClipperOpen(true)} className="flex items-center gap-2 text-xs text-[#37352f]/70 hover:bg-black/5 p-2 rounded text-left">
-                <span>✂️</span> Web Clipper & Imports
+              <button onClick={() => setCoverPickerOpen(true)} className="flex items-center gap-2 text-xs text-[#37352f]/70 hover:bg-black/5 p-2 rounded text-left">
+                <span>🎨</span> Cover Picker
               </button>
-              <button onClick={() => setFormsOpen(true)} className="flex items-center gap-2 text-xs text-[#37352f]/70 hover:bg-black/5 p-2 rounded text-left">
-                <span>📝</span> Forms & Submissions
+              <button onClick={() => setShareModalOpen(true)} className="flex items-center gap-2 text-xs text-[#37352f]/70 hover:bg-black/5 p-2 rounded text-left">
+                <Share2 className="w-4 h-4 text-blue-500" /> Share & Permissions
               </button>
               <button onClick={() => openWindow('assistant', 'AI Writing Assistant')} className="flex items-center gap-2 text-xs text-[#37352f]/70 hover:bg-black/5 p-2 rounded text-left">
                 <Brain className="w-4 h-4 text-blue-500" /> AI Assistant
@@ -296,24 +270,39 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
             </div>
           </div>
 
+          {/* Notifications */}
+          {unreadCount > 0 && (
+            <div className="px-3 border-t border-black/5 pt-3 pb-1">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-[#37352f]/50 uppercase tracking-wider">Notifications</span>
+                <span className="text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold">{unreadCount}</span>
+              </div>
+              <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+                {currentUserNotifications.slice(0, 5).map(n => (
+                  <div key={n.id} className={cn("text-xs p-2 rounded", n.read ? "text-[#37352f]/40" : "bg-blue-50 text-[#37352f]/70")}>
+                    {n.message}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* New page */}
-          <div
-            onClick={() => addPage(null)}
-            className="p-3 border-t border-black/5 flex items-center gap-2 hover:bg-black/5 cursor-pointer text-sm font-medium text-[#37352f]/70"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New page</span>
+          <div className="mt-auto">
+            <div
+              onClick={() => addPage(null)}
+              className="p-3 border-t border-black/5 flex items-center gap-2 hover:bg-black/5 cursor-pointer text-sm font-medium text-[#37352f]/70"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New campaign</span>
+            </div>
           </div>
         </div>
       )}
 
       {/* Main Content */}
       <div
-        className={cn("flex-1 h-full overflow-y-auto flex flex-col relative transition-colors duration-500",
-           campaignPhase === 'discovery' ? 'bg-amber-50/40' :
-           campaignPhase === 'delivery' ? 'bg-emerald-50/40' :
-           'bg-white'
-        )}
+        className="flex-1 h-full overflow-y-auto flex flex-col relative bg-white"
         id={`campaign-scroll-container-${osWindow.id}`}
         onPointerMove={handlePointerMove}
         onKeyDown={(e) => {
@@ -361,11 +350,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
         )}
 
         {/* Sticky Header: Breadcrumbs + Tools */}
-        <div className={cn("sticky top-0 z-40 w-full flex items-center justify-between p-3 border-b backdrop-blur-md transition-colors duration-500",
-            campaignPhase === 'discovery' ? 'bg-amber-50/80 border-amber-200/50' :
-            campaignPhase === 'delivery' ? 'bg-emerald-50/80 border-emerald-200/50' :
-            'bg-white/80 border-transparent'
-        )}>
+        <div className="sticky top-0 z-40 w-full flex items-center justify-between p-3 border-b border-transparent bg-white/80 backdrop-blur-md">
           <div className="flex items-center gap-2 text-sm font-medium text-[#37352f]/70 min-w-0">
             {!sidebarOpen && (
               <button onClick={() => setSidebarOpen(true)} className="p-1 hover:bg-black/5 rounded shrink-0">
@@ -379,11 +364,12 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                   <React.Fragment key={p.id}>
                     {i > 0 && <ChevronRight className="w-3 h-3 text-[#37352f]/30 shrink-0" />}
                     <button
-                      className={cn("text-sm hover:bg-black/5 px-1.5 py-0.5 rounded truncate transition-colors",
+                      className={cn("text-sm hover:bg-black/5 px-1.5 py-0.5 rounded truncate transition-colors flex items-center gap-1",
                         i === breadcrumbs.length - 1 ? "font-medium text-[#37352f]" : "text-[#37352f]/60"
                       )}
                       onClick={() => setActivePageId(p.id)}
                     >
+                      {p.level && LEVEL_ICONS[p.level] && React.createElement(LEVEL_ICONS[p.level], { className: "w-3 h-3" })}
                       {p.icon} {p.title || 'Untitled'}
                     </button>
                   </React.Fragment>
@@ -397,6 +383,15 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
             )}
           </div>
           <div className="flex items-center gap-1 relative shrink-0">
+            {/* Notifications */}
+            {unreadCount > 0 && (
+              <button className="p-1 hover:bg-black/5 rounded relative" title={`${unreadCount} unread notifications`}>
+                <Bell className="w-4 h-4 text-[#37352f]/70" />
+                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full text-[8px] text-white font-bold flex items-center justify-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              </button>
+            )}
             <button onClick={undo} disabled={!canUndo} className="p-1 hover:bg-black/5 rounded disabled:opacity-30 disabled:hover:bg-transparent transition-colors" title="Undo (Ctrl+Z)">
               <Undo2 className="w-4 h-4 text-[#37352f]/70" />
             </button>
@@ -420,54 +415,46 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
               </button>
             )}
             {/* More */}
-            <button className="p-1 hover:bg-black/5 rounded relative" onClick={() => setShareMenuOpen(!shareMenuOpen)}>
+            <button className="p-1 hover:bg-black/5 rounded relative">
               <MoreHorizontal className="w-4 h-4 text-[#37352f]/70" />
             </button>
-
-            {shareMenuOpen && (
-              <div className="absolute top-full right-0 mt-2 w-56 bg-white border border-black/10 shadow-2xl rounded-xl p-2 z-50 flex flex-col gap-1 text-sm text-[#37352f]">
-                <div className="text-xs font-semibold text-[#37352f]/50 px-2 pt-2 pb-1 uppercase tracking-wider">Phases</div>
-                <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-black/5 rounded text-left transition-colors" onClick={() => { setCampaignPhase('discovery'); setShareMenuOpen(false); }}>
-                  <Search className="w-4 h-4 text-amber-500" /> Discovery
-                </button>
-                <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-black/5 rounded text-left transition-colors" onClick={() => { setCampaignPhase('design'); setShareMenuOpen(false); }}>
-                  <Palette className="w-4 h-4 text-blue-500" /> Design
-                </button>
-                <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-black/5 rounded text-left transition-colors" onClick={() => { setCampaignPhase('delivery'); setShareMenuOpen(false); }}>
-                  <CheckCircle className="w-4 h-4 text-emerald-500" /> Delivery
-                </button>
-
-                <div className="h-px bg-black/10 my-1 mx-2" />
-                <div className="text-xs font-semibold text-[#37352f]/50 px-2 pt-2 pb-1 uppercase tracking-wider">Actions</div>
-
-                <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-black/5 rounded text-left transition-colors" onClick={() => {
-                  setShareMenuOpen(false);
-                  openWindow('moodboard', `Moodboard: ${activePage?.title || 'Campaign'}`, { projectId });
-                }}>
-                  <ImageIcon className="w-4 h-4 text-indigo-500" /> Open Moodboard
-                </button>
-
-                <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-black/5 rounded text-left transition-colors" onClick={() => {
-                  setShareMenuOpen(false);
-                  openWindow('assistant', 'Campaign AI');
-                }}>
-                  <Brain className="w-4 h-4 text-blue-500" /> Ask AI
-                </button>
-
-                <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-black/5 rounded text-left transition-colors">
-                  <CheckCircle className="w-4 h-4 text-emerald-600" /> Final Approval
-                </button>
-                <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-black/5 rounded text-left transition-colors">
-                  <Send className="w-4 h-4 text-blue-600" /> Publish to Portal
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
         {/* Page Content */}
         {activePage ? (
           <div className="max-w-4xl w-full mx-auto px-12 py-8 flex-1 flex flex-col focus-within:ring-0 pb-32">
+            {/* Hierarchy level badge */}
+            {activePage.level && (
+              <div className="flex items-center gap-2 mb-4">
+                <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider",
+                  activePage.level === 'campaign' ? 'bg-purple-100 text-purple-700' :
+                  activePage.level === 'phase' ? 'bg-blue-100 text-blue-700' :
+                  activePage.level === 'task' ? 'bg-amber-100 text-amber-700' :
+                  'bg-slate-100 text-slate-700'
+                )}>
+                  {activePage.level}
+                </span>
+                {activePage.status && (
+                  <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full",
+                    activePage.status === 'todo' ? 'bg-slate-200 text-slate-600' :
+                    activePage.status === 'in-progress' ? 'bg-blue-200 text-blue-700' :
+                    activePage.status === 'review' ? 'bg-amber-200 text-amber-700' :
+                    activePage.status === 'done' ? 'bg-emerald-200 text-emerald-700' :
+                    'bg-red-200 text-red-700'
+                  )}>
+                    {activePage.status}
+                  </span>
+                )}
+                {activePage.assignee && (
+                  <span className="text-xs text-[#37352f]/50">@{activePage.assignee}</span>
+                )}
+                {activePage.dueDate && (
+                  <span className="text-xs text-[#37352f]/50">Due {activePage.dueDate}</span>
+                )}
+              </div>
+            )}
+
             <div className="group relative">
                {/* Icon + Title */}
                <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity mb-4">
@@ -523,6 +510,40 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                />
             </div>
 
+            {/* Task status controls */}
+            {(activePage.level === 'task' || activePage.level === 'subtask') && (
+              <div className="flex items-center gap-3 mb-6 p-3 bg-slate-50 rounded-lg border border-black/5">
+                <span className="text-xs font-semibold text-[#37352f]/50 uppercase tracking-wider">Status:</span>
+                {(['todo', 'in-progress', 'review', 'done', 'blocked'] as const).map(status => (
+                  <button
+                    key={status}
+                    onClick={() => updatePage(activePage.id, { status })}
+                    className={cn("px-3 py-1 rounded-lg text-xs font-medium border transition-colors",
+                      activePage.status === status
+                        ? status === 'done' ? "bg-emerald-500 text-white border-emerald-500"
+                          : status === 'in-progress' ? "bg-blue-500 text-white border-blue-500"
+                          : status === 'review' ? "bg-amber-500 text-white border-amber-500"
+                          : status === 'blocked' ? "bg-red-500 text-white border-red-500"
+                          : "bg-slate-500 text-white border-slate-500"
+                        : "bg-white text-[#37352f]/60 border-black/10 hover:border-slate-300"
+                    )}
+                  >
+                    {status}
+                  </button>
+                ))}
+                <span className="text-xs text-[#37352f]/40 ml-auto">
+                  Assignee: <select
+                    value={activePage.assignee || ''}
+                    onChange={(e) => updatePage(activePage.id, { assignee: e.target.value || undefined })}
+                    className="bg-transparent border-none text-xs text-[#37352f]/70 outline-none cursor-pointer"
+                  >
+                    <option value="">Unassigned</option>
+                    {TEAM_MEMBERS.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </span>
+              </div>
+            )}
+
             <BlockEditor
               blocks={activePage.blocks}
               onChange={(blocks) => updateBlocks(activePage.id, blocks)}
@@ -533,8 +554,16 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
             />
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-[#37352f]/40 text-sm">
-            Select or create a page
+          <div className="flex-1 flex flex-col items-center justify-center text-[#37352f]/40 text-sm gap-4">
+            <div className="text-6xl">🎯</div>
+            <div className="text-lg font-medium text-[#37352f]/60">Select or create a campaign</div>
+            <div className="flex gap-2">
+              {TEMPLATES.slice(0, 4).map(t => (
+                <button key={t.name} onClick={() => applyTemplate(t)} className="flex items-center gap-2 px-4 py-2 bg-white border border-black/10 rounded-lg text-sm hover:bg-black/5 transition-colors">
+                  <span>{t.icon}</span> {t.name}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -547,7 +576,6 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
             <h2 className="text-xl font-bold mb-2">Cover Image</h2>
             <p className="text-sm text-[#37352f]/60 mb-4">Choose a gradient preset or paste an image URL.</p>
 
-            {/* Gradient Presets */}
             <div className="text-xs font-semibold text-[#37352f]/50 uppercase tracking-wider mb-2">Gradients</div>
             <div className="grid grid-cols-4 gap-3 mb-6">
               {COVER_GRADIENTS.map(g => (
@@ -559,7 +587,6 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
               ))}
             </div>
 
-            {/* Custom Image URL */}
             <div className="text-xs font-semibold text-[#37352f]/50 uppercase tracking-wider mb-2">Custom Image</div>
             <div className="flex gap-2">
               <input
@@ -591,7 +618,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
           <div className="bg-white border border-black/10 shadow-2xl rounded-2xl w-full max-w-md p-6 relative">
             <button onClick={() => setShareModalOpen(false)} className="absolute top-4 right-4 p-2 hover:bg-black/5 rounded-full"><X className="w-5 h-5" /></button>
 
-            <h2 className="text-xl font-bold mb-2">Share Page</h2>
+            <h2 className="text-xl font-bold mb-2">Share {activePage.level === 'campaign' ? 'Campaign' : 'Page'}</h2>
             <p className="text-sm text-[#37352f]/60 mb-4">Control who can view, comment, or edit this page.</p>
 
             {/* Public Access Toggle */}
@@ -619,7 +646,6 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
 
               {activePage.shared && (
                 <>
-                  {/* Permission level selector */}
                   <div className="flex gap-2 mb-3">
                     {(['viewer', 'commenter', 'editor'] as PermissionLevel[]).map(level => (
                       <button
@@ -638,7 +664,6 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                     ))}
                   </div>
 
-                  {/* Share link */}
                   <div className="flex items-center gap-2 bg-white border border-black/5 p-2 rounded-lg">
                     <input
                       type="text"
@@ -652,11 +677,58 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                   </div>
                   <div className="mt-2 text-xs text-[#37352f]/40 flex items-center gap-1">
                     <Shield className="w-3 h-3" />
-                    Permission: {PERMISSION_LABELS[activePage.share?.publicAccess || 'viewer']?.label} — {PERMISSION_LABELS[activePage.share?.publicAccess || 'viewer']?.description}
+                    Permission: {PERMISSION_LABELS[activePage.share?.publicAccess || 'viewer']?.label}
                   </div>
                 </>
               )}
             </div>
+
+            {/* Campaign share link (for campaigns) */}
+            {activePage.level === 'campaign' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Link2 className="w-5 h-5 text-blue-500" />
+                  <span className="font-semibold text-sm">Client Share Link</span>
+                </div>
+                <p className="text-xs text-[#37352f]/60 mb-3">Generate a read-only link for clients to view this campaign.</p>
+                <div className="flex gap-2">
+                  <input
+                    id="client-name-input"
+                    type="text"
+                    placeholder="Client name (optional)"
+                    className="flex-1 border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white"
+                  />
+                  <button
+                    onClick={() => {
+                      const name = (document.getElementById('client-name-input') as HTMLInputElement)?.value;
+                      const share = createShareLink(activePage.id, name || 'Client Access', name);
+                      updatePage(activePage.id, { shared: true });
+                    }}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium"
+                  >
+                    Generate Link
+                  </button>
+                </div>
+                {(getCampaignShares(activePage.id).length > 0) && (
+                  <div className="mt-3 space-y-2">
+                    {getCampaignShares(activePage.id).map(share => (
+                      <div key={share.id} className="flex items-center gap-2 bg-white border border-black/5 p-2 rounded-lg">
+                        <Link2 className="w-4 h-4 text-blue-500" />
+                        <span className="text-xs flex-1 truncate">{share.label || 'Shared link'}</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(`https://os.anichisom.com/shared/${share.token}`);
+                          }}
+                          className="text-xs text-blue-500 hover:underline"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Invite by email */}
             <div className="mb-4">
@@ -703,118 +775,9 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
               </div>
             )}
 
-            {/* Privacy notice */}
             <div className="mt-4 pt-4 border-t border-black/5 text-xs text-[#37352f]/40 flex items-center gap-1">
               <Lock className="w-3 h-3" />
               Shared pages are private by default. Only invited people can access them.
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Clipper Modal ─────────────────────────────────── */}
-      {clipperOpen && (
-        <div className="absolute inset-0 z-[100] bg-white/80 backdrop-blur-sm flex items-center justify-center p-8">
-          <div className="bg-white border border-black/10 shadow-2xl rounded-2xl w-full max-w-md p-6 relative">
-            <button onClick={() => setClipperOpen(false)} className="absolute top-4 right-4 p-2 hover:bg-black/5 rounded-full"><Plus className="w-5 h-5 rotate-45" /></button>
-            <h2 className="text-xl font-bold mb-2">Web Clipper & Imports</h2>
-            <p className="text-sm text-[#37352f]/60 mb-6">Save web pages directly to your workspace or import existing data.</p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-[#37352f]/50 mb-2 block">Clip from Web</label>
-                <div className="flex gap-2">
-                  <input id="clip-url" type="text" placeholder="https://..." className="flex-1 border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
-                  <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors" onClick={() => {
-                     const url = (document.getElementById('clip-url') as HTMLInputElement)?.value;
-                     if (!url || !activePage) return;
-                     const newBlocks = [
-                       ...activePage.blocks,
-                       { id: crypto.randomUUID(), type: 'h2' as const, content: `Clipped: ${url}` },
-                       { id: crypto.randomUUID(), type: 'p' as const, content: 'This content was imported via the Web Clipper.' }
-                     ];
-                     updateBlocks(activePage.id, newBlocks);
-                     setClipperOpen(false);
-                  }}>Clip</button>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-black/5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-[#37352f]/50 mb-2 block">Import from</label>
-                <div className="grid grid-cols-2 gap-2">
-                   {['Evernote', 'Word', 'Google Docs', 'Notion'].map((source) => (
-                     <button
-                       key={source}
-                       onClick={() => {
-                         if (!activePage) return;
-                         const newBlocks = [
-                           ...activePage.blocks,
-                           { id: crypto.randomUUID(), type: 'h2' as const, content: `Imported from ${source}` },
-                           { id: crypto.randomUUID(), type: 'p' as const, content: `Document content extracted from ${source} archive.` }
-                         ];
-                         updateBlocks(activePage.id, newBlocks);
-                         setClipperOpen(false);
-                       }}
-                       className="border border-black/10 hover:bg-black/5 rounded-lg p-3 text-sm flex items-center gap-2 transition-colors"
-                     >
-                       <div className="w-5 h-5 bg-black rounded flex items-center justify-center text-white font-bold text-[10px]">{source[0]}</div>
-                       {source}
-                     </button>
-                   ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Forms Modal ───────────────────────────────────── */}
-      {formsOpen && (
-        <div className="absolute inset-0 z-[100] bg-white/80 backdrop-blur-sm flex items-center justify-center p-8">
-          <div className="bg-white border border-black/10 shadow-2xl rounded-2xl w-full max-w-lg p-6 relative">
-            <button onClick={() => setFormsOpen(false)} className="absolute top-4 right-4 p-2 hover:bg-black/5 rounded-full"><Plus className="w-5 h-5 rotate-45" /></button>
-            <h2 className="text-xl font-bold mb-2">Workspace Forms</h2>
-            <p className="text-sm text-[#37352f]/60 mb-6">Build easy-to-use forms that pipe submissions directly into your databases.</p>
-
-            <div className="bg-[#f7f7f5] border border-black/5 rounded-xl p-4 mb-4">
-              <div className="text-sm font-semibold mb-3">Target Database</div>
-              <select className="w-full border border-black/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white">
-                {Object.values(databaseStore).map(db => (
-                  <option key={db.id} value={db.id}>{db.icon} {db.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-3 mb-6">
-              <div className="text-sm font-semibold">Form Fields</div>
-              {activePage && Object.values(databaseStore).length > 0 && (
-                <>
-                  {Object.values(databaseStore)[0]?.properties.slice(0, 3).map(prop => (
-                    <div key={prop.id} className="flex items-center gap-3 bg-white border border-black/10 p-3 rounded-lg shadow-sm">
-                      <Type className="w-4 h-4 text-[#37352f]/40" />
-                      <span className="text-sm flex-1">{prop.name}</span>
-                      <span className="text-xs text-[#37352f]/40">{prop.type}</span>
-                    </div>
-                  ))}
-                </>
-              )}
-              <button className="w-full border border-dashed border-black/20 hover:border-black/40 hover:bg-black/5 rounded-lg p-3 text-sm flex items-center justify-center gap-2 text-[#37352f]/60 transition-colors">
-                <Plus className="w-4 h-4" /> Add Field
-              </button>
-            </div>
-
-            <div className="flex gap-3">
-              <button className="flex-1 bg-black hover:bg-black/80 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors" onClick={() => {
-                 if (!activePage) return;
-                 const firstDb = Object.values(databaseStore)[0];
-                 const newBlocks = [
-                   ...activePage.blocks,
-                   { id: crypto.randomUUID(), type: 'h2' as const, content: `Form Submissions` },
-                   { id: crypto.randomUUID(), type: 'database' as const, content: '', databaseId: firstDb?.id }
-                 ];
-                 updateBlocks(activePage.id, newBlocks);
-                 setFormsOpen(false);
-              }}>Publish Form (Insert Database)</button>
             </div>
           </div>
         </div>

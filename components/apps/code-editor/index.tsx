@@ -214,14 +214,6 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
       </div>
       
       <StatusBar cursorPosition={cursorPosition} fileName={fileName} />
-      
-      <style dangerouslySetInnerHTML={{__html: `
-        .custom-scrollbar::-webkit-scrollbar { width: 10px; height: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #424242; border: 2px solid #252526; border-radius: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #4f4f4f; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-      `}} />
     </div>
   );
 }

@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { OSWindow, useOS, useAppVisibility } from '@/lib/os-context';
-import { motion, AnimatePresence } from 'motion/react';
 import { Terminal as TerminalIcon, Search as SearchIcon, Image as ImageIcon, Folder, ExternalLink, Command, Cpu, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { get, set } from 'idb-keyval';
@@ -355,12 +354,9 @@ APP & CREATIVE COMMANDS:
       )}
 
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto whitespace-pre-wrap hide-scrollbar pb-8 z-10 scroll-smooth">
-        <AnimatePresence initial={false}>
           {history.map((entry) => (
-            <motion.div 
+            <div 
               key={entry.id}
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
               className="mb-1.5 leading-relaxed tracking-tight text-[13px]"
             >
               {entry.type === 'command' && (
@@ -384,9 +380,8 @@ APP & CREATIVE COMMANDS:
                   {entry.visual}
                 </div>
               )}
-            </motion.div>
+            </div>
           ))}
-        </AnimatePresence>
 
         <div className="flex items-center mt-2 group relative z-10 w-full">
           <span className="text-white/50 mr-3 font-bold group-hover:text-neon-blue transition-colors">~</span>

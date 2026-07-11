@@ -9,6 +9,7 @@
 import { IStorageConnector } from './storage-connector';
 import { GoogleDriveConnector } from './google-drive-connector';
 import { DropboxConnector } from './dropbox-connector';
+import { OneDriveConnector } from './onedrive-connector';
 import { TokenStore } from './token-store';
 
 type ConnectorConstructor = new (...args: any[]) => IStorageConnector;
@@ -19,6 +20,7 @@ const connectorInstances = new Map<string, IStorageConnector>();
 // Register built-in connectors
 connectorRegistry.set('google-drive', GoogleDriveConnector);
 connectorRegistry.set('dropbox', DropboxConnector);
+connectorRegistry.set('onedrive', OneDriveConnector);
 
 /**
  * Register a custom storage connector (for plugins/extensions)
