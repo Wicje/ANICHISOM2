@@ -103,4 +103,23 @@ export interface IStorageConnector {
 
   /** Search files by name */
   searchFiles(userId: string, query: string): Promise<CloudFile[]>;
+
+  /** Get storage quota (total and used bytes) for a user */
+  getQuota?(userId: string): Promise<{ total: number; used: number }>;
+}
+
+// ─── Shared Utilities ────────────────────────────────────────
+
+const SYNC_PROMPT_THRESHOLD = 5 * 1024 * 1024; // 5 MB
+
+export function shouldPromptSync(fileSize: number): boolean {
+  return fileSize > SYNC_PROMPT_THRESHOLD;
+}
+
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  const size = bytes / Math.pow(1024, i);
+  return `${size.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }

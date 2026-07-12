@@ -23,6 +23,9 @@ import { WidgetsLayer, Widget } from './widgets';
 import { WindowSwitcher } from './window-switcher';
 import { DesktopIcons } from './desktop-icons';
 import { SnapshotsMenu } from './snapshots-menu';
+import OnboardingWizard from '@/components/apps/onboarding-wizard';
+import FeedbackWidget from '@/components/apps/feedback-widget';
+import { useOnboardingStore } from '@/lib/stores/onboarding.store';
 
 const MemoizedWindow = React.memo(
   ({ win, AppComponent }: { win: any; AppComponent: React.ComponentType<any> }) => {
@@ -58,6 +61,7 @@ export function Desktop() {
   const { activeWorkspace, setActiveWorkspace, installedApps, recentApps, snapshots, saveSnapshot, restoreSnapshot } = useWorkspaceStore();
   const { applyWorkspaceLayout } = useWindowStore();
   const getAppPrivacy = usePrivacyStore((s) => s.getAppPrivacy);
+  const { onboarding, hydrate: hydrateOnboarding } = useOnboardingStore();
 
   const [isLocked, setIsLocked] = useState(false);
   const [showLaunchpad, setShowLaunchpad] = useState(false);
@@ -79,6 +83,7 @@ export function Desktop() {
     loadInstallStates();
     const allAppIds = APP_MANIFEST.map(a => a.id);
     registerBuiltinPlugins(allAppIds);
+    hydrateOnboarding();
   }, []);
 
   useEffect(() => {
@@ -423,6 +428,9 @@ export function Desktop() {
           </div>
         </div>
       )}
+
+      {!onboarding.completed && <OnboardingWizard />}
+      {onboarding.completed && <FeedbackWidget />}
     </div>
   );
 }

@@ -46,13 +46,13 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 
 | Metric | Count |
 |---|---|
-| App component files | 44 |
-| Library files | 59 |
+| App component files | 49 |
+| Library files | 70 |
 | API route files | 17 |
-| Test files | 26 |
+| Test files | 37 |
 | Environment variables | 34 |
-| Key file LOC (os-context + desktop + server) | ~1,570 |
-| Total test count | 421 TS + 30 Rust = 451 |
+| Key file LOC (os-context + desktop + server) | ~1,005 |
+| Total test count | 579 TS + 30 Rust = 609 |
 
 ---
 
@@ -86,13 +86,15 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 
 | Component | File | Status | Notes |
 |---|---|---|---|
-| OS Context (God Context) | `lib/os-context.tsx` (604 lines) | ⚠️ Functional but needs extraction | 45+ API members, 19 useState hooks. Every state change re-renders all consumers |
+| OS Context | `lib/os-context.tsx` (393 lines) | ✅ Rewritten as thin Zustand wrapper | Delegates to 4 Zustand stores, ~45 API members |
 | Storage Abstraction | `lib/storage.ts` | ✅ Complete | StorageAdapter pattern with LocalAdapter (idb-keyval) and FirebaseAdapter |
 | OPFS File System | `lib/fs.ts` | ✅ Complete | Origin Private File System wrapper with full CRUD |
 | Workspace Types | `lib/workspace-types.ts` | ✅ Complete | TypeScript types for all data models |
 | Sync Queue | `lib/sync-queue.ts` | ✅ Complete | Event queue with exponential backoff, IndexedDB persistence, batching |
 | Sync Manager | `lib/sync-manager.ts` | ✅ Complete | Coordination layer for sync operations |
-| Zustand Stores | `lib/stores/` | ✅ Complete | auth, window, theme, workspace, browser, campaign, file, moodboard, plugin, brand, privacy, clothing, hardware, devops, photography stores |
+| Cloud Storage Connectors | `lib/services/storage-connectors.service.ts` | ✅ Complete | OAuth flows for Google Drive, Dropbox, OneDrive — user-owned storage |
+| Storage Store | `lib/stores/storage.store.ts` | ✅ Complete | Zustand store for cloud connections, sync prompts, quota |
+| Zustand Stores | `lib/stores/` | ✅ Complete | auth, window, theme, workspace, browser, campaign, file, moodboard, plugin, brand, privacy, clothing, hardware, devops, photography, forensics, sidegigs, marketplace, registry, onboarding, feedback stores |
 
 ### 3.2 Authentication
 
@@ -110,14 +112,14 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 | Logout API | `app/api/auth/logout/route.ts` | ✅ Complete | Session destruction |
 | Socket Token API | `app/api/auth/socket-token/route.ts` | ✅ Complete | WebSocket auth tokens |
 | Passkey / WebAuthn | ✅ Complete | `lib/services/webauthn.service.ts` + API routes — browser-native passkey registration + authentication |
-| Google SSO (Custom) | — | ❌ Not started | Planned for Phase 7 |
+| Google SSO (Custom) | — | ✅ Complete | Google OAuth2 SSO service |
 
 ### 3.3 Real-time Collaboration
 
 | Component | File | Status | Notes |
 |---|---|---|---|
 | Collaborative Doc Hook | `lib/hooks/useCollaborativeDoc.ts` | ✅ Complete | Shared Y.Doc + WebsocketProvider + UndoManager |
-| Presence Manager | `lib/presence-manager.ts` | ✅ Complete | 15s heartbeat, auto-cleanup, efficient updates |
+| Presence Manager | `lib/services/presence.service.ts` | ✅ Complete | 15s heartbeat, auto-cleanup, efficient updates |
 | File Lock Manager | `lib/file-lock-manager.ts` | ✅ Complete | Prevents edit conflicts on shared files |
 | Event History Manager | `lib/event-history-manager.ts` | ✅ Complete | Audit trail with undo/redo |
 | Yjs WebSocket Server | `server.ts` (line 27-48) | ✅ Complete | Per-IP rate limiting, auth middleware |
@@ -133,11 +135,12 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 | Google Drive Connector | `lib/storage-connectors/google-drive-connector.ts` | ✅ Complete | Full OAuth, list/read/upload/delete |
 | Dropbox Connector | `lib/storage-connectors/dropbox-connector.ts` | ✅ Complete | Full OAuth, list/read/upload/delete |
 | Cloud Storage Connector | `lib/storage-connectors/cloud-storage-connector.ts` | ✅ Complete | Generic cloud connector |
-| MinIO Adapter | `lib/minio-adapter.ts` | ✅ Complete | S3-compatible adapter |
-| Supabase Adapter | `lib/supabase-adapter.ts` | ✅ Complete | Supabase storage adapter |
+| MinIO Adapter | (planned) | 🔄 Planned | S3-compatible adapter |
+| Supabase Adapter | (planned) | 🔄 Planned | Supabase storage adapter |
 | OneDrive Connector | `lib/storage-connectors/onedrive-connector.ts` | ✅ Complete | Microsoft Graph API, OAuth2, token refresh |
 | Local Folder (FS Access API) | `lib/storage-connectors/local-folder-connector.ts` | ✅ Complete | File System Access API, mount/browse/read/write |
 | Storage API Routes | `app/api/storage/` (4 routes) | ✅ Complete | OAuth callbacks, file browsing, downloads |
+| Sync Prompt Utilities | `lib/storage-connectors/storage-connector.ts` | ✅ Complete | `shouldPromptSync()`, `formatFileSize()`, optional `getQuota()` |
 
 ### 3.5 AI Gateway
 
@@ -168,7 +171,7 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 | Marketplace UI | `components/apps/app-store.tsx` | ✅ Complete | Discover/Installed/Developer/Publish with permission toggles |
 | Permission System | `lib/services/plugin.service.ts` | ✅ Complete | Per-RPC-method permission mapping, privacy overrides |
 | Install/Uninstall Lifecycle | `lib/services/plugin.service.ts` | ✅ Complete | Full lifecycle: validate → install → persist → uninstall |
-| Version Management | — | ⚠️ Partial | `checkVersion()` detects updates, no auto-update yet |
+| Version Management | — | ✅ Complete | Semver comparison, update detection, auto-update prefs |
 
 ### 3.7 Security
 
@@ -234,6 +237,9 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 | Hardware Manager | `hardware-manager.tsx` | ✅ Working | Hardware diagnostics |
 | Asset Pipeline | `asset-pipeline.tsx` | ✅ Working | Asset management with Yjs |
 | Privacy Settings | `privacy-settings.tsx` | ✅ Complete | Per-app privacy controls (private/shared/restricted), workspace defaults, encryption info |
+| Onboarding Wizard | `onboarding-wizard.tsx` | ✅ Complete | 4-step wizard: Welcome → Role → Apps → Storage linking |
+| Feedback Widget | `feedback-widget.tsx` | ✅ Complete | Floating button + modal for beta feedback |
+| Sync Prompt Banner | `sync-prompt-banner.tsx` | ✅ Complete | Reusable banner for large file sync prompts (>5MB) |
 
 ### 4.4 Venture Packs (Layer 3 — Currently in Layer 2)
 
@@ -245,7 +251,7 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 | Developer Pack | `developer-pack.tsx` | ✅ Complete | Deployments, Reviews, API Monitor, CI/CD + devops store |
 | Photography Pack | `photography-pack.tsx` | ✅ Complete | Gallery, Delivery, Watermark, Prints + photography store |
 | Proposal Generator | `proposal-generator.tsx` | ✅ Working | AI-powered proposal generation |
-| Side-Gigs | `side-gigs.tsx` | ⚠️ Basic | Marketplace UI, no time tracking/invoicing |
+| Side-Gigs | `side-gigs-pack.tsx` | ✅ Complete | Time tracking, invoicing, client management + sidegigs store |
 
 ---
 
@@ -257,10 +263,10 @@ ANICHISOM OS is a browser-based universal workspace platform. It provides a pers
 | Plugin Sandbox (iframe) | ✅ Complete | Origin-verified, permission-granted |
 | Plugin Registry | ✅ Complete | Manifest-based registration |
 | Marketplace UI | ⚠️ Stub | URL pinning only, no install/uninstall lifecycle |
-| Private Plugin Registry | ❌ Not started | GitHub-based private registry (Phase 4A) |
-| Public Marketplace | ❌ Not started | Submission, review, revenue share (Phase 6) |
+| Private Plugin Registry | ✅ Complete | GitHub-based private registry + org ACL (Phase 4A) |
+| Public Marketplace | ✅ Complete | Submission, review, revenue share (Phase 6) |
 | ANICHISOM Creative Pack | 🔄 In Progress | Brand Store (colors/typography/voice), Brand Guides, Proposal Generator (AI), Client Portal, Creative Pack Service |
-| Ziklag Forensics Pack | ❌ Not started | Case Manager + Chain of Custody + Evidence Log |
+| Ziklag Forensics Pack | ✅ Complete | Case Manager + Chain of Custody + Evidence Log |
 | Clothing Brand Pack | ✅ Complete | Lookbook + Supplier + Collection Planner + Shopify + Zustand store |
 | Hardware Pack | ✅ Complete | BOM + Firmware + Suppliers + Components + Zustand store |
 | Developer Pack | ✅ Complete | Deployment + Code Review + API Monitor + CI Bridge + Zustand store |
@@ -660,8 +666,8 @@ rust/
 |---|---|---|---|---|
 | 6A.1 | Install/uninstall lifecycle | Full plugin management | HIGH | ✅ Complete |
 | 6A.2 | Permission system (per-plugin access control) | Permission UI + enforcement | HIGH | ✅ Complete |
-| 6A.3 | Private registry (GitHub-based) | Plugin hosting | MEDIUM | ⬜ Not started |
-| 6A.4 | Marketplace UI (browse, install, rate) | Store interface | MEDIUM | ⚠️ Partial |
+| 6A.3 | Private registry (GitHub-based) | Plugin hosting | MEDIUM | ✅ Complete |
+| 6A.4 | Marketplace UI (browse, install, rate) | Store interface | MEDIUM | ✅ Complete |
 
 ### Phase 6B — First-Party Packs (Weeks 15-16)
 
@@ -675,8 +681,8 @@ rust/
 | 6B.6 | Manifest Registration | Register new apps | MEDIUM | ✅ Complete |
 | 6B.7 | Brand Store + Pack Service tests | 41 tests across 2 files | HIGH | ✅ Complete |
 | 6B.8 | Update docs | BUILD_LOG.md + ARCHITECTURE.md | MEDIUM | ✅ Complete |
-| 6B.9 | Ziklag Forensics Pack | Case Manager + Chain of Custody + Evidence Log | MEDIUM | ⬜ Not started |
-| 6B.10 | Side-Gigs (time tracking, invoicing) | Freelance management | MEDIUM | ⬜ Not started |
+| 6B.9 | Ziklag Forensics Pack | Case Manager + Chain of Custody + Evidence Log | MEDIUM | ✅ Complete |
+| 6B.10 | Side-Gigs (time tracking, invoicing) | Freelance management | MEDIUM | ✅ Complete |
 
 ### Phase 7 — Security & Privacy (Weeks 17-18)
 
@@ -735,7 +741,7 @@ rust/
 | 8+ | Hardware Pack | BOM + Firmware + Suppliers + Components | LOW | ✅ Complete |
 | 8+ | Developer Pack | Deployment + Code Review + API Monitor | LOW | ✅ Complete |
 | 8+ | Photography Pack | Gallery + Delivery + Watermarking | LOW | ✅ Complete |
-| 8+ | Public marketplace | Submission, review, revenue share | LOW | ⬜ Not started |
+| 8+ | Public marketplace | Submission, review, revenue share | LOW | ✅ Complete |
 | 8+ | Mobile (deferred) | Desktop/laptop focus first | DEFERRED | — |
 
 ---
@@ -746,30 +752,29 @@ rust/
 
 | Category | Count |
 |---|---:|
-| App component files (components/apps/) | 44 |
-| Library files (lib/) | 55 |
+| App component files (components/apps/) | 46 |
+| Library files (lib/) | 65 |
 | API route files (app/api/) | 17 |
 | Rust service crates (rust/) | 5 |
 | Rust test files (rust/*/tests/) | 5 |
 | Root markdown docs | 16 |
 | Config files | 15 |
 | Infrastructure files | 8 |
-| Test files (TS) | 22 |
+| Test files (TS) | 34 |
 
 ### Test Counts
 
 | Language | Tests | Files |
 |---|---:|---:|
-| TypeScript (vitest) | 421 | 26 |
+| TypeScript (vitest) | 595 | 36 |
 | Rust (cargo test) | 30 | 5 |
-| **Total** | **451** | **31** |
+| **Total** | **625** | **41** |
 
 ### Key File Sizes
 
 | File | Lines | Status |
 |---|---:|---|
-| components/desktop/index.tsx | ~330 | ✅ Decomposed from desktop.tsx |
-| components/desktop.legacy.tsx | 1,163 | Deprecated — kept for reference |
+| components/desktop/index.tsx | ~448 | ✅ Decomposed from desktop.tsx |
 | components/apps/developer-pack.tsx | ~575 | ✅ Full implementation |
 | lib/os-context.tsx | ~280 | ✅ Rewritten as thin Zustand wrapper |
 | server.ts | 164 | Clean |
@@ -829,5 +834,5 @@ rust/
 ---
 
 *This document is the authoritative source of truth for ANICHISOM OS architecture.*
-*Updated: 2026-07-11 | Next review: After Phase 13 completion.*
+*Updated: 2026-07-11 | Next review: After Phase 15 completion.*
 *Refer to `BUILD_LOG.md` for session-by-session progress details.*

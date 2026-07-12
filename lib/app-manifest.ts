@@ -48,13 +48,14 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
   'hardware-manager': () => import('@/components/apps/hardware-manager'),
   'asset-pipeline': () => import('@/components/apps/asset-pipeline'),
   'config-manager': () => import('@/components/apps/config-manager'),
-  'side-gigs': () => import('@/components/apps/side-gigs'),
+  'side-gigs': () => import('@/components/apps/side-gigs-pack'),
   'proposal-generator': () => import('@/components/apps/proposal-generator'),
   'history': () => import('@/components/apps/history'),
   'developer-pack': () => import('@/components/apps/developer-pack'),
   'photography-pack': () => import('@/components/apps/photography-pack'),
   'clothing-brand-pack': () => import('@/components/apps/clothing-brand-pack'),
   'hardware-pack': () => import('@/components/apps/hardware-pack'),
+  'ziklag-forensics-pack': () => import('@/components/apps/ziklag-forensics-pack'),
   'ziklag-tools': () => import('@/components/apps/ziklag-tools'),
   'assistant': () => import('@/components/apps/assistant'),
   'brand-guides': () => import('@/components/apps/brand-guides'),
@@ -109,6 +110,7 @@ export const APP_MANIFEST: AppManifestEntry[] = [
   { id: 'clothing-brand-pack', component: null as any, icon: Grid, title: 'Clothing Brand Pack', roles: ['admin', 'filmmaker'], isCore: false, category: 'creative', description: 'Clothing brand management tools' },
   { id: 'hardware-pack', component: null as any, icon: HardDrive, title: 'Hardware Pack', roles: ['admin', 'filmmaker', 'technician'], isCore: false, category: 'dev', description: 'Hardware integration tools' },
   { id: 'ziklag-tools', component: null as any, icon: Wrench, title: 'Ziklag Tools', roles: ['admin', 'filmmaker'], isCore: false, category: 'system', description: 'Ziklag platform tools' },
+  { id: 'ziklag-forensics-pack', component: null as any, icon: Shield, title: 'Ziklag Forensics', roles: ['admin', 'technician'], isCore: false, category: 'dev', description: 'Forensic case management, evidence tracking, and chain of custody' },
 ];
 
 // Dynamic import resolver — handles both default and named exports

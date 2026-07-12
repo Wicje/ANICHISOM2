@@ -16,6 +16,170 @@
 
 ## Session Log
 
+### Session 16 — 2026-07-11: Cloud Storage Integration + Sync Prompts (Consolidated)
+
+**Focus:** Integrated sync prompts with existing storage connector infrastructure, removed duplicate service
+
+**What was done:**
+
+- [x] **Removed Duplicate Service:** Deleted `lib/services/storage-connectors.service.ts` and `lib/stores/storage.store.ts` — these duplicated the existing `lib/storage-connectors/` infrastructure
+- [x] **Added Utilities to Existing Interface:** `lib/storage-connectors/storage-connector.ts`
+  - Added `shouldPromptSync(fileSize)` — returns true for files >5MB
+  - Added `formatFileSize(bytes)` — human-readable file sizes
+  - Added optional `getQuota?(userId)` method to `IStorageConnector` interface
+- [x] **Sync Prompt Banner Updated:** `components/apps/sync-prompt-banner.tsx`
+  - Now uses `shouldPromptSync` and `formatFileSize` from existing connector interface
+  - Fetches connected providers from existing `/api/storage/files` API route
+  - No dependency on removed duplicate service/store
+- [x] **Onboarding Wizard Simplified:** `components/apps/onboarding-wizard.tsx`
+  - Removed 4th "Storage" step (was required selection)
+  - Back to 3 steps: Welcome → Role → Apps
+  - Storage connection happens via Files app using existing OAuth API routes
+- [x] **Onboarding Store Cleaned:** `lib/stores/onboarding.store.ts`
+  - `storageProvider` field made optional (legacy, not required)
+  - `completeOnboarding` no longer requires storage provider selection
+- [x] **File Manager + Moodboard:** Both still trigger sync prompts for large files (>5MB)
+- [x] **Tests Updated:** 609/609 tests pass across 37 files
+  - Removed `__tests__/services/storage-connectors.service.test.ts` (29 tests)
+  - Removed `__tests__/stores/storage.store.test.ts` (19 tests)
+  - Updated `__tests__/components/sync-prompt-banner.test.ts` (14 tests, uses new utilities)
+  - Updated `__tests__/stores/onboarding.store.test.ts` (21 tests, removed storage requirement)
+- [x] **Verified:** `npx tsc --noEmit --incremental false` passes clean
+- [x] **Verified:** `npx vitest run` — 609/609 tests pass across 37 files
+
+**Key Architecture Decision:**
+Consolidated to use existing `lib/storage-connectors/` infrastructure (server-side tokens, API routes, interface pattern) instead of duplicate client-side service. User connects storage via Files app → existing OAuth flows. Sync prompts use existing API routes to check connected providers.
+
+**Files removed:**
+
+| File | Reason |
+|---|---|
+| `lib/services/storage-connectors.service.ts` | Duplicate of existing `lib/storage-connectors/` |
+| `lib/stores/storage.store.ts` | Duplicate — existing API routes handle this |
+| `__tests__/services/storage-connectors.service.test.ts` | Tests for removed service |
+| `__tests__/stores/storage.store.test.ts` | Tests for removed store |
+
+**Files modified:**
+
+| File | Changes |
+|---|---|
+| `lib/storage-connectors/storage-connector.ts` | Added `shouldPromptSync`, `formatFileSize`, optional `getQuota` |
+| `components/apps/sync-prompt-banner.tsx` | Rewired to use existing connector utilities + API routes |
+| `components/apps/onboarding-wizard.tsx` | Removed storage step, back to 3 steps |
+| `lib/stores/onboarding.store.ts` | Made `storageProvider` optional, removed completion guard |
+| `__tests__/components/sync-prompt-banner.test.ts` | Updated imports to use connector utilities |
+| `__tests__/stores/onboarding.store.test.ts` | Removed storage provider test cases |
+
+---
+
+### Session 15 — 2026-07-11: Onboarding, Feedback, and Architecture Decisions
+
+**Focus:** Onboarding wizard, feedback widget, role-based app curation, architecture consultation for 70 beta users
+
+**What was done:**
+
+- [x] **Onboarding Store:** `lib/stores/onboarding.store.ts`
+  - 8 roles with suggested apps (filmmaker, photographer, developer, designer, marketer, business, student, other)
+  - Role selection, app toggle, complete/skip/reset onboarding
+- [x] **Feedback Store:** `lib/stores/feedback.store.ts`
+  - Feedback submission (bug, feature-request, general, UX issue)
+  - Filter by type/app, recent feedback, average rating
+- [x] **Onboarding Wizard:** `components/apps/onboarding-wizard.tsx`
+  - 3-step full-screen wizard: Welcome → Role Selection → App Curation
+  - Dark theme, progress dots, skip option
+- [x] **Feedback Widget:** `components/apps/feedback-widget.tsx`
+  - Floating button + expandable modal
+  - Type selector, title/content, star rating, app picker
+- [x] **Desktop Integration:** `components/desktop/index.tsx`
+  - Onboarding wizard shown on first launch
+  - Feedback widget shown after onboarding complete
+- [x] **Tests:** 37 new tests across 2 test files — all passing
+  - `__tests__/stores/onboarding.store.test.ts` — 21 tests
+  - `__tests__/stores/feedback.store.test.ts` — 16 tests
+- [x] **Verified:** `npx tsc --noEmit --incremental false` passes clean
+- [x] **Verified:** `npx vitest run` — 595/595 tests pass across 36 files
+
+**Files created:**
+
+| File | Purpose |
+|---|---|
+| `lib/stores/onboarding.store.ts` | Zustand store for onboarding wizard state + role-based app curation |
+| `lib/stores/feedback.store.ts` | Zustand store for beta user feedback collection |
+| `components/apps/onboarding-wizard.tsx` | 3-step onboarding wizard (welcome → role → apps) |
+| `components/apps/feedback-widget.tsx` | Floating feedback button + modal widget |
+| `__tests__/stores/onboarding.store.test.ts` | Onboarding store tests (21 tests) |
+| `__tests__/stores/feedback.store.test.ts` | Feedback store tests (16 tests) |
+
+**Files modified:**
+
+| File | Changes |
+|---|---|
+| `components/desktop/index.tsx` | Added onboarding wizard + feedback widget integration |
+
+---
+
+### Session 14 — 2026-07-11: Medium + Low Priority Items
+
+**Focus:** Built Private Registry, Ziklag Forensics Pack, Side-Gigs Pack, Marketplace Review System, Google SSO, Version Management. 137 new tests.
+
+**What was done:**
+
+- [x] **MEDIUM — Private Plugin Registry:** `lib/services/private-registry.service.ts` + `lib/stores/registry.store.ts`
+  - GitHub-based private plugin hosting with org-scoped access control
+  - Registry CRUD, org member management, access checking, search
+  - Syncs plugin manifests from GitHub repos via Contents API
+  - 32 tests (17 service + 15 store)
+- [x] **MEDIUM — Ziklag Forensics Pack:** `lib/stores/forensics.store.ts` + `components/apps/ziklag-forensics-pack.tsx`
+  - Case Manager, Evidence Tracking, Chain of Custody, Reports
+  - Full CRUD with IndexedDB persistence, 800-line UI component
+  - 4 tabs: Cases, Evidence, Chain of Custody, Reports
+  - 19 store tests
+- [x] **MEDIUM — Side-Gigs Pack:** `lib/stores/sidegigs.store.ts` + `components/apps/side-gigs-pack.tsx`
+  - Time tracking, invoicing, client management for freelancers
+  - Revenue summary, invoice generation, client analytics
+  - 4 tabs: Dashboard, Time Tracking, Invoices, Clients
+  - 27 store tests
+- [x] **LOW — Public Marketplace Review System:** `lib/services/marketplace-review.service.ts` + `lib/stores/marketplace.store.ts`
+  - Plugin submission review pipeline (pending→under-review→approved/rejected)
+  - Plugin reviews with ratings, install count tracking, popular plugins
+  - Revenue records with 75/25 publisher/platform share
+  - 28 tests (16 service + 12 store)
+- [x] **LOW — Google SSO:** `lib/services/google-sso.service.ts`
+  - Google OAuth2 flow: auth URL, code exchange, token refresh, user info
+  - 12 tests
+- [x] **LOW — Version Management:** `lib/services/version-management.service.ts`
+  - Semver comparison, update detection, OS compatibility
+  - Auto-update preferences, update history
+  - 19 tests
+- [x] **App Manifest Updated:** Added `ziklag-forensics-pack`, updated `side-gigs` import path
+- [x] **Verified:** `npx tsc --noEmit --incremental false` passes clean
+- [x] **Verified:** `npx vitest run` — 558/558 tests pass across 34 files
+
+**Files created:**
+
+| File | Purpose |
+|---|---|
+| `lib/services/private-registry.service.ts` | GitHub-based private plugin registry service |
+| `lib/stores/registry.store.ts` | Zustand store for private registries + org members |
+| `lib/stores/forensics.store.ts` | Zustand store for forensic cases, evidence, chain of custody, reports |
+| `components/apps/ziklag-forensics-pack.tsx` | Ziklag Forensics Pack UI (~800 lines) |
+| `lib/stores/sidegigs.store.ts` | Zustand store for gigs, time entries, invoices |
+| `components/apps/side-gigs-pack.tsx` | Side-Gigs Pack UI (~1090 lines) |
+| `lib/services/marketplace-review.service.ts` | Marketplace review/approval pipeline service |
+| `lib/stores/marketplace.store.ts` | Zustand store for marketplace submissions, reviews, revenue |
+| `lib/services/google-sso.service.ts` | Google OAuth2 SSO service |
+| `lib/services/version-management.service.ts` | Plugin version management + semver comparison |
+| `__tests__/services/private-registry.service.test.ts` | Private registry tests (17 tests) |
+| `__tests__/stores/registry.store.test.ts` | Registry store tests (15 tests) |
+| `__tests__/stores/forensics.store.test.ts` | Forensics store tests (19 tests) |
+| `__tests__/stores/sidegigs.store.test.ts` | Side-Gigs store tests (27 tests) |
+| `__tests__/services/marketplace-review.service.test.ts` | Marketplace review tests (16 tests) |
+| `__tests__/stores/marketplace.store.test.ts` | Marketplace store tests (12 tests) |
+| `__tests__/services/google-sso.service.test.ts` | Google SSO tests (12 tests) |
+| `__tests__/services/version-management.service.test.ts` | Version management tests (19 tests) |
+
+---
+
 ### Session 13 — 2026-07-11: Phase 10 Pack Store Integration + Developer Pack Build-out
 
 **Focus:** Created 4 Zustand stores for pack state management, wired all 4 packs to stores, built out Developer Pack from stub to full implementation, 108 new tests

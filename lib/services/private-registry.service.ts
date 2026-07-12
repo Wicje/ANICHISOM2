@@ -140,7 +140,7 @@ export const PrivateRegistryService = {
     if (!registries.has(id)) throw new Error(`Registry "${id}" not found`);
     registries.delete(id);
     // Also remove cached plugins for this registry
-    PrivateRegistryService['_pluginCache']?.delete(id);
+    (PrivateRegistryService as any)['_pluginCache']?.delete(id);
     persistToStorage();
   },
 

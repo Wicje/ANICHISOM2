@@ -14,6 +14,7 @@ import {
 import { get, set } from 'idb-keyval';
 import { cn } from '@/lib/utils';
 import { useCollaborativeDoc } from '@/lib/hooks/useCollaborativeDoc';
+import { SyncPromptBanner } from './sync-prompt-banner';
 import { PerfectCursor } from 'perfect-cursors';
 import { MoodboardExportService } from '@/lib/services/moodboard-export.service';
 
@@ -738,6 +739,9 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showCampaignLink, setShowCampaignLink] = useState<string | null>(null);
 
+  // Sync prompt state for large files
+  const [syncPromptFile, setSyncPromptFile] = useState<{ name: string; size: number; type: string } | null>(null);
+
   // Sync Yjs → React
   useEffect(() => {
     if (!collab.synced) return;
@@ -878,6 +882,11 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     const newId = crypto.randomUUID();
     _updateYNode({ id: newId, type, x: centerCanvasX(), y: centerCanvasY(), content: `local-blob:${fileId}` });
     if (fileInputRef.current) fileInputRef.current.value = '';
+
+    // Prompt sync for large files (>5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setSyncPromptFile({ name: file.name, size: file.size, type: file.type });
+    }
   }, [_updateYNode, centerCanvasX, centerCanvasY]);
 
   const processUrl = useCallback((url: string) => {
@@ -1575,6 +1584,17 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Sync Prompt Banner for large files */}
+      {syncPromptFile && (
+        <SyncPromptBanner
+          fileName={syncPromptFile.name}
+          fileSize={syncPromptFile.size}
+          fileType={syncPromptFile.type}
+          onDismiss={() => setSyncPromptFile(null)}
+          onKeepLocal={() => setSyncPromptFile(null)}
+        />
       )}
     </div>
   );

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FS, LocalFile } from '@/lib/fs';
+import { SyncPromptBanner } from './sync-prompt-banner';
 
 type CloudSource = {
   id: string;
@@ -48,6 +49,9 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   const [cloudPath, setCloudPath] = useState<string>('root');
   const [cloudLoading, setCloudLoading] = useState(false);
   const [connectLoading, setConnectLoading] = useState<string | null>(null);
+
+  // Sync prompt state
+  const [syncPromptFile, setSyncPromptFile] = useState<{ name: string; size: number; type: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -196,6 +200,11 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
       const file = uploadedFiles[i];
       const filePath = currentPath === 'Root' ? file.name : `${currentPath}/${file.name}`;
       await FS.write(filePath, file, file.type);
+
+      // Prompt sync for large files (>5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setSyncPromptFile({ name: file.name, size: file.size, type: file.type });
+      }
     }
     fetchFiles();
   };
@@ -544,6 +553,17 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
           )}
         </div>
       </div>
+
+      {/* Sync Prompt Banner for large files */}
+      {syncPromptFile && (
+        <SyncPromptBanner
+          fileName={syncPromptFile.name}
+          fileSize={syncPromptFile.size}
+          fileType={syncPromptFile.type}
+          onDismiss={() => setSyncPromptFile(null)}
+          onKeepLocal={() => setSyncPromptFile(null)}
+        />
+      )}
     </div>
   );
 }
