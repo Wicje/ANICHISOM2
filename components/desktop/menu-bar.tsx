@@ -88,7 +88,7 @@ export function MenuBar({
   if (!currentUser) return null;
 
   return (
-    <header role="menubar" aria-label="OS menu bar" className="h-8 flex items-center shrink-0 w-full glass-panel rounded-none border-x-0 border-t-0 z-[260] px-4 sticky top-0 text-[13px] font-medium" style={{ color: 'var(--os-text)' }}>
+    <header role="menubar" aria-label="OS menu bar" className="h-8 flex items-center shrink-0 w-full glass-panel rounded-none border-x-0 border-t-0 z-[260] px-4 sticky top-0 text-[13px] font-medium contain-layout" style={{ color: 'var(--os-text)' }}>
       <div className="flex items-center gap-6">
         <div
           className="font-bold flex items-center gap-2 cursor-pointer hover:scale-110 transition-transform"

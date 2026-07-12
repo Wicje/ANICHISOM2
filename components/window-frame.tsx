@@ -2,7 +2,9 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, useDragControls, useReducedMotion } from 'motion/react';
-import { useOS, OSWindow } from '@/lib/os-context';
+import { OSWindow } from '@/lib/os-context';
+import { useWindowStore } from '@/lib/stores/window.store';
+import { useThemeStore } from '@/lib/stores/theme.store';
 import { X, Minus, Maximize2, Square, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getFileLockManager } from '@/lib/file-lock-manager';
@@ -14,7 +16,13 @@ interface WindowFrameProps {
 
 export function WindowFrame({ osWindow, children }: WindowFrameProps) {
   const { id, title, isMaximized, isMinimized, zIndex, x, y, width, height } = osWindow;
-  const { closeWindow, minimizeWindow, maximizeWindow, focusWindow, updateWindowDimensions, windows, performanceMode } = useOS();
+  const closeWindow = useWindowStore((s) => s.closeWindow);
+  const minimizeWindow = useWindowStore((s) => s.minimizeWindow);
+  const maximizeWindow = useWindowStore((s) => s.maximizeWindow);
+  const focusWindow = useWindowStore((s) => s.focusWindow);
+  const updateWindowDimensions = useWindowStore((s) => s.updateWindowDimensions);
+  const highestZIndex = useWindowStore((s) => s.highestZIndex);
+  const performanceMode = useThemeStore((s) => s.performanceMode);
   const dragControls = useDragControls();
   const shouldReduceMotion = useReducedMotion();
 
@@ -51,7 +59,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
   const currentX = isResizing ? localPosition.x : x;
   const currentY = isResizing ? localPosition.y : y;
 
-  const isActive = zIndex >= Math.max(...windows.map(w => w.zIndex));
+  const isActive = zIndex >= highestZIndex;
 
   if (isMinimized) {
     return <div style={{ display: 'none' }}>{children}</div>;
@@ -172,7 +180,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
       }}
       style={{ zIndex }}
       onPointerDown={() => focusWindow(id)}
-      className="absolute top-0 left-0 rounded-xl flex flex-col pointer-events-auto border transition-colors duration-200 overflow-hidden"
+      className="absolute top-0 left-0 rounded-xl flex flex-col pointer-events-auto border transition-colors duration-200 overflow-hidden contain-window"
     >
       {/* Window glass background */}
       <div

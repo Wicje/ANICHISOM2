@@ -1,6 +1,6 @@
 # ANICHISOM OS
 
-**The Universal Workspace Platform** — A browser-based operating system that eliminates machine-switching and context-switching friction for anyone running multiple ventures.
+**The Creative OS Infrastructure** — A browser-based operating system that eliminates machine-switching and context-switching friction for anyone running multiple ventures.
 
 > Your workspace follows you. Open on any machine, close, reopen on another — everything restores exactly where you left off.
 
@@ -9,18 +9,16 @@
 ## Table of Contents
 
 1. [What ANICHISOM OS Is](#1-what-anichisom-os-is)
-2. [Quick Start (Development)](#2-quick-start-development)
-3. [Beta Tester Onboarding](#3-beta-tester-onboarding)
-4. [Architecture Overview](#4-architecture-overview)
-5. [Built-in Apps](#5-built-in-apps)
-6. [Venture Packs](#6-venture-packs)
-7. [Configuration & Environment](#7-configuration--environment)
-8. [Deployment](#8-deployment)
-9. [Development Guide](#9-development-guide)
-10. [Project Structure](#10-project-structure)
-11. [Testing](#11-testing)
-12. [Security](#12-security)
-13. [Contributing](#13-contributing)
+2. [Quick Start](#2-quick-start)
+3. [Architecture](#3-architecture)
+4. [Built-in Apps](#4-built-in-apps)
+5. [Venture Packs](#5-venture-packs)
+6. [Configuration](#6-configuration)
+7. [Deployment](#7-deployment)
+8. [Development](#8-development)
+9. [Project Structure](#9-project-structure)
+10. [Testing](#10-testing)
+11. [Contributing](#11-contributing)
 
 ---
 
@@ -31,9 +29,9 @@ ANICHISOM OS runs in your browser and gives you a persistent desktop environment
 ### The Core Experience
 
 ```
-1. Open anichisom.com in any browser (or install the PWA)
-2. Log in with your passkey, email, or Google SSO
-3. Your exact workspace loads: windows positioned, apps open, files at last scroll
+1. Open your-domain.com in any browser (or install the PWA)
+2. Sign up with email or Google SSO
+3. Pick your role → pick your apps → workspace loads
 4. Close on any machine → reopen on any other → everything restores
 ```
 
@@ -41,34 +39,44 @@ ANICHISOM OS runs in your browser and gives you a persistent desktop environment
 
 | Persona | What They Get |
 |---|---|
-| **Creative Agency** | Browser with Figma/Framer/Webflow pinned, Campaign Lab (Notion replacement), Moodboard (Milanote replacement), Files (unified cloud bridge) |
-| **Freelancer** | Portable workspace across client machines, Side-Gigs for time tracking + invoicing, Proposal Generator |
+| **Creative Agency** | Browser with Figma/Framer pinned, Campaign Lab, Moodboard, Files bridge |
+| **Freelancer** | Portable workspace, Side-Gigs, Proposal Generator |
 | **Developer** | Terminal, Code Editor (Monaco), Deployment Tracker, API Monitor |
-| **Student** | Notes, PDF Reader, research tools pinned in browser, personal cloud files |
-| **Multi-venture Operator** | Separate workspace contexts per venture, each with its own apps and files |
+| **Student** | Notes, PDF Reader, research tools, personal cloud files |
+| **Multi-venture Operator** | Separate workspace contexts per venture, each with its own apps |
+
+### Positioning
+
+```
+Layer 3:  Marketplace (revenue)     → plugins, packs, templates
+Layer 2:  Vertical Apps (stickiness) → filmmaker, agency, dev, designer packs
+Layer 1:  Core OS (infrastructure)   → runtime, storage, sync, auth, collaboration
+```
+
+**The pitch:** *"ANICHISOM is the operating system your creative team runs in the browser. We provide the infrastructure — you install the apps you need."*
 
 ---
 
-## 2. Quick Start (Development)
+## 2. Quick Start
 
 ### Prerequisites
 
 - Node.js v18+
-- npm or yarn
+- A [Supabase](https://supabase.com) account (free tier)
 
 ### Install & Run
 
 ```bash
 # Clone the repo
-git clone <repo-url>
+git clone git@github.com:Wicje/ANICHISOM2.git
 cd ANICHISOM2
 
 # Install dependencies
-npm install
+npm install --legacy-peer-deps
 
-# Configure environment (see Section 7)
+# Configure environment
 cp .env.example .env.local
-# Edit .env.local with your keys
+# Edit .env.local — see Section 6
 
 # Start development server
 npm run dev
@@ -76,102 +84,36 @@ npm run dev
 
 The OS starts at `http://localhost:3000`.
 
-### Minimal Setup (No External APIs)
+### Setup Supabase (required)
 
-For local exploration, you only need:
-
-```env
-NEXT_PUBLIC_AUTH_PROVIDER=custom
-DEV_MASTER_KEY=any-secret-string
-DATABASE_URL=postgresql://user:password@localhost:5432/anichisom
-```
-
-Or use the dev master key shortcut to bypass auth entirely in development.
+1. Create a free project at [supabase.com](https://supabase.com)
+2. Go to **Settings → API** → copy Project URL and Anon Key
+3. Paste into `.env.local`:
+   ```bash
+   NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY_HERE
+   ```
+4. Go to **SQL Editor** → paste contents of `supabase-schema.sql` → Run
+5. Go to **Database → Replication** → enable for all tables
+6. Done — apps will appear after completing the onboarding wizard
 
 ### What Works Without API Keys
 
-| Feature | Requires API Key? |
+| Feature | Requires Supabase? |
 |---|---|
 | Desktop, window management, themes | No |
 | App launcher, command palette | No |
 | Local file system (OPFS) | No |
-| Notes, PDF Reader, Terminal | No |
+| Notes, PDF Reader | No |
 | Campaign Lab, Moodboard (local state) | No |
 | Code Editor (Monaco) | No |
-| AI features (chat, proposals) | Yes — at least one of: Gemini, OpenAI, Claude |
-| Cloud files (Drive, Dropbox) | Yes — OAuth credentials per provider |
-| Real-time collaboration | Yes — Firebase or Supabase |
+| Terminal | No |
+| User accounts, cloud sync, collaboration | **Yes** |
+| Real-time presence, event history | **Yes** |
 
 ---
 
-## 3. Beta Tester Onboarding
-
-### What to Expect
-
-You're testing a browser-based workspace platform. Think of it as "your desktop, in a browser, that follows you everywhere."
-
-**Key things to try:**
-
-1. **Open a few apps** — Terminal, Notes, Campaign Lab, Moodboard. Arrange windows how you like.
-2. **Close the tab. Reopen it.** Your windows should restore exactly where they were.
-3. **Try the Command Palette** — `Cmd+K` (Mac) or `Ctrl+K` (Windows/Linux). Launch any app from here.
-4. **Pin a website** — Open the Browser app, pin Figma, Claude.ai, or any tool you use. It becomes a "native" app in your launcher.
-5. **Connect cloud storage** — In the Files app, connect Google Drive or Dropbox. Your files appear alongside local files.
-6. **Install a venture pack** — From the App Store, install the Developer Pack, Photography Pack, or others relevant to your work.
-
-### Giving Feedback
-
-**The feedback widget is built into the OS.** Look for the floating button in the bottom-right corner of the screen.
-
-You can report:
-- **Bugs** — Something broke or doesn't work right
-- **Features** — Something you wish it did
-- **UX Issues** — Something that's confusing or awkward
-- **General** — Anything else
-
-Each feedback submission includes:
-- Type (bug/feature/UX/general)
-- Title and description
-- Star rating (1-5)
-- Which app it's related to (optional)
-
-Feedback is stored locally in IndexedDB and synced when connected.
-
-### What's Working Now (Beta)
-
-| App | Status | Notes |
-|---|---|---|
-| Desktop & Window Management | Working | Full macOS-style desktop with dock, menu bar, windows |
-| Command Palette | Working | `Cmd+K` / `Ctrl+K` |
-| Browser (Power Browser) | Working | Pin websites, persistent sessions, split view |
-| Campaign Lab | Working | Notion replacement — hierarchy, views, templates |
-| Moodboard | Working | Milanote replacement — canvas, voting, export |
-| Files | Working | Unified cloud bridge — Drive, Dropbox, OneDrive, local |
-| Terminal | Working | Command execution, AI integration |
-| Code Editor | Working | Monaco-based IDE with collaboration |
-| Notes / PDF Reader | Working | Rich text editing, PDF viewing |
-| Side-Gigs | Working | Time tracking, invoicing, client management |
-| Proposal Generator | Working | AI-powered proposal creation |
-| Brand Guides | Working | Brand style guide editor |
-| Client Portal | Working | Read-only client view with approvals |
-| Developer Pack | Working | Deployments, code review, API monitoring |
-| Photography Pack | Working | Gallery, delivery, watermarking, prints |
-| Clothing Pack | Working | Lookbook, suppliers, collection planning |
-| Hardware Pack | Working | BOM, firmware, suppliers, components |
-| Onboarding Wizard | Working | 3-step setup on first launch |
-| Feedback Widget | Working | Bottom-right floating button |
-| Settings | Working | Wallpaper, theme, fonts, shaders |
-
-### Known Limitations (Beta)
-
-- **Calls app** — Basic WebRTC only. No campaign linking or auto meeting notes yet.
-- **Offline mode** — Partial. Most features work offline; cloud sync pauses and resumes.
-- **Real-time collaboration** — Requires Firebase or Supabase configuration.
-- **Mobile** — Not optimized for mobile. Desktop/laptop browsers only for now.
-
----
-
-## 4. Architecture Overview
+## 3. Architecture
 
 ### Three-Layer Design
 
@@ -190,16 +132,20 @@ Feedback is stored locally in IndexedDB and synced when connected.
 ╠═══════════════════════════════════════════════════════════╣
 ║  LAYER 1 — THE CORE (The platform itself)                 ║
 ║                                                           ║
-║  Persistent State | Auth | Real-time | Event Sourcing     ║
-║  Privacy Model | File Bridge | Plugin System | Security   ║
+║  Supabase (auth+db+realtime) | IndexedDB (offline)        ║
+║  Yjs (collaboration) | Event Sourcing | Privacy Model     ║
 ╚═══════════════════════════════════════════════════════════╝
 ```
 
-**Layer 1 (Core)** — The platform engine. State persistence (IndexedDB), authentication (5 providers), real-time sync (Yjs/WebSocket), event sourcing, privacy model, cloud file bridge, plugin system.
+### How Storage Works
 
-**Layer 2 (Built-in Apps)** — Ship with every workspace. Replace 5-10 separate tools. Browser is the most important — it's the integration layer for all web-based tools (Figma, Claude.ai, Webflow, etc.).
+| Layer | Who owns it | What it stores |
+|---|---|---|
+| **Supabase** (your instance) | You (the founder) | Accounts, workspaces, events, presence, app registry, terminal history, plugins |
+| **IndexedDB** (browser) | Each user | Private files, offline data, local preferences — stays on THEIR machine |
+| **Cloud connectors** | Per-user OAuth | Google Drive / Dropbox — user authenticates, tokens stored encrypted in Supabase |
 
-**Layer 3 (Ecosystem)** — Installable packs per workspace. The platform grows without the core team building everything. First-party packs: ANICHISOM Creative, Ziklag Forensics, Clothing, Hardware, Developer, Photography.
+**Users never touch `.env`.** They visit your URL, sign up, and use the OS. The `.env` is configured once on your deployment.
 
 ### Tech Stack
 
@@ -210,49 +156,46 @@ Feedback is stored locally in IndexedDB and synced when connected.
 | UI | React 19 + Tailwind CSS 4 |
 | State | Zustand 5 + idb-keyval (IndexedDB) |
 | Real-time | Yjs + y-websocket + y-indexeddb |
+| Backend | Supabase (Postgres + Auth + Realtime) |
 | Editors | TipTap (rich text), Monaco (code), Fabric.js (canvas) |
-| Auth | Custom PostgreSQL / Firebase / Supabase (choice) |
 | AI | Gemini, OpenAI, Claude, Qwen, Local (Ollama) |
-| Storage | Google Drive, Dropbox, OneDrive, Local (OPFS), MinIO |
-| WebSocket | Express + Socket.IO + Redis adapter |
-| Backend (optional) | Rust (auth, WebSocket, events, file proxy, hardware bridge) |
-| Deployment | Docker, Docker Compose, Vercel |
+| Storage | Google Drive, Dropbox, Local (OPFS) |
+| WebSocket | Express + Socket.IO |
+| Deployment | Vercel (frontend) + Supabase (backend) |
 
 ### Privacy Model
 
-Every app operates in one of two modes:
-
-- **Private** — Visible only to you. No presence indicators. Feels local and personal.
-- **Shared** — Visible to invited collaborators. Presence active. File locking active. Audit trail visible.
-
-**Default: Private.** Sharing is always an explicit action.
+- **All user data stays in IndexedDB/OPFS** by default
+- **OAuth tokens encrypted at rest** — AES-256-CBC
+- **No tracking** — anonymous usage only if explicitly configured
+- **Per-app privacy** — each app can be Private or Shared
 
 ---
 
-## 5. Built-in Apps
+## 4. Built-in Apps
 
 ### Core Apps
 
 | App | What It Does | Replaces |
 |---|---|---|
-| **Browser** | Pin any website as a "native" app. Persistent sessions across machines. Split view, focus mode, ad blocking. | Chrome + bookmarks |
-| **Campaign Lab** | Project hierarchy (Campaign → Phase → Task), multiple views (kanban, timeline, table), templates, @mentions, client sharing. | Notion, Asana, Trello |
-| **Moodboard** | Visual canvas for design references. Browser clipping, voting mode, campaign linking, export (PNG/PDF). | Milanote, Pinterest |
-| **Files** | Unified file explorer across Google Drive, Dropbox, OneDrive, and local storage. Smart routing, version history, share links. | Finder + cloud apps |
-| **Calls** | Video calling with campaign context. Auto meeting notes, recording-to-Files, guest links. | Google Meet + manual notes |
-| **Terminal** | Full terminal with AI integration, process management, Firebase sync. | iTerm + manual commands |
-| **Code Editor** | Monaco-based IDE. Multi-file, terminal panel, AI copilot, Yjs collaboration. | VS Code (browser) |
+| **Browser** | Pin any website as a "native" app. Persistent sessions, split view. | Chrome + bookmarks |
+| **Campaign Lab** | Project hierarchy, multiple views (kanban, timeline, table), templates. | Notion, Asana, Trello |
+| **Moodboard** | Visual canvas for design references. Browser clipping, voting, export. | Milanote, Pinterest |
+| **Files** | Unified file explorer across Drive, Dropbox, and local storage. | Finder + cloud apps |
+| **Calls** | Video calling with campaign context, auto meeting notes. | Google Meet |
+| **Terminal** | Full terminal with AI integration, session sync. | iTerm |
+| **Code Editor** | Monaco-based IDE. Multi-file, AI copilot, Yjs collaboration. | VS Code (browser) |
 | **Notes** | Rich text editor with markdown, PDF annotation. | Notion Notes, Obsidian |
 
 ### Productivity Apps
 
 | App | What It Does |
 |---|---|
-| **Productivity Suite** | Word (TipTap), Sheets (formula engine), Slides (Fabric.js) with HTML/CSV/PNG export |
+| **Productivity Suite** | Word (TipTap), Sheets (formula engine), Slides (Fabric.js) |
 | **PDF Reader** | PDF viewer with annotation |
 | **Side-Gigs** | Private time tracking, invoicing, client management |
 | **Proposal Generator** | AI-powered client proposal creation |
-| **Brand Guides** | Brand style guide editor (colors, typography, voice, logos) |
+| **Brand Guides** | Brand style guide editor |
 | **Client Portal** | Read-only client view with approval UI |
 
 ### System Apps
@@ -262,15 +205,13 @@ Every app operates in one of two modes:
 | **Settings** | Wallpaper, theme, fonts, shaders, performance mode |
 | **Control Center** | Quick settings panel (macOS-style) |
 | **Command Palette** | Spotlight search — launch apps, run commands (`Cmd+K`) |
-| **AI Gateway** | Multi-provider AI configuration |
 | **App Store** | Install/manage venture packs and plugins |
 | **Admin Panel** | User and role management |
-| **Privacy Settings** | Per-app privacy controls |
 | **History** | Event history viewer with undo/redo |
 
 ---
 
-## 6. Venture Packs
+## 5. Venture Packs
 
 Installable per workspace. Available from the App Store.
 
@@ -282,10 +223,11 @@ Installable per workspace. Available from the App Store.
 | **Hardware Pack** | $12/mo | BOM Manager, Firmware Tracker, Supplier Contacts, Component Library |
 | **Developer Pack** | $10/mo | Deployment Tracker, Code Review Log, API Monitor, CI Bridge |
 | **Photography Pack** | $10/mo | Gallery Manager, Client Delivery, Watermarking, Print Orders |
+| **Side Gigs Pack** | $5/mo | Income Tracker, Client CRM, Task Boards, Tax Export |
 
 ---
 
-## 7. Configuration & Environment
+## 6. Configuration
 
 ### Environment Variables
 
@@ -295,15 +237,15 @@ Copy `.env.example` to `.env.local` and configure:
 cp .env.example .env.local
 ```
 
-#### Required
+#### Required — Supabase
 
 | Variable | Purpose |
 |---|---|
-| `NEXT_PUBLIC_AUTH_PROVIDER` | Auth backend: `custom`, `firebase`, or `supabase` |
-| `DATABASE_URL` | PostgreSQL connection (if using custom auth) |
-| `SESSION_SECRET` | Random 64-char hex for session signing |
+| `NEXT_PUBLIC_AUTH_PROVIDER` | Set to `supabase` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your Supabase anon key |
 
-#### AI (at least one recommended)
+#### Optional — AI (at least one recommended)
 
 | Variable | Purpose |
 |---|---|
@@ -313,7 +255,7 @@ cp .env.example .env.local
 | `QWEN_API_KEY` | Alibaba Qwen |
 | `LOCAL_AI_BASE_URL` | Ollama/LM Studio endpoint |
 
-#### Cloud Storage (optional)
+#### Optional — Cloud Storage
 
 | Variable | Purpose |
 |---|---|
@@ -321,64 +263,36 @@ cp .env.example .env.local
 | `DROPBOX_CLIENT_ID` / `SECRET` | Dropbox integration |
 | `TOKEN_ENCRYPTION_KEY` | 64-char hex for encrypting OAuth tokens |
 
-#### Security
+---
 
-| Variable | Purpose |
-|---|---|
-| `DEV_MASTER_KEY` | Dev-only auth bypass (never in production) |
-| `ALLOWED_ORIGINS` | Socket.IO CORS origins (production) |
+## 7. Deployment
 
-Full list: see `.env.example`.
+### Recommended: Vercel + Supabase
+
+For 200 users: **$0 infrastructure cost.**
+
+```bash
+# 1. Create Supabase project (free tier: 50k MAU)
+# 2. Run supabase-schema.sql in SQL Editor
+# 3. Enable Realtime on all tables (Database → Replication)
+# 4. Deploy to Vercel (free tier: 100GB bandwidth)
+# 5. Set env vars in Vercel dashboard
+# 6. Done
+```
+
+### Scaling
+
+| Users | Supabase Plan | Vercel Plan | Monthly Cost |
+|---|---|---|---|
+| 1-50 | Free | Free | $0 |
+| 50-200 | Free | Free | $0 |
+| 200-1k | Pro ($25/mo) | Pro ($20/mo) | $45 |
+| 1k-10k | Pro ($25/mo) | Pro ($20/mo) | $45 |
+| 10k+ | Team ($599/mo) | Enterprise | Custom |
 
 ---
 
-## 8. Deployment
-
-### For 70 Beta Users (Recommended)
-
-The simplest path: **Vercel (frontend) + Supabase (auth + database)**. Total cost: $0.
-
-```bash
-# 1. Create a Supabase project (free tier)
-#    - Get URL and anon key
-#    - Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-# 2. Deploy to Vercel
-#    - Connect your GitHub repo
-#    - Set environment variables in Vercel dashboard
-#    - Deploy
-
-# 3. Custom domain (optional)
-#    - Add your domain in Vercel
-#    - Update NEXT_PUBLIC_APP_URL
-```
-
-### Docker (Self-Hosted)
-
-```bash
-# Basic deployment
-docker compose up -d
-
-# Full self-hosted (Supabase + MinIO)
-docker compose -f docker-compose.self-hosted.yml up -d
-```
-
-### When You Need the Rust Backend
-
-The Rust backend is only required for:
-- **Hardware bridge** — IoT device communication
-- **Background jobs at scale** — Event processing, sync coordination
-- **Advanced WebSocket features** — High-throughput real-time collaboration
-
-```bash
-cd rust
-cargo build --release
-# Services: auth(:3001), ws(:3002), events(:3003), files(:3004), hardware(:3005)
-```
-
----
-
-## 9. Development Guide
+## 8. Development
 
 ### Commands
 
@@ -389,143 +303,56 @@ cargo build --release
 | `npm run start` | Start production server |
 | `npm test` | Run test suite |
 | `npm run test:watch` | Run tests in watch mode |
-| `npm run lint` | Run ESLint |
 
 ### Adding a New App
 
 1. Create component: `components/apps/my-app.tsx`
 2. Register in: `lib/app-manifest.ts`
-3. Done. No other files need editing.
-
-The manifest handles lazy loading, role-based visibility, and categorization automatically.
-
-### Adding a New Storage Connector
-
-1. Implement `IStorageConnector` in `lib/storage-connectors/`
-2. Register in `lib/storage-connectors/connector-registry.ts`
-3. Add OAuth env vars to `.env.example`
-4. Done.
-
-### Adding a New AI Provider
-
-1. Implement `IAiProvider` in `lib/ai-providers/`
-2. Register in `lib/ai-providers/ai-provider-factory.ts`
-3. Add API key env var to `.env.example`
-4. Done.
+3. Done.
 
 ### Adding a New Zustand Store
 
 1. Create `lib/stores/my-feature.store.ts`
-2. Follow existing pattern (see `auth.store.ts` or `window.store.ts`)
-3. Optionally add debounced persistence with idb-keyval
-4. Write tests in `__tests__/stores/`
+2. Follow existing pattern (see `auth.store.ts`)
+3. Write tests in `__tests__/stores/`
 
-### Key Architectural Patterns
+### Key Patterns
 
-- **Zustand stores** — All state lives in Zustand stores (`lib/stores/`). Components subscribe via selectors.
-- **App manifest** — Declarative app registration (`lib/app-manifest.ts`). Adding an app = one entry.
-- **Service layer** — Business logic in `lib/services/`. Components call services; services manage stores.
-- **Plugin SDK** — Plugins communicate via postMessage RPC with 8 namespaces.
-- **Event sourcing** — Every action is an immutable event. Full audit trail and undo/redo.
+- **Zustand stores** — All state in `lib/stores/`. Components subscribe via selectors.
+- **App manifest** — Declarative app registration. Adding an app = one entry.
+- **Supabase adapters** — All DB ops in `lib/supabase-adapter.ts`. CRUD + Realtime.
+- **Event sourcing** — Every action is an immutable event. Full audit trail.
 
 ---
 
-## 10. Project Structure
+## 9. Project Structure
 
 ```
 ANICHISOM2/
 ├── app/                          # Next.js App Router
-│   ├── api/                      # API routes (17 files)
-│   │   ├── auth/                 # Login, session, logout, socket-token
-│   │   ├── ai/                   # Chat, models
-│   │   ├── storage/              # OAuth callbacks, file browsing
-│   │   ├── plugins/              # Plugin CRUD
-│   │   └── workspaces/           # Workspace sync
+│   ├── api/                      # API routes
 │   ├── layout.tsx                # Root layout
 │   └── page.tsx                  # Entry point
 │
 ├── components/
-│   ├── desktop/                  # Desktop shell (decomposed)
-│   │   ├── index.tsx             # Main desktop component
-│   │   ├── menu-bar.tsx          # Top menu bar
-│   │   ├── dock.tsx              # App dock
-│   │   ├── launchpad.tsx         # App launcher
-│   │   ├── window-switcher.tsx   # Ctrl+Tab window switcher
-│   │   ├── mission-control.tsx   # Window overview
-│   │   ├── control-center.tsx    # Quick settings
-│   │   ├── lock-screen.tsx       # Lock screen
-│   │   ├── context-menu.tsx      # Right-click menu
-│   │   ├── widgets.tsx           # Desktop widgets
-│   │   ├── desktop-icons.tsx     # Desktop icons
-│   │   └── snapshots-menu.tsx    # Snapshot management
-│   │
-│   └── apps/                     # App components (46 files)
-│       ├── browser.tsx           # Power Browser
-│       ├── campaign-lab/         # Campaign Lab (6 files)
-│       ├── moodboard.tsx         # Moodboard
-│       ├── file-manager.tsx      # Files
-│       ├── terminal.tsx          # Terminal
-│       ├── code-editor/          # Code Editor (5 files)
-│       ├── productivity-suite.tsx # Word/Sheets/Slides
-│       ├── developer-pack.tsx    # Developer Pack
-│       ├── photography-pack.tsx  # Photography Pack
-│       ├── onboarding-wizard.tsx # First-launch wizard
-│       ├── feedback-widget.tsx   # Beta feedback
-│       └── ...                   # 46 total app files
+│   ├── desktop/                  # Desktop shell (11 files)
+│   └── apps/                     # App components (46+ files)
 │
 ├── lib/
 │   ├── stores/                   # Zustand stores (21 files)
-│   │   ├── auth.store.ts         # Authentication state
-│   │   ├── window.store.ts       # Window management
-│   │   ├── theme.store.ts        # Theme/appearance
-│   │   ├── workspace.store.ts    # Workspace mode
-│   │   ├── campaign.store.ts     # Campaign Lab data
-│   │   ├── moodboard.store.ts    # Moodboard data
-│   │   ├── file.store.ts         # File system state
-│   │   └── ...                   # 21 total store files
-│   │
 │   ├── services/                 # Business logic (28 files)
-│   │   ├── auth.service.ts       # Auth operations
-│   │   ├── storage.service.ts    # Storage persistence
-│   │   ├── event.service.ts      # Event pub/sub
-│   │   ├── plugin.service.ts     # Plugin lifecycle
-│   │   └── ...                   # 28 total service files
-│   │
-│   ├── storage-connectors/       # Cloud file bridge
-│   │   ├── storage-connector.ts  # Interface + utilities
-│   │   ├── connector-registry.ts # Factory/registry
-│   │   ├── token-store.ts        # Encrypted token storage
-│   │   ├── google-drive-connector.ts
-│   │   ├── dropbox-connector.ts
-│   │   ├── onedrive-connector.ts
-│   │   └── local-folder-connector.ts
-│   │
-│   ├── ai-providers/             # AI gateway (5 providers)
-│   ├── auth-providers/           # Auth backends (3 providers)
-│   ├── os-context.tsx            # OS context provider (thin Zustand wrapper)
+│   ├── supabase.ts               # Supabase client singleton
+│   ├── supabase-adapter.ts       # All DB operations
+│   ├── supabase-types.ts         # Database type definitions
+│   ├── storage.ts                # Dual-mode storage (Supabase + IndexedDB)
+│   ├── os-context.tsx            # OS context provider
 │   ├── app-manifest.ts           # App registry + dynamic loader
-│   ├── crypto.ts                 # AES-GCM encryption
-│   ├── fs.ts                     # OPFS file system wrapper
-│   ├── sync-queue.ts             # Offline sync queue
-│   └── ...                       # 70 total lib files
+│   └── ...                       # 70+ lib files
 │
-├── rust/                         # Rust backend (5 crates)
-│   ├── auth-service/             # Authentication (:3001)
-│   ├── ws-server/                # WebSocket (:3002)
-│   ├── event-engine/             # Event sourcing (:3003)
-│   ├── file-proxy/               # File proxy (:3004)
-│   └── hardware-bridge/          # Hardware communication (:3005)
-│
-├── __tests__/                    # Test suite (37 files, 609+ tests)
-│   ├── stores/                   # Store tests
-│   ├── services/                 # Service tests
-│   └── setup.ts                  # Test configuration
-│
+├── __tests__/                    # Test suite (37 files, 609 tests)
+├── supabase-schema.sql           # Database schema (run in Supabase SQL Editor)
 ├── server.ts                     # Express + Socket.IO + Yjs server
-├── middleware.ts                  # CSP nonce + security headers
-├── package.json
-├── tsconfig.json
-├── vitest.config.ts
+├── .env.local                    # Environment config
 ├── VISION.md                     # Product vision (authoritative)
 ├── ARCHITECTURE.md               # Architecture documentation
 ├── BUILD_LOG.md                  # Development session log
@@ -534,100 +361,48 @@ ANICHISOM2/
 
 ---
 
-## 11. Testing
-
-### Run Tests
+## 10. Testing
 
 ```bash
 # Full test suite
 npm test
 
-# Watch mode
-npm run test:watch
-
-# TypeScript type checking
+# TypeScript type check
 npx tsc --noEmit --incremental false
 ```
-
-### Test Structure
 
 | Category | Files | Tests |
 |---|---|---|
 | Zustand stores | 18 | ~350 |
 | Services | 12 | ~150 |
 | Core libs | 7 | ~109 |
-| **Total TypeScript** | **37** | **609+** |
-| Rust crates | 5 | 30 |
-| **Grand Total** | **42** | **639+** |
-
-### Writing Tests
-
-Tests use Vitest + Testing Library. See existing tests for patterns:
-
-```bash
-# Store test example
-__tests__/stores/auth.store.test.ts
-
-# Service test example
-__tests__/services/brand.store.test.ts
-```
+| **Total** | **37** | **609** |
 
 ---
 
-## 12. Security
-
-### What's Implemented
-
-| Feature | Status |
-|---|---|
-| SSRF proxy protection | Fixed — auth check, private IP blocking, rate limiting |
-| Session tokens | Crypto-random 32-byte tokens |
-| CSP headers | Domain-restricted + per-request nonce |
-| Socket.IO CORS | Restricted to configured origins |
-| Plugin sandbox | Origin-verified iframe, permission-gated |
-| Session encryption | AES-GCM 256-bit, PBKDF2 key derivation |
-| API key encryption | Encrypted before IndexedDB storage |
-| WebAuthn/Passkeys | Browser-native passwordless auth |
-| Admin auth | Server-side role checks on all admin endpoints |
-| WebSocket rate limiting | Per-IP connection limits |
-
-### Privacy
-
-- **All user data stays in IndexedDB/OPFS** — nothing stored on servers by default
-- **OAuth tokens encrypted at rest** — AES-256-CBC, server cannot read plaintext
-- **No tracking by default** — anonymous usage only if explicitly configured
-- **Per-app privacy** — each app can be Private or Shared
-
----
-
-## 13. Contributing
+## 11. Contributing
 
 ### Code Style
 
 - TypeScript strict mode
-- No `any` types (use proper typing)
+- No `any` types
 - No comments unless requested
-- Follow existing patterns in neighboring files
-- Prefer editing existing files over creating new ones
+- Follow existing patterns
 
-### Verification Before Submitting
+### Before Submitting
 
 ```bash
-# Must pass all three:
 npx tsc --noEmit --incremental false    # Type check
 npm test                                # Tests
-npm run lint                            # Lint
 ```
 
-### Architecture Principles
+### Principles
 
 1. **Repository Pattern** — All data through abstract interfaces
 2. **Event Sourcing** — Every action is an immutable event
-3. **Workspace as Root Entity** — No orphaned data
-4. **Offline-First** — Service Worker + IndexedDB
-5. **Privacy by Default** — Private mode unless explicitly shared
+3. **Offline-First** — IndexedDB primary, Supabase sync
+4. **Privacy by Default** — Private mode unless explicitly shared
 
 ---
 
-*Built by the ANICHISOM Development Engine.*
 *Vision: `VISION.md` | Architecture: `ARCHITECTURE.md` | Progress: `BUILD_LOG.md`*

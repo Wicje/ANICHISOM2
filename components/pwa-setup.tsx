@@ -10,37 +10,46 @@ import { OfflineStateService } from '@/lib/services/offline-state.service';
 import { BackgroundSyncService } from '@/lib/services/background-sync.service';
 
 export function PWASetup() {
-  // ─── Register Service Worker ─────────────────────────────
+  // ─── Register Service Worker (deferred to idle) ─────────
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
 
-    navigator.serviceWorker
-      .register('/sw.js')
-      .then((reg) => {
-        // Check for SW updates periodically
-        const checkUpdate = () => reg.update();
-        const interval = setInterval(checkUpdate, 60 * 60 * 1000); // hourly
+    const registerSW = () => {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then((reg) => {
+          // Check for SW updates periodically
+          const checkUpdate = () => reg.update();
+          const interval = setInterval(checkUpdate, 60 * 60 * 1000); // hourly
 
-        // Listen for SW waiting (new version available)
-        if (reg.waiting) {
-          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-        }
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          if (!newWorker) return;
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'activated') {
-              // New SW activated — reload to pick up new assets
-              window.location.reload();
-            }
+          // Listen for SW waiting (new version available)
+          if (reg.waiting) {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            if (!newWorker) return;
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'activated') {
+                // New SW activated — reload to pick up new assets
+                window.location.reload();
+              }
+            });
           });
-        });
 
-        return () => clearInterval(interval);
-      })
-      .catch(() => {
-        // SW registration failed — app still works without PWA
-      });
+          return () => clearInterval(interval);
+        })
+        .catch(() => {
+          // SW registration failed — app still works without PWA
+        });
+    };
+
+    // Defer SW registration to idle time to avoid blocking initial render
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(registerSW, { timeout: 5000 });
+    } else {
+      registerSW();
+    }
   }, []);
 
   // ─── Restore Offline State ───────────────────────────────
@@ -121,9 +130,20 @@ export function PWASetup() {
       },
     });
 
-    // Save state periodically (every 30 seconds)
+    // Save state periodically (every 30 seconds, but only if changed)
+    let lastSaved = '';
     const interval = setInterval(() => {
-      OfflineStateService.saveSnapshot(getSnapshot());
+      const snapshot = getSnapshot();
+      const serialized = JSON.stringify(snapshot);
+      if (serialized !== lastSaved) {
+        lastSaved = serialized;
+        // Defer to idle time to avoid blocking UI
+        if ('requestIdleCallback' in window) {
+          requestIdleCallback(() => OfflineStateService.saveSnapshot(snapshot), { timeout: 5000 });
+        } else {
+          OfflineStateService.saveSnapshot(snapshot);
+        }
+      }
     }, 30000);
 
     // Save on page unload

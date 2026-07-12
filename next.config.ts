@@ -24,6 +24,7 @@ const nextConfig: NextConfig = {
   },
   output: 'standalone',
   transpilePackages: ['motion'],
+  serverExternalPackages: ['socket.io', 'pg', 'redis', 'minio', 'ws'],
   async headers() {
     return [
       {

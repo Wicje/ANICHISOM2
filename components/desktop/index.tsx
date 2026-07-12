@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useWindowStore } from '@/lib/stores/window.store';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useWorkspaceStore } from '@/lib/stores/workspace.store';
@@ -29,11 +29,24 @@ import FeedbackWidget from '@/components/apps/feedback-widget';
 import { useOnboardingStore } from '@/lib/stores/onboarding.store';
 import { useNotificationStore } from '@/lib/stores/notification.store';
 
+function AppLoadingSkeleton() {
+  return (
+    <div className="w-full h-full flex items-center justify-center" style={{ background: 'var(--os-surface)' }}>
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--os-primary)', borderTopColor: 'transparent' }} />
+        <span className="text-xs font-medium" style={{ color: 'var(--os-text-muted)' }}>Loading...</span>
+      </div>
+    </div>
+  );
+}
+
 const MemoizedWindow = React.memo(
   ({ win, AppComponent }: { win: any; AppComponent: React.ComponentType<any> }) => {
     return (
       <WindowFrame osWindow={win}>
-        <AppComponent window={win} />
+        <Suspense fallback={<AppLoadingSkeleton />}>
+          <AppComponent window={win} />
+        </Suspense>
       </WindowFrame>
     );
   },
@@ -58,7 +71,12 @@ export { APP_MANIFEST as APPS } from '@/lib/app-manifest';
 
 export function Desktop() {
   const { currentUser, logout, wipeSession } = useAuthStore();
-  const { windows, openWindow, closeWindow, focusWindow, minimizeWindow } = useWindowStore();
+  const windows = useWindowStore((s) => s.windows);
+  const openWindow = useWindowStore((s) => s.openWindow);
+  const closeWindow = useWindowStore((s) => s.closeWindow);
+  const focusWindow = useWindowStore((s) => s.focusWindow);
+  const minimizeWindow = useWindowStore((s) => s.minimizeWindow);
+  const highestZIndex = useWindowStore((s) => s.highestZIndex);
   const { wallpaper, themeColor, fontFamily, screenShader, performanceMode, setPerformanceMode, colorMode, setColorMode, hydrateColorMode } = useThemeStore();
   const { activeWorkspace, setActiveWorkspace, installedApps, recentApps, snapshots, saveSnapshot, restoreSnapshot } = useWorkspaceStore();
   const { applyWorkspaceLayout } = useWindowStore();
@@ -93,6 +111,11 @@ export function Desktop() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', colorMode === 'dark');
   }, [colorMode]);
+
+  // Sync performanceMode to body class for CSS-level performance optimizations
+  useEffect(() => {
+    document.body.classList.toggle('performance-light', performanceMode === 'light');
+  }, [performanceMode]);
 
   // Wire os:notify custom events → in-app toasts
   useEffect(() => {
@@ -249,11 +272,11 @@ export function Desktop() {
           setShowLaunchpad(prev => !prev);
         } else if (action === 'action:close-active-window') {
           const activeW = windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined);
-          const focused = activeW.find(w => !w.isMinimized && w.zIndex >= Math.max(...activeW.map(win => win.zIndex)));
+          const focused = activeW.find(w => !w.isMinimized && w.zIndex >= highestZIndex);
           if (focused) closeWindow(focused.id);
         } else if (action === 'action:minimize-active-window') {
           const activeW = windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined);
-          const focused = activeW.find(w => !w.isMinimized && w.zIndex >= Math.max(...activeW.map(win => win.zIndex)));
+          const focused = activeW.find(w => !w.isMinimized && w.zIndex >= highestZIndex);
           if (focused) minimizeWindow(focused.id);
         }
       }
@@ -285,7 +308,7 @@ export function Desktop() {
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('os:config-updated', handleConfigUpdate);
     };
-  }, [openWindow, closeWindow, minimizeWindow, focusWindow, windows, activeWorkspace, contextMenu]);
+  }, [openWindow, closeWindow, minimizeWindow, focusWindow, windows, activeWorkspace, contextMenu, highestZIndex]);
 
   // Idle timer for lock screen (5 min)
   useEffect(() => {
@@ -294,12 +317,22 @@ export function Desktop() {
       clearTimeout(timeout);
       timeout = setTimeout(() => setIsLocked(true), 5 * 60 * 1000);
     };
-    window.addEventListener('mousemove', resetIdle);
-    window.addEventListener('keydown', resetIdle);
+    const throttledReset = (() => {
+      let lastCall = 0;
+      return () => {
+        const now = Date.now();
+        if (now - lastCall > 1000) {
+          lastCall = now;
+          resetIdle();
+        }
+      };
+    })();
+    window.addEventListener('mousemove', throttledReset);
+    window.addEventListener('keydown', throttledReset);
     resetIdle();
     return () => {
-      window.removeEventListener('mousemove', resetIdle);
-      window.removeEventListener('keydown', resetIdle);
+      window.removeEventListener('mousemove', throttledReset);
+      window.removeEventListener('keydown', throttledReset);
       clearTimeout(timeout);
     };
   }, []);

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useCallback, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useRef, useMemo } from 'react';
 import { get, set, clear, del } from 'idb-keyval';
 import { syncQueue } from '@/lib/sync-queue';
 import { Workspace, Event } from '@/lib/workspace-types';
@@ -205,18 +205,28 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
 
     checkSession();
 
+    // Debounced session check — avoids spam on rapid focus/blur cycles
+    let sessionCheckTimeout: ReturnType<typeof setTimeout> | null = null;
+    const debouncedCheckSession = () => {
+      if (sessionCheckTimeout) clearTimeout(sessionCheckTimeout);
+      sessionCheckTimeout = setTimeout(() => {
+        if (document.visibilityState === 'visible') void checkSession();
+      }, 2000);
+    };
+
     const checkWhenVisible = () => {
       if (document.visibilityState === 'visible') void checkSession();
     };
 
-    window.addEventListener('focus', checkSession);
+    window.addEventListener('focus', debouncedCheckSession);
     window.addEventListener('online', checkSession);
     document.addEventListener('visibilitychange', checkWhenVisible);
 
     return () => {
-      window.removeEventListener('focus', checkSession);
+      window.removeEventListener('focus', debouncedCheckSession);
       window.removeEventListener('online', checkSession);
       document.removeEventListener('visibilitychange', checkWhenVisible);
+      if (sessionCheckTimeout) clearTimeout(sessionCheckTimeout);
     };
   }, []);
 
@@ -328,9 +338,9 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     wsEmitEvent(eventData);
   }, [wsEmitEvent]);
 
-  // ─── Context value ────────────────────────────────────────────────
+  // ─── Context value (memoized to prevent cascading re-renders) ─────
 
-  const value: OSContextType = {
+  const value: OSContextType = useMemo(() => ({
     currentUser,
     setCurrentUser,
     logout,
@@ -374,7 +384,17 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     screenShader,
     setScreenShader: themeSetScreenShader,
     notify,
-  };
+  }), [
+    currentUser, windows, snapshots, performanceMode, workspaceMode, activeWorkspace,
+    installedApps, recentApps, wallpaper, themeColor, fontFamily, screenShader,
+    workspaceId, workspaces, mode,
+    setCurrentUser, logout, wsSetWorkspaceMode, wsSetActiveWorkspace, themeSetPerformanceMode,
+    installApp, uninstallApp, openWindow, windowCloseWindow, windowFocusWindow,
+    windowMinimizeWindow, windowMaximizeWindow, windowUpdateDimensions, windowUpdateData,
+    windowApplyLayout, windowLoadProject, saveSnapshot, restoreSnapshot, wipeSession,
+    wsSetWorkspaceId, wsSetWorkspaces, wsSetMode, emitEvent, themeSetWallpaper,
+    themeSetThemeColor, themeSetFontFamily, themeSetScreenShader, notify,
+  ]);
 
   return <OSContext.Provider value={value}>{children}</OSContext.Provider>;
 }
@@ -388,9 +408,10 @@ export function useOS() {
 }
 
 export function useAppVisibility(windowId: string) {
-  const { windows } = useOS();
+  const windows = useWindowStore((s) => s.windows);
+  const highestZIndex = useWindowStore((s) => s.highestZIndex);
   const windowNode = windows.find(w => w.id === windowId);
-  const isFocused = windowNode ? windowNode.zIndex >= Math.max(...windows.map(w => w.zIndex)) : false;
+  const isFocused = windowNode ? windowNode.zIndex >= highestZIndex : false;
   return {
     isVisible: windowNode ? !windowNode.isMinimized : false,
     isFocused

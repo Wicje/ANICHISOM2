@@ -114,12 +114,33 @@
   }
 }
 
+/* Performance containment utilities */
+.contain-window {
+  contain: layout style paint;
+}
+.contain-layout {
+  contain: layout;
+}
+.contain-paint {
+  contain: paint;
+}
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
 body {
   overflow: hidden;
   margin: 0;
   padding: 0;
   background: var(--os-bg);
   color: var(--os-text);
+}
+
+/* Performance mode: disable backdrop-filter on all glass panels */
+body.performance-light .glass-panel,
+body.performance-light .glass-panel-active {
+  backdrop-filter: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

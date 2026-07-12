@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useTransition, useMemo } from 'react';
 import { useOS } from '@/lib/os-context';
 import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Search, Archive, Clipboard, AppWindow, File } from 'lucide-react';
 import { APP_MANIFEST as APPS } from '@/lib/app-manifest';
@@ -12,6 +12,7 @@ export function CommandPalette() {
   const [query, setQuery] = useState('');
   const [clipboardText, setClipboardText] = useState('');
   const [localFiles, setLocalFiles] = useState<{name: string, id: string}[]>([]);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -47,66 +48,70 @@ export function CommandPalette() {
 
   if (!isOpen) return null;
 
-  const allowedApps = Object.entries(APPS).filter(([appId, config]) => 
+  const allowedApps = useMemo(() => Object.entries(APPS).filter(([appId, config]) => 
     config.roles.includes(currentUser?.role || 'user') && (config.isCore || installedApps.includes(appId))
-  );
+  ), [currentUser?.role, installedApps]);
 
-  const commands: { id: string; name: string; type: string; icon: any; action: () => void; hideOnEmpty?: boolean }[] = [];
+  const commands: { id: string; name: string; type: string; icon: any; action: () => void; hideOnEmpty?: boolean }[] = useMemo(() => {
+    const cmds: { id: string; name: string; type: string; icon: any; action: () => void; hideOnEmpty?: boolean }[] = [];
 
-  allowedApps.forEach(([appId, config]) => {
-     commands.push({
-        id: `app-${appId}`,
-        name: `Open ${config.title}`,
-        type: 'Application',
-        icon: config.icon,
-        action: () => openWindow(appId)
-     });
-  });
+    allowedApps.forEach(([appId, config]) => {
+       cmds.push({
+          id: `app-${appId}`,
+          name: `Open ${config.title}`,
+          type: 'Application',
+          icon: config.icon,
+          action: () => openWindow(appId)
+       });
+    });
 
-  windows.forEach(win => {
-     commands.push({
-        id: `win-${win.id}`,
-        name: `Switch to ${win.title}`,
-        type: 'Open Window',
-        icon: AppWindow,
-        action: () => focusWindow(win.id)
-     });
-  });
+    windows.forEach(win => {
+       cmds.push({
+          id: `win-${win.id}`,
+          name: `Switch to ${win.title}`,
+          type: 'Open Window',
+          icon: AppWindow,
+          action: () => focusWindow(win.id)
+       });
+    });
 
-  localFiles.forEach(file => {
-     commands.push({
-        id: `file-${file.id}`,
-        name: file.name,
-        type: 'Local File',
-        icon: File,
-        action: () => openWindow('code', `Editing: ${file.name}`, { filename: file.name })
-     });
-  });
+    localFiles.forEach(file => {
+       cmds.push({
+          id: `file-${file.id}`,
+          name: file.name,
+          type: 'Local File',
+          icon: File,
+          action: () => openWindow('code', `Editing: ${file.name}`, { filename: file.name })
+       });
+    });
 
-  if (clipboardText) {
-     commands.push({
-        id: 'clipboard',
-        name: `Search Clipboard: "${clipboardText}"`,
-        type: 'Clipboard',
-        icon: Clipboard,
-        action: () => openWindow('browser', 'Google Search', { url: `https://www.google.com/search?q=${encodeURIComponent(clipboardText)}&igu=1`})
-     });
-  }
+    if (clipboardText) {
+       cmds.push({
+          id: 'clipboard',
+          name: `Search Clipboard: "${clipboardText}"`,
+          type: 'Clipboard',
+          icon: Clipboard,
+          action: () => openWindow('browser', 'Google Search', { url: `https://www.google.com/search?q=${encodeURIComponent(clipboardText)}&igu=1`})
+       });
+    }
 
-  commands.push({ 
-    id: 'search', 
-    name: `Search Google for "${query}"`, 
-    type: 'Web Search',
-    icon: Search, 
-    action: () => openWindow('browser', 'Google Search', { url: `https://www.google.com/search?q=${encodeURIComponent(query)}&igu=1`}), 
-    hideOnEmpty: true 
-  });
+    cmds.push({ 
+      id: 'search', 
+      name: `Search Google for "${query}"`, 
+      type: 'Web Search',
+      icon: Search, 
+      action: () => openWindow('browser', 'Google Search', { url: `https://www.google.com/search?q=${encodeURIComponent(query)}&igu=1`}), 
+      hideOnEmpty: true 
+    });
 
-  let filtered = commands.filter(c => {
+    return cmds;
+  }, [allowedApps, windows, localFiles, clipboardText, query, openWindow, focusWindow]);
+
+  const filtered = useMemo(() => commands.filter(c => {
     if (c.hideOnEmpty && !query) return false;
     if (c.id === 'search' && query) return true;
     return c.name.toLowerCase().includes(query.toLowerCase());
-  });
+  }), [commands, query]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-auto backdrop-blur-sm"
@@ -123,7 +128,10 @@ export function CommandPalette() {
             type="text" 
             autoFocus
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={e => {
+              const val = e.target.value;
+              startTransition(() => setQuery(val));
+            }}
             placeholder="Type a command or search..."
             className="flex-1 bg-transparent border-none outline-none text-lg"
             style={{ color: 'var(--os-text)' }}
