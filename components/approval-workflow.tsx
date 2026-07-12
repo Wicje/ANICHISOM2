@@ -10,7 +10,7 @@
 import { useState, useEffect } from 'react';
 import { useOS } from '@/lib/os-context';
 import { Project } from '@/lib/workspace-types';
-import { projectAdapter } from '@/lib/firestore-adapter';
+import { projectAdapter } from '@/lib/supabase-adapter';
 import {
   CheckCircle, XCircle, Clock, MessageSquare, User, Send,
   ThumbsUp, ThumbsDown, Eye, Edit2

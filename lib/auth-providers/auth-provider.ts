@@ -42,27 +42,3 @@ export interface AuthProvider {
   // Update user
   updateUser?(userId: string, data: Record<string, any>): Promise<AuthUser>;
 }
-
-/**
- * Get the appropriate auth provider based on AUTH_PROVIDER env var
- */
-export function getAuthProvider(): AuthProvider {
-  const provider = process.env.NEXT_PUBLIC_AUTH_PROVIDER || 'custom';
-  
-  switch (provider.toLowerCase()) {
-    case 'firebase':
-      const { FirebaseAuthProvider } = require('./firebase-provider');
-      return new FirebaseAuthProvider();
-    
-    case 'supabase':
-      const { SupabaseAuthProvider } = require('./supabase-provider');
-      return new SupabaseAuthProvider();
-    
-    case 'custom':
-      const { CustomAuthProvider } = require('./custom-provider');
-      return new CustomAuthProvider();
-    
-    default:
-      throw new Error(`Unknown auth provider: ${provider}`);
-  }
-}

@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
-    optimizePackageImports: ['lucide-react', 'date-fns', 'firebase', 'motion/react'],
+    optimizePackageImports: ['lucide-react', 'date-fns', 'motion/react'],
   },
   typescript: {
     ignoreBuildErrors: false,

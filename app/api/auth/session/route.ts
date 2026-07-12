@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     // For external auth providers (Supabase/Firebase), delegate to getCurrentUser
     const providerName = process.env.NEXT_PUBLIC_AUTH_PROVIDER || 'custom';
     if (providerName.toLowerCase() !== 'custom') {
-      const authProvider = getAuthProvider();
+      const authProvider = await getAuthProvider();
       const user = await authProvider.getCurrentUser();
       if (!user) {
         return NextResponse.json(

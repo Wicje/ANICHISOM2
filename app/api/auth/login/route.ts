@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get configured auth provider
-    const authProvider = getAuthProvider();
+    const authProvider = await getAuthProvider();
 
     // Dev-only master key bypass — requires DEV_MASTER_KEY env var (S-02 hardened)
     // NEVER available in production; requires explicit opt-in via environment

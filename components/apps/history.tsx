@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
 import { History as HistoryIcon, Undo, Redo, ShieldCheck, FileText, Sparkles, MessageSquare, Plus, CheckCircle, Save, Clock, Lock, Unlock } from 'lucide-react';
-import { db, collection, query, orderBy, limit, onSnapshot } from '@/lib/firebase';
+import { getSupabase } from '@/lib/supabase';
 import { Event } from '@/lib/workspace-types';
 import { format } from 'date-fns';
 import { syncQueue } from '@/lib/sync-queue';
@@ -18,32 +18,49 @@ export function HistoryApp({ window: osWindow }: { window: OSWindow }) {
   useEffect(() => {
     if (!currentUser) return;
     
-    // Fetch events from Firestore
-    const q = query(
-      collection(db, 'events'),
-      orderBy('timestamp', 'desc'),
-      limit(100)
-    );
+    const supabase = getSupabase();
     
-    const unsub = onSnapshot(q, (snap) => {
-      const data: Event[] = [];
-      snap.forEach(doc => {
-        data.push({ id: doc.id, ...doc.data() } as Event);
+    // Initial fetch
+    supabase
+      .from('events')
+      .select('*')
+      .order('timestamp', { ascending: false })
+      .limit(100)
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Failed to load events:', error);
+          setEvents([
+            { id: '1', type: 'file_edited', entityId: 'file-1', userId: 'System', timestamp: new Date(), workspaceId: 'global', comment: 'Edited design guidelines' },
+            { id: '2', type: 'comment_added', entityId: 'campaign-1', userId: 'Founder', timestamp: new Date(Date.now() - 60000), workspaceId: 'global', comment: 'Added comment on Nike campaign' },
+            { id: '3', type: 'file_locked', entityId: 'file-2', userId: 'System', timestamp: new Date(Date.now() - 120000), workspaceId: 'global', comment: 'Locked file for editing' }
+          ]);
+        } else {
+          setEvents((data || []).map(row => ({ ...row, timestamp: new Date(row.timestamp) })));
+        }
+        setIsLoaded(true);
       });
-      setEvents(data);
-      setIsLoaded(true);
-    }, (err) => {
-      console.error('Failed to load events:', err);
-      // Fallback for demo purposes if firestore isn't properly connected
-      setEvents([
-        { id: '1', type: 'file_edited', entityId: 'file-1', userId: 'System', timestamp: new Date(), workspaceId: 'global', comment: 'Edited design guidelines' },
-        { id: '2', type: 'comment_added', entityId: 'campaign-1', userId: 'Founder', timestamp: new Date(Date.now() - 60000), workspaceId: 'global', comment: 'Added comment on Nike campaign' },
-        { id: '3', type: 'file_locked', entityId: 'file-2', userId: 'System', timestamp: new Date(Date.now() - 120000), workspaceId: 'global', comment: 'Locked file for editing' }
-      ]);
-      setIsLoaded(true);
-    });
     
-    return () => unsub();
+    // Realtime subscription
+    const channel = supabase
+      .channel('events:history')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'events' },
+        () => {
+          // Refetch on any change
+          supabase
+            .from('events')
+            .select('*')
+            .order('timestamp', { ascending: false })
+            .limit(100)
+            .then(({ data }) => {
+              if (data) setEvents(data.map(row => ({ ...row, timestamp: new Date(row.timestamp) })));
+            });
+        }
+      )
+      .subscribe();
+    
+    return () => { supabase.removeChannel(channel); };
   }, [currentUser]);
 
   const getEventIcon = (type: string) => {

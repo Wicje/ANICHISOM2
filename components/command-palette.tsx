@@ -38,7 +38,7 @@ export function CommandPalette() {
         navigator.clipboard.readText().then(text => {
            if (text && text.length < 100) setClipboardText(text);
         }).catch(() => {});
-        
+         
         FS.readDir('').then(files => {
            setLocalFiles(files);
         }).catch(() => {});
@@ -47,14 +47,12 @@ export function CommandPalette() {
 
   if (!isOpen) return null;
 
-  // Dynamically pull all allowed apps from the system
   const allowedApps = Object.entries(APPS).filter(([appId, config]) => 
     config.roles.includes(currentUser?.role || 'user') && (config.isCore || installedApps.includes(appId))
   );
 
-  const commands = [];
+  const commands: { id: string; name: string; type: string; icon: any; action: () => void; hideOnEmpty?: boolean }[] = [];
 
-  // Add all apps to search
   allowedApps.forEach(([appId, config]) => {
      commands.push({
         id: `app-${appId}`,
@@ -65,7 +63,6 @@ export function CommandPalette() {
      });
   });
 
-  // Add currently open windows (to switch to them)
   windows.forEach(win => {
      commands.push({
         id: `win-${win.id}`,
@@ -76,7 +73,6 @@ export function CommandPalette() {
      });
   });
 
-  // Add Local Files
   localFiles.forEach(file => {
      commands.push({
         id: `file-${file.id}`,
@@ -87,7 +83,6 @@ export function CommandPalette() {
      });
   });
 
-  // Add Clipboard Search
   if (clipboardText) {
      commands.push({
         id: 'clipboard',
@@ -98,7 +93,6 @@ export function CommandPalette() {
      });
   }
 
-  // Add general Search fallback
   commands.push({ 
     id: 'search', 
     name: `Search Google for "${query}"`, 
@@ -115,22 +109,24 @@ export function CommandPalette() {
   });
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-auto bg-black/40 backdrop-blur-sm"
+    <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-auto backdrop-blur-sm"
+      style={{ background: 'rgba(0,0,0,0.15)' }}
       onPointerDown={() => setIsOpen(false)}
     >
       <div 
-        className="w-[500px] max-w-[90vw] bg-[#111] border border-white/10 rounded-2xl shadow-[0_20px_60px_rgba(0,240,255,0.1)] overflow-hidden"
+        className="w-[500px] max-w-[90vw] glass-panel-active rounded-2xl overflow-hidden"
         onPointerDown={e => e.stopPropagation()}
       >
-        <div className="flex items-center px-4 py-3 border-b border-white/5">
-          <Search className="w-5 h-5 text-white/50 mr-3" />
+        <div className="flex items-center px-4 py-3" style={{ borderBottom: '1px solid var(--os-border)' }}>
+          <Search className="w-5 h-5 mr-3" style={{ color: 'var(--os-text-muted)' }} />
           <input 
             type="text" 
             autoFocus
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Type a command or search..."
-            className="flex-1 bg-transparent border-none outline-none text-lg text-white"
+            className="flex-1 bg-transparent border-none outline-none text-lg"
+            style={{ color: 'var(--os-text)' }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && filtered.length > 0) {
                 filtered[0].action();
@@ -139,12 +135,12 @@ export function CommandPalette() {
               }
             }}
           />
-          <div className="text-[10px] uppercase font-mono text-white/30 border border-white/10 px-1.5 py-0.5 rounded">Esc</div>
+          <div className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded" style={{ color: 'var(--os-text-muted)', border: '1px solid var(--os-border)' }}>Esc</div>
         </div>
         
         <div className="p-2 max-h-[300px] overflow-y-auto">
           {filtered.length === 0 ? (
-            <div className="p-4 text-center text-white/40 font-mono text-sm">No commands found.</div>
+            <div className="p-4 text-center font-mono text-sm" style={{ color: 'var(--os-text-muted)' }}>No commands found.</div>
           ) : (
             filtered.map((cmd, i) => {
               const Icon = cmd.icon;
@@ -156,14 +152,19 @@ export function CommandPalette() {
                     setIsOpen(false);
                     setQuery('');
                   }}
-                  className={`w-full flex items-center px-4 py-3 rounded-xl transition-colors text-left group ${i === 0 ? 'bg-white/10' : 'hover:bg-white/5'}`}
+                  className="w-full flex items-center px-4 py-3 rounded-xl transition-colors text-left group"
+                  style={{
+                    background: i === 0 ? 'var(--os-hover)' : 'transparent',
+                  }}
+                  onMouseEnter={(e) => { if (i !== 0) e.currentTarget.style.background = 'var(--os-hover)'; }}
+                  onMouseLeave={(e) => { if (i !== 0) e.currentTarget.style.background = 'transparent'; }}
                 >
-                  <Icon className="w-5 h-5 mr-4 text-neon-blue" />
+                  <Icon className="w-5 h-5 mr-4" style={{ color: 'var(--os-primary)' }} />
                   <div className="flex flex-col">
-                    <span className="text-white text-sm font-medium">{cmd.name}</span>
-                    <span className="text-white/40 text-[10px]">{cmd.type}</span>
+                    <span className="text-sm font-medium" style={{ color: 'var(--os-text)' }}>{cmd.name}</span>
+                    <span className="text-[10px]" style={{ color: 'var(--os-text-muted)' }}>{cmd.type}</span>
                   </div>
-                  {i === 0 && <span className="ml-auto text-[10px] text-white/40 font-mono">↵ Return</span>}
+                  {i === 0 && <span className="ml-auto text-[10px] font-mono" style={{ color: 'var(--os-text-muted)' }}>↵ Return</span>}
                 </button>
               )
             })

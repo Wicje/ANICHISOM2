@@ -41,12 +41,12 @@ function OsSyncStatus() {
   }, []);
 
   return isSyncing ? (
-    <div className="flex items-center gap-1.5 text-blue-400">
+    <div className="flex items-center gap-1.5" style={{ color: 'var(--os-primary)' }}>
       <RefreshCw className="w-3 h-3 animate-spin" />
       <span className="hidden sm:inline text-xs">Syncing to Cloud...</span>
     </div>
   ) : (
-    <div className="flex items-center gap-1.5 text-white/50 hover:text-white/80 cursor-default transition-colors">
+    <div className="flex items-center gap-1.5 transition-colors cursor-default" style={{ color: 'var(--os-text-muted)' }}>
       <Cloud className="w-4 h-4" />
       <span className="hidden sm:inline text-xs">Synced</span>
     </div>
@@ -88,15 +88,15 @@ export function MenuBar({
   if (!currentUser) return null;
 
   return (
-    <header role="menubar" aria-label="OS menu bar" className="h-7 flex items-center shrink-0 w-full bg-black/20 backdrop-blur-3xl border-b border-white/10 z-[260] px-4 sticky top-0 text-[13px] font-medium text-white/90">
+    <header role="menubar" aria-label="OS menu bar" className="h-8 flex items-center shrink-0 w-full glass-panel rounded-none border-x-0 border-t-0 z-[260] px-4 sticky top-0 text-[13px] font-medium" style={{ color: 'var(--os-text)' }}>
       <div className="flex items-center gap-6">
         <div
-          className="font-bold text-white flex items-center gap-2 cursor-pointer hover:scale-110 transition-transform"
+          className="font-bold flex items-center gap-2 cursor-pointer hover:scale-110 transition-transform"
           onClick={() => setShowLaunchpad(!showLaunchpad)}
         >
           
         </div>
-        <div className="font-bold flex items-center cursor-default uppercase tracking-wider text-xs bg-white/20 px-2 py-0.5 rounded gap-2">
+        <div className="font-bold flex items-center cursor-default uppercase tracking-wider text-xs px-2 py-0.5 rounded gap-2" style={{ background: 'var(--os-hover)' }}>
           {currentUser.avatarUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={currentUser.avatarUrl} alt="avatar" className="w-4 h-4 rounded-full" referrerPolicy="no-referrer" loading="lazy" />
@@ -105,55 +105,57 @@ export function MenuBar({
         </div>
         <div className="hidden sm:flex gap-4">
           <div className="group relative">
-            <button role="menuitem" className="hover:bg-white/20 px-2 py-0.5 rounded transition-colors cursor-default">File</button>
-            <div role="menu" className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left bg-black/80 backdrop-blur-xl border border-white/10 text-white text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]">
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Saved State', message: 'OS State saved.' } }))}>Save Desktop State</button>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => window.dispatchEvent(new CustomEvent('os:open-spotlight'))}>New File (Spotlight)</button>
-              <div className="h-px bg-white/10 my-1"></div>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-rose-500 hover:text-white transition-colors" onClick={() => wipeSession()}>Wipe Local Data</button>
+            <button role="menuitem" className="px-2 py-0.5 rounded transition-colors cursor-default" style={{ color: 'var(--os-text)' }}>File</button>
+            <div role="menu" className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left glass-panel text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]" style={{ color: 'var(--os-text)' }}>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Saved State', description: 'OS State saved.', type: 'success' } }))}>Save Desktop State</button>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={() => window.dispatchEvent(new CustomEvent('os:open-spotlight'))}>New File (Spotlight)</button>
+              <div className="h-px my-1" style={{ background: 'var(--os-border)' }}></div>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" onClick={() => wipeSession()}>Wipe Local Data</button>
             </div>
           </div>
           <div className="group relative">
-            <button role="menuitem" className="hover:bg-white/20 px-2 py-0.5 rounded transition-colors cursor-default">Edit</button>
-            <div role="menu" className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left bg-black/80 backdrop-blur-xl border border-white/10 text-white text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]">
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors text-white/50">Undo (Cmd+Z)</button>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors text-white/50">Redo (Cmd+Shift+Z)</button>
-              <div className="h-px bg-white/10 my-1"></div>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => setShowLaunchpad(true)}>Edit OS Apps</button>
+            <button role="menuitem" className="px-2 py-0.5 rounded transition-colors cursor-default" style={{ color: 'var(--os-text)' }}>Edit</button>
+            <div role="menu" className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left glass-panel text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]" style={{ color: 'var(--os-text)' }}>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }}>Undo (Cmd+Z)</button>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }}>Redo (Cmd+Shift+Z)</button>
+              <div className="h-px my-1" style={{ background: 'var(--os-border)' }}></div>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={() => setShowLaunchpad(true)}>Edit OS Apps</button>
             </div>
           </div>
           <div className="group relative">
-            <button role="menuitem" className="hover:bg-white/20 px-2 py-0.5 rounded transition-colors cursor-default">View</button>
-            <div role="menu" className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left bg-black/80 backdrop-blur-xl border border-white/10 text-white text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]">
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors flex items-center justify-between" onClick={() => applyWorkspaceLayout('creative-split')}>Multi-View Workspace</button>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => setShowMissionControl(true)}>Mission Control</button>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 hover:bg-blue-500 hover:text-white transition-colors" onClick={() => setShowSnapshots(!showSnapshots)}>Time Machine</button>
+            <button role="menuitem" className="px-2 py-0.5 rounded transition-colors cursor-default" style={{ color: 'var(--os-text)' }}>View</button>
+            <div role="menu" className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left glass-panel text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]" style={{ color: 'var(--os-text)' }}>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={() => applyWorkspaceLayout('creative-split')}>Multi-View Workspace</button>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={() => setShowMissionControl(true)}>Mission Control</button>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={() => setShowSnapshots(!showSnapshots)}>Time Machine</button>
             </div>
           </div>
 
-          <div className="border-l border-white/20 pl-4">
+          <div className="pl-4" style={{ borderLeft: '1px solid var(--os-border)' }}>
             <WorkspaceSelector />
           </div>
 
-          <div className="flex items-center gap-2 ml-4 pl-4 border-l border-white/20">
+          <div className="flex items-center gap-2 ml-4 pl-4" style={{ borderLeft: '1px solid var(--os-border)' }}>
             {[0, 1, 2].map(ws => (
               <button
                 key={ws}
                 onClick={() => setActiveWorkspace(ws)}
-                className={cn(
-                  "px-2 py-0.5 rounded text-xs transition-colors",
-                  activeWorkspace === ws ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90 hover:bg-white/10"
-                )}
+                className="px-2 py-0.5 rounded text-xs transition-colors"
+                style={{
+                  background: activeWorkspace === ws ? 'var(--os-hover)' : 'transparent',
+                  color: activeWorkspace === ws ? 'var(--os-text)' : 'var(--os-text-muted)',
+                }}
               >
                 Desktop {ws + 1}
               </button>
             ))}
           </div>
 
-          <div className="flex items-center ml-4 pl-4 border-l border-white/20">
+          <div className="flex items-center ml-4 pl-4" style={{ borderLeft: '1px solid var(--os-border)' }}>
             <button
               onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-              className="flex items-center gap-2 px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-colors cursor-pointer"
+              className="flex items-center gap-2 px-2 py-1 rounded transition-colors cursor-pointer"
+              style={{ background: 'var(--os-hover)', color: 'var(--os-text-muted)' }}
               title="Search (Cmd+K)"
             >
               <Search className="w-3.5 h-3.5" />
@@ -161,22 +163,26 @@ export function MenuBar({
             </button>
           </div>
 
-          <div className="flex items-center gap-1 ml-4 pl-4 border-l border-white/20 bg-black/20 rounded-md p-0.5 border border-white/10 shadow-inner">
+          <div className="flex items-center gap-1 ml-4 pl-4 rounded-md p-0.5" style={{ borderLeft: '1px solid var(--os-border)', background: 'var(--os-hover)' }}>
             <button
               onClick={() => setWorkspaceMode('private')}
-              className={cn(
-                "px-3 py-1 rounded text-xs font-semibold tracking-wide transition-all",
-                workspaceMode === 'private' ? "bg-white text-black shadow-md" : "text-white/50 hover:text-white/90"
-              )}
+              className="px-3 py-1 rounded text-xs font-semibold tracking-wide transition-all"
+              style={{
+                background: workspaceMode === 'private' ? 'var(--os-surface)' : 'transparent',
+                color: workspaceMode === 'private' ? 'var(--os-text)' : 'var(--os-text-muted)',
+                boxShadow: workspaceMode === 'private' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              }}
             >
               Private
             </button>
             <button
               onClick={() => setWorkspaceMode('agency')}
-              className={cn(
-                "px-3 py-1 rounded text-xs font-semibold tracking-wide transition-all flex items-center gap-1.5",
-                workspaceMode === 'agency' ? "bg-blue-500 text-white shadow-md shadow-blue-500/20" : "text-white/50 hover:text-white/90"
-              )}
+              className="px-3 py-1 rounded text-xs font-semibold tracking-wide transition-all flex items-center gap-1.5"
+              style={{
+                background: workspaceMode === 'agency' ? 'var(--os-primary)' : 'transparent',
+                color: workspaceMode === 'agency' ? 'white' : 'var(--os-text-muted)',
+                boxShadow: workspaceMode === 'agency' ? '0 1px 3px rgba(0,88,188,0.2)' : 'none',
+              }}
             >
               <Users className="w-3.5 h-3.5" />
               Agency
@@ -185,17 +191,18 @@ export function MenuBar({
         </div>
       </div>
       <div className="flex items-center gap-4 ml-auto">
-        <div className="flex items-center gap-2 border-r border-white/10 pr-4">
+        <div className="flex items-center gap-2 pr-4" style={{ borderRight: '1px solid var(--os-border)' }}>
           <PresenceIndicator />
         </div>
-        <div className="flex items-center gap-4 border-r border-white/10 pr-4">
+        <div className="flex items-center gap-4 pr-4" style={{ borderRight: '1px solid var(--os-border)' }}>
           <button
             onClick={() => setPerformanceMode(performanceMode === 'heavy' ? 'light' : 'heavy')}
-            className={cn(
-              "flex items-center gap-1.5 transition-colors cursor-pointer text-xs group px-2 py-1 rounded",
-              performanceMode === 'light' ? "text-amber-400 bg-amber-400/10 hover:bg-amber-400/20" : "text-white/50 hover:text-white/80 hover:bg-white/5"
-            )}
+            className="flex items-center gap-1.5 transition-colors cursor-pointer text-xs group px-2 py-1 rounded"
             title={performanceMode === 'light' ? "Light Mode Active" : "Heavy Mode Active"}
+            style={{
+              color: performanceMode === 'light' ? '#f59e0b' : 'var(--os-text-muted)',
+              background: performanceMode === 'light' ? 'rgba(245, 158, 11, 0.1)' : 'transparent',
+            }}
           >
             {performanceMode === 'light' ? <ZapOff className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
             <span className="hidden sm:inline font-medium tracking-wide">
@@ -204,30 +211,32 @@ export function MenuBar({
           </button>
           <OsSyncStatus />
           <div className="group relative flex items-center justify-center">
-            <ShieldCheck className="w-4 h-4 text-emerald-400/80 hover:text-emerald-400 cursor-pointer transition-colors" />
-            <div className="absolute top-full right-0 mt-2 scale-0 group-hover:scale-100 transition-transform px-3 py-2 bg-black/80 backdrop-blur-xl border border-white/10 text-white text-xs font-medium rounded shadow-xl whitespace-nowrap z-[100]">
-              <div className="font-bold text-emerald-400 mb-1">Sandboxed Environment</div>
-              <div className="text-white/60">Apps are isolated & secure.</div>
+            <ShieldCheck className="w-4 h-4 hover:opacity-100 cursor-pointer transition-colors" style={{ opacity: 0.7 }} />
+            <div className="absolute top-full right-0 mt-2 scale-0 group-hover:scale-100 transition-transform px-3 py-2 glass-panel text-xs font-medium rounded shadow-xl whitespace-nowrap z-[100]" style={{ color: 'var(--os-text)' }}>
+              <div className="font-bold mb-1" style={{ color: '#10b981' }}>Sandboxed Environment</div>
+              <div style={{ color: 'var(--os-text-muted)' }}>Apps are isolated & secure.</div>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button
-            className="cursor-pointer hover:text-white text-white/80 transition-colors focus:outline-none"
+            className="cursor-pointer transition-colors focus:outline-none"
             onClick={() => window.dispatchEvent(new CustomEvent('os:open-spotlight'))}
             title="Global Search (Cmd/Ctrl + K)"
+            style={{ color: 'var(--os-text-muted)' }}
           >
             <Search className="w-4 h-4" />
           </button>
           <div className="group relative flex items-center justify-center">
-            <Power onClick={() => logout()} className="w-4 h-4 text-rose-500/80 hover:text-rose-500 cursor-pointer transition-colors" />
-            <div className="absolute top-full right-0 mt-2 scale-0 group-hover:scale-100 transition-transform px-3 py-2 bg-rose-500/20 backdrop-blur-xl border border-rose-500/30 text-white text-xs font-medium rounded shadow-xl whitespace-nowrap z-[100]">
+            <Power onClick={() => logout()} className="w-4 h-4 cursor-pointer transition-colors" style={{ color: 'var(--os-error)', opacity: 0.8 }} />
+            <div className="absolute top-full right-0 mt-2 scale-0 group-hover:scale-100 transition-transform px-3 py-2 glass-panel text-xs font-medium rounded shadow-xl whitespace-nowrap z-[100]" style={{ color: 'var(--os-text)' }}>
               Sign Out
             </div>
           </div>
           <button
-            className="text-white/90 cursor-pointer hover:text-white ml-2 focus:outline-none flex items-center gap-2 px-2 py-1 rounded hover:bg-white/10 transition-colors"
+            className="cursor-pointer transition-colors focus:outline-none flex items-center gap-2 px-2 py-1 rounded transition-colors"
             onClick={() => setShowControlCenter(!showControlCenter)}
+            style={{ color: 'var(--os-text)' }}
           >
             <OsClock />
           </button>

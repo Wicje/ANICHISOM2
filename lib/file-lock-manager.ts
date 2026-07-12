@@ -5,7 +5,7 @@
  * Phase 2A: Collaboration
  */
 
-import { fileAdapter } from './firestore-adapter';
+import { fileAdapter } from './supabase-adapter';
 import { ProjectFile, FILE_LOCK_TIMEOUT_MS } from './workspace-types';
 
 interface FileLockState {

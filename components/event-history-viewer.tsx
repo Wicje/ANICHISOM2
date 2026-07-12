@@ -10,13 +10,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useOS } from '@/lib/os-context';
 import { getEventHistoryManager } from '@/lib/event-history-manager';
-import { eventAdapter } from '@/lib/firestore-adapter';
+import { eventAdapter } from '@/lib/supabase-adapter';
 import { Event } from '@/lib/workspace-types';
 import {
   Undo2, Redo2, Clock, Filter, Search,
   FileText, Users, Settings, Zap, Trash2, Archive, CheckCircle
 } from 'lucide-react';
-import { limit as firestoreLimit } from 'firebase/firestore';
 import { format, formatDistance } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { List } from 'react-window';
@@ -40,7 +39,7 @@ export function EventHistoryViewer({ workspaceId }: EventHistoryViewerProps) {
     const loadEvents = async () => {
       try {
         setLoading(true);
-        const data = await eventAdapter.getByWorkspace(workspaceId, [firestoreLimit(200)]);
+        const data = await eventAdapter.getByWorkspace(workspaceId);
         setEvents(data.reverse()); // Newest first
       } catch (error) {
         console.error('[v0] Failed to load events:', error);

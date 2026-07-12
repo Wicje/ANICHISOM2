@@ -6,8 +6,7 @@
  */
 
 import { Event, EVENT_HISTORY_LIMIT } from './workspace-types';
-import { eventAdapter } from './firestore-adapter';
-import { limit as firestoreLimit } from 'firebase/firestore';
+import { eventAdapter } from './supabase-adapter';
 
 export interface UndoRedoState {
   past: Event[];
@@ -144,7 +143,7 @@ export class EventHistoryManager {
    */
   async getEvents(limitVal: number = 100): Promise<Event[]> {
     try {
-      return await eventAdapter.getByWorkspace(this.workspaceId, [firestoreLimit(limitVal)]);
+      return await eventAdapter.getByWorkspace(this.workspaceId);
     } catch (error) {
       console.error('[v0] Failed to fetch events:', error);
       return [];

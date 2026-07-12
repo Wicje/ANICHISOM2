@@ -9,9 +9,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useOS } from '@/lib/os-context';
-import { eventAdapter } from '@/lib/firestore-adapter';
+import { eventAdapter } from '@/lib/supabase-adapter';
 import { Event } from '@/lib/workspace-types';
-import { limit as firestoreLimit } from 'firebase/firestore';
 import {
   Clock, ChevronLeft, ChevronRight, Play, Pause, RotateCcw,
   Calendar as CalendarIcon, Activity
@@ -37,7 +36,7 @@ export function TimeMachine({ workspaceId }: TimeMachineProps) {
     const loadEvents = async () => {
       try {
         setLoading(true);
-        const data = await eventAdapter.getByWorkspace(workspaceId, [firestoreLimit(500)]);
+        const data = await eventAdapter.getByWorkspace(workspaceId);
         setEvents(data.sort((a, b) => {
           const aTime = (a.createdAt || a.timestamp).getTime();
           const bTime = (b.createdAt || b.timestamp).getTime();

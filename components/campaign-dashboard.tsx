@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useOS } from '@/lib/os-context';
-import { projectAdapter } from '@/lib/firestore-adapter';
+import { projectAdapter } from '@/lib/supabase-adapter';
 import { Project, Deliverable } from '@/lib/workspace-types';
 import { 
   Calendar, CheckCircle, AlertCircle, Clock, Target, Users,

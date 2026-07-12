@@ -9,7 +9,7 @@
 
 import { useEffect, useState, useContext } from 'react';
 import { useOS } from '@/lib/os-context';
-import { presenceAdapter } from '@/lib/firestore-adapter';
+import { presenceAdapter } from '@/lib/supabase-adapter';
 import { Presence } from '@/lib/workspace-types';
 
 export function PresenceIndicator() {

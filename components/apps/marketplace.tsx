@@ -5,8 +5,7 @@ import { OSWindow, useOS } from '@/lib/os-context';
 import { Store, Download, CheckCircle, Trash2, Box, Sparkles, Server, ShoppingBag, Cpu, Code2, Camera, Star, Code, UploadCloud, FileText, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { get, set } from 'idb-keyval';
-import { collection, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getSupabase } from '@/lib/supabase';
 
 interface PluginPack {
   id: string;
@@ -102,24 +101,56 @@ export function Marketplace({ window: osWindow }: { window: OSWindow }) {
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-     const unsub = onSnapshot(collection(db, 'plugins'), (snap) => {
-        const dbPacks = snap.docs.map(doc => {
-           const data = doc.data();
-           return {
-              id: doc.id,
-              name: data.name,
-              description: data.description,
-              developer: data.developer || 'Community',
-              price: data.price ? `$${data.price}/mo` : 'Free',
-              icon: Box, // Default icon for third party
+     const supabase = getSupabase();
+     
+     // Initial fetch
+     supabase.from('plugins').select('*')
+       .then(({ data }) => {
+         if (data) {
+           const dbPacks = data.map((row: any) => ({
+              id: row.id,
+              name: row.name,
+              description: row.description,
+              developer: row.developer || 'Community',
+              price: row.price ? `$${row.price}/mo` : 'Free',
+              icon: Box,
               features: ['Sandboxed Execution', 'Third-Party Verification'],
               isFirstParty: false,
-              githubUrl: data.githubUrl
-           } as PluginPack;
-        });
-        setPacks([...AVAILABLE_PACKS, ...dbPacks]);
-     });
-     return () => unsub();
+              githubUrl: row.githubUrl
+           } as PluginPack));
+           setPacks([...AVAILABLE_PACKS, ...dbPacks]);
+         }
+       });
+
+     // Realtime subscription
+     const channel = supabase
+       .channel('plugins:marketplace')
+       .on(
+         'postgres_changes',
+         { event: '*', schema: 'public', table: 'plugins' },
+         () => {
+           supabase.from('plugins').select('*')
+             .then(({ data }) => {
+               if (data) {
+                 const dbPacks = data.map((row: any) => ({
+                    id: row.id,
+                    name: row.name,
+                    description: row.description,
+                    developer: row.developer || 'Community',
+                    price: row.price ? `$${row.price}/mo` : 'Free',
+                    icon: Box,
+                    features: ['Sandboxed Execution', 'Third-Party Verification'],
+                    isFirstParty: false,
+                    githubUrl: row.githubUrl
+                 } as PluginPack));
+                 setPacks([...AVAILABLE_PACKS, ...dbPacks]);
+               }
+             });
+         }
+       )
+       .subscribe();
+
+     return () => { supabase.removeChannel(channel); };
   }, []);
 
   const handleInstall = async (pack: PluginPack) => {
@@ -283,18 +314,21 @@ export function Marketplace({ window: osWindow }: { window: OSWindow }) {
                      </div>
                    </div>
                    <button 
-                     onClick={async () => {
-                       try {
-                         await addDoc(collection(db, 'plugins'), { 
-                           ...submitForm, 
-                           developer: currentUser?.name || 'Unknown', 
-                           createdAt: serverTimestamp() 
-                         });
-                         setSubmitted(true);
-                       } catch (err: any) {
-                         alert(err.message);
-                       }
-                     }}
+                      onClick={async () => {
+                        try {
+                          await getSupabase().from('plugins').insert({ 
+                            name: submitForm.name,
+                            description: submitForm.description,
+                            price: submitForm.price,
+                            githubUrl: submitForm.githubUrl,
+                            developer: currentUser?.name || 'Unknown', 
+                            createdAt: new Date().toISOString()
+                          });
+                          setSubmitted(true);
+                        } catch (err: any) {
+                          alert(err.message);
+                        }
+                      }}
                      disabled={!submitForm.name || !submitForm.githubUrl}
                      className="mt-4 px-6 py-3 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold rounded-lg w-full transition-colors"
                    >

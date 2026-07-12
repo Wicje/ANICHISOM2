@@ -6,7 +6,7 @@
  */
 
 import { Event } from './workspace-types';
-import { eventAdapter } from './firestore-adapter';
+import { eventAdapter } from './supabase-adapter';
 
 interface QueuedEvent {
   id: string;

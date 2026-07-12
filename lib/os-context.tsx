@@ -306,8 +306,13 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
   }, [windowOpenWindow, activeWorkspace]);
 
   const notify = useCallback((title: string, options?: NotificationOptions) => {
+    // Dispatch in-app toast
+    window.dispatchEvent(new CustomEvent('os:notify', {
+      detail: { title, description: options?.body, type: 'info' },
+    }));
+
+    // Also fire OS-level notification if permitted
     if (typeof window === 'undefined' || !('Notification' in window)) return;
-    
     if (Notification.permission === 'granted') {
       new Notification(title, { icon: '/favicon.ico', ...options });
     } else if (Notification.permission !== 'denied') {

@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const authProvider = getAuthProvider();
+    const authProvider = await getAuthProvider();
     await authProvider.logout();
 
     const response = NextResponse.json({ success: true, message: 'Logged out successfully' });

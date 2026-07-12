@@ -2,8 +2,6 @@ import express from 'express';
 import next from 'next';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { createAdapter } from '@socket.io/redis-adapter';
-import { createClient } from 'redis';
 import { parse } from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
 import * as Y from 'yjs';
@@ -173,6 +171,10 @@ app.prepare().then(async () => {
 
   if (process.env.REDIS_URL) {
     console.log('Connecting to Redis for WebSockets...');
+    const [{ createClient }, { createAdapter }] = await Promise.all([
+      import('redis'),
+      import('@socket.io/redis-adapter'),
+    ]);
     pubClient = createClient({ url: process.env.REDIS_URL });
     subClient = pubClient.duplicate();
     await Promise.all([pubClient.connect(), subClient.connect()]);

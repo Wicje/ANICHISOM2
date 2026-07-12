@@ -12,6 +12,7 @@ import { WindowFrame } from '@/components/window-frame';
 import { CommandPalette } from '@/components/command-palette';
 import { FS, LocalFile } from '@/lib/fs';
 
+import { Toaster, toast } from 'sonner';
 import { MenuBar } from './menu-bar';
 import { Dock } from './dock';
 import { Launchpad } from './launchpad';
@@ -26,6 +27,7 @@ import { SnapshotsMenu } from './snapshots-menu';
 import OnboardingWizard from '@/components/apps/onboarding-wizard';
 import FeedbackWidget from '@/components/apps/feedback-widget';
 import { useOnboardingStore } from '@/lib/stores/onboarding.store';
+import { useNotificationStore } from '@/lib/stores/notification.store';
 
 const MemoizedWindow = React.memo(
   ({ win, AppComponent }: { win: any; AppComponent: React.ComponentType<any> }) => {
@@ -57,7 +59,7 @@ export { APP_MANIFEST as APPS } from '@/lib/app-manifest';
 export function Desktop() {
   const { currentUser, logout, wipeSession } = useAuthStore();
   const { windows, openWindow, closeWindow, focusWindow, minimizeWindow } = useWindowStore();
-  const { wallpaper, themeColor, fontFamily, screenShader, performanceMode, setPerformanceMode } = useThemeStore();
+  const { wallpaper, themeColor, fontFamily, screenShader, performanceMode, setPerformanceMode, colorMode, setColorMode, hydrateColorMode } = useThemeStore();
   const { activeWorkspace, setActiveWorkspace, installedApps, recentApps, snapshots, saveSnapshot, restoreSnapshot } = useWorkspaceStore();
   const { applyWorkspaceLayout } = useWindowStore();
   const getAppPrivacy = usePrivacyStore((s) => s.getAppPrivacy);
@@ -84,6 +86,35 @@ export function Desktop() {
     const allAppIds = APP_MANIFEST.map(a => a.id);
     registerBuiltinPlugins(allAppIds);
     hydrateOnboarding();
+    hydrateColorMode();
+  }, []);
+
+  // Sync colorMode to document.documentElement
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', colorMode === 'dark');
+  }, [colorMode]);
+
+  // Wire os:notify custom events → in-app toasts
+  useEffect(() => {
+    const handleNotify = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      const title = detail?.title || 'Notification';
+      const description = detail?.description;
+      const type = detail?.type || 'info';
+      const addNotification = useNotificationStore.getState().addNotification;
+      addNotification(title, type, description);
+      if (type === 'error') {
+        toast.error(title, { description });
+      } else if (type === 'success') {
+        toast.success(title, { description });
+      } else if (type === 'warning') {
+        toast.warning(title, { description });
+      } else {
+        toast.info(title, { description });
+      }
+    };
+    window.addEventListener('os:notify', handleNotify);
+    return () => window.removeEventListener('os:notify', handleNotify);
   }, []);
 
   useEffect(() => {
@@ -341,7 +372,10 @@ export function Desktop() {
     }
   }, []);
 
-  // Auto-create local user when onboarding completes but no user exists
+  // Auto-create local user when onboarding completes but no user exists,
+  // then install the apps they selected during onboarding.
+  const onboardingAppsInstalledRef = React.useRef(false);
+
   useEffect(() => {
     if (onboarding.completed && !currentUser) {
       const role = onboarding.selectedRole || 'other';
@@ -354,9 +388,28 @@ export function Desktop() {
     }
   }, [onboarding.completed, currentUser, onboarding.selectedRole]);
 
+  useEffect(() => {
+    if (onboarding.completed && currentUser && !onboardingAppsInstalledRef.current) {
+      onboardingAppsInstalledRef.current = true;
+      const appsToInstall = onboarding.selectedApps;
+      if (appsToInstall.length > 0) {
+        appsToInstall.forEach((appId) => {
+          useWorkspaceStore.getState().installApp(appId);
+        });
+        // Auto-open the first installed app after a short delay
+        setTimeout(() => {
+          const firstApp = appsToInstall[0];
+          if (firstApp) {
+            useWindowStore.getState().openWindow(firstApp, undefined, undefined, useWorkspaceStore.getState().activeWorkspace);
+          }
+        }, 300);
+      }
+    }
+  }, [onboarding.completed, currentUser, onboarding.selectedApps]);
+
   if (!currentUser) {
     return (
-      <div className="fixed inset-0 w-full h-full overflow-hidden flex flex-col font-sans select-none bg-black">
+      <div className="fixed inset-0 w-full h-full overflow-hidden flex flex-col font-sans select-none">
         {!onboarding.completed && <OnboardingWizard />}
       </div>
     );
@@ -364,7 +417,7 @@ export function Desktop() {
 
   return (
     <div
-      className="fixed inset-0 w-full h-full overflow-hidden flex flex-col font-sans select-none bg-black"
+      className="fixed inset-0 w-full h-full overflow-hidden flex flex-col font-sans select-none"
       style={{ fontFamily }}
       onClick={() => setContextMenu(null)}
       onContextMenu={handleGlobalContextMenu}
@@ -450,6 +503,20 @@ export function Desktop() {
 
       {!onboarding.completed && <OnboardingWizard />}
       {onboarding.completed && <FeedbackWidget />}
+
+      <Toaster
+        position="bottom-right"
+        richColors
+        closeButton
+        toastOptions={{
+          className: 'backdrop-blur-xl border border-[var(--os-border)]',
+          style: {
+            background: 'var(--os-glass-bg)',
+            color: 'var(--os-text)',
+            borderColor: 'var(--os-border)',
+          },
+        }}
+      />
     </div>
   );
 }

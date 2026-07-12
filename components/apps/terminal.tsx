@@ -6,7 +6,7 @@ import { Terminal as TerminalIcon, Search as SearchIcon, Image as ImageIcon, Fol
 import { cn } from '@/lib/utils';
 import { get, set } from 'idb-keyval';
 import { generateTerminalResponse } from '@/app/actions';
-import { db, doc, onSnapshot, setDoc } from '@/lib/firebase';
+import { getSupabase } from '@/lib/supabase';
 import { FS } from '@/lib/fs';
 
 type TerminalEntry = {
@@ -63,20 +63,40 @@ export function TerminalBox({ window }: { window: OSWindow }) {
 
   useEffect(() => {
     if (!currentUser) return;
-    const terminalDocRef = doc(db, 'terminals', currentUser.id);
-    const unsub = onSnapshot(terminalDocRef, (snap) => {
-      const data = snap.data();
-      if (data && data.history) {
-        // filter out components (visuals cannot be persisted into firestore)
-        const safeHistory = data.history.map((h: any) => ({
-           id: h.id, type: h.type, content: h.content || null, isError: h.isError || false
-        }));
-        isSyncingRef.current = true;
-        setHistory(safeHistory);
-      }
-    });
+    const supabase = getSupabase();
+    
+    // Initial fetch
+    supabase.from('terminals').select('history').eq('id', currentUser.id).single()
+      .then(({ data }) => {
+        if (data && data.history) {
+          const safeHistory = data.history.map((h: any) => ({
+             id: h.id, type: h.type, content: h.content || null, isError: h.isError || false
+          }));
+          isSyncingRef.current = true;
+          setHistory(safeHistory);
+        }
+      });
 
-    return () => unsub();
+    // Realtime subscription
+    const channel = supabase
+      .channel(`terminal:${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'terminals', filter: `id=eq.${currentUser.id}` },
+        (payload: any) => {
+          const data = payload.new;
+          if (data && data.history) {
+            const safeHistory = data.history.map((h: any) => ({
+               id: h.id, type: h.type, content: h.content || null, isError: h.isError || false
+            }));
+            isSyncingRef.current = true;
+            setHistory(safeHistory);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [currentUser]);
 
   useEffect(() => {
@@ -87,12 +107,13 @@ export function TerminalBox({ window }: { window: OSWindow }) {
     }
     if (currentUser && history.length > 2) {
        timeout = setTimeout(() => {
-         const terminalDocRef = doc(db, 'terminals', currentUser.id);
-         // Exclude visual React nodes for serialization
          const safeHistory = history.map(h => ({
            id: h.id, type: h.type, content: h.content || null, isError: h.isError || false
          }));
-         setDoc(terminalDocRef, { history: safeHistory }, { merge: true });
+         getSupabase().from('terminals').upsert(
+           { id: currentUser.id, history: safeHistory },
+           { onConflict: 'id' }
+         );
        }, 500);
     }
     return () => clearTimeout(timeout);

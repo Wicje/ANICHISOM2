@@ -2,17 +2,91 @@
 @import "tw-animate-css";
 
 :root {
+  /* ── Fonts ── */
   --font-sans-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-display-family: "Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
   --font-mono-family: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+  /* ── Light Mode (default) ── */
+  --os-bg: #faf9fe;
+  --os-text: #1a1b1f;
+  --os-text-muted: #414755;
+  --os-surface: #ffffff;
+  --os-surface-elevated: #f4f3f8;
+  --os-surface-dim: #dad9df;
+  --os-border: rgba(0, 0, 0, 0.08);
+  --os-border-strong: rgba(0, 0, 0, 0.15);
+  --os-glass-bg: rgba(255, 255, 255, 0.72);
+  --os-glass-border: rgba(255, 255, 255, 0.5);
+  --os-glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.06);
+  --os-hover: rgba(0, 88, 188, 0.08);
+  --os-active: rgba(0, 88, 188, 0.14);
+  --os-primary: #0058bc;
+  --os-primary-container: #0070eb;
+  --os-error: #ba1a1a;
+  --os-outline: #717786;
+  --os-outline-variant: #c1c6d7;
+  color-scheme: light;
+}
+
+.dark {
+  --os-bg: #0a0a0a;
+  --os-text: #f0f0f0;
+  --os-text-muted: rgba(255, 255, 255, 0.6);
+  --os-surface: #1a1a1a;
+  --os-surface-elevated: #222222;
+  --os-surface-dim: #111111;
+  --os-border: rgba(255, 255, 255, 0.1);
+  --os-border-strong: rgba(255, 255, 255, 0.2);
+  --os-glass-bg: rgba(30, 30, 30, 0.72);
+  --os-glass-border: rgba(255, 255, 255, 0.15);
+  --os-glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+  --os-hover: rgba(255, 255, 255, 0.08);
+  --os-active: rgba(255, 255, 255, 0.14);
+  --os-primary: #4da3ff;
+  --os-primary-container: #0070eb;
+  --os-error: #ffb4ab;
+  --os-outline: #8b91a0;
+  --os-outline-variant: #414755;
+  color-scheme: dark;
 }
 
 @theme {
+  /* MD3 Surface Colors */
+  --color-surface: #faf9fe;
+  --color-surface-dim: #dad9df;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f4f3f8;
+  --color-surface-container: #eeedf3;
+  --color-surface-container-high: #e9e7ed;
+  --color-surface-container-highest: #e3e2e7;
+
+  /* MD3 Primary */
+  --color-primary: #0058bc;
+  --color-primary-container: #0070eb;
+
+  /* MD3 Secondary */
+  --color-secondary: #4c4aca;
+
+  /* MD3 Text */
+  --color-on-surface: #1a1b1f;
+  --color-on-surface-variant: #414755;
+  --color-on-primary: #ffffff;
+
+  /* MD3 Outline */
+  --color-outline: #717786;
+  --color-outline-variant: #c1c6d7;
+
+  /* MD3 Error */
+  --color-error: #ba1a1a;
+
+  /* Existing accent colors */
   --color-brand: #000000;
   --color-neon-blue: #00f0ff;
   --color-electric-purple: #8a2be2;
   --color-acid-green: #ccff00;
-  
+
+  /* Fonts */
   --font-sans: var(--font-sans-family);
   --font-display: var(--font-display-family);
   --font-mono: var(--font-mono-family);
@@ -20,24 +94,32 @@
 
 @layer utilities {
   .glass-panel {
-    @apply bg-black/40 backdrop-blur-md border border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.1)];
+    background: var(--os-glass-bg);
+    backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid var(--os-glass-border);
+    box-shadow: var(--os-glass-shadow);
   }
   .glass-panel-active {
-    @apply bg-black/60 backdrop-blur-xl border border-white/30 shadow-[0_4px_30px_rgba(0,0,0,0.3)];
+    background: var(--os-glass-bg);
+    backdrop-filter: blur(50px) saturate(200%);
+    border: 1px solid var(--os-glass-border);
+    box-shadow: var(--os-glass-shadow), 0 0 0 1px rgba(128, 128, 128, 0.08);
   }
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
   }
   .hide-scrollbar {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
 
 body {
-  overflow: hidden; /* Prevent scrolling on the desktop itself */
+  overflow: hidden;
   margin: 0;
   padding: 0;
+  background: var(--os-bg);
+  color: var(--os-text);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -67,14 +149,14 @@ body {
   }
 }
 
-/* Code Editor scrollbar styles (S-10: moved from dangerouslySetInnerHTML) */
+/* Code Editor scrollbar styles */
 .custom-scrollbar::-webkit-scrollbar { width: 10px; height: 10px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: #424242; border: 2px solid #252526; border-radius: 5px; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #4f4f4f; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
-/* Productivity Suite TipTap editor styles (S-10: moved from dangerouslySetInnerHTML) */
+/* Productivity Suite TipTap editor styles */
 .tiptap-editor .ProseMirror:focus { outline: none; }
 .tiptap-editor .ProseMirror > * + * { margin-top: 0.75em; }
 .tiptap-editor .ProseMirror ul,

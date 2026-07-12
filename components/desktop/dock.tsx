@@ -30,7 +30,7 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
 
   return (
     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[260] pointer-events-none">
-      <nav role="toolbar" aria-label="Application dock" className="flex items-end gap-3 px-3 py-2 bg-white/20 backdrop-blur-3xl border border-white/20 rounded-3xl shadow-2xl pointer-events-auto">
+      <nav role="toolbar" aria-label="Application dock" className="flex items-end gap-3 px-3 py-2 glass-panel rounded-3xl shadow-2xl pointer-events-auto">
         <div className="relative group flex flex-col items-center justify-end">
           <button
             aria-label="Launchpad"
@@ -38,11 +38,12 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
               if (!prev) setShowMissionControl(false);
               return !prev;
             })}
-            className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 transform origin-bottom hover:scale-125 hover:mx-2 bg-white/80 hover:bg-white"
+            className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 transform origin-bottom hover:scale-125 hover:mx-2"
+            style={{ background: 'var(--os-hover)' }}
           >
-            <Grid className="w-7 h-7 text-black" aria-hidden="true" />
+            <Grid className="w-7 h-7" style={{ color: 'var(--os-text)' }} aria-hidden="true" />
           </button>
-          <div role="tooltip" className="absolute -top-12 scale-0 group-hover:scale-100 transition-transform px-3 py-1 bg-black/60 backdrop-blur text-white text-xs font-medium rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50">Launchpad</div>
+          <div role="tooltip" className="absolute -top-12 scale-0 group-hover:scale-100 transition-transform px-3 py-1 glass-panel text-xs font-medium rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50" style={{ color: 'var(--os-text)' }}>Launchpad</div>
         </div>
         <div className="relative group flex flex-col items-center justify-end">
           <button
@@ -51,18 +52,17 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
               if (!prev) setShowLaunchpad(false);
               return !prev;
             })}
-            className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 transform origin-bottom hover:scale-125 hover:mx-2 bg-white/80 hover:bg-white"
+            className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 transform origin-bottom hover:scale-125 hover:mx-2"
+            style={{ background: 'var(--os-hover)' }}
           >
-            <Layers className="w-7 h-7 text-black" aria-hidden="true" />
+            <Layers className="w-7 h-7" style={{ color: 'var(--os-text)' }} aria-hidden="true" />
           </button>
-          <div role="tooltip" className="absolute -top-12 scale-0 group-hover:scale-100 transition-transform px-3 py-1 bg-black/60 backdrop-blur text-white text-xs font-medium rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50">Mission Control</div>
+          <div role="tooltip" className="absolute -top-12 scale-0 group-hover:scale-100 transition-transform px-3 py-1 glass-panel text-xs font-medium rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50" style={{ color: 'var(--os-text)' }}>Mission Control</div>
         </div>
-        <div className="w-px h-10 bg-white/20 mx-1"></div>
+        <div className="w-px h-10 mx-1" style={{ background: 'var(--os-border)' }}></div>
 
         {allowedApps.filter(app => {
-          const activeWindows = windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined);
-          const isOpen = activeWindows.some(w => w.appId === app.id);
-          return app.isCore || isOpen || recentApps.includes(app.id);
+          return app.isCore || installedApps.includes(app.id);
         }).map(app => {
           const activeWindows = windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined);
           const isOpen = activeWindows.some(w => w.appId === app.id);
@@ -84,17 +84,17 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
                     openWindow(app.id);
                   }
                 }}
-                className={cn(
-                  "flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 transform origin-bottom hover:scale-125 hover:mx-2",
-                  isOpen ? "bg-white/90" : "bg-white/80 hover:bg-white"
-                )}
+                className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 transform origin-bottom hover:scale-125 hover:mx-2"
+                style={{
+                  background: isOpen ? 'var(--os-active)' : 'var(--os-hover)',
+                }}
               >
-                <app.icon className="w-7 h-7 text-black" aria-hidden="true" />
+                <app.icon className="w-7 h-7" style={{ color: 'var(--os-text)' }} aria-hidden="true" />
               </button>
               {isOpen && (
-                <span aria-hidden="true" className="absolute -bottom-1.5 w-1 h-1 rounded-full bg-white shadow-sm" />
+                <span aria-hidden="true" className="absolute -bottom-1.5 w-1 h-1 rounded-full shadow-sm" style={{ background: 'var(--os-text)' }} />
               )}
-              <div role="tooltip" className="absolute -top-12 scale-0 group-hover:scale-100 transition-transform px-3 py-1 bg-black/60 backdrop-blur text-white text-xs font-medium rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50">
+              <div role="tooltip" className="absolute -top-12 scale-0 group-hover:scale-100 transition-transform px-3 py-1 glass-panel text-xs font-medium rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50" style={{ color: 'var(--os-text)' }}>
                 {app.title}
               </div>
             </div>

@@ -9,7 +9,7 @@
 
 import { useContext, useState, useEffect, useRef } from 'react';
 import { useOS } from '@/lib/os-context';
-import { workspaceAdapter } from '@/lib/firestore-adapter';
+import { workspaceAdapter } from '@/lib/supabase-adapter';
 import { Workspace } from '@/lib/workspace-types';
 
 export function WorkspaceSelector() {

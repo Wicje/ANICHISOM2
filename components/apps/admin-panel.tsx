@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
-import { db, doc, updateDoc, collection, getDocs, setDoc, deleteDoc, sendPasswordResetEmail, auth, onSnapshot, query, limit } from '@/lib/firebase';
+import { getSupabase } from '@/lib/supabase';
 import { ShieldCheck, UserCheck, UserX, Key, RefreshCw, Loader2, AppWindow, Plus, Trash2, Activity, HardDrive, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from 'recharts';
@@ -28,13 +28,13 @@ export function AdminPanel({ window }: { window: OSWindow }) {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, 'users'), limit(500));
-      const qs = await getDocs(q);
-      const loaded: any[] = [];
-      qs.forEach(doc => {
-        loaded.push({ id: doc.id, ...doc.data() });
-      });
-      setUsers(loaded);
+      const { data, error } = await getSupabase()
+        .from('users')
+        .select('*')
+        .limit(500);
+      if (!error && data) {
+        setUsers(data);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -46,19 +46,39 @@ export function AdminPanel({ window }: { window: OSWindow }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchUsers();
     
-    // Subscribe to apps collection
-    const appsQuery = query(collection(db, 'apps'), limit(200));
-    const unsubApps = onSnapshot(appsQuery, (snap) => {
-      const loadedApps = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setApps(loadedApps);
-    });
+    // Subscribe to apps collection via Supabase Realtime
+    const channel = getSupabase()
+      .channel('admin:apps')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'apps' },
+        () => {
+          getSupabase()
+            .from('apps')
+            .select('*')
+            .limit(200)
+            .then(({ data }) => {
+              if (data) setApps(data);
+            });
+        }
+      )
+      .subscribe();
+
+    // Initial apps fetch
+    getSupabase()
+      .from('apps')
+      .select('*')
+      .limit(200)
+      .then(({ data }) => {
+        if (data) setApps(data);
+      });
     
-    return () => unsubApps();
+    return () => { getSupabase().removeChannel(channel); };
   }, []);
 
   const handleApprove = async (id: string) => {
     try {
-      await updateDoc(doc(db, 'users', id), { status: 'approved' });
+      await getSupabase().from('users').update({ status: 'approved' }).eq('id', id);
       fetchUsers();
     } catch (e) {
       console.error(e);
@@ -67,7 +87,7 @@ export function AdminPanel({ window }: { window: OSWindow }) {
 
   const handleUpdateRole = async (id: string, role: string) => {
     try {
-      await updateDoc(doc(db, 'users', id), { role });
+      await getSupabase().from('users').update({ role }).eq('id', id);
       fetchUsers();
     } catch (e) {
       console.error(e);
@@ -76,7 +96,7 @@ export function AdminPanel({ window }: { window: OSWindow }) {
 
   const handleResetPassword = async (email: string) => {
     try {
-      await sendPasswordResetEmail(auth, email);
+      await getSupabase().auth.resetPasswordForEmail(email);
       alert(`Password reset email sent to ${email}`);
     } catch (e: any) {
       alert(`Error sending reset email: ${e.message}`);
@@ -90,14 +110,14 @@ export function AdminPanel({ window }: { window: OSWindow }) {
     
     try {
       const appId = title.toLowerCase().replace(/[^a-z0-9]/g, '-');
-      // Set fixed Icon and Color for now to simplify UI, these can be extended
-      await setDoc(doc(db, 'apps', appId), {
+      await getSupabase().from('apps').upsert({
+        id: appId,
         title,
         url,
         icon: 'Globe',
         color: 'text-emerald-400',
         ownerId: currentUser.id
-      });
+      }, { onConflict: 'id' });
     } catch (e: any) {
       alert('Error adding app: ' + e.message);
     }
@@ -106,7 +126,7 @@ export function AdminPanel({ window }: { window: OSWindow }) {
   const handleDeleteApp = async (id: string) => {
     if (!confirm("Remove this app from the OS registry?")) return;
     try {
-      await deleteDoc(doc(db, 'apps', id));
+      await getSupabase().from('apps').delete().eq('id', id);
     } catch(e: any) {
       alert('Error deleting app: ' + e.message);
     }

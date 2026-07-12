@@ -1,40 +1,40 @@
-import { AuthProvider, AuthUser, AuthSession } from './auth-provider';
-import { Pool } from 'pg';
+import type { AuthProvider, AuthUser, AuthSession } from './auth-provider';
 
 /**
- * Custom PostgreSQL Auth Provider
- * 
- * For self-hosted deployments using PostgreSQL with unique ID authentication.
- * No password required - users login with their unique ID.
+ * Custom PostgreSQL Auth Provider — Lazy Pool
+ *
+ * The `pg` Pool is only created on first query, not at import time.
+ * This avoids crashing the client bundle if pg is accidentally imported.
  */
 export class CustomAuthProvider implements AuthProvider {
-  private pool: Pool;
+  private _pool: any = null;
 
-  constructor() {
-    this.pool = new Pool({
+  private async getPool() {
+    if (this._pool) return this._pool;
+    const { Pool } = await import('pg');
+    this._pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      max: 20, // max number of clients in the pool
-      idleTimeoutMillis: 30000, // how long a client is allowed to remain idle before being closed
+      max: 20,
+      idleTimeoutMillis: 30000,
     });
+    return this._pool;
   }
 
   async getCurrentUser(): Promise<AuthUser | null> {
-    // In a real app, this would check the session cookie
-    // For now, returns null - os-context handles the session check
     return null;
   }
 
   async login(credentials: { uniqueId: string }): Promise<AuthSession> {
+    const pool = await this.getPool();
     const { uniqueId } = credentials;
 
-    const result = await this.pool.query(
+    const result = await pool.query(
       'SELECT id, unique_id, role FROM users WHERE unique_id = $1',
       [uniqueId]
     );
 
     if (result.rows.length === 0) {
-      // Create new user with this unique ID
-      const newUser = await this.pool.query(
+      const newUser = await pool.query(
         'INSERT INTO users (unique_id, role) VALUES ($1, $2) RETURNING id, unique_id, role',
         [uniqueId, 'user']
       );
@@ -63,12 +63,10 @@ export class CustomAuthProvider implements AuthProvider {
   }
 
   async isSessionValid(): Promise<boolean> {
-    // Checked via /api/auth/session endpoint
     return true;
   }
 
   onAuthStateChanged(callback: (user: AuthUser | null) => void): () => void {
-    // Polling-based check via API
     const interval = setInterval(async () => {
       try {
         const response = await fetch('/api/auth/session');
@@ -81,7 +79,7 @@ export class CustomAuthProvider implements AuthProvider {
       } catch {
         callback(null);
       }
-    }, 5 * 60 * 1000); // Check every 5 minutes
+    }, 5 * 60 * 1000);
 
     return () => clearInterval(interval);
   }

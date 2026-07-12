@@ -1,6 +1,5 @@
 import { get, set, del } from 'idb-keyval';
-import { db, doc, getDoc, setDoc, onSnapshot } from '@/lib/firebase';
-import { Unsubscribe } from 'firebase/firestore';
+import { getSupabase } from '@/lib/supabase';
 
 export interface IStorageAdapter {
   getDoc: <T>(collection: string, id: string) => Promise<T | null>;
@@ -21,32 +20,71 @@ function createLocalStorageChannel(): BroadcastChannel | null {
   return new BroadcastChannel(LOCAL_STORAGE_CHANNEL);
 }
 
-// 1. Firebase Adapter
-export const FirebaseAdapter: IStorageAdapter = {
+// 1. Supabase Adapter
+export const SupabaseAdapter: IStorageAdapter = {
   getDoc: async <T,>(collectionName: string, id: string) => {
     try {
-      const snap = await getDoc(doc(db, collectionName, id));
-      return snap.exists() ? (snap.data() as T) : null;
+      const { data, error } = await getSupabase()
+        .from(collectionName)
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (error || !data) return null;
+      return data as T;
     } catch (e) {
-      console.warn('Firebase getDoc failed', e);
+      console.warn('Supabase getDoc failed', e);
       return null;
     }
   },
   setDoc: async <T,>(collectionName: string, id: string, data: Partial<T>) => {
     try {
-      await setDoc(doc(db, collectionName, id), data, { merge: true });
+      await getSupabase()
+        .from(collectionName)
+        .upsert({ id, ...data }, { onConflict: 'id' });
     } catch (e) {
-      console.warn('Firebase setDoc failed', e);
+      console.warn('Supabase setDoc failed', e);
     }
   },
   subscribe: <T,>(collectionName: string, id: string, callback: (data: T | null) => void) => {
-    return onSnapshot(doc(db, collectionName, id), (snap) => {
-      callback(snap.exists() ? (snap.data() as T) : null);
-    });
+    // Initial fetch
+    getSupabase()
+      .from(collectionName)
+      .select('*')
+      .eq('id', id)
+      .single()
+      .then(({ data }) => {
+        callback((data as T) || null);
+      });
+
+    // Realtime subscription
+    const channel = getSupabase()
+      .channel(`${collectionName}:${id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: collectionName, filter: `id=eq.${id}` },
+        (payload: any) => {
+          if (payload.eventType === 'DELETE') {
+            callback(null);
+          } else {
+            callback(payload.new as T);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      getSupabase().removeChannel(channel);
+    };
   },
   deleteDoc: async (collectionName: string, id: string) => {
-     const { deleteDoc: fBDel, doc: fBDoc } = await import('firebase/firestore');
-     await fBDel(fBDoc(db, collectionName, id));
+    try {
+      await getSupabase()
+        .from(collectionName)
+        .delete()
+        .eq('id', id);
+    } catch (e) {
+      console.warn('Supabase deleteDoc failed', e);
+    }
   }
 };
 
@@ -102,19 +140,19 @@ export const LocalAdapter: IStorageAdapter = {
 // Allows components to just say Storage.getDoc('code', 'roomId', 'private')
 export const Storage = {
   getDoc: <T = any>(collection: string, id: string, mode: 'private' | 'agency'): Promise<T | null> => {
-    const adapter = mode === 'agency' ? FirebaseAdapter : LocalAdapter;
+    const adapter = mode === 'agency' ? SupabaseAdapter : LocalAdapter;
     return adapter.getDoc<T>(collection, id);
   },
   setDoc: (collection: string, id: string, data: any, mode: 'private' | 'agency') => {
-    const adapter = mode === 'agency' ? FirebaseAdapter : LocalAdapter;
+    const adapter = mode === 'agency' ? SupabaseAdapter : LocalAdapter;
     return adapter.setDoc(collection, id, data);
   },
   subscribe: (collection: string, id: string, mode: 'private' | 'agency', callback: (data: any) => void) => {
-    const adapter = mode === 'agency' ? FirebaseAdapter : LocalAdapter;
+    const adapter = mode === 'agency' ? SupabaseAdapter : LocalAdapter;
     return adapter.subscribe(collection, id, callback);
   },
   deleteDoc: (collection: string, id: string, mode: 'private' | 'agency') => {
-    const adapter = mode === 'agency' ? FirebaseAdapter : LocalAdapter;
+    const adapter = mode === 'agency' ? SupabaseAdapter : LocalAdapter;
     return adapter.deleteDoc(collection, id);
   }
 };
