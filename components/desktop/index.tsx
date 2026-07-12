@@ -341,7 +341,26 @@ export function Desktop() {
     }
   }, []);
 
-  if (!currentUser) return null;
+  // Auto-create local user when onboarding completes but no user exists
+  useEffect(() => {
+    if (onboarding.completed && !currentUser) {
+      const role = onboarding.selectedRole || 'other';
+      const user = {
+        id: `local-${Date.now()}`,
+        name: 'User',
+        role: role as any,
+      };
+      useAuthStore.getState().setCurrentUser(user);
+    }
+  }, [onboarding.completed, currentUser, onboarding.selectedRole]);
+
+  if (!currentUser) {
+    return (
+      <div className="fixed inset-0 w-full h-full overflow-hidden flex flex-col font-sans select-none bg-black">
+        {!onboarding.completed && <OnboardingWizard />}
+      </div>
+    );
+  }
 
   return (
     <div

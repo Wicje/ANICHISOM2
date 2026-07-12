@@ -1,3 +1,5 @@
+'use client';
+
 import { OSProvider } from '@/lib/os-context';
 import { Desktop } from '@/components/desktop';
 

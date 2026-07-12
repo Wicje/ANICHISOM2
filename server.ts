@@ -68,10 +68,11 @@ app.prepare().then(async () => {
     const awarenessEncoder = encoding.createEncoder();
     encoding.writeVarUint(awarenessEncoder, MSG_AWARENESS);
     const states = awareness.getStates();
-    awarenessProtocol.writeAwarenessUpdate(
-      awarenessEncoder,
-      Array.from(states.entries()).filter(([id]) => id !== doc.clientID)
+    const awarenessUpdate = awarenessProtocol.encodeAwarenessUpdate(
+      awareness,
+      Array.from(states.entries()).filter(([id]) => id !== doc.clientID).map(([id]) => id)
     );
+    encoding.writeVarUint8Array(awarenessEncoder, awarenessUpdate);
     ws.send(encoding.toUint8Array(awarenessEncoder));
 
     ws.on('message', (message: Buffer) => {

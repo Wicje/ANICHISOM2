@@ -1,4 +1,4 @@
-import type {Metadata} from 'next';
+import type {Metadata, Viewport} from 'next';
 import './globals.css'; 
 import { PWASetup } from '@/components/pwa-setup';
 import { PWAInstall } from '@/components/pwa-install';
@@ -7,8 +7,14 @@ export const metadata: Metadata = {
   title: 'ANICHISOM | Creative OS',
   description: 'Browser-based operating system for creative dominance.',
   manifest: '/manifest.json',
+};
+
+export const viewport: Viewport = {
   themeColor: '#000000',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0'
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
