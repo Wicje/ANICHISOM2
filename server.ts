@@ -5,9 +5,16 @@ import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import { parse } from 'url';
-import { WebSocketServer } from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
+import * as Y from 'yjs';
 // @ts-ignore
-import { setupWSConnection } from 'y-websocket/bin/utils';
+import * as syncProtocol from 'y-protocols/sync';
+// @ts-ignore
+import * as awarenessProtocol from 'y-protocols/awareness';
+// @ts-ignore
+import * as encoding from 'lib0/encoding';
+// @ts-ignore
+import * as decoding from 'lib0/decoding';
 import { resolveSession } from './lib/session-store';
 
 const dev = process.env.NODE_ENV !== 'production';
@@ -28,6 +35,81 @@ app.prepare().then(async () => {
   const wsConnections = new Map<string, number>(); // ip -> connection count
   const WS_MAX_CONNECTIONS_PER_IP = 10;
 
+  // Yjs document store — one doc per room name
+  const docs = new Map<string, { doc: Y.Doc; awareness: awarenessProtocol.Awareness }>();
+  const conns = new Map<WebSocket, { docName: string; encoder: encoding.Encoder }>();
+
+  function getYDoc(docName: string) {
+    let entry = docs.get(docName);
+    if (!entry) {
+      const doc = new Y.Doc();
+      const awareness = new awarenessProtocol.Awareness(doc);
+      awareness.setLocalState(null);
+      entry = { doc, awareness };
+      docs.set(docName, entry);
+    }
+    return entry;
+  }
+
+  const MSG_SYNC = 0;
+  const MSG_AWARENESS = 1;
+
+  function handleWSConnection(ws: WebSocket, docName: string) {
+    const { doc, awareness } = getYDoc(docName);
+    const encoder = encoding.createEncoder();
+    conns.set(ws, { docName, encoder });
+
+    // Send sync step 1
+    encoding.writeVarUint(encoder, MSG_SYNC);
+    syncProtocol.writeSyncStep1(encoder, doc);
+    ws.send(encoding.toUint8Array(encoder));
+
+    // Send current awareness states
+    const awarenessEncoder = encoding.createEncoder();
+    encoding.writeVarUint(awarenessEncoder, MSG_AWARENESS);
+    const states = awareness.getStates();
+    awarenessProtocol.writeAwarenessUpdate(
+      awarenessEncoder,
+      Array.from(states.entries()).filter(([id]) => id !== doc.clientID)
+    );
+    ws.send(encoding.toUint8Array(awarenessEncoder));
+
+    ws.on('message', (message: Buffer) => {
+      try {
+        const decoder = decoding.createDecoder(new Uint8Array(message));
+        const messageType = decoding.readVarUint(decoder);
+
+        switch (messageType) {
+          case MSG_SYNC:
+            syncProtocol.readSyncMessage(decoder, encoder, doc, null);
+            break;
+          case MSG_AWARENESS:
+            awarenessProtocol.applyAwarenessUpdate(
+              awareness,
+              decoding.readVarUint8Array(decoder),
+              doc
+            );
+            break;
+        }
+      } catch (err) {
+        console.error('Yjs message error:', err);
+      }
+    });
+
+    ws.on('close', () => {
+      conns.delete(ws);
+      // Clean up empty docs
+      let hasConns = false;
+      for (const [, c] of conns) {
+        if (c.docName === docName) { hasConns = true; break; }
+      }
+      if (!hasConns) {
+        doc.destroy();
+        docs.delete(docName);
+      }
+    });
+  }
+
   wss.on('connection', (ws, req) => {
     const clientIp = (req.headers['x-forwarded-for'] as string) ||
                      (req.headers['x-client-ip'] as string) ||
@@ -43,7 +125,10 @@ app.prepare().then(async () => {
       if (c <= 1) wsConnections.delete(clientIp);
       else wsConnections.set(clientIp, c - 1);
     });
-    setupWSConnection(ws, req);
+
+    // Extract doc name from URL path (e.g., /my-room-name)
+    const docName = req.url?.slice(1)?.split('?')[0] || 'default';
+    handleWSConnection(ws, docName);
   });
   console.log('Yjs WebSocket Server listening on ws://localhost:1234');
 
