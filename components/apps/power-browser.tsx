@@ -7,10 +7,45 @@ import { useThemeStore } from '@/lib/stores/theme.store';
 import {
   ArrowLeft, ArrowRight, RotateCw, Home, Lock, ExternalLink, Search,
   Maximize2, Minimize2, Download, Plus, X, Star, Bookmark, Trash2,
-  Pin, PinOff, PanelLeftClose, PanelLeftOpen, Columns, GripVertical, Scissors
+  Pin, PinOff, PanelLeftClose, PanelLeftOpen, Columns, GripVertical, Scissors,
+  Globe, AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BrowserClipService } from '@/lib/services/browser-clip.service';
+
+// Sites known to block iframe embedding aggressively
+const KNOWN_BLOCKED_HOSTS = new Set([
+  'figma.com', 'www.figma.com',
+  'docs.google.com', 'drive.google.com',
+  'github.com', 'gitlab.com',
+  'notion.so', 'www.notion.so',
+  'airtable.com', 'www.airtable.com',
+  'trello.com', 'www.trello.com',
+  'linear.app',
+  'vercel.com', 'app.vercel.com',
+  'netlify.com', 'app.netlify.com',
+  'youtube.com', 'www.youtube.com',
+  'twitter.com', 'x.com', 'www.x.com',
+  'facebook.com', 'www.facebook.com',
+  'instagram.com', 'www.instagram.com',
+  'linkedin.com', 'www.linkedin.com',
+  'reddit.com', 'www.reddit.com',
+  'medium.com',
+  'spotify.com', 'open.spotify.com',
+]);
+
+function getHostname(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '';
+  }
+}
+
+function isKnownBlocked(url: string): boolean {
+  const host = getHostname(url);
+  return KNOWN_BLOCKED_HOSTS.has(host);
+}
 
 export function PowerBrowser({ window: osWindow }: { window: any }) {
   const { themeColor } = useThemeStore();
@@ -28,6 +63,9 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   const [showPinDialog, setShowPinDialog] = useState(false);
   const [pinUrl, setPinUrl] = useState('');
   const [pinTitle, setPinTitle] = useState('');
+  // Fallback state: tracks which tabs failed to load
+  const [blockedTabs, setBlockedTabs] = useState<Set<string>>(new Set());
+  const iframeRefs = useRef<Map<string, HTMLIFrameElement>>(new Map());
 
   const activeTab = (tabs.find((t) => t.id === activeTabId) || tabs[0])!;
 
@@ -129,7 +167,45 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   };
 
   const handleIframeLoad = (tabId: string) => {
-    // Could track loading state here
+    const iframe = iframeRefs.current.get(tabId);
+    if (!iframe) return;
+
+    try {
+      // Try to access iframe content — if blocked by CORS, the site loaded but we can't read it
+      // If we can read it and it contains error indicators, mark as blocked
+      const doc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (doc) {
+        const body = doc.body;
+        const text = body?.textContent || '';
+        // Detect proxy error responses
+        if (text.includes('Proxy error') || text.includes('Authentication required')) {
+          setBlockedTabs(prev => new Set([...prev, tabId]));
+          return;
+        }
+      }
+      // If we can't access contentDocument (CORS), the page likely loaded fine
+      // Remove from blocked set if it was previously blocked
+      setBlockedTabs(prev => {
+        const next = new Set(prev);
+        next.delete(tabId);
+        return next;
+      });
+    } catch {
+      // Cross-origin — page loaded, just can't inspect content. That's fine.
+      setBlockedTabs(prev => {
+        const next = new Set(prev);
+        next.delete(tabId);
+        return next;
+      });
+    }
+  };
+
+  const handleIframeError = (tabId: string) => {
+    setBlockedTabs(prev => new Set([...prev, tabId]));
+  };
+
+  const openExternal = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -369,14 +445,49 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                       Your browsing context is preserved across sessions.
                     </p>
                   </div>
-                ) : (
-                  <iframe
-                    src={tab.url.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(tab.url)}` : tab.url}
-                    className="w-full h-full border-none bg-white absolute inset-0"
-                    title={`Tab ${tab.id}`}
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                    onLoad={() => handleIframeLoad(tab.id)}
+                ) : isKnownBlocked(tab.url) && blockedTabs.has(tab.id) ? (
+                  <BlockedSiteFallback
+                    url={tab.url}
+                    onOpenExternal={openExternal}
+                    onTryProxy={() => {
+                      // Force reload through proxy
+                      setBlockedTabs(prev => {
+                        const next = new Set(prev);
+                        next.delete(tab.id);
+                        return next;
+                      });
+                      reload();
+                    }}
                   />
+                ) : (
+                  <>
+                    <iframe
+                      ref={(el) => {
+                        if (el) iframeRefs.current.set(tab.id, el);
+                        else iframeRefs.current.delete(tab.id);
+                      }}
+                      src={tab.url.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(tab.url)}` : tab.url}
+                      className="w-full h-full border-none bg-white absolute inset-0"
+                      title={`Tab ${tab.id}`}
+                      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+                      onLoad={() => handleIframeLoad(tab.id)}
+                      onError={() => handleIframeError(tab.id)}
+                    />
+                    {blockedTabs.has(tab.id) && (
+                      <BlockedSiteFallback
+                        url={tab.url}
+                        onOpenExternal={openExternal}
+                        onTryProxy={() => {
+                          setBlockedTabs(prev => {
+                            const next = new Set(prev);
+                            next.delete(tab.id);
+                            return next;
+                          });
+                          reload();
+                        }}
+                      />
+                    )}
+                  </>
                 )}
               </div>
             ))}
@@ -443,5 +554,54 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   );
 }
 
-// Need to import Globe
-import { Globe } from 'lucide-react';
+// Globe already imported at top
+
+function BlockedSiteFallback({
+  url,
+  onOpenExternal,
+  onTryProxy,
+}: {
+  url: string;
+  onOpenExternal: (url: string) => void;
+  onTryProxy: () => void;
+}) {
+  const hostname = getHostname(url);
+  return (
+    <div className="absolute inset-0 z-20 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-8 max-w-md w-full mx-4 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto mb-5">
+          <AlertTriangle className="w-8 h-8 text-amber-500" />
+        </div>
+        <h3 className="text-xl font-semibold text-slate-800 mb-2">
+          This site blocks embedding
+        </h3>
+        <p className="text-sm text-slate-500 mb-1">
+          <span className="font-medium text-slate-700">{hostname}</span> doesn&apos;t allow
+          loading inside the browser for security reasons.
+        </p>
+        <p className="text-xs text-slate-400 mb-6">
+          This is a restriction set by the website, not by ANICHISOM OS.
+        </p>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => onOpenExternal(url)}
+            className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Open in New Tab
+          </button>
+          <button
+            onClick={onTryProxy}
+            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-xl transition-colors"
+          >
+            <RotateCw className="w-4 h-4" />
+            Try Loading Again
+          </button>
+          <div className="text-[10px] text-slate-400 mt-1">
+            {url.length > 60 ? url.substring(0, 60) + '...' : url}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

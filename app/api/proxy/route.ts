@@ -88,11 +88,18 @@ if (!globalForProxy.__anichisom_proxy_rate_limit_cleanup_interval) {
   globalForProxy.__anichisom_proxy_rate_limit_cleanup_interval = interval;
 }
 
-// --- Security: Auth check (session cookie must exist) ---
+// --- Security: Auth check (session cookie OR Supabase auth must exist) ---
 function hasAuthSession(request: NextRequest): boolean {
+  // Allow if session cookie exists (legacy dev auth)
   const sessionCookie = request.cookies.get('anichisom_session');
-  if (!sessionCookie?.value) return false;
-  return !!resolveSession(sessionCookie.value);
+  if (sessionCookie?.value && resolveSession(sessionCookie.value)) return true;
+  // Allow if Supabase auth cookie exists (sb-* cookies indicate Supabase session)
+  const cookies = request.cookies.getAll();
+  if (cookies.some(c => c.name.startsWith('sb-') && c.value)) return true;
+  // Allow if Authorization header present
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) return true;
+  return false;
 }
 
 // --- URL rewriting ---
@@ -218,26 +225,47 @@ export async function GET(request: NextRequest) {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
       },
+      redirect: 'follow',
     });
 
     if (!response.ok) {
-      return new NextResponse(`Failed to fetch page: ${response.statusText}`, { status: response.status });
+      return new NextResponse(JSON.stringify({
+        error: true,
+        status: response.status,
+        statusText: response.statusText,
+        message: `Failed to load: ${response.status} ${response.statusText}`,
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Proxy-Error': 'true',
+          'X-Proxy-Status': String(response.status),
+        },
+      });
     }
 
     const contentType = response.headers.get('content-type') || '';
+    const finalUrl = response.url || targetUrl;
 
     // HTML — rewrite URLs with restricted CSP
     if (contentType.includes('text/html')) {
       let html = await response.text();
-      html = rewriteUrls(html, targetUrl);
 
-      return new NextResponse(html, {
-        headers: {
-          'Content-Type': 'text/html; charset=utf-8',
-          'Content-Security-Policy': buildProxyCSP(proxiedOrigin),
-          'Access-Control-Allow-Origin': proxiedOrigin,
-        },
-      });
+      // Check for common block responses (sites returning auth walls or error pages)
+      const isLikelyBlocked = html.includes('X-Frame-Options') ||
+        html.includes('frame-ancestors') && html.includes("'none'") ||
+        response.headers.get('x-frame-options');
+
+      html = rewriteUrls(html, finalUrl);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Security-Policy': buildProxyCSP(proxiedOrigin),
+        'Access-Control-Allow-Origin': proxiedOrigin,
+        'X-Proxy-Final-Url': finalUrl,
+      };
+
+      return new NextResponse(html, { headers });
     }
 
     // CSS — rewrite url() references
@@ -278,6 +306,17 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // JSON (API responses)
+    if (contentType.includes('application/json')) {
+      const json = await response.text();
+      return new NextResponse(json, {
+        headers: {
+          'Content-Type': contentType,
+          'Access-Control-Allow-Origin': proxiedOrigin,
+        },
+      });
+    }
+
     // Images, fonts, media — proxy binary content
     const body = await response.arrayBuffer();
     return new NextResponse(body, {
@@ -289,7 +328,16 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown proxy error';
-    return new NextResponse(`Proxy error: ${message}`, { status: 500 });
+    return new NextResponse(JSON.stringify({
+      error: true,
+      message: `Proxy error: ${message}`,
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Proxy-Error': 'true',
+      },
+    });
   }
 }
 
