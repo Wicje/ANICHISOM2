@@ -22,7 +22,7 @@ import { PluginService } from '@/lib/services/plugin.service';
 // ─── Static catalog for apps/packs not yet in the dynamic registry ──────
 
 const STORE_APPS: Array<{ id: string; name: string; desc: string; icon: string; category: string; rating: number }> = [
-  { id: 'browser', name: 'Nite Browser', desc: 'A fast, privacy-first web browser.', icon: '🌐', category: 'productivity', rating: 4.8 },
+  { id: 'browser', name: 'Power Browser', desc: 'A fast, privacy-first web browser with pinned apps and context memory.', icon: '🌐', category: 'productivity', rating: 4.8 },
   { id: 'campaign-lab', name: 'Campaign Lab', desc: 'Surpass Notion with databases, views, and campaign management.', icon: '📊', category: 'productivity', rating: 4.9 },
   { id: 'moodboard', name: 'Moodboard Pro', desc: 'Free-form canvas surpassing Milanote with reactions, connections, and voting.', icon: '🎨', category: 'creative', rating: 4.9 },
   { id: 'files', name: 'Files Bridge', desc: 'Google Drive, Dropbox, and local files in one unified manager.', icon: '📁', category: 'productivity', rating: 4.7 },

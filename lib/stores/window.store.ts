@@ -32,7 +32,7 @@ type WindowState = {
 
 const DEFAULT_TITLES: Record<string, string> = {
   'terminal': 'Terminal',
-  'browser': 'Mini Browser',
+  'browser': 'Power Browser',
   'files': 'File Manager',
   'moodboard': 'Moodboard',
   'code': 'Code Editor',

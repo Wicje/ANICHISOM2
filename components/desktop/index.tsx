@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useWindowStore } from '@/lib/stores/window.store';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useWorkspaceStore } from '@/lib/stores/workspace.store';
@@ -41,13 +41,21 @@ function AppLoadingSkeleton() {
   );
 }
 
+function WindowErrorBoundary({ children }: { children: React.ReactNode }) {
+  return (
+    <React.Suspense fallback={<AppLoadingSkeleton />}>
+      <React.Fragment>{children}</React.Fragment>
+    </React.Suspense>
+  );
+}
+
 const MemoizedWindow = React.memo(
   ({ win, AppComponent }: { win: any; AppComponent: React.ComponentType<any> }) => {
     return (
       <WindowFrame osWindow={win}>
-        <Suspense fallback={<AppLoadingSkeleton />}>
+        <WindowErrorBoundary>
           <AppComponent window={win} />
-        </Suspense>
+        </WindowErrorBoundary>
       </WindowFrame>
     );
   },
@@ -63,7 +71,8 @@ const MemoizedWindow = React.memo(
       prev.win.width === next.win.width &&
       prev.win.height === next.win.height &&
       prev.win.workspace === next.win.workspace &&
-      prev.win.data?.fileId === next.win.data?.fileId
+      prev.win.data?.fileId === next.win.data?.fileId &&
+      prev.AppComponent === next.AppComponent
     );
   }
 );
@@ -78,9 +87,21 @@ export function Desktop() {
   const focusWindow = useWindowStore((s) => s.focusWindow);
   const minimizeWindow = useWindowStore((s) => s.minimizeWindow);
   const highestZIndex = useWindowStore((s) => s.highestZIndex);
-  const { wallpaper, themeColor, fontFamily, screenShader, performanceMode, setPerformanceMode, colorMode, setColorMode, hydrateColorMode } = useThemeStore();
-  const { activeWorkspace, setActiveWorkspace, installedApps, recentApps, snapshots, saveSnapshot, restoreSnapshot } = useWorkspaceStore();
-  const { applyWorkspaceLayout } = useWindowStore();
+  const applyWorkspaceLayout = useWindowStore((s) => s.applyWorkspaceLayout);
+  // Granular theme selectors — only re-render Desktop when these specific values change
+  const wallpaper = useThemeStore((s) => s.wallpaper);
+  const themeColor = useThemeStore((s) => s.themeColor);
+  const fontFamily = useThemeStore((s) => s.fontFamily);
+  const screenShader = useThemeStore((s) => s.screenShader);
+  const performanceMode = useThemeStore((s) => s.performanceMode);
+  const setPerformanceMode = useThemeStore((s) => s.setPerformanceMode);
+  const colorMode = useThemeStore((s) => s.colorMode);
+  const setColorMode = useThemeStore((s) => s.setColorMode);
+  const hydrateColorMode = useThemeStore((s) => s.hydrateColorMode);
+  // Granular workspace selectors
+  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
+  const installedApps = useWorkspaceStore((s) => s.installedApps);
+  const recentApps = useWorkspaceStore((s) => s.recentApps);
   const getAppPrivacy = usePrivacyStore((s) => s.getAppPrivacy);
   const { onboarding } = useOnboardingStore();
 
@@ -97,7 +118,8 @@ export function Desktop() {
   ]);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [registryVersion, setRegistryVersion] = useState(0);
-  const [componentCache, setComponentCache] = useState<Map<string, React.ComponentType<any>>>(new Map());
+  const componentCacheRef = useRef<Map<string, React.ComponentType<any>>>(new Map());
+  const [componentCacheVersion, setComponentCacheVersion] = useState(0);
 
   // Initialize plugin registry + check Supabase session
   useEffect(() => {
@@ -150,25 +172,28 @@ export function Desktop() {
     return unsub;
   }, []);
 
-  // Resolve components for open windows
+  // Resolve components for open windows (uses ref to avoid stale closure / re-trigger loop)
   useEffect(() => {
     const uncached = windows
       .map(w => w.appId)
-      .filter(id => !componentCache.has(id));
+      .filter(id => !componentCacheRef.current.has(id));
 
     if (uncached.length === 0) return;
 
     const load = async () => {
-      const newEntries = new Map(componentCache);
+      let changed = false;
       for (const appId of uncached) {
-        if (newEntries.has(appId)) continue;
+        if (componentCacheRef.current.has(appId)) continue;
         const component = await resolveAppComponent(appId);
-        if (component) newEntries.set(appId, component);
+        if (component) {
+          componentCacheRef.current.set(appId, component);
+          changed = true;
+        }
       }
-      setComponentCache(newEntries);
+      if (changed) setComponentCacheVersion(v => v + 1);
     };
     load();
-  }, [windows, componentCache]);
+  }, [windows]);
 
   // Build merged apps (manifest + plugins)
   const mergedApps = useMemo(() => {
@@ -212,7 +237,14 @@ export function Desktop() {
     });
   }, [windows, activeWorkspace, getAppPrivacy, currentUser]);
 
-  // Keyboard shortcuts (Ctrl+Tab, global config keybinds)
+  // Keyboard shortcuts — use refs for values that change often to avoid re-registering listeners
+  const windowsRef = useRef(windows);
+  windowsRef.current = windows;
+  const activeWorkspaceRef = useRef(activeWorkspace);
+  activeWorkspaceRef.current = activeWorkspace;
+  const highestZIndexRef = useRef(highestZIndex);
+  highestZIndexRef.current = highestZIndex;
+
   useEffect(() => {
     let currentKeybinds: Record<string, string> = {
       'alt+t': 'open:terminal',
@@ -242,12 +274,16 @@ export function Desktop() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
+      const curWindows = windowsRef.current;
+      const curWorkspace = activeWorkspaceRef.current;
+      const curZIndex = highestZIndexRef.current;
+
       // Ctrl+Tab window switcher
       if (e.ctrlKey && e.key === 'Tab') {
         e.preventDefault();
         setShowSwitcher(true);
         setSwitcherIndex(prev => {
-          const activeW = windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined);
+          const activeW = curWindows.filter(w => w.workspace === curWorkspace || w.workspace === undefined);
           if (activeW.length === 0) return 0;
           return (prev + 1) % activeW.length;
         });
@@ -273,18 +309,14 @@ export function Desktop() {
         } else if (action === 'action:launchpad') {
           setShowLaunchpad(prev => !prev);
         } else if (action === 'action:close-active-window') {
-          const activeW = windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined);
-          const focused = activeW.find(w => !w.isMinimized && w.zIndex >= highestZIndex);
+          const activeW = curWindows.filter(w => w.workspace === curWorkspace || w.workspace === undefined);
+          const focused = activeW.find(w => !w.isMinimized && w.zIndex >= curZIndex);
           if (focused) closeWindow(focused.id);
         } else if (action === 'action:minimize-active-window') {
-          const activeW = windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined);
-          const focused = activeW.find(w => !w.isMinimized && w.zIndex >= highestZIndex);
+          const activeW = curWindows.filter(w => w.workspace === curWorkspace || w.workspace === undefined);
+          const focused = activeW.find(w => !w.isMinimized && w.zIndex >= curZIndex);
           if (focused) minimizeWindow(focused.id);
         }
-      }
-
-      if (e.key === 'Escape' && contextMenu) {
-        setContextMenu(null);
       }
     };
 
@@ -293,7 +325,9 @@ export function Desktop() {
         if (!e.ctrlKey) {
           setShowSwitcher(false);
           setSwitcherIndex(currentIdx => {
-            const activeW = windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined);
+            const curWindows = windowsRef.current;
+            const curWorkspace = activeWorkspaceRef.current;
+            const activeW = curWindows.filter(w => w.workspace === curWorkspace || w.workspace === undefined);
             if (activeW.length > 0 && currentIdx < activeW.length) {
               focusWindow(activeW[currentIdx]!.id);
             }
@@ -310,7 +344,7 @@ export function Desktop() {
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('os:config-updated', handleConfigUpdate);
     };
-  }, [openWindow, closeWindow, minimizeWindow, focusWindow, windows, activeWorkspace, contextMenu, highestZIndex]);
+  }, [openWindow, closeWindow, minimizeWindow, focusWindow]);
 
   // Idle timer for lock screen (5 min)
   useEffect(() => {
@@ -489,8 +523,8 @@ export function Desktop() {
         {showSnapshots && <SnapshotsMenu onClose={() => setShowSnapshots(false)} />}
 
         {visibleWindows.map(win => {
-          const AppComponent = componentCache.get(win.appId);
-          if (!AppComponent) return null;
+          const AppComponent = componentCacheRef.current.get(win.appId);
+          if (!AppComponent) return <AppLoadingSkeleton key={`loading-${win.id}`} />;
           return <MemoizedWindow key={win.id} win={win} AppComponent={AppComponent} />;
         })}
       </main>

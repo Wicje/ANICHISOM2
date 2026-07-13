@@ -105,7 +105,7 @@ const DEFAULT_SMART_ROUTES: SmartRoute[] = [
   { pattern: 'application/json', appId: 'code-editor', label: 'Open in Code Editor' },
   { pattern: '*.psd', appId: 'moodboard', label: 'Open in Moodboard' },
   { pattern: '*.ai', appId: 'moodboard', label: 'Open in Moodboard' },
-  { pattern: '*.figma', appId: 'browser', label: 'Open in Browser' },
+  { pattern: '*.figma', appId: 'browser', label: 'Open in Power Browser' },
 ];
 
 // ─── Helpers ────────────────────────────────────────────────

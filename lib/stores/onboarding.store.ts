@@ -72,7 +72,7 @@ export const AVAILABLE_ROLES: RoleOption[] = [
     label: 'Marketer',
     description: 'Campaigns, analytics, and content',
     icon: '📢',
-    suggestedApps: ['campaign', 'productivity', 'calls', 'files', 'browser', 'ai', 'client-portal'],
+    suggestedApps: ['campaign', 'productivity', 'calls', 'files', 'browser', 'assistant', 'client-portal'],
   },
   {
     id: 'business',
@@ -86,7 +86,7 @@ export const AVAILABLE_ROLES: RoleOption[] = [
     label: 'Student',
     description: 'Learning, research, and projects',
     icon: '📚',
-    suggestedApps: ['files', 'terminal', 'browser', 'code', 'productivity', 'calls', 'ai'],
+    suggestedApps: ['files', 'terminal', 'browser', 'code', 'productivity', 'calls', 'assistant'],
   },
   {
     id: 'other',

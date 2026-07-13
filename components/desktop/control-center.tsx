@@ -50,7 +50,7 @@ export function ControlCenter({ onClose }: ControlCenterProps) {
           <button
             onClick={() => {
               onClose();
-              openWindow('ai-gateway', 'AI Gateway Settings');
+              openWindow('assistant', 'AI Assistant');
             }}
             className="p-3 rounded-xl flex flex-col items-start gap-2 transition-colors"
             style={{ background: '#10b981', color: 'white' }}

@@ -48,6 +48,35 @@ if (typeof window !== 'undefined') {
   (window as any).__anichisom_fs_url_cleanup = cleanup;
 }
 
+const MIME_BY_EXT: Record<string, string> = {
+  '.txt': 'text/plain', '.md': 'text/markdown', '.csv': 'text/csv',
+  '.json': 'application/json', '.xml': 'application/xml',
+  '.html': 'text/html', '.htm': 'text/html', '.css': 'text/css',
+  '.js': 'text/javascript', '.ts': 'text/typescript', '.tsx': 'text/typescript',
+  '.jsx': 'text/javascript', '.py': 'text/x-python', '.rb': 'text/x-ruby',
+  '.go': 'text/x-go', '.rs': 'text/x-rust', '.java': 'text/x-java',
+  '.c': 'text/x-c', '.cpp': 'text/x-c++', '.h': 'text/x-c',
+  '.sh': 'text/x-shellscript', '.bash': 'text/x-shellscript',
+  '.yaml': 'text/yaml', '.yml': 'text/yaml', '.toml': 'text/plain',
+  '.pdf': 'application/pdf',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
+  '.bmp': 'image/bmp', '.ico': 'image/x-icon', '.tiff': 'image/tiff',
+  '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime',
+  '.avi': 'video/x-msvideo', '.mkv': 'video/x-matroska',
+  '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg',
+  '.flac': 'audio/flac', '.aac': 'audio/aac',
+  '.zip': 'application/zip', '.tar': 'application/x-tar',
+  '.gz': 'application/gzip', '.rar': 'application/vnd.rar',
+  '.psd': 'image/vnd.adobe.photoshop', '.ai': 'application/postscript',
+  '.figma': 'application/x-figma',
+};
+
+function inferMimeType(name: string): string {
+  const ext = name.includes('.') ? '.' + name.split('.').pop()!.toLowerCase() : '';
+  return MIME_BY_EXT[ext] || 'application/octet-stream';
+}
+
 // Abstraction for File System operations allowing seamless pivot to Tauri.
 export interface LocalFile {
   id: string;
@@ -88,9 +117,22 @@ export const FS = {
         const handle = await dir.getFileHandle(name);
         const file = await handle.getFile();
         
+        // Read mimeType: try file.type, then .meta companion, then infer from extension
+        let mimeType = file.type;
+        if (!mimeType) {
+          try {
+            const metaHandle = await dir.getFileHandle(`${name}.meta`);
+            const metaFile = await metaHandle.getFile();
+            const meta = JSON.parse(await metaFile.text());
+            mimeType = meta.mimeType || '';
+          } catch {
+            mimeType = inferMimeType(name);
+          }
+        }
+
         let content = '';
         // Use Object URLs for large binaries to prevent RAM exhaustion. Text files use raw strings.
-        if (file.type.startsWith('image/') || file.type.startsWith('video/') || file.type.includes('pdf') || file.type.includes('octet-stream')) {
+        if (mimeType.startsWith('image/') || mimeType.startsWith('video/') || mimeType.includes('pdf') || mimeType.includes('octet-stream')) {
            content = rememberObjectUrl(`read:${path}`, file);
         } else {
            content = await file.text(); 
@@ -101,7 +143,7 @@ export const FS = {
           name: file.name,
           content,
           size: file.size,
-          mimeType: file.type
+          mimeType
         };
       }
     } catch (e) {
@@ -115,6 +157,7 @@ export const FS = {
 
   // Write a file to OPFS or IndexedDB
   write: async (path: string, content: string | Blob | File, mimeType?: string): Promise<void> => {
+    const resolvedMime = mimeType || (content instanceof File ? content.type : '') || inferMimeType(path.split('/').pop() || '');
     try {
       if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
         const { dir, name } = await FS._resolvePath(path, true);
@@ -124,6 +167,16 @@ export const FS = {
         const writable = await handle.createWritable();
         await writable.write(content);
         await writable.close();
+
+        // Write .meta companion file to persist mimeType
+        try {
+          const metaHandle = await dir.getFileHandle(`${name}.meta`, { create: true });
+          // @ts-ignore
+          const metaWritable = await metaHandle.createWritable();
+          await metaWritable.write(JSON.stringify({ mimeType: resolvedMime }));
+          await metaWritable.close();
+        } catch { /* meta write is best-effort */ }
+
         revokeObjectUrlForKey(`read:${path}`);
         revokeObjectUrlForKey(`dir:${path}`);
         return;
@@ -142,7 +195,7 @@ export const FS = {
       id: path,
       name: path.split('/').pop() || 'unknown',
       content: stringContent,
-      mimeType: mimeType || (content instanceof Blob ? content.type : 'text/plain'),
+      mimeType: resolvedMime,
       size: typeof content === 'string' ? content.length : content.size,
     });
   },
@@ -157,18 +210,32 @@ export const FS = {
            for await (const [name, handle] of currentDir.entries()) {
               const fullPath = currentPath ? `${currentPath}/${name}` : name;
               if (handle.kind === 'file') {
+                 // Skip .meta companion files — they're read alongside their parent
+                 if (name.endsWith('.meta')) continue;
                  try {
                     const file = await handle.getFile();
+                    // Read mimeType from .meta companion, or infer from file.type, or infer from extension
+                    let mimeType = file.type;
+                    if (!mimeType) {
+                      try {
+                        const metaHandle = await currentDir.getFileHandle(`${name}.meta`);
+                        const metaFile = await metaHandle.getFile();
+                        const meta = JSON.parse(await metaFile.text());
+                        mimeType = meta.mimeType || '';
+                      } catch {
+                        mimeType = inferMimeType(name);
+                      }
+                    }
                     // Generate Object URLs so apps can instantly render images/videos in grids without fetching payloads
                     let contentUrl = '';
-                    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+                    if (mimeType.startsWith('image/') || mimeType.startsWith('video/')) {
                        contentUrl = rememberObjectUrl(`dir:${fullPath}`, file);
                     }
                     files.push({
                       id: fullPath,
                       name: name,
                       size: file.size,
-                      mimeType: file.type,
+                      mimeType,
                       content: contentUrl
                     });
                  } catch (err) {
@@ -207,6 +274,8 @@ export const FS = {
       if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
         const { dir, name } = await FS._resolvePath(path);
         await dir.removeEntry(name, { recursive: true });
+        // Also remove .meta companion if it exists
+        try { await dir.removeEntry(`${name}.meta`); } catch { /* no meta file */ }
         return;
       }
     } catch (e) {

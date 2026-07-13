@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FS, LocalFile } from '@/lib/fs';
+import { useFileStore } from '@/lib/stores/file.store';
 import { SyncPromptBanner } from './sync-prompt-banner';
 
 type CloudSource = {
@@ -163,14 +164,22 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   }, []);
 
   const handleFileOpen = (file: LocalFile) => {
-    if (file.mimeType?.startsWith('image/')) {
-       openWindow('moodboard', 'Image Viewer', { url: file.content || file.id });
-    } else if (file.mimeType?.startsWith('video/') || file.mimeType?.startsWith('audio/')) {
-       openWindow('media-player', 'Media Player', { fileUrl: file.content || file.id, mimeType: file.mimeType });
-    } else if (file.name.toLowerCase().endsWith('.pdf')) {
-       openWindow('pdf', `Reading: ${file.name}`, { url: file.content || file.id });
+    const mime = file.mimeType || '';
+    const name = file.name;
+    const appId = useFileStore.getState().resolveSmartRoute(mime, name);
+    if (appId) {
+      const title = name;
+      if (appId === 'media-player') {
+        openWindow(appId, title, { fileUrl: file.content || file.id, mimeType: mime });
+      } else if (appId === 'moodboard') {
+        openWindow(appId, title, { url: file.content || file.id });
+      } else if (appId === 'pdf-reader') {
+        openWindow(appId, title, { url: file.content || file.id });
+      } else {
+        openWindow(appId, title, { fileId: file.id, content: file.content });
+      }
     } else {
-       openWindow('code', 'Code Editor', { fileId: file.id, content: file.content });
+      openWindow('code', name, { fileId: file.id, content: file.content });
     }
   };
 
@@ -179,16 +188,21 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
       setCloudPath(file.id);
       return;
     }
-    // Open via download proxy URL
     const downloadUrl = `/api/storage/download/${selectedSource}/${encodeURIComponent(file.id)}`;
-    if (file.mimeType?.startsWith('image/')) {
-      openWindow('moodboard', 'Image Viewer', { url: downloadUrl });
-    } else if (file.mimeType?.startsWith('video/') || file.mimeType?.startsWith('audio/')) {
-      openWindow('media-player', 'Media Player', { fileUrl: downloadUrl, mimeType: file.mimeType });
-    } else if (file.mimeType?.includes('pdf') || file.name.toLowerCase().endsWith('.pdf')) {
-      openWindow('pdf', `Reading: ${file.name}`, { url: downloadUrl });
+    const mime = file.mimeType || '';
+    const appId = useFileStore.getState().resolveSmartRoute(mime, file.name);
+    if (appId) {
+      if (appId === 'media-player') {
+        openWindow(appId, file.name, { fileUrl: downloadUrl, mimeType: mime });
+      } else if (appId === 'moodboard') {
+        openWindow(appId, file.name, { url: downloadUrl });
+      } else if (appId === 'pdf-reader') {
+        openWindow(appId, file.name, { url: downloadUrl });
+      } else {
+        openWindow(appId, file.name, { url: downloadUrl });
+      }
     } else {
-      openWindow('browser', file.name, { url: downloadUrl });
+      openWindow('power-browser', file.name, { url: downloadUrl });
     }
   };
 
