@@ -111,7 +111,7 @@ export class SupabaseAuthProvider implements AuthProvider {
 
     return {
       id: user.user?.id || '',
-      name: data.email.split('@')[0],
+      name: data.email!.split('@')[0]!,
       email: data.email,
     };
   }

@@ -7,6 +7,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { apiError, apiInternal, apiOk } from '@/lib/api-helpers';
 
 const CHALLENGE_TTL = 60_000; // 60 seconds
 const challenges = new Map<string, { challenge: string; expiresAt: number }>();
@@ -25,10 +26,7 @@ export async function POST(request: NextRequest) {
     const { username, displayName } = body;
 
     if (!username || !displayName) {
-      return NextResponse.json(
-        { error: 'username and displayName are required' },
-        { status: 400 },
-      );
+      return apiError('username and displayName are required');
     }
 
     // Generate challenge
@@ -43,7 +41,7 @@ export async function POST(request: NextRequest) {
 
     const rpId = process.env.NEXT_PUBLIC_RP_ID || 'localhost';
 
-    return NextResponse.json({
+    return apiOk({
       challengeId,
       challenge,
       rp: {
@@ -69,10 +67,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[Passkey Register] Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate registration challenge' },
-      { status: 500 },
-    );
+    return apiInternal('Failed to generate registration challenge');
   }
 }
 

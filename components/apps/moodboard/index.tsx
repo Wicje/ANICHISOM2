@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
-import { motion, useDragControls } from 'motion/react';
 import {
   MousePointer2, GripHorizontal, Type, Trash2, Link as LinkIcon, Upload,
   MessageSquare, Heart, X as XIcon, CheckCircle, Plus, Undo2, Redo2,
@@ -14,682 +13,18 @@ import {
 import { get, set } from 'idb-keyval';
 import { cn } from '@/lib/utils';
 import { useCollaborativeDoc } from '@/lib/hooks/useCollaborativeDoc';
-import { SyncPromptBanner } from './sync-prompt-banner';
-import { PerfectCursor } from 'perfect-cursors';
+import { SyncPromptBanner } from '../sync-prompt-banner';
 import { MoodboardExportService } from '@/lib/services/moodboard-export.service';
 
-// ─── Types ────────────────────────────────────────────────────────────────
-
-type NodeComment = {
-  id: string;
-  author: string;
-  text: string;
-  createdAt: number;
-  parentId?: string;
-};
-
-type BoardNode = {
-  id: string;
-  type: 'image' | 'text' | 'video' | 'embed';
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-  content: string;
-  backgroundColor?: string;
-  tags?: string[];
-  groupId?: string;
-  reactions?: Record<string, string[]>;
-  comments?: NodeComment[];
-  campaignLinkId?: string;
-  locked?: boolean;
-  label?: string;
-};
-
-type Comment = {
-  id: string;
-  x: number;
-  y: number;
-  text: string;
-  author: string;
-};
-
-type BoardGroup = {
-  id: string;
-  name: string;
-  color: string;
-  collapsed?: boolean;
-};
-
-type BoardTag = {
-  id: string;
-  name: string;
-  color: string;
-};
-
-type Connection = {
-  id: string;
-  fromId: string;
-  toId: string;
-  label?: string;
-  color?: string;
-};
-
-type CanvasMode = 'select' | 'pan' | 'comment' | 'connect';
-
-const REACTION_EMOJIS = ['❤️', '👍', '🔥', '✨', '🎯', '💡'];
-const NODE_COLORS = [
-  '#ffffff', '#fef3c7', '#dcfce7', '#dbeafe', '#fce7f3',
-  '#f3e8ff', '#e0e7ff', '#fed7aa', '#d1fae5', '#fecaca',
-  '#f5f5f4', '#1e1e1e',
-];
-const GROUP_COLORS = [
-  '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6',
-  '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#f43f5e',
-];
-const TAG_COLORS = [
-  '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6',
-  '#8b5cf6', '#ec4899', '#64748b',
-];
-const SNAP_GRID_SIZE = 24;
-
-// ─── Helpers ──────────────────────────────────────────────────────────────
-
-function usePerfectCursor(cb: (point: number[]) => void, point?: number[]) {
-  const [pc] = useState(() => new PerfectCursor(cb));
-  useEffect(() => { if (point) pc.addPoint(point); }, [pc, point]);
-  useEffect(() => () => pc.dispose(), [pc]);
-  return pc;
-}
-
-function CursorOverlay({ state }: { state: any }) {
-  const [point, setPoint] = useState([state.cursor.x, state.cursor.y]);
-  usePerfectCursor(setPoint, [state.cursor.x, state.cursor.y]);
-  return (
-    <div
-      className="absolute pointer-events-none z-50 will-change-transform"
-      style={{ left: 0, top: 0, transform: `translate(${point[0]}px, ${point[1]}px) translate(-50%, -50%)` }}
-    >
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="drop-shadow-md">
-        <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-5.01c.2-.21.49-.32.78-.32h6.79c.45 0 .67-.54.35-.85L6.35 2.85c-.31-.31-.85-.09-.85.36z" fill={state.user.color} stroke="white" strokeWidth="2"/>
-      </svg>
-      <div className="absolute top-5 left-3 px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-md whitespace-nowrap" style={{ backgroundColor: state.user.color }}>
-        {state.user.name}
-      </div>
-    </div>
-  );
-}
-
-function BlobMedia({ content, type, className }: { content: string; type: 'image' | 'video'; className?: string }) {
-  const [blobSrc, setBlobSrc] = useState<string>('');
-  useEffect(() => {
-    if (content.startsWith('local-blob:')) {
-      const id = content.split(':')[1];
-      let active = true;
-      let url = '';
-      get(`blob_${id}`).then((blob: any) => {
-        if (active && blob instanceof Blob) {
-          url = URL.createObjectURL(blob);
-          setBlobSrc(url);
-        }
-      });
-      return () => { active = false; if (url) URL.revokeObjectURL(url); };
-    }
-  }, [content]);
-  const src = content.startsWith('local-blob:') ? blobSrc : content;
-  if (!src) return <div className="w-[400px] h-[300px] bg-slate-100 animate-pulse rounded flex items-center justify-center text-xs text-black/50">Loading Media...</div>;
-  if (type === 'video') return <video src={src} className={className} controls onPointerDown={(e) => e.stopPropagation()} />;
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} className={className} alt="Media content" />;
-}
-
-const isImageUrl = (url: string) => /\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i.test(url);
-
-function getEmbedDetails(url: string) {
-  try {
-    if (url.includes('youtube.com/watch') || url.includes('youtube.com/shorts/')) {
-      const urlObj = new URL(url);
-      const v = urlObj.searchParams.get('v') || urlObj.pathname.split('/').pop();
-      return { url: `https://www.youtube.com/embed/${v}`, w: 400, h: 225 };
-    }
-    if (url.includes('youtu.be/')) {
-      const urlObj = new URL(url);
-      return { url: `https://www.youtube.com/embed${urlObj.pathname}`, w: 400, h: 225 };
-    }
-    if (url.includes('instagram.com/')) {
-      const cleanUrl = url.split('?')[0].replace(/\/$/, '');
-      return { url: `${cleanUrl}/embed`, w: 340, h: 440 };
-    }
-    if (url.includes('pinterest.com/pin/')) {
-      const parts = url.split('/');
-      const pinIndex = parts.indexOf('pin');
-      if (pinIndex !== -1 && parts[pinIndex + 1]) {
-        return { url: `https://assets.pinterest.com/ext/embed.html?id=${parts[pinIndex + 1]}`, w: 236, h: 420 };
-      }
-    }
-  } catch (_) {}
-  return { url, w: 400, h: 300 };
-}
-
-function snapToGrid(val: number, grid: number): number {
-  return Math.round(val / grid) * grid;
-}
-
-// ─── Connection Line Renderer ─────────────────────────────────────────────
-
-function ConnectionLines({ connections, nodes, camera }: { connections: Connection[]; nodes: BoardNode[]; camera: { x: number; y: number; z: number } }) {
-  return (
-    <svg className="absolute inset-0 pointer-events-none z-10" style={{ overflow: 'visible' }}>
-      {connections.map(conn => {
-        const fromNode = nodes.find(n => n.id === conn.fromId);
-        const toNode = nodes.find(n => n.id === conn.toId);
-        if (!fromNode || !toNode) return null;
-        const fromW = fromNode.width || 200;
-        const fromH = fromNode.height || (fromNode.type === 'text' ? 120 : 200);
-        const toW = toNode.width || 200;
-        const toH = toNode.height || (toNode.type === 'text' ? 120 : 200);
-        const x1 = fromNode.x + fromW / 2;
-        const y1 = fromNode.y + fromH / 2 + 24;
-        const x2 = toNode.x + toW / 2;
-        const y2 = toNode.y + toH / 2 + 24;
-        return (
-          <g key={conn.id}>
-            <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={conn.color || '#94a3b8'} strokeWidth={2} strokeDasharray="6 4" />
-            {conn.label && (
-              <text x={(x1 + x2) / 2} y={(y1 + y2) / 2 - 8} textAnchor="middle" fill={conn.color || '#64748b'} fontSize={11} fontWeight={600}>
-                {conn.label}
-              </text>
-            )}
-            <circle cx={x2} cy={y2} r={4} fill={conn.color || '#94a3b8'} />
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-// ─── Mini Map ─────────────────────────────────────────────────────────────
-
-function MiniMap({ nodes, camera, containerSize, onNavigate }: {
-  nodes: BoardNode[];
-  camera: { x: number; y: number; z: number };
-  containerSize: { w: number; h: number };
-  onNavigate: (x: number, y: number) => void;
-}) {
-  const mapW = 160;
-  const mapH = 100;
-  const bounds = useMemo(() => {
-    if (nodes.length === 0) return { minX: 0, minY: 0, maxX: 1000, maxY: 800 };
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const n of nodes) {
-      minX = Math.min(minX, n.x);
-      minY = Math.min(minY, n.y);
-      maxX = Math.max(maxX, n.x + (n.width || 200));
-      maxY = Math.max(maxY, n.y + (n.height || 200));
-    }
-    return { minX, minY, maxX, maxY };
-  }, [nodes]);
-
-  const worldW = bounds.maxX - bounds.minX + 200;
-  const worldH = bounds.maxY - bounds.minY + 200;
-  const scale = Math.min(mapW / worldW, mapH / worldH);
-
-  return (
-    <div className="absolute bottom-4 right-4 z-40 bg-white/90 border border-black/10 rounded-lg shadow-lg overflow-hidden" style={{ width: mapW, height: mapH }}>
-      <svg width={mapW} height={mapH} className="bg-slate-50">
-        {nodes.map(n => {
-          const nx = (n.x - bounds.minX + 100) * scale;
-          const ny = (n.y - bounds.minY + 100) * scale;
-          const nw = (n.width || 200) * scale;
-          const groupColor = n.groupId ? GROUP_COLORS[GROUP_COLORS.indexOf(n.groupId) % GROUP_COLORS.length] : undefined;
-          return <rect key={n.id} x={nx} y={ny} width={nw} height={4} fill={groupColor || (n.type === 'text' ? '#3b82f6' : '#94a3b8')} rx={1} />;
-        })}
-        <rect
-          x={(-camera.x / camera.z - bounds.minX + 100) * scale}
-          y={(-camera.y / camera.z - bounds.minY + 100) * scale}
-          width={containerSize.w / camera.z * scale}
-          height={containerSize.h / camera.z * scale}
-          fill="none" stroke="#3b82f6" strokeWidth={1.5} rx={2}
-        />
-      </svg>
-      <div className="absolute inset-0 cursor-pointer" onClick={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const clickY = e.clientY - rect.top;
-        const worldX = clickX / scale + bounds.minX - 100;
-        const worldY = clickY / scale + bounds.minY - 100;
-        onNavigate(-worldX * camera.z + containerSize.w / 2, -worldY * camera.z + containerSize.h / 2);
-      }} />
-    </div>
-  );
-}
-
-// ─── Resizable Draggable Node ─────────────────────────────────────────────
-
-function DraggableNode({
-  node, cameraScale, groups, tags, onDelete, onPositionChange, onContentChange,
-  onSizeChange, onToggleLock, onSetBackground, onAddTag, onRemoveTag,
-  onSetGroup, onRemoveGroup, onAddReaction, onAddComment, onSetLabel,
-  onRemoveCampaignLink, connectFromId, onConnectTo,
-}: {
-  node: BoardNode; cameraScale: number; groups: BoardGroup[]; tags: BoardTag[];
-  onDelete: () => void; onPositionChange: (x: number, y: number) => void;
-  onContentChange: (c: string) => void; onSizeChange: (w: number, h: number) => void;
-  onToggleLock: () => void; onSetBackground: (color: string) => void;
-  onAddTag: (tagId: string) => void; onRemoveTag: (tagId: string) => void;
-  onSetGroup: (groupId: string) => void; onRemoveGroup: () => void;
-  onAddReaction: (emoji: string) => void; onAddComment: (text: string) => void;
-  onSetLabel: (label: string) => void; onRemoveCampaignLink: () => void;
-  connectFromId: string | null; onConnectTo: (fromId: string, toId: string) => void;
-}) {
-  const dragControls = useDragControls();
-  const [showReactions, setShowReactions] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [showContextMenu, setShowContextMenu] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
-  const [resizeDir, setResizeDir] = useState<string>('');
-  const nodeRef = useRef<HTMLDivElement>(null);
-  const resizeStart = useRef({ x: 0, y: 0, w: 0, h: 0 });
-
-  const group = groups.find(g => g.id === node.groupId);
-  const nodeTags = tags.filter(t => node.tags?.includes(t.id));
-  const defaultW = node.type === 'text' ? 240 : node.type === 'embed' ? getEmbedDetails(node.content).w + 16 : 300;
-  const defaultH = node.type === 'text' ? 150 : node.type === 'embed' ? getEmbedDetails(node.content).h + 16 : 200;
-  const nodeW = node.width || defaultW;
-  const nodeH = node.height || defaultH;
-
-  const handleResizeStart = useCallback((dir: string, e: React.PointerEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    setIsResizing(true);
-    setResizeDir(dir);
-    resizeStart.current = { x: e.clientX, y: e.clientY, w: nodeW, h: nodeH };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  }, [nodeW, nodeH]);
-
-  const handleResizeMove = useCallback((e: React.PointerEvent) => {
-    if (!isResizing) return;
-    const dx = (e.clientX - resizeStart.current.x) / cameraScale;
-    const dy = (e.clientY - resizeStart.current.y) / cameraScale;
-    let newW = resizeStart.current.w;
-    let newH = resizeStart.current.h;
-    if (resizeDir.includes('e')) newW = Math.max(100, resizeStart.current.w + dx);
-    if (resizeDir.includes('w')) newW = Math.max(100, resizeStart.current.w - dx);
-    if (resizeDir.includes('s')) newH = Math.max(60, resizeStart.current.h + dy);
-    if (resizeDir.includes('n')) newH = Math.max(60, resizeStart.current.h - dy);
-    onSizeChange(newW, newH);
-  }, [isResizing, resizeDir, cameraScale, onSizeChange]);
-
-  const handleResizeEnd = useCallback(() => {
-    setIsResizing(false);
-    setResizeDir('');
-  }, []);
-
-  // Connect mode: clicking this node becomes the target
-  const isConnectTarget = connectFromId !== null && connectFromId !== node.id;
-
-  return (
-    <motion.div
-      ref={nodeRef}
-      drag={!node.locked && !isResizing}
-      dragControls={dragControls}
-      dragListener={false}
-      dragMomentum={false}
-      initial={{ x: node.x, y: node.y, opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      onDragEnd={(_, info) => {
-        onPositionChange(node.x + info.offset.x / cameraScale, node.y + info.offset.y / cameraScale);
-      }}
-      onPointerMove={isResizing ? handleResizeMove : undefined}
-      onPointerUp={isResizing ? handleResizeEnd : undefined}
-      className={cn(
-        "absolute group rounded-xl shadow-lg border transition-shadow",
-        node.locked ? "border-slate-300" : "border-black/10",
-        isConnectTarget ? "ring-2 ring-blue-500 ring-offset-2" : "",
-        "hover:shadow-xl",
-      )}
-      style={{
-        width: nodeW,
-        minHeight: nodeH,
-        backgroundColor: node.backgroundColor || '#ffffff',
-        position: 'absolute',
-      }}
-      onPointerDown={(e) => {
-        if (isConnectTarget) {
-          onConnectTo(connectFromId, node.id);
-          return;
-        }
-        if (!node.locked && !isResizing) {
-          dragControls.start(e);
-        }
-      }}
-      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setShowContextMenu(!showContextMenu); }}
-    >
-      {/* Drag handle header */}
-      <div
-        className={cn(
-          "h-7 w-full rounded-t-xl flex items-center justify-between px-2 transition-opacity cursor-grab active:cursor-grabbing",
-          node.locked ? "bg-slate-200 opacity-100" : "bg-slate-50/80 border-b border-black/5 opacity-0 group-hover:opacity-100",
-        )}
-        onPointerDown={(e) => { if (!node.locked) dragControls.start(e); }}
-      >
-        <div className="flex items-center gap-1">
-          <GripHorizontal className="w-3 h-3 text-slate-400" />
-          {node.label && <span className="text-[10px] font-bold text-black/40 truncate max-w-[100px]">{node.label}</span>}
-          {node.locked && <Lock className="w-3 h-3 text-slate-400" />}
-          {node.campaignLinkId && <ExternalLink className="w-3 h-3 text-blue-400" />}
-        </div>
-        <div className="flex items-center gap-1">
-          {group && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: group.color + '30', color: group.color }}>{group.name}</span>}
-          <button onPointerDown={(e) => e.stopPropagation()} onClick={onDelete} className="hover:bg-rose-100 p-0.5 rounded text-rose-500 opacity-0 group-hover:opacity-100">
-            <Trash2 className="w-3 h-3" />
-          </button>
-        </div>
-      </div>
-
-      {/* Tags row */}
-      {nodeTags.length > 0 && (
-        <div className="flex flex-wrap gap-1 px-3 pt-1">
-          {nodeTags.map(tag => (
-            <span key={tag.id} className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5" style={{ backgroundColor: tag.color + '20', color: tag.color }}>
-              {tag.name}
-              <button onClick={() => onRemoveTag(tag.id)} className="hover:opacity-100 opacity-60">×</button>
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Content */}
-      {node.type === 'text' && (
-        <div className="p-3 font-sans text-black" style={{ minHeight: nodeH - 28 - (nodeTags.length > 0 ? 20 : 0) }}>
-          <textarea
-            className="w-full bg-transparent border-none outline-none resize-none"
-            value={node.content}
-            onChange={(e) => onContentChange(e.target.value)}
-            spellCheck={false}
-            onPointerDown={(e) => e.stopPropagation()}
-            placeholder="Type or paste text..."
-            style={{ minHeight: nodeH - 60 }}
-          />
-        </div>
-      )}
-
-      {node.type === 'image' && (
-        <div className="p-2 pointer-events-none">
-          <BlobMedia content={node.content} type="image" className={cn("object-cover rounded pointer-events-none", `max-w-[${nodeW}px]`)} />
-        </div>
-      )}
-
-      {node.type === 'video' && (
-        <div className="p-2" style={{ maxWidth: nodeW - 16 }}>
-          <BlobMedia content={node.content} type="video" className="object-cover rounded max-w-full" />
-        </div>
-      )}
-
-      {node.type === 'embed' && (
-        <div className="p-2" style={{ width: getEmbedDetails(node.content).w + 16, height: getEmbedDetails(node.content).h + 16 }}>
-          <iframe
-            src={getEmbedDetails(node.content).url}
-            className="w-full h-full border-none rounded pointer-events-auto"
-            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
-            onPointerDown={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
-
-      {/* Reactions row */}
-      {node.reactions && Object.keys(node.reactions).length > 0 && (
-        <div className="flex flex-wrap gap-1 px-3 pb-1">
-          {Object.entries(node.reactions).map(([emoji, users]) => (
-            <button
-              key={emoji}
-              onClick={() => onAddReaction(emoji)}
-              className="text-xs px-1.5 py-0.5 rounded-full bg-black/5 hover:bg-black/10 transition-colors flex items-center gap-0.5"
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              {emoji} <span className="text-black/50">{users.length}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Comment count indicator */}
-      {node.comments && node.comments.length > 0 && (
-        <div className="px-3 pb-2">
-          <button
-            onClick={() => setShowComments(!showComments)}
-            className="text-[10px] text-blue-500 hover:text-blue-600 flex items-center gap-1 font-bold"
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            <MessageSquare className="w-3 h-3" /> {node.comments.length} comment{node.comments.length > 1 ? 's' : ''}
-          </button>
-        </div>
-      )}
-
-      {/* Quick action bar (appears on hover) */}
-      <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 bg-white shadow-md rounded-full px-1 py-0.5 border border-black/10 z-20">
-        <button onClick={() => setShowReactions(!showReactions)} className="w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-slate-100" onPointerDown={(e) => e.stopPropagation()} title="React">😊</button>
-        <button onClick={() => setShowComments(!showComments)} className="w-6 h-6 rounded flex items-center justify-center hover:bg-slate-100 text-black/50" onPointerDown={(e) => e.stopPropagation()} title="Comment">
-          <MessageSquare className="w-3 h-3" />
-        </button>
-        <button onClick={onToggleLock} className="w-6 h-6 rounded flex items-center justify-center hover:bg-slate-100 text-black/50" onPointerDown={(e) => e.stopPropagation()} title={node.locked ? 'Unlock' : 'Lock'}>
-          {node.locked ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-        </button>
-      </div>
-
-      {/* Reaction picker popup */}
-      {showReactions && (
-        <div className="absolute top-8 left-0 bg-white shadow-xl rounded-lg border border-black/10 p-1.5 flex gap-1 z-30" onPointerDown={(e) => e.stopPropagation()}>
-          {REACTION_EMOJIS.map(emoji => (
-            <button key={emoji} onClick={() => { onAddReaction(emoji); setShowReactions(false); }} className="w-7 h-7 rounded hover:bg-slate-100 flex items-center justify-center text-sm transition-colors">
-              {emoji}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Comment thread panel */}
-      {showComments && (
-        <div className="absolute top-8 right-0 w-64 bg-white shadow-xl rounded-lg border border-black/10 z-30" onPointerDown={(e) => e.stopPropagation()}>
-          <div className="p-2 border-b border-black/5 flex items-center justify-between">
-            <span className="text-xs font-bold text-black/60">Comments</span>
-            <button onClick={() => setShowComments(false)} className="text-black/40 hover:text-black"><XIcon className="w-3 h-3" /></button>
-          </div>
-          <div className="max-h-[200px] overflow-y-auto p-2 space-y-2">
-            {(node.comments || []).map(c => (
-              <div key={c.id} className="text-xs">
-                <div className="font-bold text-black/50">{c.author}</div>
-                <div className="text-black/80">{c.text}</div>
-              </div>
-            ))}
-          </div>
-          <div className="p-2 border-t border-black/5 flex gap-1">
-            <input
-              className="flex-1 text-xs border border-black/10 rounded px-2 py-1 outline-none focus:border-blue-400"
-              placeholder="Add comment..."
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                  onAddComment(e.currentTarget.value.trim());
-                  e.currentTarget.value = '';
-                }
-              }}
-            />
-            <button className="w-6 h-6 rounded flex items-center justify-center bg-blue-500 text-white hover:bg-blue-600">
-              <Send className="w-3 h-3" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Context menu */}
-      {showContextMenu && (
-        <div className="absolute top-8 left-0 bg-white shadow-xl rounded-lg border border-black/10 py-1 z-30 w-48" onPointerDown={(e) => e.stopPropagation()}>
-          <button onClick={() => { onSetLabel(prompt('Set label:', node.label || '') || ''); setShowContextMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 flex items-center gap-2">
-            <Tag className="w-3 h-3" /> Set Label
-          </button>
-          <button onClick={() => { onSetGroup(prompt('Group ID (or empty to remove):', node.groupId || '') || ''); setShowContextMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 flex items-center gap-2">
-            <Group className="w-3 h-3" /> Set Group
-          </button>
-          <button onClick={() => { onRemoveGroup(); setShowContextMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 flex items-center gap-2">
-            <Minus className="w-3 h-3" /> Remove Group
-          </button>
-          <button onClick={() => { onRemoveCampaignLink(); setShowContextMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 flex items-center gap-2">
-            <ExternalLink className="w-3 h-3" /> Unlink Campaign
-          </button>
-          <div className="border-t border-black/5 my-1" />
-          <div className="px-3 py-1 text-[10px] font-bold text-black/30 uppercase">Background</div>
-          <div className="px-2 pb-1 flex flex-wrap gap-1">
-            {NODE_COLORS.map(color => (
-              <button key={color} onClick={() => { onSetBackground(color); setShowContextMenu(false); }} className="w-5 h-5 rounded border border-black/10 hover:scale-110 transition-transform" style={{ backgroundColor: color }} />
-            ))}
-          </div>
-          <div className="border-t border-black/5 my-1" />
-          <button onClick={() => { onDelete(); setShowContextMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-rose-50 text-rose-500 flex items-center gap-2">
-            <Trash2 className="w-3 h-3" /> Delete
-          </button>
-        </div>
-      )}
-
-      {/* Resize handles */}
-      {!node.locked && (
-        <>
-          <div className="absolute -right-1 -bottom-1 w-4 h-4 cursor-se-resize opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleResizeStart('se', e)} style={{ background: 'transparent' }}>
-            <div className="w-2 h-2 bg-slate-400 rounded-bl absolute right-0.5 bottom-0.5" />
-          </div>
-          <div className="absolute -right-1 top-3 w-4 h-4 cursor-e-resize opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleResizeStart('e', e)} style={{ background: 'transparent' }} />
-          <div className="absolute left-3 -bottom-1 w-4 h-4 cursor-s-resize opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => handleResizeStart('s', e)} style={{ background: 'transparent' }} />
-        </>
-      )}
-    </motion.div>
-  );
-}
-
-// ─── Sidebar Panel ────────────────────────────────────────────────────────
-
-function MoodboardSidebar({
-  groups, tags, connections, nodes,
-  onCreateGroup, onDeleteGroup, onCreateTag, onDeleteTag,
-  onDeleteConnection, onFilterTag, onFilterGroup, activeFilter,
-  onAutoArrange,
-}: {
-  groups: BoardGroup[]; tags: BoardTag[]; connections: Connection[]; nodes: BoardNode[];
-  onCreateGroup: (name: string, color: string) => void; onDeleteGroup: (id: string) => void;
-  onCreateTag: (name: string, color: string) => void; onDeleteTag: (id: string) => void;
-  onDeleteConnection: (id: string) => void;
-  onFilterTag: (tagId: string | null) => void; onFilterGroup: (groupId: string | null) => void;
-  activeFilter: { tagId: string | null; groupId: string | null };
-  onAutoArrange: () => void;
-}) {
-  const [section, setSection] = useState<'groups' | 'tags' | 'layout' | 'connections'>('groups');
-
-  return (
-    <div className="absolute top-4 left-4 bottom-4 w-52 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-black/10 z-40 overflow-y-auto">
-      <div className="p-3 border-b border-black/5">
-        <div className="text-xs font-bold text-black/40 uppercase tracking-wider">Organize</div>
-      </div>
-
-      {/* Section tabs */}
-      <div className="flex border-b border-black/5">
-        {(['groups', 'tags', 'layout', 'connections'] as const).map(s => (
-          <button key={s} onClick={() => setSection(s)} className={cn(
-            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors",
-            section === s ? "text-black bg-slate-50" : "text-black/30 hover:text-black/50",
-          )}>
-            {s === 'connections' ? 'lines' : s}
-          </button>
-        ))}
-      </div>
-
-      <div className="p-2">
-        {section === 'groups' && (
-          <div className="space-y-1">
-            {groups.map(g => (
-              <div key={g.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-50 group/item">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: g.color }} />
-                <span className="text-xs font-medium flex-1 truncate">{g.name}</span>
-                <span className="text-[10px] text-black/30">{nodes.filter(n => n.groupId === g.id).length}</span>
-                <button onClick={() => onFilterGroup(activeFilter.groupId === g.id ? null : g.id)} className={cn(
-                  "w-5 h-5 rounded flex items-center justify-center transition-colors",
-                  activeFilter.groupId === g.id ? "bg-blue-500 text-white" : "text-black/30 hover:text-black/60",
-                )}>
-                  <Filter className="w-3 h-3" />
-                </button>
-                <button onClick={() => onDeleteGroup(g.id)} className="w-5 h-5 rounded text-rose-400 opacity-0 group-hover/item:opacity-100 hover:bg-rose-50">
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-            <button onClick={() => {
-              const name = prompt('Group name:');
-              if (name) onCreateGroup(name, GROUP_COLORS[groups.length % GROUP_COLORS.length]);
-            }} className="w-full text-xs text-blue-500 hover:text-blue-600 py-1 flex items-center justify-center gap-1">
-              <Plus className="w-3 h-3" /> Add Group
-            </button>
-          </div>
-        )}
-
-        {section === 'tags' && (
-          <div className="space-y-1">
-            {tags.map(t => (
-              <div key={t.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-50 group/item">
-                <div className="w-3 h-3 rounded" style={{ backgroundColor: t.color }} />
-                <span className="text-xs font-medium flex-1 truncate">{t.name}</span>
-                <span className="text-[10px] text-black/30">{nodes.filter(n => n.tags?.includes(t.id)).length}</span>
-                <button onClick={() => onFilterTag(activeFilter.tagId === t.id ? null : t.id)} className={cn(
-                  "w-5 h-5 rounded flex items-center justify-center transition-colors",
-                  activeFilter.tagId === t.id ? "bg-blue-500 text-white" : "text-black/30 hover:text-black/60",
-                )}>
-                  <Filter className="w-3 h-3" />
-                </button>
-                <button onClick={() => onDeleteTag(t.id)} className="w-5 h-5 rounded text-rose-400 opacity-0 group-hover/item:opacity-100 hover:bg-rose-50">
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-            <button onClick={() => {
-              const name = prompt('Tag name:');
-              if (name) onCreateTag(name, TAG_COLORS[tags.length % TAG_COLORS.length]);
-            }} className="w-full text-xs text-blue-500 hover:text-blue-600 py-1 flex items-center justify-center gap-1">
-              <Plus className="w-3 h-3" /> Add Tag
-            </button>
-          </div>
-        )}
-
-        {section === 'layout' && (
-          <div className="space-y-2">
-            <button onClick={onAutoArrange} className="w-full text-xs bg-slate-50 hover:bg-slate-100 rounded-lg py-2 flex items-center justify-center gap-1 text-black/60">
-              <LayoutGrid className="w-3 h-3" /> Auto-Arrange Grid
-            </button>
-            <div className="text-[10px] text-black/30 text-center">Arrange items in a neat grid layout</div>
-          </div>
-        )}
-
-        {section === 'connections' && (
-          <div className="space-y-1">
-            {connections.length === 0 && (
-              <div className="text-xs text-black/30 text-center py-4">No connections yet. Use the Connect tool to draw lines between items.</div>
-            )}
-            {connections.map(c => {
-              const from = nodes.find(n => n.id === c.fromId);
-              const to = nodes.find(n => n.id === c.toId);
-              return (
-                <div key={c.id} className="flex items-center gap-1 px-2 py-1.5 rounded hover:bg-slate-50 group/item">
-                  <ArrowRight className="w-3 h-3 text-slate-400" />
-                  <span className="text-[10px] truncate flex-1">{from?.label || from?.content.slice(0, 20) || '?'} → {to?.label || to?.content.slice(0, 20) || '?'}</span>
-                  <button onClick={() => onDeleteConnection(c.id)} className="w-5 h-5 rounded text-rose-400 opacity-0 group-hover/item:opacity-100 hover:bg-rose-50">
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Main Moodboard Component ─────────────────────────────────────────────
+import type { BoardNode, Comment, Connection, CanvasMode, BoardGroup, BoardTag } from './types';
+import { REACTION_EMOJIS, NODE_COLORS, GROUP_COLORS, TAG_COLORS, SNAP_GRID_SIZE } from './types';
+import { isImageUrl, getEmbedDetails, snapToGrid } from './helpers';
+import { CursorOverlay } from './cursor-overlay';
+import { BlobMedia } from './blob-media';
+import { ConnectionLines } from './connection-lines';
+import { MiniMap } from './minimap';
+import { DraggableNode } from './draggable-node';
+import { MoodboardSidebar } from './sidebar';
 
 export function Moodboard({ window: osWindow }: { window: OSWindow }) {
   const { workspaceMode, openWindow } = useOS();
@@ -739,10 +74,8 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showCampaignLink, setShowCampaignLink] = useState<string | null>(null);
 
-  // Sync prompt state for large files
   const [syncPromptFile, setSyncPromptFile] = useState<{ name: string; size: number; type: string } | null>(null);
 
-  // Sync Yjs → React
   useEffect(() => {
     if (!collab.synced) return;
     const yNodes = collab.sharedTypesRef.current.nodes;
@@ -774,7 +107,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     };
   }, [collab.synced, collab.sharedTypesRef]);
 
-  // Inject data from window param
   useEffect(() => {
     if (collab.synced && osWindow.data?.url) {
       const yNodes = collab.sharedTypesRef.current.nodes;
@@ -788,7 +120,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     }
   }, [osWindow.data?.url, collab.synced, collab.sharedTypesRef]);
 
-  // Listen for browser clip events
   useEffect(() => {
     const handleClip = (e: CustomEvent) => {
       const { url, title, image } = e.detail || {};
@@ -809,7 +140,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     return () => window.removeEventListener('os:clip-to-moodboard', handleClip as EventListener);
   }, [collab.synced, collab.sharedTypesRef, camera, osWindow.width, osWindow.height]);
 
-  // Wheel zoom/pan
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -837,8 +167,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     return () => container.removeEventListener('wheel', onWheel);
   }, []);
 
-  // ─── Yjs write helpers ──────────────────────────────────────────────────
-
   const _updateYNode = useCallback((newVals: Partial<BoardNode> & { id: string }) => {
     const yNodes = collab.sharedTypesRef.current.nodes;
     if (yNodes) {
@@ -862,8 +190,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
   const undo = collab.undo;
   const redo = collab.redo;
 
-  // ─── Node actions ────────────────────────────────────────────────────────
-
   const centerCanvasX = useCallback(() => (osWindow.width / 2 - camera.x) / camera.z, [osWindow.width, camera.x, camera.z]);
   const centerCanvasY = useCallback(() => (osWindow.height / 2 - camera.y) / camera.z, [osWindow.height, camera.y, camera.z]);
 
@@ -883,7 +209,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     _updateYNode({ id: newId, type, x: centerCanvasX(), y: centerCanvasY(), content: `local-blob:${fileId}` });
     if (fileInputRef.current) fileInputRef.current.value = '';
 
-    // Prompt sync for large files (>5MB)
     if (file.size > 5 * 1024 * 1024) {
       setSyncPromptFile({ name: file.name, size: file.size, type: file.type });
     }
@@ -904,7 +229,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
 
   const deleteNode = useCallback((id: string) => {
     collab.sharedTypesRef.current.nodes?.delete(id);
-    // Also remove connections involving this node
     const yConns = collab.sharedTypesRef.current.connections;
     if (yConns) {
       Array.from(yConns.entries()).forEach((entry) => {
@@ -928,8 +252,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     collab.sharedTypesRef.current.connections?.delete(id);
   }, [collab.sharedTypesRef]);
 
-  // ─── Group/Tag actions ──────────────────────────────────────────────────
-
   const createGroup = useCallback((name: string, color: string) => {
     const yGroups = collab.sharedTypesRef.current.groups;
     if (yGroups) {
@@ -940,7 +262,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
 
   const deleteGroup = useCallback((id: string) => {
     collab.sharedTypesRef.current.groups?.delete(id);
-    // Remove group assignment from nodes
     const yNodes = collab.sharedTypesRef.current.nodes;
     if (yNodes) {
       Array.from(yNodes.entries()).forEach((entry) => {
@@ -960,7 +281,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
 
   const deleteTag = useCallback((id: string) => {
     collab.sharedTypesRef.current.tags?.delete(id);
-    // Remove tag from nodes
     const yNodes = collab.sharedTypesRef.current.nodes;
     if (yNodes) {
       Array.from(yNodes.entries()).forEach((entry) => {
@@ -969,8 +289,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
       });
     }
   }, [collab.sharedTypesRef]);
-
-  // ─── Node mutation helpers ──────────────────────────────────────────────
 
   const updateNodePosition = useCallback((id: string, x: number, y: number) => {
     if (snapEnabled) {
@@ -1038,7 +356,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
       if (!current.includes(userId)) {
         _updateYNode({ id: nodeId, reactions: { ...reactions, [emoji]: [...current, userId] } });
       } else {
-        // Toggle off if already reacted
         _updateYNode({ id: nodeId, reactions: { ...reactions, [emoji]: current.filter((u: string) => u !== userId) } });
       }
     }
@@ -1049,7 +366,7 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     if (yNodes) {
       const existing = yNodes.get(nodeId) || {};
       const currentComments = existing.comments || [];
-      const newComment: NodeComment = { id: crypto.randomUUID(), author: 'Guest', text, createdAt: Date.now() };
+      const newComment: import('./types').NodeComment = { id: crypto.randomUUID(), author: 'Guest', text, createdAt: Date.now() };
       _updateYNode({ id: nodeId, comments: [...currentComments, newComment] });
     }
   }, [_updateYNode, collab.sharedTypesRef]);
@@ -1062,8 +379,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     _updateYNode({ id: nodeId, campaignLinkId: undefined });
   }, [_updateYNode]);
 
-  // ─── Filter ──────────────────────────────────────────────────────────────
-
   const filteredNodes = useMemo(() => {
     let result = nodes;
     if (activeFilter.tagId) {
@@ -1074,8 +389,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     }
     return result;
   }, [nodes, activeFilter]);
-
-  // ─── Auto-arrange ────────────────────────────────────────────────────────
 
   const autoArrange = useCallback(() => {
     const yNodes = collab.sharedTypesRef.current.nodes;
@@ -1091,8 +404,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
       yNodes.set(nid, { ...node, x: 100 + col * gapX, y: 100 + row * gapY });
     });
   }, [collab.sharedTypesRef]);
-
-  // ─── Zoom controls ──────────────────────────────────────────────────────
 
   const zoomIn = useCallback(() => {
     setCamera(prev => {
@@ -1142,8 +453,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     setCamera({ x: cx - centerX * z, y: cy - centerY * z, z });
   }, [nodes, osWindow.width, osWindow.height]);
 
-  // ─── Export ──────────────────────────────────────────────────────────────
-
   const exportJSON = useCallback(() => {
     const data = { nodes, comments, connections, groups, tags, exportedAt: Date.now(), projectId };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1160,8 +469,8 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
       content: n.content, label: n.label, backgroundColor: n.backgroundColor,
       tags: n.tags, reactions: n.reactions,
     }));
-    const { MoodboardExportService } = await import('@/lib/services/moodboard-export.service');
-    await MoodboardExportService.exportPNG(exportNodes, { format: 'png', filename: `moodboard-${projectId}.png` });
+    const { MoodboardExportService: ExportSvc } = await import('@/lib/services/moodboard-export.service');
+    await ExportSvc.exportPNG(exportNodes, { format: 'png', filename: `moodboard-${projectId}.png` });
     setShowExportMenu(false);
   }, [nodes, projectId]);
 
@@ -1176,14 +485,10 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     setShowExportMenu(false);
   }, [nodes, connections, projectId]);
 
-  // ─── Campaign linking ────────────────────────────────────────────────────
-
   const linkToCampaign = useCallback((nodeId: string, campaignPageId: string) => {
     _updateYNode({ id: nodeId, campaignLinkId: campaignPageId });
     setShowCampaignLink(null);
   }, [_updateYNode]);
-
-  // ─── Pointer handlers ────────────────────────────────────────────────────
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (e.button === 1 || e.button === 2 || mode === 'pan') {
@@ -1223,16 +528,14 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     e.currentTarget.releasePointerCapture(e.pointerId);
   }, []);
 
-  // ─── Paste handler ──────────────────────────────────────────────────────
-
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const activeElement = document.activeElement;
     if (activeElement && activeElement.tagName === 'TEXTAREA') return;
     const items = e.clipboardData?.items;
     if (!items) return;
     for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf('image') !== -1) {
-        const file = items[i].getAsFile();
+      if (items[i]!.type.indexOf('image') !== -1) {
+        const file = items[i]!.getAsFile();
         if (file) {
           const reader = new FileReader();
           reader.onload = async () => {
@@ -1255,13 +558,10 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     }
   }, [_updateYNode, centerCanvasX, centerCanvasY, processUrl]);
 
-  // ─── Presentation mode ──────────────────────────────────────────────────
-
   const presentableNodes = useMemo(() => nodes.filter(n => n.type === 'image' || n.type === 'embed' || (n.type === 'text' && n.content.length > 10)), [nodes]);
 
   if (!collab.synced) return null;
 
-  // ─── Presentation mode overlay ──────────────────────────────────────────
   if (presentMode) {
     const node = presentableNodes[presentIndex];
     return (
@@ -1294,8 +594,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     );
   }
 
-  // ─── Main render ────────────────────────────────────────────────────────
-
   return (
     <div
       ref={containerRef}
@@ -1324,10 +622,8 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
         }}
       />
 
-      {/* Connection lines (rendered below nodes in z-order) */}
       <ConnectionLines connections={connections} nodes={filteredNodes} camera={camera} />
 
-      {/* Canvas with nodes */}
       <div className="absolute inset-0 origin-top-left" style={{ transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.z})` }}>
         {filteredNodes.map(node => (
           <DraggableNode
@@ -1497,7 +793,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
         </button>
       </div>
 
-      {/* Mini Map */}
       <MiniMap
         nodes={nodes}
         camera={camera}
@@ -1523,7 +818,7 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
                 <div className="absolute inset-0 p-4 flex items-center justify-center bg-black/50 pointer-events-none">
                   {(() => {
                     const voteNodes = nodes.filter(n => n.type === 'image' || n.type === 'embed');
-                    const node = voteNodes[currentVoteIndex];
+                    const node = voteNodes[currentVoteIndex]!;
                     if (node.type === 'image') return <BlobMedia content={node.content} type="image" className="max-w-full max-h-full object-contain rounded" />;
                     return <div className="text-white/50 bg-black/50 p-4 rounded text-center">Video/Embed Item<br/><span className="text-xs break-all">{node.content}</span></div>;
                   })()}
@@ -1599,3 +894,5 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     </div>
   );
 }
+
+export default Moodboard;

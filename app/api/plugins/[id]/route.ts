@@ -8,7 +8,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveSession } from '@/lib/session-store';
+import {
+  requireSession,
+  apiOk,
+  apiNotFound,
+  apiForbidden,
+  apiInternal,
+} from '@/lib/api-helpers';
 
 // Re-export the plugin store type
 interface PluginListing {
@@ -47,13 +53,13 @@ export async function GET(
     const plugin = store.get(id);
 
     if (!plugin) {
-      return NextResponse.json({ error: 'Plugin not found' }, { status: 404 });
+      return apiNotFound('Plugin not found');
     }
 
-    return NextResponse.json({ plugin });
+    return apiOk({ plugin });
   } catch (error) {
     console.error('[plugins/id] GET Error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return apiInternal();
   }
 }
 
@@ -64,35 +70,29 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Auth check
-    const sessionCookie = request.cookies.get('anichisom_session');
-    if (!sessionCookie || !sessionCookie.value) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
+    const authResult = requireSession(request);
+    if (!authResult.ok) return authResult.response;
 
-    const sessionData = resolveSession(sessionCookie.value);
-    if (!sessionData) {
-      return NextResponse.json({ error: 'Session expired' }, { status: 401 });
-    }
+    const sessionData = authResult.session;
 
     const { id } = await params;
     const store = getPluginStore();
     const plugin = store.get(id);
 
     if (!plugin) {
-      return NextResponse.json({ error: 'Plugin not found' }, { status: 404 });
+      return apiNotFound('Plugin not found');
     }
 
     // Only the publisher or an admin can delete
     if (plugin.publisherId !== sessionData.uniqueId && sessionData.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden — you are not the publisher of this plugin' }, { status: 403 });
+      return apiForbidden('Forbidden — you are not the publisher of this plugin');
     }
 
     store.delete(id);
 
-    return NextResponse.json({ message: 'Plugin removed successfully' });
+    return apiOk({ message: 'Plugin removed successfully' });
   } catch (error) {
     console.error('[plugins/id] DELETE Error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return apiInternal();
   }
 }

@@ -8,7 +8,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveSession } from '@/lib/session-store';
+import {
+  requireSession,
+  apiNotFound,
+  apiForbidden,
+  apiInternal,
+} from '@/lib/api-helpers';
 import { getStorageConnector } from '@/lib/storage-connectors/connector-registry';
 
 export async function GET(
@@ -18,27 +23,21 @@ export async function GET(
   try {
     const { provider, fileId } = await params;
 
-    // Auth check
-    const sessionCookie = request.cookies.get('anichisom_session');
-    if (!sessionCookie || !sessionCookie.value) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
+    const authResult = requireSession(request);
+    if (!authResult.ok) return authResult.response;
 
-    const sessionData = resolveSession(sessionCookie.value);
-    if (!sessionData) {
-      return NextResponse.json({ error: 'Session expired' }, { status: 401 });
-    }
+    const sessionData = authResult.session;
 
     // Get connector
     let connector;
     try {
       connector = getStorageConnector(provider);
     } catch {
-      return NextResponse.json({ error: `Unknown provider: ${provider}` }, { status: 404 });
+      return apiNotFound(`Unknown provider: ${provider}`);
     }
 
     if (!(await connector.isConnected(sessionData.userId))) {
-      return NextResponse.json({ error: `Provider "${provider}" not connected.` }, { status: 403 });
+      return apiForbidden(`Provider "${provider}" not connected.`);
     }
 
     // Read file content from cloud storage
@@ -61,6 +60,6 @@ export async function GET(
     });
   } catch (error) {
     console.error('[storage/download] Error:', error);
-    return NextResponse.json({ error: 'Download failed' }, { status: 500 });
+    return apiInternal('Download failed');
   }
 }

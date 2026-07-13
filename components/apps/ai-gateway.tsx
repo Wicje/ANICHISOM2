@@ -127,7 +127,7 @@ export function AIGateway({ window }: { window: OSWindow }) {
             // Use default model for the selected provider
             const pInfo = providerMap.get(savedProvider);
             if (pInfo && (pInfo.models?.length ?? 0) > 0) {
-              setSelectedModel(pInfo.models[0].id);
+              setSelectedModel(pInfo.models![0]!.id);
             }
           }
 
@@ -265,19 +265,19 @@ export function AIGateway({ window }: { window: OSWindow }) {
   const availableCount = providers.filter(p => p.available && p.models.length > 0).length;
   const totalRegistered = providers.length;
 
-  if (!isLoaded) return <div className="p-8 text-[#888]">Loading AI Gateway...</div>;
+  if (!isLoaded) return <div className="p-8 text-[var(--os-text-muted)]">Loading AI Gateway...</div>;
 
   return (
     <div className="w-full h-full flex flex-col bg-[#0a0a0a] text-white font-sans overflow-hidden">
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <div className="w-64 bg-[#111] border-r border-[#222] flex flex-col shrink-0">
-          <div className="p-4 border-b border-[#222]">
+        <div className="w-64 bg-[#111] border-r border-[var(--os-border)] flex flex-col shrink-0">
+          <div className="p-4 border-b border-[var(--os-border)]">
             <h2 className="text-sm font-semibold flex items-center gap-2 text-emerald-400">
               <Bot className="w-4 h-4" />
               AI Gateway Console
             </h2>
-            <p className="text-xs text-[#888] mt-1">Multi-provider AI. You pick your model.</p>
+            <p className="text-xs text-[var(--os-text-muted)] mt-1">Multi-provider AI. You pick your model.</p>
           </div>
 
           <div className="p-2 space-y-1">
@@ -285,7 +285,7 @@ export function AIGateway({ window }: { window: OSWindow }) {
               onClick={() => setActiveTab('chat')}
               className={cn(
                 "w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors",
-                activeTab === 'chat' ? "bg-emerald-500/10 text-emerald-400 font-medium" : "text-[#aaa] hover:bg-[#222]"
+                activeTab === 'chat' ? "bg-emerald-500/10 text-emerald-400 font-medium" : "text-[var(--os-text-muted)] hover:bg-[var(--os-border)]"
               )}
             >
               <Zap className="w-4 h-4" />
@@ -295,7 +295,7 @@ export function AIGateway({ window }: { window: OSWindow }) {
               onClick={() => setActiveTab('config')}
               className={cn(
                 "w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors",
-                activeTab === 'config' ? "bg-emerald-500/10 text-emerald-400 font-medium" : "text-[#aaa] hover:bg-[#222]"
+                activeTab === 'config' ? "bg-emerald-500/10 text-emerald-400 font-medium" : "text-[var(--os-text-muted)] hover:bg-[var(--os-border)]"
               )}
             >
               <Settings className="w-4 h-4" />
@@ -321,7 +321,7 @@ export function AIGateway({ window }: { window: OSWindow }) {
                   }}
                   className={cn(
                     "w-full text-left px-3 py-2 rounded-lg text-xs flex items-center gap-2 transition-colors",
-                    isActive ? `bg-${pColor}-500/10 text-${pColor}-400 font-medium` : "text-[#888] hover:bg-[#222]",
+                    isActive ? `bg-${pColor}-500/10 text-${pColor}-400 font-medium` : "text-[var(--os-text-muted)] hover:bg-[var(--os-border)]",
                     !p.available && "opacity-40"
                   )}
                 >
@@ -338,8 +338,8 @@ export function AIGateway({ window }: { window: OSWindow }) {
           </div>
 
           {/* Status footer */}
-          <div className="mt-auto p-4 border-t border-[#222]">
-            <div className="bg-[#1a1a1a] p-3 rounded-lg border border-[#333]">
+          <div className="mt-auto p-4 border-t border-[var(--os-border)]">
+            <div className="bg-[var(--os-surface)] p-3 rounded-lg border border-[var(--os-border)]">
               <div className="flex items-center gap-2 mb-2 text-emerald-400 text-xs font-semibold">
                 <span className="relative flex h-2 w-2">
                   {availableCount > 0 ? (
@@ -353,7 +353,7 @@ export function AIGateway({ window }: { window: OSWindow }) {
                 </span>
                 {availableCount > 0 ? `${availableCount}/${totalRegistered} Providers Online` : 'No Providers Available'}
               </div>
-              <div className="text-[10px] text-[#888]">
+              <div className="text-[10px] text-[var(--os-text-muted)]">
                 Active: {selectedProvider} / {selectedModel}<br/>
                 Fallback: {fallbackChain.slice(0, 3).join(' → ')}
               </div>
@@ -372,7 +372,7 @@ export function AIGateway({ window }: { window: OSWindow }) {
                     <ProviderIcon className={cn("w-4 h-4", `text-${providerColor}-400`)} />
                   </div>
                   <span className="text-sm font-medium">Gateway Assistant</span>
-                  <span className="text-[10px] text-[#888] ml-1">via {selectedProvider}/{selectedModel}</span>
+                  <span className="text-[10px] text-[var(--os-text-muted)] ml-1">via {selectedProvider}/{selectedModel}</span>
                 </div>
 
                 {/* Inline model selector */}
@@ -380,20 +380,20 @@ export function AIGateway({ window }: { window: OSWindow }) {
                   <div className="relative">
                     <button
                       onClick={() => { setModelDropdownOpen(!modelDropdownOpen); setProviderDropdownOpen(false); }}
-                      className="px-3 py-1.5 rounded-lg border border-[#333] bg-[#1a1a1a] text-xs text-[#aaa] hover:text-white flex items-center gap-1.5 transition-colors"
+                      className="px-3 py-1.5 rounded-lg border border-[var(--os-border)] bg-[var(--os-surface)] text-xs text-[var(--os-text-muted)] hover:text-white flex items-center gap-1.5 transition-colors"
                     >
                       {selectedModel}
                       <ChevronDown className="w-3 h-3" />
                     </button>
                     {modelDropdownOpen && currentProviderInfo && (
-                      <div className="absolute right-0 top-full mt-1 w-48 bg-[#1a1a1a] border border-[#333] rounded-lg shadow-xl z-50 overflow-hidden">
+                      <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--os-surface)] border border-[var(--os-border)] rounded-lg shadow-xl z-50 overflow-hidden">
                         {currentProviderInfo.models.map(m => (
                           <button
                             key={m.id}
                             onClick={() => { setSelectedModel(m.id); setModelDropdownOpen(false); }}
                             className={cn(
-                              "w-full text-left px-3 py-2 text-xs hover:bg-[#222] transition-colors",
-                              selectedModel === m.id ? "text-emerald-400 bg-emerald-500/5" : "text-[#aaa]"
+                              "w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-border)] transition-colors",
+                              selectedModel === m.id ? "text-emerald-400 bg-emerald-500/5" : "text-[var(--os-text-muted)]"
                             )}
                           >
                             {m.name}
@@ -420,7 +420,7 @@ export function AIGateway({ window }: { window: OSWindow }) {
                     </div>
                     <div className={cn(
                       "px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap",
-                      msg.role === 'user' ? "bg-blue-600 text-white rounded-tr-sm" : "bg-[#1a1a1a] text-white border border-[#222] rounded-tl-sm"
+                      msg.role === 'user' ? "bg-blue-600 text-white rounded-tr-sm" : "bg-[var(--os-surface)] text-white border border-[var(--os-border)] rounded-tl-sm"
                     )}>
                       {msg.content}
                       {msg.role === 'assistant' && msg.provider && msg.provider !== 'system' && (
@@ -434,7 +434,7 @@ export function AIGateway({ window }: { window: OSWindow }) {
                     <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20">
                       <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
                     </div>
-                    <div className="px-4 py-3 rounded-2xl bg-[#1a1a1a] text-[#888] border border-[#222] rounded-tl-sm flex items-center gap-2 text-sm text-emerald-400/70">
+                    <div className="px-4 py-3 rounded-2xl bg-[var(--os-surface)] text-[var(--os-text-muted)] border border-[var(--os-border)] rounded-tl-sm flex items-center gap-2 text-sm text-emerald-400/70">
                       Processing via {selectedProvider}...
                     </div>
                   </div>
@@ -442,7 +442,7 @@ export function AIGateway({ window }: { window: OSWindow }) {
               </div>
 
               {/* Input */}
-              <div className="p-4 bg-[#0f0f0f] border-t border-[#222] shrink-0">
+              <div className="p-4 bg-[#0f0f0f] border-t border-[var(--os-border)] shrink-0">
                 <div className="max-w-3xl mx-auto relative flex items-center">
                   <input
                     type="text"
@@ -451,12 +451,12 @@ export function AIGateway({ window }: { window: OSWindow }) {
                     onKeyDown={e => e.key === 'Enter' && handleSend()}
                     disabled={loading}
                     placeholder="Ask anything... (try: open terminal, theme blue, or any question)"
-                    className="w-full bg-[#1a1a1a] border border-[#333] rounded-full pl-6 pr-14 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                    className="w-full bg-[var(--os-surface)] border border-[var(--os-border)] rounded-full pl-6 pr-14 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                   <button
                     onClick={handleSend}
                     disabled={!input.trim() || loading}
-                    className="absolute right-2 p-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-[#333] disabled:text-[#888] text-white rounded-full transition-all"
+                    className="absolute right-2 p-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-[var(--os-border)] disabled:text-[var(--os-text-muted)] text-white rounded-full transition-all"
                   >
                     <Send className="w-4 h-4" />
                   </button>
@@ -471,15 +471,15 @@ export function AIGateway({ window }: { window: OSWindow }) {
                   <Settings className="w-5 h-5 text-emerald-500" />
                   Provider Configuration
                 </h3>
-                <p className="text-xs text-[#888] mt-1">
+                <p className="text-xs text-[var(--os-text-muted)] mt-1">
                   Select your AI provider and model. API keys are configured server-side via environment variables — your data stays private.
                 </p>
               </div>
 
               {/* Provider selection */}
-              <div className="space-y-4 pt-4 border-t border-[#222]">
+              <div className="space-y-4 pt-4 border-t border-[var(--os-border)]">
                 <div className="space-y-2">
-                  <label className="text-xs text-[#888] font-medium">Active Provider</label>
+                  <label className="text-xs text-[var(--os-text-muted)] font-medium">Active Provider</label>
                   <div className="grid grid-cols-1 gap-2 mt-1">
                     {providers.map(p => {
                       const meta = PROVIDER_META[p.id];
@@ -498,14 +498,14 @@ export function AIGateway({ window }: { window: OSWindow }) {
                             "px-4 py-3 rounded-lg border text-sm flex items-center gap-3 transition-all",
                             isSelected
                               ? `border-${pColor}-500 bg-${pColor}-500/10 text-${pColor}-400`
-                              : "border-[#333] bg-[#1a1a1a] text-[#aaa] hover:bg-[#222]",
+                              : "border-[var(--os-border)] bg-[var(--os-surface)] text-[var(--os-text-muted)] hover:bg-[var(--os-border)]",
                             !p.available && "opacity-40"
                           )}
                         >
                           <PIcon className="w-5 h-5" />
                           <div className="flex-1">
                             <div className="font-medium">{p.id}</div>
-                            <div className="text-[10px] text-[#888]">{meta?.description || p.name}</div>
+                            <div className="text-[10px] text-[var(--os-text-muted)]">{meta?.description || p.name}</div>
                           </div>
                           {p.available && p.models.length > 0 ? (
                             <Wifi className="w-4 h-4 text-emerald-400" />
@@ -521,7 +521,7 @@ export function AIGateway({ window }: { window: OSWindow }) {
                 {/* Model selection for chosen provider */}
                 {currentProviderInfo && currentProviderInfo.models.length > 0 && (
                   <div className="space-y-2 mt-4">
-                    <label className="text-xs text-[#888] font-medium">Model — {selectedProvider}</label>
+                    <label className="text-xs text-[var(--os-text-muted)] font-medium">Model — {selectedProvider}</label>
                     <div className="grid grid-cols-2 gap-2 mt-1">
                       {currentProviderInfo.models.map(m => (
                         <button
@@ -531,7 +531,7 @@ export function AIGateway({ window }: { window: OSWindow }) {
                             "px-4 py-3 rounded-lg border text-sm text-center transition-all",
                             selectedModel === m.id
                               ? "border-emerald-500 bg-emerald-500/10 text-emerald-400"
-                              : "border-[#333] bg-[#1a1a1a] text-[#aaa] hover:bg-[#222]"
+                              : "border-[var(--os-border)] bg-[var(--os-surface)] text-[var(--os-text-muted)] hover:bg-[var(--os-border)]"
                           )}
                         >
                           <div className="font-medium">{m.name}</div>
@@ -548,13 +548,13 @@ export function AIGateway({ window }: { window: OSWindow }) {
                 )}
 
                 {/* Fallback chain info */}
-                <div className="space-y-2 mt-4 pt-4 border-t border-[#222]">
-                  <label className="text-xs text-[#888] font-medium">Fallback Chain</label>
-                  <div className="flex items-center gap-1 text-xs text-[#aaa]">
+                <div className="space-y-2 mt-4 pt-4 border-t border-[var(--os-border)]">
+                  <label className="text-xs text-[var(--os-text-muted)] font-medium">Fallback Chain</label>
+                  <div className="flex items-center gap-1 text-xs text-[var(--os-text-muted)]">
                     {fallbackChain.map((fId, i) => (
                       <React.Fragment key={fId}>
                         <span className={cn(
-                          "px-2 py-1 rounded bg-[#1a1a1a] border border-[#333]",
+                          "px-2 py-1 rounded bg-[var(--os-surface)] border border-[var(--os-border)]",
                           fId === selectedProvider ? "text-emerald-400 border-emerald-500/30" : ""
                         )}>{fId}</span>
                         {i < fallbackChain.length - 1 && <span className="text-[#555]">→</span>}
@@ -567,17 +567,17 @@ export function AIGateway({ window }: { window: OSWindow }) {
                 </div>
 
                 {/* Privacy notice */}
-                <div className="mt-4 p-3 rounded-lg bg-[#111] border border-[#333]">
+                <div className="mt-4 p-3 rounded-lg bg-[#111] border border-[var(--os-border)]">
                   <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium">
                     <Lock className="w-3.5 h-3.5" />
                     Privacy-First Design
                   </div>
-                  <p className="text-[10px] text-[#888] mt-1">
+                  <p className="text-[10px] text-[var(--os-text-muted)] mt-1">
                     API keys are stored server-side only — never sent to the browser. Your AI conversations use session-authenticated endpoints. Self-hosting gives you full data control.
                   </p>
                 </div>
 
-                <div className="pt-6 border-t border-[#222] mt-6">
+                <div className="pt-6 border-t border-[var(--os-border)] mt-6">
                   <button onClick={saveConfig} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
                     <Save className="w-4 h-4" /> Save Preferences
                   </button>

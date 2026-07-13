@@ -37,27 +37,27 @@ describe('BrowserStore', () => {
       useBrowserStore.getState().addPinnedApp('https://github.com', 'GitHub');
       const { pinnedApps } = useBrowserStore.getState();
       expect(pinnedApps).toHaveLength(1);
-      expect(pinnedApps[0].url).toBe('https://github.com');
-      expect(pinnedApps[0].title).toBe('GitHub');
-      expect(pinnedApps[0].lastUrl).toBe('https://github.com');
+      expect(pinnedApps[0]!.url).toBe('https://github.com');
+      expect(pinnedApps[0]!.title).toBe('GitHub');
+      expect(pinnedApps[0]!.lastUrl).toBe('https://github.com');
     });
 
     it('addPinnedApp auto-generates favicon URL', () => {
       useBrowserStore.getState().addPinnedApp('https://github.com', 'GitHub');
       const { pinnedApps } = useBrowserStore.getState();
-      expect(pinnedApps[0].icon).toContain('google.com/s2/favicons');
-      expect(pinnedApps[0].icon).toContain('github.com');
+      expect(pinnedApps[0]!.icon).toContain('google.com/s2/favicons');
+      expect(pinnedApps[0]!.icon).toContain('github.com');
     });
 
     it('addPinnedApp accepts custom icon', () => {
       useBrowserStore.getState().addPinnedApp('https://github.com', 'GitHub', 'https://example.com/icon.png');
-      expect(useBrowserStore.getState().pinnedApps[0].icon).toBe('https://example.com/icon.png');
+      expect(useBrowserStore.getState().pinnedApps[0]!.icon).toBe('https://example.com/icon.png');
     });
 
     it('removePinnedApp removes a pinned app', () => {
       useBrowserStore.getState().addPinnedApp('https://github.com', 'GitHub');
       const { pinnedApps } = useBrowserStore.getState();
-      useBrowserStore.getState().removePinnedApp(pinnedApps[0].id);
+      useBrowserStore.getState().removePinnedApp(pinnedApps[0]!.id);
       expect(useBrowserStore.getState().pinnedApps).toHaveLength(0);
     });
 
@@ -67,15 +67,15 @@ describe('BrowserStore', () => {
       useBrowserStore.getState().addPinnedApp('https://vercel.com', 'Vercel');
       useBrowserStore.getState().reorderPinnedApps(0, 2);
       const { pinnedApps } = useBrowserStore.getState();
-      expect(pinnedApps[0].title).toBe('Figma');
-      expect(pinnedApps[2].title).toBe('GitHub');
+      expect(pinnedApps[0]!.title).toBe('Figma');
+      expect(pinnedApps[2]!.title).toBe('GitHub');
     });
 
     it('updatePinnedAppLastUrl updates lastUrl and lastVisited', () => {
       useBrowserStore.getState().addPinnedApp('https://github.com', 'GitHub');
       const { pinnedApps } = useBrowserStore.getState();
-      useBrowserStore.getState().updatePinnedAppLastUrl(pinnedApps[0].id, 'https://github.com/repo');
-      const updated = useBrowserStore.getState().pinnedApps[0];
+      useBrowserStore.getState().updatePinnedAppLastUrl(pinnedApps[0]!.id, 'https://github.com/repo');
+      const updated = useBrowserStore.getState().pinnedApps[0]!;
       expect(updated.lastUrl).toBe('https://github.com/repo');
       expect(updated.lastVisited).toBeGreaterThan(0);
     });
@@ -93,7 +93,7 @@ describe('BrowserStore', () => {
 
     it('addTab with pinnedAppId links tab to pinned app', () => {
       useBrowserStore.getState().addPinnedApp('https://github.com', 'GitHub');
-      const pin = useBrowserStore.getState().pinnedApps[0];
+      const pin = useBrowserStore.getState().pinnedApps[0]!;
       useBrowserStore.getState().addTab('https://github.com', pin.id);
       const newTab = useBrowserStore.getState().tabs.find((t) => t.pinnedAppId === pin.id);
       expect(newTab).toBeDefined();
@@ -102,7 +102,7 @@ describe('BrowserStore', () => {
 
     it('closeTab removes the tab', () => {
       useBrowserStore.getState().addTab('https://github.com');
-      const secondTab = useBrowserStore.getState().tabs[1];
+      const secondTab = useBrowserStore.getState().tabs[1]!;
       useBrowserStore.getState().closeTab(secondTab.id);
       expect(useBrowserStore.getState().tabs).toHaveLength(1);
     });
@@ -124,14 +124,14 @@ describe('BrowserStore', () => {
 
     it('setActiveTab changes active tab', () => {
       useBrowserStore.getState().addTab('https://github.com');
-      const secondTab = useBrowserStore.getState().tabs[1];
+      const secondTab = useBrowserStore.getState().tabs[1]!;
       useBrowserStore.getState().setActiveTab(secondTab.id);
       expect(useBrowserStore.getState().activeTabId).toBe(secondTab.id);
     });
 
     it('navigateTab adds to history', () => {
       useBrowserStore.getState().navigateTab('1', 'https://github.com', 'GitHub');
-      const tab = useBrowserStore.getState().tabs[0];
+      const tab = useBrowserStore.getState().tabs[0]!;
       expect(tab.url).toBe('https://github.com');
       expect(tab.history).toContain('https://github.com');
       expect(tab.historyIndex).toBe(tab.history.length - 1);
@@ -139,7 +139,7 @@ describe('BrowserStore', () => {
 
     it('navigateTab updates pinned app lastUrl', () => {
       useBrowserStore.getState().addPinnedApp('https://github.com', 'GitHub');
-      const pin = useBrowserStore.getState().pinnedApps[0];
+      const pin = useBrowserStore.getState().pinnedApps[0]!;
       useBrowserStore.getState().addTab('https://github.com', pin.id);
       const tab = useBrowserStore.getState().tabs.find((t) => t.pinnedAppId === pin.id)!;
       useBrowserStore.getState().navigateTab(tab.id, 'https://github.com/repo', 'Repo');

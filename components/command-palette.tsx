@@ -137,7 +137,7 @@ export function CommandPalette() {
             style={{ color: 'var(--os-text)' }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && filtered.length > 0) {
-                filtered[0].action();
+                filtered[0]!.action();
                 setIsOpen(false);
                 setQuery('');
               }

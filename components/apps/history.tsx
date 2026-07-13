@@ -76,7 +76,7 @@ export function HistoryApp({ window: osWindow }: { window: OSWindow }) {
 
   const handleUndo = () => {
     if (events.length === 0) return;
-    const lastEvent = events[0];
+    const lastEvent = events[0]!;
     
     // In a real CQRS/Event Sourced system, we dispatch a compensating action
     emitEvent({
@@ -92,7 +92,7 @@ export function HistoryApp({ window: osWindow }: { window: OSWindow }) {
 
   const handleRedo = () => {
     if (undoStack.length === 0) return;
-    const eventToRestore = undoStack[0];
+    const eventToRestore = undoStack[0]!;
     
     emitEvent({
       workspaceId: eventToRestore.workspaceId,
@@ -166,7 +166,7 @@ export function HistoryApp({ window: osWindow }: { window: OSWindow }) {
                 
               return (
                 <div key={event.id || i} className="flex gap-4 group">
-                  <div className="w-10 h-10 rounded-full bg-[#1a1a1a] border border-white/10 flex items-center justify-center shrink-0 z-10 group-hover:border-white/30 group-hover:scale-110 transition-all shadow-xl">
+                  <div className="w-10 h-10 rounded-full bg-[var(--os-surface)] border border-white/10 flex items-center justify-center shrink-0 z-10 group-hover:border-white/30 group-hover:scale-110 transition-all shadow-xl">
                     {getEventIcon(event.type)}
                   </div>
                   <div className="flex-1 bg-white/5 border border-white/5 rounded-xl p-4 group-hover:bg-white/10 transition-colors">

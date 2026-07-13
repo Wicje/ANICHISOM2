@@ -96,7 +96,7 @@ export const DownloadService = {
     const disposition = headers.get('content-disposition');
     if (disposition) {
       const match = disposition.match(/filename\*?=(?:UTF-8''|"?)([^";]+)/i);
-      if (match) return decodeURIComponent(match[1]);
+      if (match) return decodeURIComponent(match[1]!);
     }
     try {
       const pathname = new URL(url).pathname;

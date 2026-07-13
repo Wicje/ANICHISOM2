@@ -80,7 +80,7 @@ export function SyncPromptBanner({ fileName, fileSize, fileType, onSync, onDismi
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9998] max-w-lg w-full mx-4">
       <div className={cn(
-        "bg-[#1a1a1a] border rounded-xl shadow-2xl p-4 flex items-start gap-4 transition-all",
+        "bg-[var(--os-surface)] border rounded-xl shadow-2xl p-4 flex items-start gap-4 transition-all",
         synced ? "border-emerald-500/30" : "border-white/10"
       )}>
         <div className={cn(

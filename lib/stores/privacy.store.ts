@@ -5,7 +5,7 @@
  * Privacy overrides can be set per-app and per-workspace.
  */
 import { create } from 'zustand';
-import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { withPersistence } from '@/lib/stores/persisted-store';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -22,15 +22,6 @@ export interface AppPrivacySettings {
 export interface WorkspacePrivacyDefaults {
   level: PrivacyLevel;
   restrictedUserIds?: string[];
-}
-
-// ─── Storage ──────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'anichisom-privacy-state';
-
-interface PersistedPrivacy {
-  appSettings: Record<string, AppPrivacySettings>;
-  workspaceDefaults: WorkspacePrivacyDefaults;
 }
 
 // ─── State ────────────────────────────────────────────────────────────────
@@ -55,19 +46,6 @@ interface PrivacyState {
   getAllSharedApps: () => string[];
   getAppsWithAccess: (userId: string, ownerUserId: string) => string[];
   getPrivacySummary: () => { private: number; shared: number; restricted: number };
-
-  // ─── Persistence ─────────────────────────────────────────────────
-  hydrate: () => Promise<void>;
-}
-
-function schedulePersist(state: PrivacyState) {
-  const data: PersistedPrivacy = {
-    appSettings: state.appSettings,
-    workspaceDefaults: state.workspaceDefaults,
-  };
-  idbSet(STORAGE_KEY, data).catch((e: unknown) => {
-    console.warn('[PrivacyStore] Failed to persist:', e);
-  });
 }
 
 export const usePrivacyStore = create<PrivacyState>((set, get) => ({
@@ -91,7 +69,6 @@ export const usePrivacyStore = create<PrivacyState>((set, get) => ({
           updatedAt: Date.now(),
         },
       };
-      schedulePersist({ ...s, appSettings });
       return { appSettings };
     });
   },
@@ -111,7 +88,6 @@ export const usePrivacyStore = create<PrivacyState>((set, get) => ({
   removeAppPrivacy: (appId) => {
     set((s) => {
       const { [appId]: _, ...rest } = s.appSettings;
-      schedulePersist({ ...s, appSettings: rest });
       return { appSettings: rest };
     });
   },
@@ -146,7 +122,6 @@ export const usePrivacyStore = create<PrivacyState>((set, get) => ({
         level,
         restrictedUserIds: level === 'restricted' ? restrictedUserIds : [],
       };
-      schedulePersist({ ...s, workspaceDefaults });
       return { workspaceDefaults };
     });
   },
@@ -191,20 +166,6 @@ export const usePrivacyStore = create<PrivacyState>((set, get) => ({
       restricted: settings.filter((s) => s.level === 'restricted').length,
     };
   },
-
-  // ─── Persistence ─────────────────────────────────────────────────
-
-  hydrate: async () => {
-    try {
-      const data = await idbGet<PersistedPrivacy>(STORAGE_KEY);
-      if (data) {
-        set({
-          appSettings: data.appSettings || {},
-          workspaceDefaults: data.workspaceDefaults || { level: 'shared' },
-        });
-      }
-    } catch (e) {
-      console.warn('[PrivacyStore] Failed to hydrate:', e);
-    }
-  },
 }));
+
+withPersistence(usePrivacyStore, 'privacy-state', ['appSettings', 'workspaceDefaults']);

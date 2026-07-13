@@ -26,6 +26,7 @@ function BlobViewer({ asset, onClose }: { asset: any, onClose: () => void }) {
       });
       return () => URL.revokeObjectURL(url);
     }
+    return undefined;
   }, [asset]);
 
   const isText = asset?.data?.type?.startsWith('text/') || asset?.metadata?.name?.endsWith('.ts') || asset?.metadata?.name?.endsWith('.js') || asset?.metadata?.name?.endsWith('.tsx');

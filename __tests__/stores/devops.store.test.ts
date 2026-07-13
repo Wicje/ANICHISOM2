@@ -22,10 +22,10 @@ describe('DevopsStore', () => {
       expect(id).toMatch(/^devops_/);
       const d = useDevopsStore.getState().deployments[id];
       expect(d).toBeDefined();
-      expect(d.service).toBe('api');
-      expect(d.environment).toBe('production');
-      expect(d.version).toBe('1.0.0');
-      expect(d.status).toBe('deploying');
+      expect(d!.service).toBe('api');
+      expect(d!.environment).toBe('production');
+      expect(d!.version).toBe('1.0.0');
+      expect(d!.status).toBe('deploying');
     });
   });
 
@@ -33,7 +33,7 @@ describe('DevopsStore', () => {
     it('should update deployment status', () => {
       const id = useDevopsStore.getState().createDeployment('web', 'staging', '2.0.0');
       useDevopsStore.getState().updateDeployment(id, { status: 'healthy' });
-      expect(useDevopsStore.getState().deployments[id].status).toBe('healthy');
+      expect(useDevopsStore.getState().deployments[id]!.status).toBe('healthy');
     });
 
     it('should not create new deployments for unknown IDs', () => {
@@ -75,7 +75,7 @@ describe('DevopsStore', () => {
       useDevopsStore.getState().updateDeployment(id1, { status: 'healthy' });
       useDevopsStore.getState().updateDeployment(id2, { status: 'down' });
       expect(useDevopsStore.getState().getHealthyDeployments()).toHaveLength(1);
-      expect(useDevopsStore.getState().getHealthyDeployments()[0].id).toBe(id1);
+      expect(useDevopsStore.getState().getHealthyDeployments()[0]!.id).toBe(id1);
     });
   });
 
@@ -87,11 +87,11 @@ describe('DevopsStore', () => {
       expect(id).toMatch(/^review_/);
       const r = useDevopsStore.getState().reviews[id];
       expect(r).toBeDefined();
-      expect(r.repo).toBe('frontend');
-      expect(r.prNumber).toBe(42);
-      expect(r.title).toBe('Add dark mode');
-      expect(r.author).toBe('alice');
-      expect(r.status).toBe('open');
+      expect(r!.repo).toBe('frontend');
+      expect(r!.prNumber).toBe(42);
+      expect(r!.title).toBe('Add dark mode');
+      expect(r!.author).toBe('alice');
+      expect(r!.status).toBe('open');
     });
   });
 
@@ -99,7 +99,7 @@ describe('DevopsStore', () => {
     it('should update review status', () => {
       const id = useDevopsStore.getState().createReview('backend', 10, 'Refactor', 'bob');
       useDevopsStore.getState().updateReview(id, { status: 'approved' });
-      expect(useDevopsStore.getState().reviews[id].status).toBe('approved');
+      expect(useDevopsStore.getState().reviews[id]!.status).toBe('approved');
     });
 
     it('should not create new reviews for unknown IDs', () => {
@@ -134,11 +134,11 @@ describe('DevopsStore', () => {
       expect(id).toMatch(/^pipe_/);
       const p = useDevopsStore.getState().pipelines[id];
       expect(p).toBeDefined();
-      expect(p.name).toBe('CI');
-      expect(p.repo).toBe('backend');
-      expect(p.branch).toBe('main');
-      expect(p.commitSha).toBe('abc123');
-      expect(p.status).toBe('queued');
+      expect(p!.name).toBe('CI');
+      expect(p!.repo).toBe('backend');
+      expect(p!.branch).toBe('main');
+      expect(p!.commitSha).toBe('abc123');
+      expect(p!.status).toBe('queued');
     });
   });
 
@@ -150,8 +150,8 @@ describe('DevopsStore', () => {
         stages: [{ name: 'build', status: 'passed', duration: 30 }, { name: 'test', status: 'running' }],
       });
       const p = useDevopsStore.getState().pipelines[id];
-      expect(p.status).toBe('running');
-      expect(p.stages).toHaveLength(2);
+      expect(p!.status).toBe('running');
+      expect(p!.stages).toHaveLength(2);
     });
 
     it('should not create new pipelines for unknown IDs', () => {
@@ -186,10 +186,10 @@ describe('DevopsStore', () => {
       expect(id).toMatch(/^ep_/);
       const e = useDevopsStore.getState().endpoints[id];
       expect(e).toBeDefined();
-      expect(e.name).toBe('Get Users');
-      expect(e.method).toBe('GET');
-      expect(e.url).toBe('/api/users');
-      expect(e.status).toBe('healthy');
+      expect(e!.name).toBe('Get Users');
+      expect(e!.method).toBe('GET');
+      expect(e!.url).toBe('/api/users');
+      expect(e!.status).toBe('healthy');
     });
   });
 
@@ -205,9 +205,9 @@ describe('DevopsStore', () => {
         requestCount: 1000,
       });
       const e = useDevopsStore.getState().endpoints[id];
-      expect(e.latency).toBe(42);
-      expect(e.p95).toBe(80);
-      expect(e.requestCount).toBe(1000);
+      expect(e!.latency).toBe(42);
+      expect(e!.p95).toBe(80);
+      expect(e!.requestCount).toBe(1000);
     });
 
     it('should not create new endpoints for unknown IDs', () => {

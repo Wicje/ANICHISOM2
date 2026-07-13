@@ -159,7 +159,7 @@ describe('share-links.service', () => {
     });
     const links = await getShareLinksForFile('file-1');
     expect(links.length).toBe(1);
-    expect(links[0].fileName).toBe('a.pdf');
+    expect(links[0]!.fileName).toBe('a.pdf');
   });
 
   it('gets active share links', async () => {

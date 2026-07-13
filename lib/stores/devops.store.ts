@@ -5,7 +5,7 @@
  * Persists to IndexedDB via debounced writes.
  */
 import { create } from 'zustand';
-import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { withPersistence } from '@/lib/stores/persisted-store';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -69,37 +69,6 @@ export interface ApiEndpoint {
   requestCount: number;
 }
 
-// ─── Storage ────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'anichisom-devops-state';
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-function schedulePersist(state: DevopsState) {
-  if (debounceTimer) clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => {
-    const data: PersistedDevops = {
-      deployments: state.deployments,
-      reviews: state.reviews,
-      pipelines: state.pipelines,
-      endpoints: state.endpoints,
-      activeDeploymentId: state.activeDeploymentId,
-      activeRepoFilter: state.activeRepoFilter,
-    };
-    idbSet(STORAGE_KEY, data).catch((e: unknown) => {
-      console.warn('[DevopsStore] Failed to persist:', e);
-    });
-  }, 2000);
-}
-
-interface PersistedDevops {
-  deployments: Record<string, Deployment>;
-  reviews: Record<string, CodeReview>;
-  pipelines: Record<string, Pipeline>;
-  endpoints: Record<string, ApiEndpoint>;
-  activeDeploymentId: string | null;
-  activeRepoFilter: string | null;
-}
-
 // ─── Helpers ────────────────────────────────────────────────────────────
 
 function generateId(): string {
@@ -144,9 +113,6 @@ interface DevopsState {
   getEndpointsByStatus: (status: ApiEndpoint['status']) => ApiEndpoint[];
   getAverageLatency: () => number;
   getOverallUptime: () => number;
-
-  // ─── Persistence ─────────────────────────────────────────────────
-  hydrate: () => Promise<void>;
 }
 
 export const useDevopsStore = create<DevopsState>((set, get) => ({
@@ -171,7 +137,6 @@ export const useDevopsStore = create<DevopsState>((set, get) => ({
     };
     set((s) => {
       const deployments = { ...s.deployments, [id]: deployment };
-      schedulePersist({ ...s, deployments });
       return { deployments };
     });
     return id;
@@ -185,7 +150,6 @@ export const useDevopsStore = create<DevopsState>((set, get) => ({
         ...s.deployments,
         [id]: { ...existing, ...updates },
       };
-      schedulePersist({ ...s, deployments });
       return { deployments };
     });
   },
@@ -194,16 +158,12 @@ export const useDevopsStore = create<DevopsState>((set, get) => ({
     set((s) => {
       const { [id]: _, ...rest } = s.deployments;
       const activeDeploymentId = s.activeDeploymentId === id ? null : s.activeDeploymentId;
-      schedulePersist({ ...s, deployments: rest, activeDeploymentId });
       return { deployments: rest, activeDeploymentId };
     });
   },
 
   setActiveDeployment: (id) => {
-    set((s) => {
-      schedulePersist({ ...s, activeDeploymentId: id });
-      return { activeDeploymentId: id };
-    });
+    set({ activeDeploymentId: id });
   },
 
   getDeploymentsByEnvironment: (env) => {
@@ -234,7 +194,6 @@ export const useDevopsStore = create<DevopsState>((set, get) => ({
     };
     set((s) => {
       const reviews = { ...s.reviews, [id]: review };
-      schedulePersist({ ...s, reviews });
       return { reviews };
     });
     return id;
@@ -248,7 +207,6 @@ export const useDevopsStore = create<DevopsState>((set, get) => ({
         ...s.reviews,
         [id]: { ...existing, ...updates },
       };
-      schedulePersist({ ...s, reviews });
       return { reviews };
     });
   },
@@ -256,7 +214,6 @@ export const useDevopsStore = create<DevopsState>((set, get) => ({
   deleteReview: (id) => {
     set((s) => {
       const { [id]: _, ...rest } = s.reviews;
-      schedulePersist({ ...s, reviews: rest });
       return { reviews: rest };
     });
   },
@@ -282,7 +239,6 @@ export const useDevopsStore = create<DevopsState>((set, get) => ({
     };
     set((s) => {
       const pipelines = { ...s.pipelines, [id]: pipeline };
-      schedulePersist({ ...s, pipelines });
       return { pipelines };
     });
     return id;
@@ -296,7 +252,6 @@ export const useDevopsStore = create<DevopsState>((set, get) => ({
         ...s.pipelines,
         [id]: { ...existing, ...updates },
       };
-      schedulePersist({ ...s, pipelines });
       return { pipelines };
     });
   },
@@ -304,7 +259,6 @@ export const useDevopsStore = create<DevopsState>((set, get) => ({
   deletePipeline: (id) => {
     set((s) => {
       const { [id]: _, ...rest } = s.pipelines;
-      schedulePersist({ ...s, pipelines: rest });
       return { pipelines: rest };
     });
   },
@@ -333,7 +287,6 @@ export const useDevopsStore = create<DevopsState>((set, get) => ({
     };
     set((s) => {
       const endpoints = { ...s.endpoints, [id]: endpoint };
-      schedulePersist({ ...s, endpoints });
       return { endpoints };
     });
     return id;
@@ -347,7 +300,6 @@ export const useDevopsStore = create<DevopsState>((set, get) => ({
         ...s.endpoints,
         [id]: { ...existing, ...updates },
       };
-      schedulePersist({ ...s, endpoints });
       return { endpoints };
     });
   },
@@ -355,16 +307,12 @@ export const useDevopsStore = create<DevopsState>((set, get) => ({
   deleteEndpoint: (id) => {
     set((s) => {
       const { [id]: _, ...rest } = s.endpoints;
-      schedulePersist({ ...s, endpoints: rest });
       return { endpoints: rest };
     });
   },
 
   setActiveRepoFilter: (repo) => {
-    set((s) => {
-      schedulePersist({ ...s, activeRepoFilter: repo });
-      return { activeRepoFilter: repo };
-    });
+    set({ activeRepoFilter: repo });
   },
 
   getEndpointsByStatus: (status) => {
@@ -383,24 +331,6 @@ export const useDevopsStore = create<DevopsState>((set, get) => ({
     const healthyCount = eps.filter((e) => e.status === 'healthy').length;
     return (healthyCount / eps.length) * 100;
   },
-
-  // ─── Persistence ─────────────────────────────────────────────────
-
-  hydrate: async () => {
-    try {
-      const data = await idbGet<PersistedDevops>(STORAGE_KEY);
-      if (data) {
-        set({
-          deployments: data.deployments || {},
-          reviews: data.reviews || {},
-          pipelines: data.pipelines || {},
-          endpoints: data.endpoints || {},
-          activeDeploymentId: data.activeDeploymentId || null,
-          activeRepoFilter: data.activeRepoFilter || null,
-        });
-      }
-    } catch (e) {
-      console.warn('[DevopsStore] Failed to hydrate:', e);
-    }
-  },
 }));
+
+withPersistence(useDevopsStore, 'devops-state', ['deployments', 'reviews', 'pipelines', 'endpoints', 'activeDeploymentId', 'activeRepoFilter']);

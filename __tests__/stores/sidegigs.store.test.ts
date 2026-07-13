@@ -32,19 +32,19 @@ describe('SideGigsStore', () => {
       expect(id).toMatch(/^gig_/);
       const gig = useSideGigsStore.getState().gigs[id];
       expect(gig).toBeDefined();
-      expect(gig.name).toBe('Logo Design');
-      expect(gig.clientName).toBe('Acme Corp');
-      expect(gig.rate).toBe(75);
-      expect(gig.rateType).toBe('hourly');
-      expect(gig.status).toBe('active');
+      expect(gig!.name).toBe('Logo Design');
+      expect(gig!.clientName).toBe('Acme Corp');
+      expect(gig!.rate).toBe(75);
+      expect(gig!.rateType).toBe('hourly');
+      expect(gig!.status).toBe('active');
     });
 
     it('should update a gig', () => {
       const id = useSideGigsStore.getState().createGig('Old Name', 'Client', 'c@c.com', 50, 'daily');
       useSideGigsStore.getState().updateGig(id, { name: 'New Name', rate: 100 });
       const gig = useSideGigsStore.getState().gigs[id];
-      expect(gig.name).toBe('New Name');
-      expect(gig.rate).toBe(100);
+      expect(gig!.name).toBe('New Name');
+      expect(gig!.rate).toBe(100);
     });
 
     it('should not create a gig for unknown ID on update', () => {
@@ -71,7 +71,7 @@ describe('SideGigsStore', () => {
       const id2 = useSideGigsStore.getState().createGig('Active 2', 'C', 'c@c.com', 10, 'hourly');
       useSideGigsStore.getState().updateGig(id2, { status: 'paused' });
       expect(useSideGigsStore.getState().getGigsByStatus('active')).toHaveLength(1);
-      expect(useSideGigsStore.getState().getGigsByStatus('active')[0].id).toBe(id1);
+      expect(useSideGigsStore.getState().getGigsByStatus('active')[0]!.id).toBe(id1);
       expect(useSideGigsStore.getState().getGigsByStatus('paused')).toHaveLength(1);
       expect(useSideGigsStore.getState().getGigsByStatus('completed')).toHaveLength(0);
     });
@@ -86,25 +86,25 @@ describe('SideGigsStore', () => {
       expect(teId).toMatch(/^te_/);
       const te = useSideGigsStore.getState().timeEntries[teId];
       expect(te).toBeDefined();
-      expect(te.duration).toBe(10800); // 3 hours in seconds
-      expect(te.billable).toBe(true);
-      expect(te.invoiced).toBe(false);
-      expect(te.notes).toBe('Morning work');
+      expect(te!.duration).toBe(10800); // 3 hours in seconds
+      expect(te!.billable).toBe(true);
+      expect(te!.invoiced).toBe(false);
+      expect(te!.notes).toBe('Morning work');
     });
 
     it('should handle overnight duration (end < start)', () => {
       const gigId = useSideGigsStore.getState().createGig('Overnight', 'C', 'c@c.com', 50, 'hourly');
       const teId = useSideGigsStore.getState().createTimeEntry(gigId, '2025-01-15', '22:00', '02:00');
       const te = useSideGigsStore.getState().timeEntries[teId];
-      expect(te.duration).toBe(14400); // 4 hours
+      expect(te!.duration).toBe(14400); // 4 hours
     });
 
     it('should update a time entry', () => {
       const gigId = useSideGigsStore.getState().createGig('Test', 'C', 'c@c.com', 50, 'hourly');
       const teId = useSideGigsStore.getState().createTimeEntry(gigId, '2025-01-15', '09:00', '10:00', 'old');
       useSideGigsStore.getState().updateTimeEntry(teId, { notes: 'updated', invoiced: true });
-      expect(useSideGigsStore.getState().timeEntries[teId].notes).toBe('updated');
-      expect(useSideGigsStore.getState().timeEntries[teId].invoiced).toBe(true);
+      expect(useSideGigsStore.getState().timeEntries[teId]!.notes).toBe('updated');
+      expect(useSideGigsStore.getState().timeEntries[teId]!.invoiced).toBe(true);
     });
 
     it('should delete a time entry', () => {
@@ -131,7 +131,7 @@ describe('SideGigsStore', () => {
       useSideGigsStore.getState().createTimeEntry(gigId, '2025-01-20', '09:00', '10:00');
       const range = useSideGigsStore.getState().getTimeEntriesByDateRange('2025-01-12', '2025-01-18');
       expect(range).toHaveLength(1);
-      expect(range[0].date).toBe('2025-01-15');
+      expect(range[0]!.date).toBe('2025-01-15');
     });
   });
 
@@ -148,19 +148,19 @@ describe('SideGigsStore', () => {
       expect(invId).toMatch(/^inv_/);
       const inv = useSideGigsStore.getState().invoices[invId];
       expect(inv).toBeDefined();
-      expect(inv.subtotal).toBe(1000);
-      expect(inv.tax).toBe(100);
-      expect(inv.total).toBe(1100);
-      expect(inv.status).toBe('draft');
-      expect(inv.items).toHaveLength(1);
-      expect(inv.items[0].amount).toBe(1000);
+      expect(inv!.subtotal).toBe(1000);
+      expect(inv!.tax).toBe(100);
+      expect(inv!.total).toBe(1100);
+      expect(inv!.status).toBe('draft');
+      expect(inv!.items).toHaveLength(1);
+      expect(inv!.items[0]!.amount).toBe(1000);
     });
 
     it('should update an invoice', () => {
       const gigId = useSideGigsStore.getState().createGig('Test', 'C', 'c@c.com', 50, 'hourly');
       const invId = useSideGigsStore.getState().createInvoice(gigId, 'C', 'c@c.com', [{ description: 'A', quantity: 1, rate: 50 }]);
       useSideGigsStore.getState().updateInvoice(invId, { status: 'sent' });
-      expect(useSideGigsStore.getState().invoices[invId].status).toBe('sent');
+      expect(useSideGigsStore.getState().invoices[invId]!.status).toBe('sent');
     });
 
     it('should delete an invoice', () => {
@@ -196,7 +196,7 @@ describe('SideGigsStore', () => {
       useSideGigsStore.getState().createTimeEntry(gigId, '2025-01-15', '13:00', '15:00', '', true); // 2h, invoiced below
       // Mark second entry as invoiced
       const entries = useSideGigsStore.getState().getTimeEntriesByGig(gigId);
-      useSideGigsStore.getState().updateTimeEntry(entries[1].id, { invoiced: true });
+      useSideGigsStore.getState().updateTimeEntry(entries[1]!.id, { invoiced: true });
       expect(useSideGigsStore.getState().getUninvoicedHours(gigId)).toBeCloseTo(3, 1);
     });
   });
@@ -236,10 +236,10 @@ describe('SideGigsStore', () => {
       useSideGigsStore.getState().createTimeEntry(gigId, '2025-01-16', '09:00', '11:00', '', true); // 2h
       const invId = useSideGigsStore.getState().generateInvoice(gigId, { start: '2025-01-15', end: '2025-01-20' });
       expect(invId).not.toBeNull();
-      const inv = useSideGigsStore.getState().invoices[invId!];
+      const inv = useSideGigsStore.getState().invoices[invId!]!;
       expect(inv).toBeDefined();
-      expect(inv.items[0].quantity).toBeCloseTo(5, 1); // 5 hours
-      expect(inv.items[0].rate).toBe(100);
+      expect(inv.items[0]!.quantity).toBeCloseTo(5, 1); // 5 hours
+      expect(inv.items[0]!.rate).toBe(100);
       // Entries should be marked invoiced
       const entries = useSideGigsStore.getState().getTimeEntriesByGig(gigId);
       expect(entries.every(te => te.invoiced)).toBe(true);
@@ -250,7 +250,7 @@ describe('SideGigsStore', () => {
       useSideGigsStore.getState().createTimeEntry(gigId, '2025-01-15', '09:00', '12:00', '', true);
       // Mark as invoiced
       const entries = useSideGigsStore.getState().getTimeEntriesByGig(gigId);
-      useSideGigsStore.getState().updateTimeEntry(entries[0].id, { invoiced: true });
+      useSideGigsStore.getState().updateTimeEntry(entries[0]!.id, { invoiced: true });
       const invId = useSideGigsStore.getState().generateInvoice(gigId, { start: '2025-01-15', end: '2025-01-20' });
       expect(invId).toBeNull();
     });

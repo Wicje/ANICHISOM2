@@ -146,7 +146,7 @@ export const usePluginStore = create<PluginState>((set, get) => ({
     if (!state) return false;
     // If plugin has a privacy override for this permission, use it
     if (state.privacyOverrides && permission in state.privacyOverrides) {
-      return state.privacyOverrides[permission];
+      return state.privacyOverrides[permission]!;
     }
     // Default: permission is granted if the plugin declared it in its manifest
     const plugin = getPlugin(pluginId);

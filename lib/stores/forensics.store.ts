@@ -5,7 +5,7 @@
  * Persists to IndexedDB via debounced writes.
  */
 import { create } from 'zustand';
-import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { withPersistence } from '@/lib/stores/persisted-store';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -65,35 +65,6 @@ export interface Report {
   updatedAt: number;
 }
 
-// ─── Storage ────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'anichisom-forensics-state';
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-function schedulePersist(state: ForensicsState) {
-  if (debounceTimer) clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => {
-    const data: PersistedForensics = {
-      cases: state.cases,
-      evidence: state.evidence,
-      chainEntries: state.chainEntries,
-      reports: state.reports,
-      activeCaseId: state.activeCaseId,
-    };
-    idbSet(STORAGE_KEY, data).catch((e: unknown) => {
-      console.warn('[ForensicsStore] Failed to persist:', e);
-    });
-  }, 2000);
-}
-
-interface PersistedForensics {
-  cases: Record<string, Case>;
-  evidence: Record<string, Evidence>;
-  chainEntries: Record<string, ChainEntry>;
-  reports: Record<string, Report>;
-  activeCaseId: string | null;
-}
-
 // ─── Helpers ────────────────────────────────────────────────────────────
 
 function generateId(prefix: string): string {
@@ -140,9 +111,6 @@ export interface ForensicsState {
 
   // ─── Computed ──────────────────────────────────────────────────
   getCaseStats: (caseId: string) => CaseStats;
-
-  // ─── Persistence ───────────────────────────────────────────────
-  hydrate: () => Promise<void>;
 }
 
 export const useForensicsStore = create<ForensicsState>((set, get) => ({
@@ -173,7 +141,6 @@ export const useForensicsStore = create<ForensicsState>((set, get) => ({
     };
     set((s) => {
       const cases = { ...s.cases, [id]: caseObj };
-      schedulePersist({ ...s, cases });
       return { cases };
     });
     return id;
@@ -187,7 +154,6 @@ export const useForensicsStore = create<ForensicsState>((set, get) => ({
         ...s.cases,
         [id]: { ...existing, ...updates, updatedAt: Date.now() },
       };
-      schedulePersist({ ...s, cases });
       return { cases };
     });
   },
@@ -196,16 +162,12 @@ export const useForensicsStore = create<ForensicsState>((set, get) => ({
     set((s) => {
       const { [id]: _, ...rest } = s.cases;
       const activeCaseId = s.activeCaseId === id ? null : s.activeCaseId;
-      schedulePersist({ ...s, cases: rest, activeCaseId });
       return { cases: rest, activeCaseId };
     });
   },
 
   setActiveCase: (id) => {
-    set((s) => {
-      schedulePersist({ ...s, activeCaseId: id });
-      return { activeCaseId: id };
-    });
+    set({ activeCaseId: id });
   },
 
   getCasesByStatus: (status) => {
@@ -233,7 +195,6 @@ export const useForensicsStore = create<ForensicsState>((set, get) => ({
     };
     set((s) => {
       const evidence = { ...s.evidence, [id]: ev };
-      schedulePersist({ ...s, evidence });
       return { evidence };
     });
     return id;
@@ -244,7 +205,6 @@ export const useForensicsStore = create<ForensicsState>((set, get) => ({
       const existing = s.evidence[id];
       if (!existing) return s;
       const evidence = { ...s.evidence, [id]: { ...existing, ...updates } };
-      schedulePersist({ ...s, evidence });
       return { evidence };
     });
   },
@@ -252,7 +212,6 @@ export const useForensicsStore = create<ForensicsState>((set, get) => ({
   deleteEvidence: (id) => {
     set((s) => {
       const { [id]: _, ...rest } = s.evidence;
-      schedulePersist({ ...s, evidence: rest });
       return { evidence: rest };
     });
   },
@@ -277,7 +236,6 @@ export const useForensicsStore = create<ForensicsState>((set, get) => ({
     };
     set((s) => {
       const chainEntries = { ...s.chainEntries, [id]: entry };
-      schedulePersist({ ...s, chainEntries });
       return { chainEntries };
     });
     return id;
@@ -306,7 +264,6 @@ export const useForensicsStore = create<ForensicsState>((set, get) => ({
     };
     set((s) => {
       const reports = { ...s.reports, [id]: report };
-      schedulePersist({ ...s, reports });
       return { reports };
     });
     return id;
@@ -320,7 +277,6 @@ export const useForensicsStore = create<ForensicsState>((set, get) => ({
         ...s.reports,
         [id]: { ...existing, ...updates, updatedAt: Date.now() },
       };
-      schedulePersist({ ...s, reports });
       return { reports };
     });
   },
@@ -328,7 +284,6 @@ export const useForensicsStore = create<ForensicsState>((set, get) => ({
   deleteReport: (id) => {
     set((s) => {
       const { [id]: _, ...rest } = s.reports;
-      schedulePersist({ ...s, reports: rest });
       return { reports: rest };
     });
   },
@@ -349,23 +304,6 @@ export const useForensicsStore = create<ForensicsState>((set, get) => ({
     }
     return { totalEvidence: caseEvidence.length, byType, byStatus };
   },
-
-  // ─── Persistence ───────────────────────────────────────────────
-
-  hydrate: async () => {
-    try {
-      const data = await idbGet<PersistedForensics>(STORAGE_KEY);
-      if (data) {
-        set({
-          cases: data.cases || {},
-          evidence: data.evidence || {},
-          chainEntries: data.chainEntries || {},
-          reports: data.reports || {},
-          activeCaseId: data.activeCaseId || null,
-        });
-      }
-    } catch (e) {
-      console.warn('[ForensicsStore] Failed to hydrate:', e);
-    }
-  },
 }));
+
+withPersistence(useForensicsStore, 'forensics-state', ['cases', 'evidence', 'chainEntries', 'reports', 'activeCaseId']);

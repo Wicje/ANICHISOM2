@@ -243,7 +243,7 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
     set(state => ({
       databaseStore: {
         ...state.databaseStore,
-        [dbId]: { ...state.databaseStore[dbId], ...updates },
+        [dbId]: { ...state.databaseStore[dbId]!, ...updates },
       },
     }));
   },

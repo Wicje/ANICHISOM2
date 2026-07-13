@@ -96,7 +96,7 @@ describe('MarketplaceReviewService', () => {
 
       const reviews = MarketplaceReviewService.getReviews('plugin-1');
       expect(reviews).toHaveLength(1);
-      expect(reviews[0].title).toBe('Great plugin');
+      expect(reviews[0]!.title).toBe('Great plugin');
     });
 
     it('should calculate average rating', () => {
@@ -138,8 +138,8 @@ describe('MarketplaceReviewService', () => {
 
       const popular = MarketplaceReviewService.getPopularPlugins(2);
       expect(popular).toHaveLength(2);
-      expect(popular[0].pluginId).toBe('p3');
-      expect(popular[1].pluginId).toBe('p2');
+      expect(popular[0]!.pluginId).toBe('p3');
+      expect(popular[1]!.pluginId).toBe('p2');
     });
   });
 

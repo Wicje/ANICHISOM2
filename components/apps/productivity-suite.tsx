@@ -125,8 +125,8 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
     Storage.deleteDoc('docs', `sheets-${docId}`, workspaceMode);
     Storage.deleteDoc('docs', `slides-fabric-${docId}`, workspaceMode);
     if (docId === projectId) {
-      setProjectId(newList[0].id);
-      setDocTitle(newList[0].title);
+      setProjectId(newList[0]!.id);
+      setDocTitle(newList[0]!.title);
     }
     window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Document Deleted', message: 'The document has been removed.' } }));
   };

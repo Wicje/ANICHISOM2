@@ -185,7 +185,7 @@ export const useMoodboardStore = create<MoodboardState>((set, get) => ({
     if (clipQueue.length === 0) return null;
     const [clip, ...rest] = clipQueue;
     set({ clipQueue: rest });
-    return clip;
+    return clip ?? null;
   },
 
   setAutoClip: (enabled) => set({ autoClipEnabled: enabled }),

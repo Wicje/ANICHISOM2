@@ -55,7 +55,7 @@ export class ClaudeProvider implements IAiProvider {
 
   getCapabilities(model?: string): AiCapabilities {
     const modelInfo = CLAUDE_MODELS.find(m => m.id === (model || this.getDefaultModel()));
-    return modelInfo?.capabilities || CLAUDE_MODELS[0].capabilities;
+    return modelInfo?.capabilities || CLAUDE_MODELS[0]!.capabilities;
   }
 
   async listModels(): Promise<AiModelInfo[]> {

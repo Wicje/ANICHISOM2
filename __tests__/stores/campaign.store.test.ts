@@ -22,9 +22,9 @@ describe('Campaign Store', () => {
       const page = addPage(null, 'campaign');
       const updated = useCampaignStore.getState().pages;
       expect(updated).toHaveLength(1);
-      expect(updated[0].level).toBe('campaign');
-      expect(updated[0].parentId).toBeNull();
-      expect(updated[0].id).toBe(page.id);
+      expect(updated[0]!.level).toBe('campaign');
+      expect(updated[0]!.parentId).toBeNull();
+      expect(updated[0]!.id).toBe(page.id);
     });
 
     it('adds a child page under campaign', () => {
@@ -33,9 +33,9 @@ describe('Campaign Store', () => {
       const phase = addPage(campaign.id, 'phase');
       const updated = useCampaignStore.getState().pages;
       expect(updated).toHaveLength(2);
-      expect(updated[1].parentId).toBe(campaign.id);
-      expect(updated[1].level).toBe('phase');
-      expect(updated[1].campaignId).toBe(campaign.id);
+      expect(updated[1]!.parentId).toBe(campaign.id);
+      expect(updated[1]!.level).toBe('phase');
+      expect(updated[1]!.campaignId).toBe(campaign.id);
     });
 
     it('derives level from parent when not specified', () => {
@@ -44,8 +44,8 @@ describe('Campaign Store', () => {
       const phase = addPage(campaign.id); // no level specified
       const task = addPage(phase.id);     // no level specified
       const updated = useCampaignStore.getState().pages;
-      expect(updated[1].level).toBe('phase');
-      expect(updated[2].level).toBe('task');
+      expect(updated[1]!.level).toBe('phase');
+      expect(updated[2]!.level).toBe('task');
     });
 
     it('sets default status for task-level pages', () => {
@@ -53,7 +53,7 @@ describe('Campaign Store', () => {
       const campaign = addPage(null, 'campaign');
       const task = addPage(campaign.id, 'task');
       const updated = useCampaignStore.getState().pages;
-      expect(updated[1].status).toBe('todo');
+      expect(updated[1]!.status).toBe('todo');
     });
 
     it('updates a page', () => {
@@ -61,8 +61,8 @@ describe('Campaign Store', () => {
       const page = addPage(null, 'campaign');
       useCampaignStore.getState().updatePage(page.id, { title: 'My Campaign', icon: '🚀' });
       const updated = useCampaignStore.getState().pages;
-      expect(updated[0].title).toBe('My Campaign');
-      expect(updated[0].icon).toBe('🚀');
+      expect(updated[0]!.title).toBe('My Campaign');
+      expect(updated[0]!.icon).toBe('🚀');
     });
 
     it('soft-deletes a page and its children', () => {
@@ -80,10 +80,10 @@ describe('Campaign Store', () => {
       const { addPage } = useCampaignStore.getState();
       const page = addPage(null, 'campaign');
       useCampaignStore.getState().deletePage(page.id);
-      expect(useCampaignStore.getState().pages[0].trash).toBe(true);
+      expect(useCampaignStore.getState().pages[0]!.trash).toBe(true);
 
       useCampaignStore.getState().restorePage(page.id);
-      expect(useCampaignStore.getState().pages[0].trash).toBe(false);
+      expect(useCampaignStore.getState().pages[0]!.trash).toBe(false);
     });
   });
 
@@ -97,8 +97,8 @@ describe('Campaign Store', () => {
       useCampaignStore.getState().updatePage(phase1.id, { sortOrder: 1 });
 
       const children = useCampaignStore.getState().getChildren(campaign.id);
-      expect(children[0].id).toBe(phase2.id);
-      expect(children[1].id).toBe(phase1.id);
+      expect(children[0]!.id).toBe(phase2.id);
+      expect(children[1]!.id).toBe(phase1.id);
     });
 
     it('getBreadcrumbs builds correct trail', () => {
@@ -109,9 +109,9 @@ describe('Campaign Store', () => {
 
       const breadcrumbs = useCampaignStore.getState().getBreadcrumbs(task.id);
       expect(breadcrumbs).toHaveLength(3);
-      expect(breadcrumbs[0].level).toBe('campaign');
-      expect(breadcrumbs[1].level).toBe('phase');
-      expect(breadcrumbs[2].level).toBe('task');
+      expect(breadcrumbs[0]!.level).toBe('campaign');
+      expect(breadcrumbs[1]!.level).toBe('phase');
+      expect(breadcrumbs[2]!.level).toBe('task');
     });
 
     it('movePage reparents and updates level', () => {
@@ -121,9 +121,9 @@ describe('Campaign Store', () => {
       const phase = addPage(c1.id, 'phase');
 
       useCampaignStore.getState().movePage(phase.id, c2.id);
-      const updated = useCampaignStore.getState().pages.find(p => p.id === phase.id);
-      expect(updated?.parentId).toBe(c2.id);
-      expect(updated?.campaignId).toBe(c2.id);
+      const updated = useCampaignStore.getState().pages.find(p => p.id === phase.id)!;
+      expect(updated.parentId).toBe(c2.id);
+      expect(updated.campaignId).toBe(c2.id);
     });
 
     it('getPageLevel returns correct level', () => {
@@ -208,17 +208,17 @@ describe('Campaign Store', () => {
       );
       const notifs = useCampaignStore.getState().getUserNotifications('user-1');
       expect(notifs).toHaveLength(1);
-      expect(notifs[0].type).toBe('mention');
-      expect(notifs[0].read).toBe(false);
+      expect(notifs[0]!.type).toBe('mention');
+      expect(notifs[0]!.read).toBe(false);
     });
 
     it('marks notification as read', () => {
       useCampaignStore.getState().addNotification(
         'mention', 'user-1', 'user-2', 'Alice', 'page-1', 'msg'
       );
-      const notifId = useCampaignStore.getState().notifications[0].id;
+      const notifId = useCampaignStore.getState().notifications[0]!.id;
       useCampaignStore.getState().markNotificationRead(notifId);
-      expect(useCampaignStore.getState().notifications[0].read).toBe(true);
+      expect(useCampaignStore.getState().notifications[0]!.read).toBe(true);
     });
 
     it('marks all notifications as read for a user', () => {
@@ -231,7 +231,7 @@ describe('Campaign Store', () => {
       expect(user1Notifs.every(n => n.read)).toBe(true);
 
       const user2Notifs = useCampaignStore.getState().getUserNotifications('user-2');
-      expect(user2Notifs[0].read).toBe(false);
+      expect(user2Notifs[0]!.read).toBe(false);
     });
 
     it('getUnreadCount returns correct count', () => {
@@ -239,7 +239,7 @@ describe('Campaign Store', () => {
       useCampaignStore.getState().addNotification('comment', 'user-1', 'u', 'B', 'p', 'm2');
       expect(useCampaignStore.getState().getUnreadCount('user-1')).toBe(2);
 
-      const notifId = useCampaignStore.getState().notifications[0].id;
+      const notifId = useCampaignStore.getState().notifications[0]!.id;
       useCampaignStore.getState().markNotificationRead(notifId);
       expect(useCampaignStore.getState().getUnreadCount('user-1')).toBe(1);
     });
@@ -249,7 +249,7 @@ describe('Campaign Store', () => {
     it('adds comment and sends notifications to mentioned users', () => {
       const { addPage } = useCampaignStore.getState();
       const page = addPage(null, 'campaign');
-      const block = page.blocks[0];
+      const block = page.blocks[0]!;
 
       const comment = {
         id: 'comment-1',
@@ -266,15 +266,15 @@ describe('Campaign Store', () => {
 
       // Verify comment was added to block
       const updatedPage = useCampaignStore.getState().pages.find(p => p.id === page.id);
-      const updatedBlock = updatedPage?.blocks.find(b => b.id === block.id);
-      expect(updatedBlock?.comments).toHaveLength(1);
-      expect(updatedBlock?.comments?.[0].mentionedUserIds).toEqual(['user-2']);
+      const updatedBlock = updatedPage?.blocks.find(b => b.id === block.id)!;
+      expect(updatedBlock.comments).toHaveLength(1);
+      expect(updatedBlock.comments?.[0]!.mentionedUserIds).toEqual(['user-2']);
 
       // Verify notification was sent
       const notifs = useCampaignStore.getState().getUserNotifications('user-2');
       expect(notifs).toHaveLength(1);
-      expect(notifs[0].type).toBe('mention');
-      expect(notifs[0].message).toContain('Alice');
+      expect(notifs[0]!.type).toBe('mention');
+      expect(notifs[0]!.message).toContain('Alice');
     });
   });
 

@@ -80,7 +80,7 @@ describe('RegistryStore', () => {
 
       const state = useRegistryStore.getState();
       expect(state.registries[config.id]).toBeDefined();
-      expect(state.registries[config.id].name).toBe('Store Registry');
+      expect(state.registries[config.id]!.name).toBe('Store Registry');
       expect(state.activeRegistryId).toBe(config.id);
       expect(state.lastError).toBeNull();
     });
@@ -108,8 +108,8 @@ describe('RegistryStore', () => {
 
       useRegistryStore.getState().setDefaultRegistry(r2.id);
       const state = useRegistryStore.getState();
-      expect(state.registries[r1.id].isDefault).toBe(false);
-      expect(state.registries[r2.id].isDefault).toBe(true);
+      expect(state.registries[r1.id]!.isDefault).toBe(false);
+      expect(state.registries[r2.id]!.isDefault).toBe(true);
       expect(state.activeRegistryId).toBe(r2.id);
     });
 
@@ -138,8 +138,8 @@ describe('RegistryStore', () => {
       await useRegistryStore.getState().syncRegistry(config.id);
 
       const state = useRegistryStore.getState();
-      expect(state.registryPlugins[config.id]).toHaveLength(1);
-      expect(state.registryPlugins[config.id][0].manifest.id).toBe('plugin-1');
+      expect(state.registryPlugins[config.id]!).toHaveLength(1);
+      expect(state.registryPlugins[config.id]![0]!.manifest.id).toBe('plugin-1');
       expect(state.syncing).toBe(false);
     });
 
@@ -237,7 +237,7 @@ describe('RegistryStore', () => {
       await useRegistryStore.getState().syncRegistry(config.id);
       const results = useRegistryStore.getState().searchRegistries('Cool');
       expect(results).toHaveLength(1);
-      expect(results[0].manifest.name).toBe('My Cool Plugin');
+      expect(results[0]!.manifest.name).toBe('My Cool Plugin');
     });
   });
 
@@ -251,10 +251,10 @@ describe('RegistryStore', () => {
         activeRegistryId: 'reg-hydrated',
       });
 
-      await useRegistryStore.getState().hydrate();
+      await (useRegistryStore as any).hydrate?.();
       const state = useRegistryStore.getState();
       expect(state.registries['reg-hydrated']).toBeDefined();
-      expect(state.registries['reg-hydrated'].name).toBe('Hydrated');
+      expect(state.registries['reg-hydrated']!.name).toBe('Hydrated');
       expect(state.orgMembers['h-org']).toHaveLength(1);
       expect(state.activeRegistryId).toBe('reg-hydrated');
     });

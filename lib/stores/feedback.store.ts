@@ -77,7 +77,7 @@ export const useFeedbackStore = create<FeedbackStoreState>((set, get) => ({
     const now = Date.now();
     const existingIds = Object.keys(get().feedback);
     const lastTs = existingIds.length > 0
-      ? Math.max(...existingIds.map(k => get().feedback[k].createdAt))
+      ? Math.max(...existingIds.map(k => get().feedback[k]!.createdAt))
       : 0;
     const createdAt = now <= lastTs ? lastTs + 1 : now;
     const item: FeedbackItem = {

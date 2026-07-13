@@ -69,7 +69,7 @@ export class AIGatewayService {
 
           // Set default model if not set
           if (!this.state.currentModel && models.length > 0) {
-            this.state.currentModel = models[0].id;
+            this.state.currentModel = models[0]!.id;
           }
         }
       } catch (error) {
@@ -105,7 +105,7 @@ export class AIGatewayService {
       // Set default model for provider
       const models = this.state.availableModels[providerId];
       if (models && models.length > 0) {
-        this.state.currentModel = models[0].id;
+        this.state.currentModel = models[0]!.id;
       }
 
       this.notifyListeners();

@@ -43,7 +43,7 @@ export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
         setSelectedProvider(defaultProvider);
 
         if (models.length > 0) {
-          const defaultModel = models[0].id;
+          const defaultModel = models[0]!.id;
           setSelectedModel(defaultModel);
         }
       } catch (error) {
@@ -87,7 +87,7 @@ export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
       const providerModels = models.filter(m => m.provider === providerId);
       
       if (providerModels.length > 0) {
-        setSelectedModel(providerModels[0].id);
+        setSelectedModel(providerModels[0]!.id);
       }
 
       notify('Assistant', { body: `Switched to ${provider.name}` });

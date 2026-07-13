@@ -13,7 +13,7 @@ describe('BrandStore', () => {
       expect(id).toMatch(/^brand_/);
       const brand = useBrandStore.getState().brands[id];
       expect(brand).toBeDefined();
-      expect(brand.brandName).toBe('Test Brand');
+      expect(brand!.brandName).toBe('Test Brand');
     });
 
     it('should auto-set activeBrandId on first brand', () => {
@@ -23,7 +23,7 @@ describe('BrandStore', () => {
 
     it('should create brand with default typography', () => {
       const id = useBrandStore.getState().createBrand('Default Type');
-      const brand = useBrandStore.getState().brands[id];
+      const brand = useBrandStore.getState().brands[id]!;
       expect(brand.typography.headingFont).toBe('Inter');
       expect(brand.typography.bodyFont).toBe('Inter');
     });
@@ -31,8 +31,8 @@ describe('BrandStore', () => {
     it('should create brand with default voice', () => {
       const id = useBrandStore.getState().createBrand('Default Voice');
       const brand = useBrandStore.getState().brands[id];
-      expect(brand.voice.tone).toBe('Professional');
-      expect(brand.voice.personality).toEqual([]);
+      expect(brand!.voice.tone).toBe('Professional');
+      expect(brand!.voice.personality).toEqual([]);
     });
   });
 
@@ -40,7 +40,7 @@ describe('BrandStore', () => {
     it('should update brand name', () => {
       const id = useBrandStore.getState().createBrand('Old Name');
       useBrandStore.getState().updateBrand(id, { brandName: 'New Name' });
-      expect(useBrandStore.getState().brands[id].brandName).toBe('New Name');
+      expect(useBrandStore.getState().brands[id]!.brandName).toBe('New Name');
     });
 
     it('should not create new brands for unknown IDs', () => {
@@ -50,9 +50,9 @@ describe('BrandStore', () => {
 
     it('should bump updatedAt on update', () => {
       const id = useBrandStore.getState().createBrand('Timestamped');
-      const origTs = useBrandStore.getState().brands[id].updatedAt;
+      const origTs = useBrandStore.getState().brands[id]!.updatedAt;
       useBrandStore.getState().updateBrand(id, { brandName: 'Updated' });
-      expect(useBrandStore.getState().brands[id].updatedAt).toBeGreaterThanOrEqual(origTs);
+      expect(useBrandStore.getState().brands[id]!.updatedAt).toBeGreaterThanOrEqual(origTs);
     });
   });
 
@@ -112,26 +112,26 @@ describe('BrandStore', () => {
     it('should add a color to a brand', () => {
       const id = useBrandStore.getState().createBrand('Colorful');
       useBrandStore.getState().addColor(id, { hex: '#FF0000', name: 'Red', role: 'primary' });
-      const colors = useBrandStore.getState().brands[id].colors;
+      const colors = useBrandStore.getState().brands[id]!.colors;
       expect(colors).toHaveLength(1);
-      expect(colors[0].hex).toBe('#FF0000');
-      expect(colors[0].id).toMatch(/^color_/);
+      expect(colors[0]!.hex).toBe('#FF0000');
+      expect(colors[0]!.id).toMatch(/^color_/);
     });
 
     it('should update a color', () => {
       const id = useBrandStore.getState().createBrand('Updatable');
       useBrandStore.getState().addColor(id, { hex: '#000000', name: 'Black', role: 'neutral' });
-      const colorId = useBrandStore.getState().brands[id].colors[0].id;
+      const colorId = useBrandStore.getState().brands[id]!.colors[0]!.id;
       useBrandStore.getState().updateColor(id, colorId, { hex: '#333333' });
-      expect(useBrandStore.getState().brands[id].colors[0].hex).toBe('#333333');
+      expect(useBrandStore.getState().brands[id]!.colors[0]!.hex).toBe('#333333');
     });
 
     it('should remove a color', () => {
       const id = useBrandStore.getState().createBrand('Removable');
       useBrandStore.getState().addColor(id, { hex: '#00FF00', name: 'Green', role: 'accent' });
-      const colorId = useBrandStore.getState().brands[id].colors[0].id;
+      const colorId = useBrandStore.getState().brands[id]!.colors[0]!.id;
       useBrandStore.getState().removeColor(id, colorId);
-      expect(useBrandStore.getState().brands[id].colors).toHaveLength(0);
+      expect(useBrandStore.getState().brands[id]!.colors).toHaveLength(0);
     });
   });
 
@@ -139,8 +139,8 @@ describe('BrandStore', () => {
     it('should update typography', () => {
       const id = useBrandStore.getState().createBrand('Typed');
       useBrandStore.getState().updateTypography(id, { headingFont: 'Poppins' });
-      expect(useBrandStore.getState().brands[id].typography.headingFont).toBe('Poppins');
-      expect(useBrandStore.getState().brands[id].typography.bodyFont).toBe('Inter');
+      expect(useBrandStore.getState().brands[id]!.typography.headingFont).toBe('Poppins');
+      expect(useBrandStore.getState().brands[id]!.typography.bodyFont).toBe('Inter');
     });
   });
 
@@ -151,7 +151,7 @@ describe('BrandStore', () => {
         tone: 'Playful',
         personality: ['fun', 'energetic'],
       });
-      const voice = useBrandStore.getState().brands[id].voice;
+      const voice = useBrandStore.getState().brands[id]!.voice;
       expect(voice.tone).toBe('Playful');
       expect(voice.personality).toEqual(['fun', 'energetic']);
     });
@@ -161,10 +161,10 @@ describe('BrandStore', () => {
     it('should add and remove logos', () => {
       const id = useBrandStore.getState().createBrand('Logoed');
       useBrandStore.getState().addLogo(id, { name: 'Main', variant: 'primary', dataUrl: 'data:image/png;base64,abc' });
-      expect(useBrandStore.getState().brands[id].logos).toHaveLength(1);
-      const logoId = useBrandStore.getState().brands[id].logos[0].id;
+      expect(useBrandStore.getState().brands[id]!.logos).toHaveLength(1);
+      const logoId = useBrandStore.getState().brands[id]!.logos[0]!.id;
       useBrandStore.getState().removeLogo(id, logoId);
-      expect(useBrandStore.getState().brands[id].logos).toHaveLength(0);
+      expect(useBrandStore.getState().brands[id]!.logos).toHaveLength(0);
     });
   });
 
@@ -172,10 +172,10 @@ describe('BrandStore', () => {
     it('should add and remove usage rules', () => {
       const id = useBrandStore.getState().createBrand('Ruled');
       useBrandStore.getState().addUsageRule(id, { category: 'spacing', rule: 'Use 8px grid' });
-      expect(useBrandStore.getState().brands[id].usageRules).toHaveLength(1);
-      const ruleId = useBrandStore.getState().brands[id].usageRules[0].id;
+      expect(useBrandStore.getState().brands[id]!.usageRules).toHaveLength(1);
+      const ruleId = useBrandStore.getState().brands[id]!.usageRules[0]!.id;
       useBrandStore.getState().removeUsageRule(id, ruleId);
-      expect(useBrandStore.getState().brands[id].usageRules).toHaveLength(0);
+      expect(useBrandStore.getState().brands[id]!.usageRules).toHaveLength(0);
     });
   });
 
@@ -183,16 +183,16 @@ describe('BrandStore', () => {
     it('should link and unlink brand to campaign', () => {
       const id = useBrandStore.getState().createBrand('Linked');
       useBrandStore.getState().linkCampaign(id, 'camp_1');
-      expect(useBrandStore.getState().brands[id].linkedCampaignIds).toContain('camp_1');
+      expect(useBrandStore.getState().brands[id]!.linkedCampaignIds).toContain('camp_1');
       useBrandStore.getState().unlinkCampaign(id, 'camp_1');
-      expect(useBrandStore.getState().brands[id].linkedCampaignIds).not.toContain('camp_1');
+      expect(useBrandStore.getState().brands[id]!.linkedCampaignIds).not.toContain('camp_1');
     });
 
     it('should not duplicate campaign links', () => {
       const id = useBrandStore.getState().createBrand('No Dup');
       useBrandStore.getState().linkCampaign(id, 'camp_1');
       useBrandStore.getState().linkCampaign(id, 'camp_1');
-      expect(useBrandStore.getState().brands[id].linkedCampaignIds.filter((c) => c === 'camp_1')).toHaveLength(1);
+      expect(useBrandStore.getState().brands[id]!.linkedCampaignIds.filter((c) => c === 'camp_1')).toHaveLength(1);
     });
 
     it('should find brands for a campaign', () => {
@@ -200,7 +200,7 @@ describe('BrandStore', () => {
       useBrandStore.getState().linkCampaign(id, 'camp_99');
       const found = useBrandStore.getState().getBrandsForCampaign('camp_99');
       expect(found).toHaveLength(1);
-      expect(found[0].id).toBe(id);
+      expect(found[0]!.id).toBe(id);
     });
 
     it('should return empty for unmatched campaign', () => {

@@ -46,7 +46,7 @@ export function BrowserApp({ window: osWindow }: { window: OSWindow }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>(DEFAULT_BOOKMARKS);
 
-  const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
+  const activeTab = (tabs.find(t => t.id === activeTabId) || tabs[0])!;
 
   useEffect(() => {
     storage.get<Bookmark[]>('bookmarks').then(saved => {
@@ -106,7 +106,7 @@ export function BrowserApp({ window: osWindow }: { window: OSWindow }) {
     const tab = tabs.find(t => t.id === activeTabId);
     if (!tab || tab.historyIndex <= 0) return;
     const newIndex = tab.historyIndex - 1;
-    const newUrl = tab.history[newIndex];
+    const newUrl = tab.history[newIndex]!;
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, url: newUrl, title: getDomainTitle(newUrl), historyIndex: newIndex } : t));
     setInputUrl(newUrl);
   };
@@ -115,7 +115,7 @@ export function BrowserApp({ window: osWindow }: { window: OSWindow }) {
     const tab = tabs.find(t => t.id === activeTabId);
     if (!tab || tab.historyIndex >= tab.history.length - 1) return;
     const newIndex = tab.historyIndex + 1;
-    const newUrl = tab.history[newIndex];
+    const newUrl = tab.history[newIndex]!;
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, url: newUrl, title: getDomainTitle(newUrl), historyIndex: newIndex } : t));
     setInputUrl(newUrl);
   };
@@ -144,7 +144,7 @@ export function BrowserApp({ window: osWindow }: { window: OSWindow }) {
     if (tabs.length === 1) return;
     const newTabs = tabs.filter(t => t.id !== id);
     if (activeTabId === id) {
-      setActiveTabId(newTabs[0].id);
+      setActiveTabId(newTabs[0]!.id);
     }
     setTabs(newTabs);
   };

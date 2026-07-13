@@ -57,7 +57,7 @@ export const VersionHistoryService = {
     };
 
     store.addVersionEntry(entry);
-    return store.getVersionHistory(fileId)[0];
+    return store.getVersionHistory(fileId)[0]!;
   },
 
   /**

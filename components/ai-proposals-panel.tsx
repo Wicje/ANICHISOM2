@@ -43,7 +43,7 @@ export function AIProposalsPanel({ projectBrief }: AIProposalsPanelProps) {
         const result = await engine.analyzeProjectBrief(projectBrief);
         setAnalysis(result);
         if (result.recommendations.length > 0) {
-          setSelectedProposal(result.recommendations[0]);
+          setSelectedProposal(result.recommendations[0]!);
         }
 
         emitEvent({

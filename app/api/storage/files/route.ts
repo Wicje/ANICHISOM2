@@ -7,29 +7,22 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveSession } from '@/lib/session-store';
-import { checkRateLimit } from '@/lib/auth-validation';
+import {
+  requireAuth,
+  apiOk,
+  apiNotFound,
+  apiForbidden,
+  apiInternal,
+} from '@/lib/api-helpers';
 import { getStorageConnector, getConnectedConnectors, getConfiguredConnectors } from '@/lib/storage-connectors/connector-registry';
 import { TokenStore } from '@/lib/storage-connectors/token-store';
 
 export async function GET(request: NextRequest) {
   try {
-    // Auth check
-    const sessionCookie = request.cookies.get('anichisom_session');
-    if (!sessionCookie || !sessionCookie.value) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
+    const authResult = requireAuth(request, 'STORAGE');
+    if (!authResult.ok) return authResult.response;
 
-    const sessionData = resolveSession(sessionCookie.value);
-    if (!sessionData) {
-      return NextResponse.json({ error: 'Session expired' }, { status: 401 });
-    }
-
-    // Rate limiting
-    const rateCheck = checkRateLimit(`storage-files:${sessionData.userId}`, 60, 60 * 1000);
-    if (!rateCheck.allowed) {
-      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
-    }
+    const sessionData = authResult.session;
 
     const providerId = request.nextUrl.searchParams.get('provider');
     const path = request.nextUrl.searchParams.get('path') || 'root';
@@ -50,7 +43,7 @@ export async function GET(request: NextRequest) {
         capabilities: c.getCapabilities(),
       }));
 
-      return NextResponse.json({ connectors });
+      return apiOk({ connectors });
     }
 
     // List files from specific provider
@@ -58,26 +51,22 @@ export async function GET(request: NextRequest) {
     try {
       connector = getStorageConnector(providerId);
     } catch {
-      return NextResponse.json({ error: `Unknown provider: ${providerId}` }, { status: 404 });
+      return apiNotFound(`Unknown provider: ${providerId}`);
     }
 
     if (!(await connector.isConnected(sessionData.userId))) {
-      return NextResponse.json({
-        error: `Provider "${providerId}" is not connected for your account.`,
-        needsConnection: true,
-        connectUrl: `/api/storage/connect/${providerId}`,
-      }, { status: 403 });
+      return apiForbidden(`Provider "${providerId}" is not connected for your account.`);
     }
 
     const result = await connector.listFiles(sessionData.userId, path, pageToken);
 
-    return NextResponse.json({
+    return apiOk({
       provider: providerId,
       files: result.files,
       nextPageToken: result.nextPageToken,
     });
   } catch (error) {
     console.error('[storage/files] Error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return apiInternal();
   }
 }

@@ -124,13 +124,13 @@ export const VersionManagementService = {
 
     if (ua.includes('Windows NT')) {
       const match = ua.match(/Windows NT (\d+\.\d+)/);
-      if (match) currentVersion = match[1];
+      if (match) currentVersion = match[1]!;
     } else if (ua.includes('Mac OS X')) {
       const match = ua.match(/Mac OS X (\d+[._]\d+(?:[._]\d+)?)/);
-      if (match) currentVersion = match[1].replace(/_/g, '.');
+      if (match) currentVersion = match[1]!.replace(/_/g, '.');
     } else if (ua.includes('Linux')) {
       const match = ua.match(/Linux\s+(\d+\.\d+)/);
-      if (match) currentVersion = match[1];
+      if (match) currentVersion = match[1]!;
     }
 
     return this.compareSemver(currentVersion, minOSVersion) !== -1;

@@ -40,13 +40,13 @@ export default function OnboardingWizard() {
       return;
     }
     setDirection('forward');
-    setStep(STEPS[stepIndex + 1]);
+    setStep(STEPS[stepIndex + 1]!);
   }, [isLast, stepIndex, completeOnboarding]);
 
   const goBack = useCallback(() => {
     if (isFirst) return;
     setDirection('back');
-    setStep(STEPS[stepIndex - 1]);
+    setStep(STEPS[stepIndex - 1]!);
   }, [isFirst, stepIndex]);
 
   const handleRoleSelect = useCallback(

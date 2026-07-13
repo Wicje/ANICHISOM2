@@ -8,50 +8,29 @@
  * - Rate limiting to prevent abuse
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import {
-  checkRateLimit,
-} from '@/lib/auth-validation';
+  checkRouteRateLimit,
+  apiOk,
+  apiUnauthorized,
+  apiInternal,
+} from '@/lib/api-helpers';
 import { getAuthProvider } from '@/lib/auth-providers/provider-factory';
 import { resolveSession } from '@/lib/session-store';
 
 export async function GET(request: NextRequest) {
   try {
-    // Rate limiting: 100 requests per 5 minutes per IP
-    const clientIp = request.headers.get('x-forwarded-for') ||
-                     request.headers.get('x-client-ip') ||
-                     'unknown';
-    const rateLimitKey = `session:${clientIp}`;
-    const rateLimitCheck = checkRateLimit(rateLimitKey, 100, 5 * 60 * 1000);
-
-    if (!rateLimitCheck.allowed) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        {
-          status: 429,
-          headers: {
-            'Retry-After': String(Math.ceil((rateLimitCheck.resetAt - Date.now()) / 1000)),
-          },
-        }
-      );
-    }
+    const rl = checkRouteRateLimit(request, 'AUTH_SESSION');
+    if (rl) return rl;
 
     const sessionCookie = request.cookies.get('anichisom_session');
     if (!sessionCookie || !sessionCookie.value) {
-      return NextResponse.json(
-        { error: 'No active session' },
-        { status: 401 }
-      );
+      return apiUnauthorized('No active session');
     }
 
-    const tokenValue = sessionCookie.value;
-
-    // Resolve crypto-random token against session store (S-06)
-    // Tokens are never userIds — the store is the only way to map token → user
-    const sessionData = resolveSession(tokenValue);
+    const sessionData = resolveSession(sessionCookie.value);
     if (sessionData) {
-      return NextResponse.json({
-        success: true,
+      return apiOk({
         user: {
           id: sessionData.userId,
           uniqueId: sessionData.uniqueId,
@@ -66,14 +45,10 @@ export async function GET(request: NextRequest) {
       const authProvider = await getAuthProvider();
       const user = await authProvider.getCurrentUser();
       if (!user) {
-        return NextResponse.json(
-          { error: 'Session expired or invalid' },
-          { status: 401 }
-        );
+        return apiUnauthorized('Session expired or invalid');
       }
 
-      return NextResponse.json({
-        success: true,
+      return apiOk({
         user: {
           id: user.id,
           uniqueId: user.name,
@@ -82,16 +57,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Token not found in store and no external provider — session is invalid
-    return NextResponse.json(
-      { error: 'Session expired or invalid' },
-      { status: 401 }
-    );
+    return apiUnauthorized('Session expired or invalid');
   } catch (error) {
     console.error('[auth/session] Unexpected error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return apiInternal();
   }
 }

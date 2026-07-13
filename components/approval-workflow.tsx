@@ -70,7 +70,7 @@ export function ApprovalWorkflow({ project }: ApprovalWorkflowProps) {
     },
   ]);
 
-  const [selectedStep, setSelectedStep] = useState<ApprovalStep>(approvalSteps[0]);
+  const [selectedStep, setSelectedStep] = useState<ApprovalStep>(approvalSteps[0]!);
   const [newComment, setNewComment] = useState('');
   const [expandedComments, setExpandedComments] = useState<string | null>(null);
 

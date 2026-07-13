@@ -26,7 +26,7 @@ function parseCommand(input: string) {
   tokens.forEach(token => {
     if (token.startsWith('--')) {
       const parts = token.substring(2).split('=');
-      flags[parts[0]] = parts.length > 1 ? parts[1].replace(/^"|"$/g, '') : true;
+      flags[parts[0]!] = parts.length > 1 ? parts[1]!.replace(/^"|"$/g, '') : true;
     } else {
       args.push(token.replace(/^"|"$/g, ''));
     }
@@ -127,7 +127,7 @@ export function TerminalBox({ window }: { window: OSWindow }) {
     if (rawInput.startsWith('!') && rawInput.length > 1) {
        const idx = parseInt(rawInput.substring(1));
        if (!isNaN(idx) && idx >= 0 && idx < commandHistory.length) {
-         rawInput = commandHistory[idx];
+         rawInput = commandHistory[idx]!;
        }
     }
 
@@ -291,7 +291,7 @@ APP & CREATIVE COMMANDS:
           if (args[0] === 'new') {
             const title = args.slice(1).join(' ') || 'Street Energy';
             openWindow('campaign');
-            result = { type: 'visual', visual: <VisualCard title={title} subtitle="Campaign context injected." icon={<Command className="w-5 h-5 text-[#f5f5f5]" />} meta="Live Editing" /> };
+            result = { type: 'visual', visual: <VisualCard title={title} subtitle="Campaign context injected." icon={<Command className="w-5 h-5 text-[var(--os-text)]" />} meta="Live Editing" /> };
           } else {
             throw new Error(`Invalid campaign operation.`);
           }
@@ -328,14 +328,14 @@ APP & CREATIVE COMMANDS:
       if (commandHistory.length > 0) {
         const nextIndex = historyIndex + 1 < commandHistory.length ? historyIndex + 1 : historyIndex;
         setHistoryIndex(nextIndex);
-        setInput(commandHistory[commandHistory.length - 1 - nextIndex]);
+        setInput(commandHistory[commandHistory.length - 1 - nextIndex]!);
       }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (historyIndex > 0) {
         const nextIndex = historyIndex - 1;
         setHistoryIndex(nextIndex);
-        setInput(commandHistory[commandHistory.length - 1 - nextIndex]);
+        setInput(commandHistory[commandHistory.length - 1 - nextIndex]!);
       } else if (historyIndex === 0) {
         setHistoryIndex(-1);
         setInput('');
@@ -358,7 +358,7 @@ APP & CREATIVE COMMANDS:
 
   return (
     <div 
-      className="w-full h-full bg-[#050505] text-[#f5f5f5] font-mono p-4 flex flex-col overflow-hidden shadow-2xl relative"
+      className="w-full h-full bg-[var(--os-bg)] text-[var(--os-text)] font-mono p-4 flex flex-col overflow-hidden shadow-2xl relative"
       onClick={() => inputRef.current?.focus()}
     >
       <div className="absolute top-4 right-4 z-20 flex items-center gap-2 bg-white/10 px-2 py-1 rounded-md text-xs font-sans text-white/70">

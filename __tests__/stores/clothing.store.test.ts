@@ -32,9 +32,9 @@ describe('ClothingStore', () => {
       expect(id).toMatch(/^clothing_/);
       const design = useClothingStore.getState().designs[id];
       expect(design).toBeDefined();
-      expect(design.name).toBe('Vintage Tee');
-      expect(design.category).toBe('top');
-      expect(design.status).toBe('sketch');
+      expect(design!.name).toBe('Vintage Tee');
+      expect(design!.category).toBe('top');
+      expect(design!.status).toBe('sketch');
     });
 
     it('should set activeDesignId on create', () => {
@@ -46,8 +46,8 @@ describe('ClothingStore', () => {
       const id = useClothingStore.getState().createDesign('Bomber', 'outerwear');
       useClothingStore.getState().updateDesign(id, { status: 'draft', notes: 'revised collar' });
       const d = useClothingStore.getState().designs[id];
-      expect(d.status).toBe('draft');
-      expect(d.notes).toBe('revised collar');
+      expect(d!.status).toBe('draft');
+      expect(d!.notes).toBe('revised collar');
     });
 
     it('should not create new designs for unknown IDs', () => {
@@ -86,18 +86,18 @@ describe('ClothingStore', () => {
       const patId = useClothingStore.getState().createPattern(designId, 'Tee Pattern', ['S', 'M', 'L'], 'Cotton Jersey', 2.5);
       expect(patId).toMatch(/^clothing_/);
       const pat = useClothingStore.getState().patterns[patId];
-      expect(pat.name).toBe('Tee Pattern');
-      expect(pat.sizes).toEqual(['S', 'M', 'L']);
-      expect(pat.fabricType).toBe('Cotton Jersey');
-      expect(pat.yardage).toBe(2.5);
-      expect(pat.designId).toBe(designId);
+      expect(pat!.name).toBe('Tee Pattern');
+      expect(pat!.sizes).toEqual(['S', 'M', 'L']);
+      expect(pat!.fabricType).toBe('Cotton Jersey');
+      expect(pat!.yardage).toBe(2.5);
+      expect(pat!.designId).toBe(designId);
     });
 
     it('should update a pattern', () => {
       const designId = useClothingStore.getState().createDesign('Hoodie', 'outerwear');
       const patId = useClothingStore.getState().createPattern(designId, 'Hoodie Pattern', ['M', 'L'], 'Fleece', 3.0);
       useClothingStore.getState().updatePattern(patId, { yardage: 3.5 });
-      expect(useClothingStore.getState().patterns[patId].yardage).toBe(3.5);
+      expect(useClothingStore.getState().patterns[patId]!.yardage).toBe(3.5);
     });
 
     it('should delete a pattern', () => {
@@ -125,17 +125,17 @@ describe('ClothingStore', () => {
       const orderId = useClothingStore.getState().createOrder(designId, 500, 'Factory X', 12.50, '2026-09-01');
       expect(orderId).toMatch(/^clothing_/);
       const order = useClothingStore.getState().orders[orderId];
-      expect(order.quantity).toBe(500);
-      expect(order.manufacturer).toBe('Factory X');
-      expect(order.unitCost).toBe(12.50);
-      expect(order.status).toBe('pending');
+      expect(order!.quantity).toBe(500);
+      expect(order!.manufacturer).toBe('Factory X');
+      expect(order!.unitCost).toBe(12.50);
+      expect(order!.status).toBe('pending');
     });
 
     it('should update an order', () => {
       const designId = useClothingStore.getState().createDesign('Jacket', 'outerwear');
       const orderId = useClothingStore.getState().createOrder(designId, 200, 'Mfg A', 25.00, '2026-10-15');
       useClothingStore.getState().updateOrder(orderId, { status: 'in-production' });
-      expect(useClothingStore.getState().orders[orderId].status).toBe('in-production');
+      expect(useClothingStore.getState().orders[orderId]!.status).toBe('in-production');
     });
 
     it('should delete an order', () => {
@@ -151,10 +151,10 @@ describe('ClothingStore', () => {
       const id = useClothingStore.getState().createCollection('AW26', 'fall');
       expect(id).toMatch(/^clothing_/);
       const col = useClothingStore.getState().collections[id];
-      expect(col.name).toBe('AW26');
-      expect(col.season).toBe('fall');
-      expect(col.status).toBe('planning');
-      expect(col.designIds).toEqual([]);
+      expect(col!.name).toBe('AW26');
+      expect(col!.season).toBe('fall');
+      expect(col!.status).toBe('planning');
+      expect(col!.designIds).toEqual([]);
     });
 
     it('should set activeCollectionId on create', () => {
@@ -165,7 +165,7 @@ describe('ClothingStore', () => {
     it('should update a collection', () => {
       const id = useClothingStore.getState().createCollection('SS27', 'summer');
       useClothingStore.getState().updateCollection(id, { status: 'active' });
-      expect(useClothingStore.getState().collections[id].status).toBe('active');
+      expect(useClothingStore.getState().collections[id]!.status).toBe('active');
     });
 
     it('should delete a collection', () => {
@@ -185,7 +185,7 @@ describe('ClothingStore', () => {
       const designId = useClothingStore.getState().createDesign('Dress', 'top');
       const colId = useClothingStore.getState().createCollection('Summer', 'summer');
       useClothingStore.getState().addDesignToCollection(colId, designId);
-      expect(useClothingStore.getState().collections[colId].designIds).toContain(designId);
+      expect(useClothingStore.getState().collections[colId]!.designIds).toContain(designId);
     });
 
     it('should not duplicate designs in a collection', () => {
@@ -193,7 +193,7 @@ describe('ClothingStore', () => {
       const colId = useClothingStore.getState().createCollection('FW26', 'fall');
       useClothingStore.getState().addDesignToCollection(colId, designId);
       useClothingStore.getState().addDesignToCollection(colId, designId);
-      expect(useClothingStore.getState().collections[colId].designIds).toHaveLength(1);
+      expect(useClothingStore.getState().collections[colId]!.designIds).toHaveLength(1);
     });
 
     it('should remove a design from a collection', () => {
@@ -201,7 +201,7 @@ describe('ClothingStore', () => {
       const colId = useClothingStore.getState().createCollection('Casual', 'summer');
       useClothingStore.getState().addDesignToCollection(colId, designId);
       useClothingStore.getState().removeDesignFromCollection(colId, designId);
-      expect(useClothingStore.getState().collections[colId].designIds).not.toContain(designId);
+      expect(useClothingStore.getState().collections[colId]!.designIds).not.toContain(designId);
     });
   });
 });

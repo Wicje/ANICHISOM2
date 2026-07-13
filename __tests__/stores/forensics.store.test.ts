@@ -21,10 +21,10 @@ describe('ForensicsStore', () => {
       expect(id).toMatch(/^case_/);
       const c = useForensicsStore.getState().cases[id];
       expect(c).toBeDefined();
-      expect(c.caseNumber).toBe('2024-001');
-      expect(c.title).toBe('Test Case');
-      expect(c.status).toBe('open');
-      expect(c.priority).toBe('high');
+      expect(c!.caseNumber).toBe('2024-001');
+      expect(c!.title).toBe('Test Case');
+      expect(c!.status).toBe('open');
+      expect(c!.priority).toBe('high');
     });
 
     it('should update a case', () => {
@@ -32,8 +32,8 @@ describe('ForensicsStore', () => {
         '2024-002', 'Old Title', 'desc', 'low', 'Agent', 'CIA'
       );
       useForensicsStore.getState().updateCase(id, { title: 'New Title', status: 'active' });
-      expect(useForensicsStore.getState().cases[id].title).toBe('New Title');
-      expect(useForensicsStore.getState().cases[id].status).toBe('active');
+      expect(useForensicsStore.getState().cases[id]!.title).toBe('New Title');
+      expect(useForensicsStore.getState().cases[id]!.status).toBe('active');
     });
 
     it('should delete a case', () => {
@@ -73,8 +73,8 @@ describe('ForensicsStore', () => {
       );
       expect(evId).toMatch(/^evid_/);
       const ev = useForensicsStore.getState().evidence[evId];
-      expect(ev.evidenceNumber).toBe('EV-001');
-      expect(ev.status).toBe('collected');
+      expect(ev!.evidenceNumber).toBe('EV-001');
+      expect(ev!.status).toBe('collected');
     });
 
     it('should get evidence by case', () => {
@@ -94,7 +94,7 @@ describe('ForensicsStore', () => {
         caseId, 'EV-10', 'Phone', 'd', 'digital', 'Scene', 'A', '2024-01-01T00:00:00Z', ''
       );
       useForensicsStore.getState().updateEvidence(evId, { status: 'in-lab' });
-      expect(useForensicsStore.getState().evidence[evId].status).toBe('in-lab');
+      expect(useForensicsStore.getState().evidence[evId]!.status).toBe('in-lab');
     });
 
     it('should delete evidence', () => {
@@ -134,8 +134,8 @@ describe('ForensicsStore', () => {
       useForensicsStore.getState().addChainEntry(evId, 'transferred', 'A', 'B', 'Scene', 'Second');
       const chain = useForensicsStore.getState().getChainOfCustody(evId);
       expect(chain).toHaveLength(2);
-      expect(chain[0].notes).toBe('First');
-      expect(chain[1].notes).toBe('Second');
+      expect(chain[0]!.notes).toBe('First');
+      expect(chain[1]!.notes).toBe('Second');
     });
 
     it('should not return chain entries for other evidence', () => {
@@ -156,7 +156,7 @@ describe('ForensicsStore', () => {
       );
       const rptId = useForensicsStore.getState().createReport(caseId, 'Initial Findings', 'Content here', 'Dr. Wilson');
       expect(rptId).toMatch(/^rpt_/);
-      expect(useForensicsStore.getState().reports[rptId].status).toBe('draft');
+      expect(useForensicsStore.getState().reports[rptId]!.status).toBe('draft');
     });
 
     it('should get reports by case', () => {
@@ -174,7 +174,7 @@ describe('ForensicsStore', () => {
       );
       const rptId = useForensicsStore.getState().createReport(caseId, 'Draft Report', 'c', 'Author');
       useForensicsStore.getState().updateReport(rptId, { status: 'final' });
-      expect(useForensicsStore.getState().reports[rptId].status).toBe('final');
+      expect(useForensicsStore.getState().reports[rptId]!.status).toBe('final');
     });
   });
 
@@ -188,9 +188,9 @@ describe('ForensicsStore', () => {
       );
       useForensicsStore.getState().addChainEntry(evId, 'transferred', 'A', 'B', 'Lab', 'Moved to lab');
       const chain = useForensicsStore.getState().getChainOfCustody(evId);
-      expect(chain[0].action).toBe('transferred');
-      expect(chain[0].fromPerson).toBe('A');
-      expect(chain[0].toPerson).toBe('B');
+      expect(chain[0]!.action).toBe('transferred');
+      expect(chain[0]!.fromPerson).toBe('A');
+      expect(chain[0]!.toPerson).toBe('B');
     });
   });
 

@@ -2,11 +2,14 @@
 
 import { OSProvider } from '@/lib/os-context';
 import { Desktop } from '@/components/desktop';
+import { ErrorBoundary } from '@/components/error-boundary';
 
-export default function Home() {
+export default function Page() {
   return (
-    <OSProvider>
-      <Desktop />
-    </OSProvider>
+    <ErrorBoundary>
+      <OSProvider>
+        <Desktop />
+      </OSProvider>
+    </ErrorBoundary>
   );
 }

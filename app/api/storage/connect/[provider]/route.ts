@@ -7,8 +7,14 @@
  * After authorization, Google/Dropbox redirects to /api/storage/callback/[provider].
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { resolveSession } from '@/lib/session-store';
+import { NextRequest } from 'next/server';
+import {
+  requireSession,
+  apiOk,
+  apiError,
+  apiNotFound,
+  apiInternal,
+} from '@/lib/api-helpers';
 import { getStorageConnector } from '@/lib/storage-connectors/connector-registry';
 
 export async function GET(
@@ -18,27 +24,21 @@ export async function GET(
   try {
     const { provider } = await params;
 
-    // Auth check
-    const sessionCookie = request.cookies.get('anichisom_session');
-    if (!sessionCookie || !sessionCookie.value) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
+    const authResult = requireSession(request);
+    if (!authResult.ok) return authResult.response;
 
-    const sessionData = resolveSession(sessionCookie.value);
-    if (!sessionData) {
-      return NextResponse.json({ error: 'Session expired' }, { status: 401 });
-    }
+    const sessionData = authResult.session;
 
     // Get connector
     let connector;
     try {
       connector = getStorageConnector(provider);
     } catch {
-      return NextResponse.json({ error: `Unknown storage provider: ${provider}` }, { status: 404 });
+      return apiNotFound(`Unknown storage provider: ${provider}`);
     }
 
     if (!connector.isConfigured()) {
-      return NextResponse.json({ error: `Provider "${provider}" is not configured on this server. Check environment variables.` }, { status: 503 });
+      return apiError(`Provider "${provider}" is not configured on this server. Check environment variables.`, 503);
     }
 
     // Generate redirect URL for callback
@@ -48,13 +48,13 @@ export async function GET(
     // Generate OAuth authorization URL
     const connectResult = await connector.connect(sessionData.userId, redirectUrl);
 
-    return NextResponse.json({
+    return apiOk({
       authUrl: connectResult.authUrl,
       state: connectResult.state,
       provider,
     });
   } catch (error) {
     console.error('[storage/connect] Error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return apiInternal();
   }
 }

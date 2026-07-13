@@ -29,7 +29,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   const [pinUrl, setPinUrl] = useState('');
   const [pinTitle, setPinTitle] = useState('');
 
-  const activeTab = tabs.find((t) => t.id === activeTabId) || tabs[0];
+  const activeTab = (tabs.find((t) => t.id === activeTabId) || tabs[0])!;
 
   useEffect(() => {
     loadPersisted();
@@ -62,7 +62,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   const navigateBack = () => {
     if (activeTab.historyIndex > 0) {
       const newIndex = activeTab.historyIndex - 1;
-      const newUrl = activeTab.history[newIndex];
+      const newUrl = activeTab.history[newIndex]!;
       navigateTab(activeTabId, newUrl, '');
       // Actually, navigateTab adds to history — we need a different method for back/forward
     }
@@ -71,7 +71,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   const navigateForward = () => {
     if (activeTab && activeTab.historyIndex < activeTab.history.length - 1) {
       const newIndex = activeTab.historyIndex + 1;
-      const newUrl = activeTab.history[newIndex];
+      const newUrl = activeTab.history[newIndex]!;
       navigateTab(activeTabId, newUrl, '');
     }
   };
@@ -80,7 +80,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   const goBack = () => {
     if (!activeTab || activeTab.historyIndex <= 0) return;
     const newIndex = activeTab.historyIndex - 1;
-    const newUrl = activeTab.history[newIndex];
+    const newUrl = activeTab.history[newIndex]!;
     useBrowserStore.getState().updateTabUrl(activeTabId, newUrl, '');
     // Manually set history index
     useBrowserStore.setState((s) => ({
@@ -94,7 +94,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   const goForward = () => {
     if (!activeTab || activeTab.historyIndex >= activeTab.history.length - 1) return;
     const newIndex = activeTab.historyIndex + 1;
-    const newUrl = activeTab.history[newIndex];
+    const newUrl = activeTab.history[newIndex]!;
     useBrowserStore.setState((s) => ({
       tabs: s.tabs.map((t) =>
         t.id === activeTabId ? { ...t, url: newUrl, historyIndex: newIndex } : t

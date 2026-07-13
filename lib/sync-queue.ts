@@ -139,7 +139,7 @@ export class SyncQueue {
           await eventAdapter.add(queuedEvent.event);
           this.queue.delete(id);
           processed++;
-        } catch (error: any) {
+        } catch (error: unknown) {
           queuedEvent.retries++;
 
           if (queuedEvent.retries >= MAX_RETRIES) {

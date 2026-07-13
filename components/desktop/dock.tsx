@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useWindowStore } from '@/lib/stores/window.store';
+import { useWindowActions } from '@/lib/hooks/use-window-actions';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useWorkspaceStore } from '@/lib/stores/workspace.store';
 import { useAuthStore } from '@/lib/stores/auth.store';
@@ -19,11 +19,7 @@ interface DockProps {
 
 export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setShowMissionControl }: DockProps) {
   const { currentUser } = useAuthStore();
-  const windows = useWindowStore((s) => s.windows);
-  const openWindow = useWindowStore((s) => s.openWindow);
-  const focusWindow = useWindowStore((s) => s.focusWindow);
-  const minimizeWindow = useWindowStore((s) => s.minimizeWindow);
-  const highestZIndex = useWindowStore((s) => s.highestZIndex);
+  const { windows, openWindow, focusWindow, minimizeWindow, highestZIndex } = useWindowActions();
   const { activeWorkspace, installedApps, recentApps } = useWorkspaceStore();
 
   if (!currentUser) return null;

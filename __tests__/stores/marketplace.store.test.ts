@@ -76,7 +76,7 @@ describe('MarketplaceStore', () => {
       store.submitPlugin(makeSubmission({ id: 'sub-1' }));
       const result = store.approvePlugin('sub-1', 'reviewer@anichisom.com');
       expect(result?.status).toBe('approved');
-      expect(useMarketplaceStore.getState().submissions['sub-1'].status).toBe('approved');
+      expect(useMarketplaceStore.getState().submissions['sub-1']!.status).toBe('approved');
     });
 
     it('should reject a plugin through store', () => {
@@ -134,8 +134,8 @@ describe('MarketplaceStore', () => {
       for (let i = 0; i < 5; i++) store.incrementInstallCount('p2');
 
       const popular = store.getPopularPlugins();
-      expect(popular[0].pluginId).toBe('p2');
-      expect(popular[1].pluginId).toBe('p1');
+      expect(popular[0]!.pluginId).toBe('p2');
+      expect(popular[1]!.pluginId).toBe('p1');
     });
   });
 

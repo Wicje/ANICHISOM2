@@ -3,10 +3,9 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, useDragControls, useReducedMotion } from 'motion/react';
 import { OSWindow } from '@/lib/os-context';
-import { useWindowStore } from '@/lib/stores/window.store';
+import { useWindowActions } from '@/lib/hooks/use-window-actions';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { X, Minus, Maximize2, Square, Lock } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { getFileLockManager } from '@/lib/file-lock-manager';
 
 interface WindowFrameProps {
@@ -16,12 +15,7 @@ interface WindowFrameProps {
 
 export function WindowFrame({ osWindow, children }: WindowFrameProps) {
   const { id, title, isMaximized, isMinimized, zIndex, x, y, width, height } = osWindow;
-  const closeWindow = useWindowStore((s) => s.closeWindow);
-  const minimizeWindow = useWindowStore((s) => s.minimizeWindow);
-  const maximizeWindow = useWindowStore((s) => s.maximizeWindow);
-  const focusWindow = useWindowStore((s) => s.focusWindow);
-  const updateWindowDimensions = useWindowStore((s) => s.updateWindowDimensions);
-  const highestZIndex = useWindowStore((s) => s.highestZIndex);
+  const { closeWindow, minimizeWindow, maximizeWindow, focusWindow, updateWindowDimensions, highestZIndex } = useWindowActions();
   const performanceMode = useThemeStore((s) => s.performanceMode);
   const dragControls = useDragControls();
   const shouldReduceMotion = useReducedMotion();

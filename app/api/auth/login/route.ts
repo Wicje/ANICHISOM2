@@ -21,6 +21,13 @@ import {
 } from '@/lib/auth-validation';
 import { getAuthProvider } from '@/lib/auth-providers/provider-factory';
 import { createSession, createDevMasterSession } from '@/lib/session-store';
+import {
+  apiError,
+  apiForbidden,
+  apiUnauthorized,
+  apiInternal,
+  apiOk,
+} from '@/lib/api-helpers';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,10 +37,7 @@ export async function POST(request: NextRequest) {
     if (origin && host) {
       const parsedOrigin = new URL(origin);
       if (parsedOrigin.host !== host) {
-        return NextResponse.json(
-          { error: 'Forbidden: CSRF check failed' },
-          { status: 403 }
-        );
+        return apiForbidden('Forbidden: CSRF check failed');
       }
     }
     // Parse request body
@@ -41,18 +45,12 @@ export async function POST(request: NextRequest) {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json(
-        { error: 'Invalid JSON in request body' },
-        { status: 400 }
-      );
+      return apiError('Invalid JSON in request body');
     }
 
     // Validate request body is object
     if (typeof body !== 'object' || body === null) {
-      return NextResponse.json(
-        { error: 'Request body must be a JSON object' },
-        { status: 400 }
-      );
+      return apiError('Request body must be a JSON object');
     }
 
     const bodyObj = body as Record<string, unknown>;
@@ -60,19 +58,13 @@ export async function POST(request: NextRequest) {
     // Check required fields
     const fieldsCheck = validateRequiredFields(bodyObj, ['uniqueId']);
     if (!fieldsCheck.valid) {
-      return NextResponse.json(
-        { error: `Missing required fields: ${fieldsCheck.missing?.join(', ')}` },
-        { status: 400 }
-      );
+      return apiError(`Missing required fields: ${fieldsCheck.missing?.join(', ')}`);
     }
 
     // Validate unique ID format
     const uniqueIdValidation = validateUniqueId(bodyObj.uniqueId);
     if (!uniqueIdValidation.valid) {
-      return NextResponse.json(
-        { error: uniqueIdValidation.error },
-        { status: 400 }
-      );
+      return apiError(uniqueIdValidation.error || 'Invalid unique ID');
     }
 
     const uniqueId = sanitizeInput(bodyObj.uniqueId as string);
@@ -113,17 +105,13 @@ export async function POST(request: NextRequest) {
       const crypto = await import('crypto');
       const devToken = 'dev-master-' + crypto.randomBytes(32).toString('hex');
       createDevMasterSession(devToken);
-      const response = NextResponse.json(
-        {
-          success: true,
-          user: {
-            id: 'master-user-id',
-            uniqueId: 'dev-master',
-            role: 'admin',
-          },
+      const response = apiOk({
+        user: {
+          id: 'master-user-id',
+          uniqueId: 'dev-master',
+          role: 'admin',
         },
-        { status: 200 }
-      );
+      });
 
       response.cookies.set({
         name: 'anichisom_session',
@@ -143,17 +131,11 @@ export async function POST(request: NextRequest) {
     try {
       result = await authProvider.login({ uniqueId });
     } catch (err: any) {
-      return NextResponse.json(
-        { error: err?.message || 'Login failed' },
-        { status: 401 }
-      );
+      return apiUnauthorized(err?.message || 'Login failed');
     }
 
     if (!result || !result.user) {
-      return NextResponse.json(
-        { error: 'Session creation failed' },
-        { status: 500 }
-      );
+      return apiInternal('Session creation failed');
     }
 
     // Generate crypto-random session token — never use userId as token (S-06)
@@ -169,17 +151,13 @@ export async function POST(request: NextRequest) {
     );
 
     // Create response with secure session cookie
-    const response = NextResponse.json(
-      {
-        success: true,
-        user: {
-          id: result.user.id,
-          uniqueId: result.user.name || uniqueId,
-          role: result.user.role || 'user',
-        },
+    const response = apiOk({
+      user: {
+        id: result.user.id,
+        uniqueId: result.user.name || uniqueId,
+        role: result.user.role || 'user',
       },
-      { status: 200 }
-    );
+    });
 
     // Set HTTP-only, secure cookie
     const isProduction = process.env.NODE_ENV === 'production';
@@ -196,10 +174,7 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error('[auth/login] Unexpected error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return apiInternal();
   }
 }
 
@@ -217,9 +192,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('[auth/login] ID generation error:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate ID' },
-      { status: 500 }
-    );
+    return apiInternal('Failed to generate ID');
   }
 }

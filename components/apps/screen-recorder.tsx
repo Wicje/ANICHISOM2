@@ -40,7 +40,7 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
       setStream(displayStream);
       
       // Listen for user stopping share via browser UI
-      displayStream.getVideoTracks()[0].onended = () => {
+      displayStream.getVideoTracks()[0]!.onended = () => {
         stopShare();
       };
     } catch (err: any) {

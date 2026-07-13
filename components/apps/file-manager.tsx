@@ -197,7 +197,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
     if (!uploadedFiles) return;
 
     for (let i = 0; i < uploadedFiles.length; i++) {
-      const file = uploadedFiles[i];
+      const file = uploadedFiles[i]!;
       const filePath = currentPath === 'Root' ? file.name : `${currentPath}/${file.name}`;
       await FS.write(filePath, file, file.type);
 
@@ -245,7 +245,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
     <div className="w-full h-full flex bg-[#0f0f0f] text-[#ececec] font-sans overflow-hidden">
 
       {/* Sidebar */}
-      <div className="w-56 bg-[#1a1a1a] border-r border-white/5 flex flex-col shrink-0">
+      <div className="w-56 bg-[var(--os-surface)] border-r border-white/5 flex flex-col shrink-0">
         <div className="h-14 flex items-center px-4 border-b border-white/5 text-sm font-semibold tracking-wide text-white/80">
           <HardDrive className="w-4 h-4 mr-2 text-emerald-500" />
           Files Bridge
@@ -338,13 +338,13 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
         </div>
 
         {/* Status footer */}
-        <div className="p-4 border-t border-[#222]">
-          <div className="bg-[#1a1a1a] p-3 rounded-lg border border-[#333]">
+        <div className="p-4 border-t border-[var(--os-border)]">
+          <div className="bg-[var(--os-surface)] p-3 rounded-lg border border-[var(--os-border)]">
             <div className="flex items-center gap-2 text-[10px] text-emerald-400 font-semibold">
               <Lock className="w-3 h-3" />
               Privacy-First
             </div>
-            <div className="text-[9px] text-[#888] mt-1">
+            <div className="text-[9px] text-[var(--os-text-muted)] mt-1">
               Cloud OAuth tokens stored server-side only. {isViewingLocal ? 'Viewing local files.' : `Connected: ${selectedSource}`}
             </div>
           </div>
@@ -385,7 +385,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                 placeholder="Search files..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-48 bg-[#1a1a1a] border border-white/10 rounded-full py-1.5 pl-9 pr-4 text-sm text-white outline-none focus:border-blue-500 transition-colors shadow-inner"
+                className="w-48 bg-[var(--os-surface)] border border-white/10 rounded-full py-1.5 pl-9 pr-4 text-sm text-white outline-none focus:border-blue-500 transition-colors shadow-inner"
               />
             </div>
 

@@ -90,9 +90,9 @@ describe('ai-layout-suggestions.service', () => {
         ],
       };
       const result = applyLayout(nodes, suggestion);
-      expect(result[0].x).toBe(10);
-      expect(result[0].y).toBe(20);
-      expect(result[1].x).toBe(400);
+      expect(result[0]!.x).toBe(10);
+      expect(result[0]!.y).toBe(20);
+      expect(result[1]!.x).toBe(400);
     });
 
     it('preserves nodes not in layout suggestion', () => {
@@ -106,7 +106,7 @@ describe('ai-layout-suggestions.service', () => {
         nodePositions: [],
       };
       const result = applyLayout(nodes, suggestion);
-      expect(result[0].x).toBe(99);
+      expect(result[0]!.x).toBe(99);
     });
   });
 
@@ -130,8 +130,8 @@ describe('ai-layout-suggestions.service', () => {
       const nodes = Array.from({ length: 4 }, () => makeNode());
       const suggestions = await getAISuggestions(nodes);
       for (let i = 1; i < suggestions.length; i++) {
-        expect(suggestions[i].confidence).toBeLessThanOrEqual(
-          suggestions[i - 1].confidence,
+        expect(suggestions[i]!.confidence).toBeLessThanOrEqual(
+          suggestions[i - 1]!.confidence,
         );
       }
     });

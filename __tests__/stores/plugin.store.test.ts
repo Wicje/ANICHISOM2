@@ -73,9 +73,9 @@ describe('PluginStore', () => {
       const state = usePluginStore.getState();
       expect(state.bootstrapped).toBe(true);
       expect(state.plugins).toHaveLength(1);
-      expect(state.plugins[0].id).toBe('test-plugin');
+      expect(state.plugins[0]!.id).toBe('test-plugin');
       expect(state.activePlugins).toHaveLength(1);
-      expect(state.installStates['test-plugin']).toBeDefined();
+      expect(state.installStates['test-plugin']!).toBeDefined();
     });
   });
 
@@ -86,7 +86,7 @@ describe('PluginStore', () => {
 
       const state = usePluginStore.getState();
       expect(state.plugins).toHaveLength(1);
-      expect(state.plugins[0].id).toBe('test-plugin');
+      expect(state.plugins[0]!.id).toBe('test-plugin');
     });
 
     it('should unregister a plugin', () => {
@@ -106,8 +106,8 @@ describe('PluginStore', () => {
       store.installPlugin('test-plugin');
 
       const state = usePluginStore.getState();
-      expect(state.installStates['test-plugin']).toBeDefined();
-      expect(state.installStates['test-plugin'].enabled).toBe(true);
+      expect(state.installStates['test-plugin']!).toBeDefined();
+      expect(state.installStates['test-plugin']!.enabled).toBe(true);
       expect(state.activePlugins).toHaveLength(1);
     });
 
@@ -128,10 +128,10 @@ describe('PluginStore', () => {
       store.installPlugin('test-plugin');
 
       store.togglePlugin('test-plugin');
-      expect(usePluginStore.getState().installStates['test-plugin'].enabled).toBe(false);
+      expect(usePluginStore.getState().installStates['test-plugin']!.enabled).toBe(false);
 
       store.togglePlugin('test-plugin');
-      expect(usePluginStore.getState().installStates['test-plugin'].enabled).toBe(true);
+      expect(usePluginStore.getState().installStates['test-plugin']!.enabled).toBe(true);
     });
   });
 
@@ -143,7 +143,7 @@ describe('PluginStore', () => {
       store.setPrivacyOverride('test-plugin', 'files:read', false);
 
       const state = usePluginStore.getState();
-      expect(state.installStates['test-plugin'].privacyOverrides?.['files:read']).toBe(false);
+      expect(state.installStates['test-plugin']!.privacyOverrides?.['files:read']).toBe(false);
     });
 
     it('should check permission with override (denied)', () => {
@@ -217,7 +217,7 @@ describe('PluginStore', () => {
 
       const results = usePluginStore.getState().searchPlugins('creative');
       expect(results).toHaveLength(1);
-      expect(results[0].id).toBe('test-plugin-2');
+      expect(results[0]!.id).toBe('test-plugin-2');
     });
 
     it('should filter by category', () => {
@@ -227,7 +227,7 @@ describe('PluginStore', () => {
 
       const results = usePluginStore.getState().getPluginsByCategory('utility');
       expect(results).toHaveLength(1);
-      expect(results[0].id).toBe('test-plugin');
+      expect(results[0]!.id).toBe('test-plugin');
     });
 
     it('should filter by source', () => {

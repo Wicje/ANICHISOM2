@@ -29,7 +29,7 @@ export function HardwarePack({ window: osWindow }: { window: OSWindow }) {
   }, [workspaceMode, osWindow.id]);
   
   return (
-    <div className="w-full h-full flex flex-col bg-[#050505] text-white font-mono overflow-hidden">
+    <div className="w-full h-full flex flex-col bg-[var(--os-bg)] text-white font-mono overflow-hidden">
       <div className="h-14 border-b border-white/10 flex items-center px-4 shrink-0 bg-[#0a0a0a]">
         <Cpu className="w-5 h-5 text-emerald-400 mr-3" />
         <h1 className="font-bold tracking-wider hidden sm:block">Hardware EDA Studio</h1>
@@ -249,7 +249,7 @@ function PcbLayoutTab() {
   return (
     <div className="flex h-full p-4 gap-4">
       {/* PCB Canvas */}
-      <div className="flex-1 bg-[#1a1a1a] rounded-xl border border-white/10 relative overflow-hidden flex items-center justify-center shadow-inner">
+      <div className="flex-1 bg-[var(--os-surface)] rounded-xl border border-white/10 relative overflow-hidden flex items-center justify-center shadow-inner">
          <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '10px 10px' }} />
          
          {/* Mock PCB SVG */}
@@ -361,7 +361,7 @@ function Prototype3DTab() {
           camera-controls
           auto-rotate
           environment-image="neutral"
-          style={{ width: '100%', height: '100%', backgroundColor: '#050505' }}
+          style={{ width: '100%', height: '100%', backgroundColor: 'var(--os-bg)' }}
         >
         {/* @ts-ignore */}
         </model-viewer>

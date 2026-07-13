@@ -5,7 +5,7 @@
  * Persists to IndexedDB via debounced writes.
  */
 import { create } from 'zustand';
-import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { withPersistence } from '@/lib/stores/persisted-store';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -62,35 +62,6 @@ export interface Supplier {
   lastSync?: number;
 }
 
-// ─── Storage ────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'anichisom-hardware-state';
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-function schedulePersist(state: HardwareState) {
-  if (debounceTimer) clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => {
-    const data: PersistedHardware = {
-      components: state.components,
-      schematics: state.schematics,
-      firmwareVersions: state.firmwareVersions,
-      suppliers: state.suppliers,
-      activeSchematicId: state.activeSchematicId,
-    };
-    idbSet(STORAGE_KEY, data).catch((e: unknown) => {
-      console.warn('[HardwareStore] Failed to persist:', e);
-    });
-  }, 2000);
-}
-
-interface PersistedHardware {
-  components: Record<string, HwComponent>;
-  schematics: Record<string, Schematic>;
-  firmwareVersions: Record<string, FirmwareVersion>;
-  suppliers: Record<string, Supplier>;
-  activeSchematicId: string | null;
-}
-
 // ─── Helpers ────────────────────────────────────────────────────────────
 
 function generateId(): string {
@@ -145,9 +116,6 @@ interface HardwareState {
   deleteSupplier: (id: string) => void;
   linkSupplier: (id: string) => void;
   unlinkSupplier: (id: string) => void;
-
-  // ─── Persistence ────────────────────────────────────────────────
-  hydrate: () => Promise<void>;
 }
 
 export const useHardwareStore = create<HardwareState>((set, get) => ({
@@ -173,7 +141,6 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
     };
     set((s) => {
       const components = { ...s.components, [id]: component };
-      schedulePersist({ ...s, components });
       return { components };
     });
     return id;
@@ -187,7 +154,6 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
         ...s.components,
         [id]: { ...existing, ...updates },
       };
-      schedulePersist({ ...s, components });
       return { components };
     });
   },
@@ -195,7 +161,6 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
   deleteComponent: (id) => {
     set((s) => {
       const { [id]: _, ...rest } = s.components;
-      schedulePersist({ ...s, components: rest });
       return { components: rest };
     });
   },
@@ -219,7 +184,6 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
     };
     set((s) => {
       const schematics = { ...s.schematics, [id]: schematic };
-      schedulePersist({ ...s, schematics });
       return { schematics };
     });
     return id;
@@ -233,7 +197,6 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
         ...s.schematics,
         [id]: { ...existing, ...updates, updatedAt: Date.now() },
       };
-      schedulePersist({ ...s, schematics });
       return { schematics };
     });
   },
@@ -242,7 +205,6 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
     set((s) => {
       const { [id]: _, ...rest } = s.schematics;
       const activeSchematicId = s.activeSchematicId === id ? null : s.activeSchematicId;
-      schedulePersist({ ...s, schematics: rest, activeSchematicId });
       return { schematics: rest, activeSchematicId };
     });
   },
@@ -252,14 +214,11 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
     if (!schematic) return [];
     return schematic.componentIds
       .map((cid) => get().components[cid])
-      .filter(Boolean);
+      .filter((c): c is HwComponent => Boolean(c));
   },
 
   setActiveSchematic: (id) => {
-    set((s) => {
-      schedulePersist({ ...s, activeSchematicId: id });
-      return { activeSchematicId: id };
-    });
+    set({ activeSchematicId: id });
   },
 
   // ─── Firmware CRUD ──────────────────────────────────────────────
@@ -275,7 +234,6 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
     };
     set((s) => {
       const firmwareVersions = { ...s.firmwareVersions, [id]: fw };
-      schedulePersist({ ...s, firmwareVersions });
       return { firmwareVersions };
     });
     return id;
@@ -289,7 +247,6 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
         ...s.firmwareVersions,
         [id]: { ...existing, ...updates },
       };
-      schedulePersist({ ...s, firmwareVersions });
       return { firmwareVersions };
     });
   },
@@ -297,7 +254,6 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
   deleteFirmware: (id) => {
     set((s) => {
       const { [id]: _, ...rest } = s.firmwareVersions;
-      schedulePersist({ ...s, firmwareVersions: rest });
       return { firmwareVersions: rest };
     });
   },
@@ -319,7 +275,6 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
     };
     set((s) => {
       const suppliers = { ...s.suppliers, [id]: supplier };
-      schedulePersist({ ...s, suppliers });
       return { suppliers };
     });
     return id;
@@ -333,7 +288,6 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
         ...s.suppliers,
         [id]: { ...existing, ...updates },
       };
-      schedulePersist({ ...s, suppliers });
       return { suppliers };
     });
   },
@@ -341,7 +295,6 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
   deleteSupplier: (id) => {
     set((s) => {
       const { [id]: _, ...rest } = s.suppliers;
-      schedulePersist({ ...s, suppliers: rest });
       return { suppliers: rest };
     });
   },
@@ -354,7 +307,6 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
         ...s.suppliers,
         [id]: { ...supplier, linked: true, lastSync: Date.now() },
       };
-      schedulePersist({ ...s, suppliers });
       return { suppliers };
     });
   },
@@ -367,27 +319,9 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
         ...s.suppliers,
         [id]: { ...supplier, linked: false },
       };
-      schedulePersist({ ...s, suppliers });
       return { suppliers };
     });
   },
-
-  // ─── Persistence ────────────────────────────────────────────────
-
-  hydrate: async () => {
-    try {
-      const data = await idbGet<PersistedHardware>(STORAGE_KEY);
-      if (data) {
-        set({
-          components: data.components || {},
-          schematics: data.schematics || {},
-          firmwareVersions: data.firmwareVersions || {},
-          suppliers: data.suppliers || {},
-          activeSchematicId: data.activeSchematicId || null,
-        });
-      }
-    } catch (e) {
-      console.warn('[HardwareStore] Failed to hydrate:', e);
-    }
-  },
 }));
+
+withPersistence(useHardwareStore, 'hardware-state', ['components', 'schematics', 'firmwareVersions', 'suppliers', 'activeSchematicId']);

@@ -179,7 +179,7 @@ describe('PrivateRegistryService', () => {
       await PrivateRegistryService.syncRegistry(reg.id);
       const results = PrivateRegistryService.searchRegistries('Alpha');
       expect(results).toHaveLength(1);
-      expect(results[0].manifest.name).toBe('Alpha Plugin');
+      expect(results[0]!.manifest.name).toBe('Alpha Plugin');
     });
 
     it('should return empty for no match', async () => {

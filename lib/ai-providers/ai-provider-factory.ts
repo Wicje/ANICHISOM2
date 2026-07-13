@@ -137,8 +137,8 @@ export async function chatWithFallback(options: AiChatOptions): Promise<AiChatRe
       if (await provider.isAvailable()) {
         return await provider.chat(options);
       }
-    } catch (error: any) {
-      console.warn(`[AI] Provider ${providerId} failed: ${error.message}`);
+    } catch (error: unknown) {
+      console.warn(`[AI] Provider ${providerId} failed:`, error);
       continue;
     }
   }
@@ -165,8 +165,8 @@ export async function chatStreamWithFallback(
       if (await provider.isAvailable()) {
         return await provider.chatStream(options, onChunk);
       }
-    } catch (error: any) {
-      console.warn(`[AI] Stream provider ${providerId} failed: ${error.message}`);
+    } catch (error: unknown) {
+      console.warn(`[AI] Stream provider ${providerId} failed:`, error);
       continue;
     }
   }

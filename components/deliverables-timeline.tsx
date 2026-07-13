@@ -64,7 +64,7 @@ export function DeliverablesTimeline({ project, onDeliverableClick }: Deliverabl
               const nextDeliverable = timeline[index + 1];
               const showDateHeader =
                 index === 0 || format(deliverable.dueDate, 'yyyy-MM-dd') !==
-                  format(timeline[index - 1].dueDate, 'yyyy-MM-dd');
+                  format(timeline[index - 1]!.dueDate, 'yyyy-MM-dd');
 
               return (
                 <div key={deliverable.id}>

@@ -84,12 +84,12 @@ function parseRepoUrl(repoUrl: string): { owner: string; repo: string } | null {
     const url = new URL(repoUrl);
     const parts = url.pathname.replace(/^\//, '').replace(/\/$/, '').split('/');
     if (parts.length >= 2) {
-      return { owner: parts[0], repo: parts[1] };
+      return { owner: parts[0]!, repo: parts[1]! };
     }
   } catch {
     // not a valid URL, try github shorthand
     const match = repoUrl.match(/^([^/]+)\/([^/]+)$/);
-    if (match) return { owner: match[1], repo: match[2] };
+    if (match) return { owner: match[1]!, repo: match[2]! };
   }
   return null;
 }

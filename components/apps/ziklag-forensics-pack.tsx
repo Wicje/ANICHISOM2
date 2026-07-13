@@ -72,7 +72,7 @@ export function ZiklagForensicsPack({ window: osWindow }: { window: OSWindow }) 
   const store = useForensicsStore();
 
   useEffect(() => {
-    useForensicsStore.getState().hydrate();
+    (useForensicsStore as any).hydrate?.();
   }, []);
 
   return (
@@ -638,7 +638,7 @@ function ChainIntegrity({ entries }: { entries: ChainEntry[] }) {
 
   const hasGap = entries.length > 1 && entries.some((e, i) => {
     if (i === 0) return false;
-    const prev = entries[i - 1];
+    const prev = entries[i - 1]!;
     return prev.toPerson !== e.fromPerson && e.action !== 'collected';
   });
 

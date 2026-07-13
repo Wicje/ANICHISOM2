@@ -94,11 +94,9 @@ function timeAgo(ts: number): string {
 
 export function DeveloperPack({ window: osWindow }: { window: OSWindow }) {
   const [activeTab, setActiveTab] = useState<Tab>('deployments');
-  const { hydrate } = useDevopsStore();
-
   useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+    (useDevopsStore as any).hydrate?.();
+  }, []);
 
   return (
     <div className="w-full h-full flex flex-col bg-[#0d1117] text-gray-300 font-mono overflow-hidden">

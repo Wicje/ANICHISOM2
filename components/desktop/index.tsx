@@ -81,7 +81,7 @@ export function Desktop() {
   const { activeWorkspace, setActiveWorkspace, installedApps, recentApps, snapshots, saveSnapshot, restoreSnapshot } = useWorkspaceStore();
   const { applyWorkspaceLayout } = useWindowStore();
   const getAppPrivacy = usePrivacyStore((s) => s.getAppPrivacy);
-  const { onboarding, hydrate: hydrateOnboarding } = useOnboardingStore();
+  const { onboarding } = useOnboardingStore();
 
   const [isLocked, setIsLocked] = useState(false);
   const [showLaunchpad, setShowLaunchpad] = useState(false);
@@ -103,7 +103,7 @@ export function Desktop() {
     loadInstallStates();
     const allAppIds = APP_MANIFEST.map(a => a.id);
     registerBuiltinPlugins(allAppIds);
-    hydrateOnboarding();
+    (useOnboardingStore as any).hydrate?.();
     hydrateColorMode();
   }, []);
 
@@ -187,7 +187,7 @@ export function Desktop() {
           roles: plugin.roles || ['admin'],
         };
       } else {
-        merged[plugin.id] = { ...merged[plugin.id], title: plugin.name };
+        merged[plugin.id] = { ...merged[plugin.id]!, title: plugin.name };
       }
     });
 
@@ -293,7 +293,7 @@ export function Desktop() {
           setSwitcherIndex(currentIdx => {
             const activeW = windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined);
             if (activeW.length > 0 && currentIdx < activeW.length) {
-              focusWindow(activeW[currentIdx].id);
+              focusWindow(activeW[currentIdx]!.id);
             }
             return 0;
           });
@@ -395,7 +395,7 @@ export function Desktop() {
     e.preventDefault();
     setIsDraggingFile(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
+      const file = e.dataTransfer.files[0]!;
       try {
         await FS.write(`Desktop/${file.name}`, file, file.type);
         alert(`File ${file.name} saved to Desktop via OS File System.`);

@@ -5,7 +5,7 @@
  * Persists to IndexedDB via debounced writes.
  */
 import { create } from 'zustand';
-import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { withPersistence } from '@/lib/stores/persisted-store';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -68,30 +68,6 @@ export interface WatermarkPreset {
   opacity: number;
   position: 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
   fontSize: number;
-}
-
-// ─── Storage ────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'anichisom-photography-state';
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-function schedulePersist(state: PhotographyState) {
-  if (debounceTimer) clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => {
-    const data: PersistedPhotography = {
-      shoots: state.shoots,
-      galleries: state.galleries,
-      clients: state.clients,
-      printOrders: state.printOrders,
-      watermarkPresets: state.watermarkPresets,
-      activeShootId: state.activeShootId,
-      activeClientId: state.activeClientId,
-      activeWatermarkPresetId: state.activeWatermarkPresetId,
-    };
-    idbSet(STORAGE_KEY, data).catch((e: unknown) => {
-      console.warn('[PhotographyStore] Failed to persist:', e);
-    });
-  }, 2000);
 }
 
 export interface PersistedPhotography {
@@ -160,9 +136,6 @@ interface PhotographyState {
   deleteWatermarkPreset: (id: string) => void;
   getActiveWatermarkPreset: () => WatermarkPreset | null;
   setActiveWatermarkPreset: (id: string | null) => void;
-
-  // ─── Persistence ─────────────────────────────────────────────────
-  hydrate: () => Promise<void>;
 }
 
 export const usePhotographyStore = create<PhotographyState>((set, get) => ({
@@ -193,7 +166,6 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
     };
     set((s) => {
       const shoots = { ...s.shoots, [id]: shoot };
-      schedulePersist({ ...s, shoots });
       return { shoots };
     });
     return id;
@@ -204,7 +176,6 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
       const existing = s.shoots[id];
       if (!existing) return s;
       const shoots = { ...s.shoots, [id]: { ...existing, ...updates } };
-      schedulePersist({ ...s, shoots });
       return { shoots };
     });
   },
@@ -213,16 +184,12 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
     set((s) => {
       const { [id]: _, ...rest } = s.shoots;
       const activeShootId = s.activeShootId === id ? null : s.activeShootId;
-      schedulePersist({ ...s, shoots: rest, activeShootId });
       return { shoots: rest, activeShootId };
     });
   },
 
   setActiveShoot: (id) => {
-    set((s) => {
-      schedulePersist({ ...s, activeShootId: id });
-      return { activeShootId: id };
-    });
+    set({ activeShootId: id });
   },
 
   getActiveShoot: () => {
@@ -252,7 +219,6 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
     };
     set((s) => {
       const galleries = { ...s.galleries, [id]: gallery };
-      schedulePersist({ ...s, galleries });
       return { galleries };
     });
     return id;
@@ -263,7 +229,6 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
       const existing = s.galleries[id];
       if (!existing) return s;
       const galleries = { ...s.galleries, [id]: { ...existing, ...updates } };
-      schedulePersist({ ...s, galleries });
       return { galleries };
     });
   },
@@ -271,7 +236,6 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
   deleteGallery: (id) => {
     set((s) => {
       const { [id]: _, ...rest } = s.galleries;
-      schedulePersist({ ...s, galleries: rest });
       return { galleries: rest };
     });
   },
@@ -300,7 +264,6 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
     };
     set((s) => {
       const clients = { ...s.clients, [id]: client };
-      schedulePersist({ ...s, clients });
       return { clients };
     });
     return id;
@@ -311,7 +274,6 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
       const existing = s.clients[id];
       if (!existing) return s;
       const clients = { ...s.clients, [id]: { ...existing, ...updates } };
-      schedulePersist({ ...s, clients });
       return { clients };
     });
   },
@@ -320,16 +282,12 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
     set((s) => {
       const { [id]: _, ...rest } = s.clients;
       const activeClientId = s.activeClientId === id ? null : s.activeClientId;
-      schedulePersist({ ...s, clients: rest, activeClientId });
       return { clients: rest, activeClientId };
     });
   },
 
   setActiveClient: (id) => {
-    set((s) => {
-      schedulePersist({ ...s, activeClientId: id });
-      return { activeClientId: id };
-    });
+    set({ activeClientId: id });
   },
 
   getActiveClient: () => {
@@ -340,7 +298,7 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
   getClientShoots: (clientId) => {
     const client = get().clients[clientId];
     if (!client) return [];
-    return client.shootIds.map((sid) => get().shoots[sid]).filter(Boolean);
+    return client.shootIds.map((sid) => get().shoots[sid]).filter((s): s is Shoot => Boolean(s));
   },
 
   // ─── Print Order CRUD ────────────────────────────────────────────
@@ -358,7 +316,6 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
     };
     set((s) => {
       const printOrders = { ...s.printOrders, [id]: order };
-      schedulePersist({ ...s, printOrders });
       return { printOrders };
     });
     return id;
@@ -369,7 +326,6 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
       const existing = s.printOrders[id];
       if (!existing) return s;
       const printOrders = { ...s.printOrders, [id]: { ...existing, ...updates } };
-      schedulePersist({ ...s, printOrders });
       return { printOrders };
     });
   },
@@ -377,7 +333,6 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
   deletePrintOrder: (id) => {
     set((s) => {
       const { [id]: _, ...rest } = s.printOrders;
-      schedulePersist({ ...s, printOrders: rest });
       return { printOrders: rest };
     });
   },
@@ -404,7 +359,6 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
     };
     set((s) => {
       const watermarkPresets = { ...s.watermarkPresets, [id]: preset };
-      schedulePersist({ ...s, watermarkPresets });
       return { watermarkPresets };
     });
     return id;
@@ -415,7 +369,6 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
       const existing = s.watermarkPresets[id];
       if (!existing) return s;
       const watermarkPresets = { ...s.watermarkPresets, [id]: { ...existing, ...updates } };
-      schedulePersist({ ...s, watermarkPresets });
       return { watermarkPresets };
     });
   },
@@ -424,7 +377,6 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
     set((s) => {
       const { [id]: _, ...rest } = s.watermarkPresets;
       const activeWatermarkPresetId = s.activeWatermarkPresetId === id ? null : s.activeWatermarkPresetId;
-      schedulePersist({ ...s, watermarkPresets: rest, activeWatermarkPresetId });
       return { watermarkPresets: rest, activeWatermarkPresetId };
     });
   },
@@ -435,31 +387,8 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
   },
 
   setActiveWatermarkPreset: (id) => {
-    set((s) => {
-      schedulePersist({ ...s, activeWatermarkPresetId: id });
-      return { activeWatermarkPresetId: id };
-    });
-  },
-
-  // ─── Persistence ─────────────────────────────────────────────────
-
-  hydrate: async () => {
-    try {
-      const data = await idbGet<PersistedPhotography>(STORAGE_KEY);
-      if (data) {
-        set({
-          shoots: data.shoots || {},
-          galleries: data.galleries || {},
-          clients: data.clients || {},
-          printOrders: data.printOrders || {},
-          watermarkPresets: data.watermarkPresets || {},
-          activeShootId: data.activeShootId || null,
-          activeClientId: data.activeClientId || null,
-          activeWatermarkPresetId: data.activeWatermarkPresetId || null,
-        });
-      }
-    } catch (e) {
-      console.warn('[PhotographyStore] Failed to hydrate:', e);
-    }
+    set({ activeWatermarkPresetId: id });
   },
 }));
+
+withPersistence(usePhotographyStore, 'photography-state', ['shoots', 'galleries', 'clients', 'printOrders', 'watermarkPresets', 'activeShootId', 'activeClientId', 'activeWatermarkPresetId']);

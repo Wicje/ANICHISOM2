@@ -273,7 +273,7 @@ function FilterSortPanel({
 
   const updateFilter = (idx: number, updates: Partial<ViewFilter>) => {
     const newFilters = [...config.filters];
-    newFilters[idx] = { ...newFilters[idx], ...updates };
+    newFilters[idx] = { ...newFilters[idx]!, ...updates };
     onUpdateConfig({ ...config, filters: newFilters });
   };
 
@@ -292,7 +292,7 @@ function FilterSortPanel({
 
   const updateSort = (idx: number, direction: 'ascending' | 'descending') => {
     const newSorts = [...config.sorts];
-    newSorts[idx] = { ...newSorts[idx], direction };
+    newSorts[idx] = { ...newSorts[idx]!, direction };
     onUpdateConfig({ ...config, sorts: newSorts });
   };
 
@@ -370,7 +370,7 @@ function FilterSortPanel({
                 onChange={e => updateSort(idx, s.direction)}
                 onBlur={e => {
                   const newSorts = [...config.sorts];
-                  newSorts[idx] = { ...newSorts[idx], propertyId: e.target.value };
+                  newSorts[idx] = { ...newSorts[idx]!, propertyId: e.target.value };
                   onUpdateConfig({ ...config, sorts: newSorts });
                 }}
               >
@@ -631,7 +631,7 @@ export function DatabaseView({ block, databaseStore, onUpdateDatabase, onUpdateB
                       <td key={prop.id} className="p-2 whitespace-nowrap">
                         <PropertyCell
                           property={prop}
-                          value={row.properties[prop.id]}
+                          value={row.properties[prop.id] ?? null}
                           rowId={row.id}
                           onUpdateRow={handleUpdateRow}
                           database={database}
@@ -673,7 +673,7 @@ export function DatabaseView({ block, databaseStore, onUpdateDatabase, onUpdateB
                           <Trash2 className="w-3 h-3" />
                         </button>
                         <div className="font-medium mb-2 text-[#37352f]">
-                          {String(row.properties[database.properties[0]?.id] || 'Untitled')}
+                          {String(row.properties[database.properties[0]!.id] || 'Untitled')}
                         </div>
                         <div className="flex items-center gap-2 mt-3 pt-3 border-t border-black/5">
                           {visibleProperties.filter(p => p.id !== database.properties[0]?.id && p.id !== boardGroupProp).slice(0, 3).map(prop => (
@@ -683,7 +683,7 @@ export function DatabaseView({ block, databaseStore, onUpdateDatabase, onUpdateB
                               ) : prop.type === 'date' ? (
                                 <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {row.properties[prop.id] || ''}</span>
                               ) : (
-                                <PropertyCell property={prop} value={row.properties[prop.id]} rowId={row.id} onUpdateRow={handleUpdateRow} database={database} />
+                                <PropertyCell property={prop} value={row.properties[prop.id] ?? null} rowId={row.id} onUpdateRow={handleUpdateRow} database={database} />
                               )}
                             </div>
                           ))}
@@ -716,12 +716,12 @@ export function DatabaseView({ block, databaseStore, onUpdateDatabase, onUpdateB
                     "font-medium truncate",
                     row.properties[visibleProperties.find(p => p.type === 'checkbox')?.id || ''] === true ? "line-through text-slate-400" : "text-[#37352f]"
                   )}>
-                    {String(row.properties[database.properties[0]?.id] || 'Untitled')}
+                    {String(row.properties[database.properties[0]!.id] || 'Untitled')}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 opacity-0 group-hover/row:opacity-100 transition-opacity shrink-0">
                   {visibleProperties.slice(1, 4).map(prop => (
-                    <PropertyCell key={prop.id} property={prop} value={row.properties[prop.id]} rowId={row.id} onUpdateRow={handleUpdateRow} database={database} />
+                    <PropertyCell key={prop.id} property={prop} value={row.properties[prop.id] ?? null} rowId={row.id} onUpdateRow={handleUpdateRow} database={database} />
                   ))}
                   <button onClick={() => deleteRow(row.id)} className="p-1 hover:bg-red-50 rounded text-red-400"><Trash2 className="w-3 h-3" /></button>
                 </div>
@@ -738,7 +738,7 @@ export function DatabaseView({ block, databaseStore, onUpdateDatabase, onUpdateB
           <div className="p-4 bg-[#f7f7f5] rounded-b-lg">
             <div className="grid grid-cols-3 gap-3 min-h-[300px]">
               {filteredRows.map(row => {
-                const nameProp = database.properties[0]?.id;
+                const nameProp = database.properties[0]!.id;
                 const statusProp = database.properties.find(p => p.type === 'select');
                 const statusVal = statusProp ? row.properties[statusProp.id] as string : null;
                 const statusOpt = statusProp?.options?.find(o => o.id === statusVal);
@@ -801,7 +801,7 @@ export function DatabaseView({ block, databaseStore, onUpdateDatabase, onUpdateB
                     {dayNum && <div className="text-sm text-black/40 font-medium mb-1">{dayNum}</div>}
                     <div className="flex flex-col gap-1">
                       {dayItems.map(r => {
-                        const nameProp = database.properties[0]?.id;
+                        const nameProp = database.properties[0]!.id;
                         const statusProp = database.properties.find(p => p.type === 'select');
                         const statusVal = statusProp ? r.properties[statusProp.id] as string : null;
                         const statusOpt = statusProp?.options?.find(o => o.id === statusVal);
@@ -833,7 +833,7 @@ export function DatabaseView({ block, databaseStore, onUpdateDatabase, onUpdateB
                 </div>
               </div>
               {filteredRows.map((r, i) => {
-                const nameProp = database.properties[0]?.id;
+                const nameProp = database.properties[0]!.id;
                 const statusProp = database.properties.find(p => p.type === 'select');
                 const statusVal = statusProp ? r.properties[statusProp.id] as string : null;
                 const statusOpt = statusProp?.options?.find(o => o.id === statusVal);

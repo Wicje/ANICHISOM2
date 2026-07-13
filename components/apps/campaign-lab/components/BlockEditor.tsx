@@ -28,7 +28,7 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
 
   const updateBlock = (index: number, updates: Partial<Block>) => {
     const newBlocks = [...blocks];
-    newBlocks[index] = { ...newBlocks[index], ...updates };
+    newBlocks[index] = { ...newBlocks[index]!, ...updates };
     onChange(newBlocks);
   };
 
@@ -58,7 +58,7 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
        if (e.key === 'Enter') {
          e.preventDefault();
          if (filteredSlashCommands[slashMenu.selectedIndex]) {
-           executeSlashCommand(filteredSlashCommands[slashMenu.selectedIndex].id);
+            executeSlashCommand(filteredSlashCommands[slashMenu.selectedIndex]!.id);
          }
          return;
        }
@@ -78,7 +78,7 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
        if (e.key === 'Enter') {
          e.preventDefault();
          if (filteredMembers[mentionMenu.selectedIndex]) {
-           executeMention(filteredMembers[mentionMenu.selectedIndex]);
+            executeMention(filteredMembers[mentionMenu.selectedIndex]!);
          }
          return;
        }
@@ -87,7 +87,7 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
     if (e.key === 'Enter') {
       if (!e.shiftKey) {
         e.preventDefault();
-        const currentBlock = blocks[index];
+        const currentBlock = blocks[index]!;
         let newType: BlockType = 'p';
         if (currentBlock.type === 'todo') newType = 'todo';
         if (currentBlock.type === 'bullet') newType = 'bullet';
@@ -113,13 +113,13 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
         }, 0);
       }
     } else if (e.key === 'Backspace' && el.selectionStart === 0 && el.selectionEnd === 0) {
-      if (blocks[index].type !== 'p' && blocks[index].content === '') {
+      if (blocks[index]!.type !== 'p' && blocks[index]!.content === '') {
          e.preventDefault();
          updateBlock(index, { type: 'p' });
       } else if (index > 0) {
         e.preventDefault();
-        const prevBlock = blocks[index - 1];
-        const mergedContent = prevBlock.content + blocks[index].content;
+        const prevBlock = blocks[index - 1]!;
+        const mergedContent = prevBlock.content + blocks[index]!.content;
         const newBlocks = [...blocks];
         newBlocks[index - 1] = { ...prevBlock, content: mergedContent };
         newBlocks.splice(index, 1);
@@ -135,10 +135,10 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
       }
     } else if (e.key === 'ArrowUp' && el.selectionStart === 0 && index > 0) {
       e.preventDefault();
-      document.getElementById(`block-${blocks[index - 1].id}`)?.focus();
+      document.getElementById(`block-${blocks[index - 1]!.id}`)?.focus();
     } else if (e.key === 'ArrowDown' && el.selectionStart === el.value.length && index < blocks.length - 1) {
       e.preventDefault();
-      document.getElementById(`block-${blocks[index + 1].id}`)?.focus();
+      document.getElementById(`block-${blocks[index + 1]!.id}`)?.focus();
     }
   };
 
@@ -169,7 +169,7 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
   const executeSlashCommand = (cmdId: string) => {
     if (!slashMenu) return;
     const { index } = slashMenu;
-    const block = blocks[index];
+    const block = blocks[index]!;
     const textBeforeSlash = block.content.substring(0, block.content.lastIndexOf('/'));
     
     const newBlocks = [...blocks];
@@ -206,7 +206,7 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
   const executeMention = (memberName: string) => {
     if (!mentionMenu) return;
     const { index } = mentionMenu;
-    const block = blocks[index];
+    const block = blocks[index]!;
     const lastAtIdx = block.content.lastIndexOf('@');
     const textBefore = block.content.substring(0, lastAtIdx);
     const textAfter = block.content.substring(lastAtIdx + mentionMenu.query.length + 1);
@@ -225,7 +225,7 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
     if (draggedIdx === null || draggedIdx === dropIdx) return;
     const newBlocks = [...blocks];
     const [removed] = newBlocks.splice(draggedIdx, 1);
-    newBlocks.splice(dropIdx, 0, removed);
+    newBlocks.splice(dropIdx, 0, removed!);
     onChange(newBlocks);
     setDraggedIdx(null);
   };
@@ -378,17 +378,17 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
                          e.target.style.height = 'auto';
                          e.target.style.height = `${e.target.scrollHeight}px`;
                          const newChildren = [...block.children!];
-                         newChildren[childIdx] = { ...newChildren[childIdx], content: e.target.value };
-                         updateBlock(index, { children: newChildren });
-                       }}
-                       onKeyDown={(e) => {
-                         if (e.key === 'Enter' && !e.shiftKey) {
-                           e.preventDefault();
-                           const cursor = e.currentTarget.selectionStart;
-                           const textBefore = child.content.substring(0, cursor);
-                           const textAfter = child.content.substring(cursor);
-                           const newChildren = [...block.children!];
-                           newChildren[childIdx] = { ...newChildren[childIdx], content: textBefore };
+                          newChildren[childIdx] = { ...newChildren[childIdx]!, content: e.target.value };
+                          updateBlock(index, { children: newChildren });
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            const cursor = e.currentTarget.selectionStart;
+                            const textBefore = child.content.substring(0, cursor);
+                            const textAfter = child.content.substring(cursor);
+                            const newChildren = [...block.children!];
+                            newChildren[childIdx] = { ...newChildren[childIdx]!, content: textBefore };
                            const newChild: Block = { id: crypto.randomUUID(), type: child.type === 'todo' ? 'todo' : child.type === 'bullet' ? 'bullet' : 'p', content: textAfter };
                            newChildren.splice(childIdx + 1, 0, newChild);
                            updateBlock(index, { children: newChildren });
@@ -449,7 +449,7 @@ function TableBlock({ block, index, updateBlock }: { block: Block, index: number
 
   const updateCell = (rowIdx: number, colIdx: number, value: string) => {
     const newRows = [...rows];
-    newRows[rowIdx] = [...newRows[rowIdx]];
+    newRows[rowIdx] = [...newRows[rowIdx]!];
     newRows[rowIdx][colIdx] = value;
     updateBlock(index, { rows: newRows, columns });
   };

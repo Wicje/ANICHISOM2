@@ -70,13 +70,13 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
   useEffect(() => {
      loadImages();
      loadGalleries();
-     usePhotographyStore.getState().hydrate();
+      (usePhotographyStore as any).hydrate?.();
   }, []);
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
      if (!e.target.files) return;
      for (let i = 0; i < e.target.files.length; i++) {
-        const file = e.target.files[i];
+        const file = e.target.files[i]!;
         await FS.write(file.name, file, file.type);
      }
      await loadImages();
@@ -362,7 +362,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                 {/* Cover Image */}
                 <div className="h-64 sm:h-80 bg-zinc-900 w-full relative shrink-0">
                    {images.length > 0 ? (
-                      <img src={images[0].content as string} className="w-full h-full object-cover opacity-60" />
+                      <img src={images[0]!.content as string} className="w-full h-full object-cover opacity-60" />
                    ) : (
                       <div className="w-full h-full flex items-center justify-center text-zinc-700">No images available</div>
                    )}

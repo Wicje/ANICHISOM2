@@ -211,7 +211,7 @@ export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
   const handleFileDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
+      const file = e.dataTransfer.files[0]!;
       setIsHashingFile(true);
       try {
         const buffer = await file.arrayBuffer();
@@ -262,11 +262,11 @@ export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
   };
 
   if (!isLoaded) {
-    return <div className="w-full h-full bg-[#050505] flex items-center justify-center text-white/50 animate-pulse">Initializing Ziklag Core...</div>;
+    return <div className="w-full h-full bg-[var(--os-bg)] flex items-center justify-center text-white/50 animate-pulse">Initializing Ziklag Core...</div>;
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#050505] text-white font-sans overflow-hidden">
+    <div className="w-full h-full flex flex-col bg-[var(--os-bg)] text-white font-sans overflow-hidden">
       {/* Header */}
       <div className="h-16 border-b border-white/5 flex items-center justify-between px-6 shrink-0 bg-black/50 backdrop-blur-md">
         <div className="flex items-center gap-3">
@@ -478,7 +478,7 @@ export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
              <div className="relative pl-8 border-l border-white/10 space-y-8 mt-4">
                {chainOfCustody.map((coc, i) => (
                  <div key={coc.id} className="relative">
-                   <div className="absolute -left-[41px] bg-[#050505] p-1 rounded-full">
+                   <div className="absolute -left-[41px] bg-[var(--os-bg)] p-1 rounded-full">
                      <div className={cn(
                        "w-4 h-4 rounded-full border-2",
                        coc.action === 'received' ? 'bg-emerald-500/20 border-emerald-500' :
@@ -659,8 +659,8 @@ export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
               </div>
             </div>
             {hexMode === 'hex' ? (
-              <div className="flex-1 w-full bg-[#050505] rounded-xl border border-white/10 p-4 font-mono text-[13px] overflow-y-auto uppercase">
-                 <div className="grid grid-cols-[80px_1fr_140px] gap-6 text-white/50 mb-3 border-b border-white/10 pb-2 font-bold sticky top-0 bg-[#050505] z-10">
+              <div className="flex-1 w-full bg-[var(--os-bg)] rounded-xl border border-white/10 p-4 font-mono text-[13px] overflow-y-auto uppercase">
+                 <div className="grid grid-cols-[80px_1fr_140px] gap-6 text-white/50 mb-3 border-b border-white/10 pb-2 font-bold sticky top-0 bg-[var(--os-bg)] z-10">
                    <div>Offset</div>
                    <div>00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F</div>
                    <div>Decoded</div>
@@ -676,7 +676,7 @@ export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
                  </div>
               </div>
             ) : (
-              <div className="flex-1 w-full bg-[#050505] rounded-xl border border-white/10 p-4 font-mono text-xs overflow-y-auto">
+              <div className="flex-1 w-full bg-[var(--os-bg)] rounded-xl border border-white/10 p-4 font-mono text-xs overflow-y-auto">
                  <div className="flex flex-col">
                     {telemetryLogs.map((log) => (
                       <div key={log.index} className="flex gap-4 items-start border-b border-white/5 py-1.5 hover:bg-white/5 px-2 -mx-2">

@@ -91,11 +91,9 @@ function formatDurationShort(seconds: number): string {
 
 export function SideGigsPack({ window: osWindow }: { window: OSWindow }) {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
-  const { hydrate } = useSideGigsStore();
-
   useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+    (useSideGigsStore as any).hydrate?.();
+  }, []);
 
   return (
     <div className="w-full h-full flex flex-col bg-white text-gray-900 overflow-hidden">
@@ -371,7 +369,7 @@ function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label:
     violet: { bg: 'bg-violet-50', icon: 'text-violet-600' },
     blue: { bg: 'bg-blue-50', icon: 'text-blue-600' },
   };
-  const c = colorMap[color] ?? colorMap.violet;
+  const c = colorMap[color] ?? colorMap.violet!;
   return (
     <div className={cn("border border-gray-200 rounded-lg p-4 flex items-center gap-3", c.bg)}>
       <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", c.bg, c.icon)}>
@@ -937,9 +935,9 @@ function ClientsTab() {
       if (!clientMap[gig.clientName]) {
         clientMap[gig.clientName] = { name: gig.clientName, email: gig.clientEmail, totalSpent: 0, gigCount: 0, gigIds: [] };
       }
-      clientMap[gig.clientName].gigCount++;
-      clientMap[gig.clientName].gigIds.push(gig.id);
-      clientMap[gig.clientName].totalSpent += getTotalEarnings(gig.id);
+      clientMap[gig.clientName]!.gigCount++;
+      clientMap[gig.clientName]!.gigIds.push(gig.id);
+      clientMap[gig.clientName]!.totalSpent += getTotalEarnings(gig.id);
     });
     return Object.values(clientMap).sort((a, b) => b.totalSpent - a.totalSpent);
   }, [allGigs, getTotalEarnings]);

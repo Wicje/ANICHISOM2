@@ -287,8 +287,9 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 'public, max-age=3600',
       },
     });
-  } catch (error: any) {
-    return new NextResponse(`Proxy error: ${error.message}`, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown proxy error';
+    return new NextResponse(`Proxy error: ${message}`, { status: 500 });
   }
 }
 
@@ -336,7 +337,8 @@ export async function POST(request: NextRequest) {
         'Access-Control-Allow-Origin': proxiedOrigin,
       },
     });
-  } catch (error: any) {
-    return new NextResponse(`Proxy error: ${error.message}`, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown proxy error';
+    return new NextResponse(`Proxy error: ${message}`, { status: 500 });
   }
 }

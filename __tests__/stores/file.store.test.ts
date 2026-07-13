@@ -182,8 +182,8 @@ describe('FileStore', () => {
       });
       const history = useFileStore.getState().versionHistory;
       expect(history).toHaveLength(1);
-      expect(history[0].fileId).toBe('file-1');
-      expect(history[0].label).toBe('v1');
+      expect(history[0]!.fileId).toBe('file-1');
+      expect(history[0]!.label).toBe('v1');
     });
 
     it('should get version history for a file', () => {
@@ -213,7 +213,7 @@ describe('FileStore', () => {
       ]);
       setSearchQuery('readme');
       expect(getFilteredFiles()).toHaveLength(1);
-      expect(getFilteredFiles()[0].name).toBe('readme.md');
+      expect(getFilteredFiles()[0]!.name).toBe('readme.md');
     });
 
     it('should sort folders first', () => {
@@ -223,7 +223,7 @@ describe('FileStore', () => {
         { id: '2', name: 'folder', path: '/', source: 'opfs', mimeType: '', size: 0, isFolder: true },
       ]);
       const filtered = getFilteredFiles();
-      expect(filtered[0].isFolder).toBe(true);
+      expect(filtered[0]!.isFolder).toBe(true);
     });
   });
 });

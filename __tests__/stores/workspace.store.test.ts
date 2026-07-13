@@ -80,14 +80,14 @@ describe('WorkspaceStore', () => {
     ]);
     const { snapshots } = useWorkspaceStore.getState();
     expect(snapshots).toHaveLength(1);
-    expect(snapshots[0].name).toBe('test');
-    expect(snapshots[0].windows).toHaveLength(1);
+    expect(snapshots[0]!.name).toBe('test');
+    expect(snapshots[0]!.windows).toHaveLength(1);
   });
 
   it('restoreSnapshot returns matching snapshot', () => {
     useWorkspaceStore.getState().saveSnapshot('snap1', []);
     const { snapshots } = useWorkspaceStore.getState();
-    const result = useWorkspaceStore.getState().restoreSnapshot(snapshots[0].id);
+    const result = useWorkspaceStore.getState().restoreSnapshot(snapshots[0]!.id);
     expect(result).not.toBeNull();
     expect(result!.name).toBe('snap1');
   });

@@ -35,10 +35,10 @@ function encrypt(text: string): string {
 function decrypt(text: string): string {
   if (!ENCRYPTION_KEY) return text;
   const parts = text.split(':');
-  const iv = Buffer.from(parts[0], 'hex');
+  const iv = Buffer.from(parts[0]!, 'hex');
   const key = Buffer.from(ENCRYPTION_KEY, 'hex');
   const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-  let decrypted = decipher.update(parts[1], 'hex', 'utf8');
+  let decrypted = decipher.update(parts[1]!, 'hex', 'utf8');
   decrypted += decipher.final('utf8');
   return decrypted;
 }
@@ -110,7 +110,7 @@ export const TokenStore = {
     const connected: string[] = [];
     for (const key of tokenStore.keys()) {
       if (key.startsWith(`${userId}:`)) {
-        connected.push(key.split(':')[1]);
+        connected.push(key.split(':')[1]!);
       }
     }
     return connected;

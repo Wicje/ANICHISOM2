@@ -28,12 +28,13 @@ export async function generateChatResponse(
 
     const response = await chatWithFallback(chatOptions);
     return { success: true, text: response.text };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[AI] Chat error:', error);
-    if (error?.message?.includes('All AI providers')) {
+    const message = error instanceof Error ? error.message : 'Unknown error.';
+    if (message.includes('All AI providers')) {
       return { success: false, error: 'All AI providers failed. Ensure at least one is configured in server settings.' };
     }
-    return { success: false, error: 'AI Gateway Error: ' + (error?.message || 'Unknown error.') };
+    return { success: false, error: 'AI Gateway Error: ' + message };
   }
 }
 
@@ -62,8 +63,9 @@ export async function generateTerminalResponse(
 
     const response = await chatWithFallback(chatOptions);
     return { success: true, text: response.text };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[AI] Terminal error:', error);
-    return { success: false, error: 'AI Gateway Error: ' + (error?.message || 'Unknown error.') };
+    const message = error instanceof Error ? error.message : 'Unknown error.';
+    return { success: false, error: 'AI Gateway Error: ' + message };
   }
 }

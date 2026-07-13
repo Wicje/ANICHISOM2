@@ -39,7 +39,7 @@ export function BrandGuides({ window: osWindow }: { window: OSWindow }) {
 
   useEffect(() => {
     if (!activeBrandId && brandList.length > 0) {
-      setActiveBrandId(brandList[0].id);
+      setActiveBrandId(brandList[0]!.id);
     }
   }, [brandList, activeBrandId, setActiveBrand]);
 

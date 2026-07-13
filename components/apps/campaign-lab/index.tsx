@@ -490,7 +490,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                    if (e.key === 'Enter') {
                      e.preventDefault();
                      if (activePage.blocks.length > 0) {
-                       document.getElementById(`block-${activePage.blocks[0].id}`)?.focus();
+                        document.getElementById(`block-${activePage.blocks[0]!.id}`)?.focus();
                      } else {
                        const newBlock: Block = { id: crypto.randomUUID(), type: 'p', content: '' };
                        updateBlocks(activePage.id, [newBlock]);
@@ -659,7 +659,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                             : "bg-white text-[#37352f]/60 border-black/10 hover:border-blue-300"
                         )}
                       >
-                        {PERMISSION_LABELS[level].label}
+                        {PERMISSION_LABELS[level]!.label}
                       </button>
                     ))}
                   </div>

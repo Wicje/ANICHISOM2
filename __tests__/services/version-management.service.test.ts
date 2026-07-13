@@ -83,10 +83,10 @@ describe('VersionManagementService', () => {
       VersionManagementService.recordUpdate('plugin-a', '1.0.0', '2.0.0', true);
       const history = VersionManagementService.getUpdateHistory();
       expect(history).toHaveLength(1);
-      expect(history[0].pluginId).toBe('plugin-a');
-      expect(history[0].fromVersion).toBe('1.0.0');
-      expect(history[0].toVersion).toBe('2.0.0');
-      expect(history[0].success).toBe(true);
+      expect(history[0]!.pluginId).toBe('plugin-a');
+      expect(history[0]!.fromVersion).toBe('1.0.0');
+      expect(history[0]!.toVersion).toBe('2.0.0');
+      expect(history[0]!.success).toBe(true);
     });
 
     it('should filter history by pluginId', () => {
@@ -95,7 +95,7 @@ describe('VersionManagementService', () => {
 
       const aHistory = VersionManagementService.getUpdateHistory('plugin-a');
       expect(aHistory).toHaveLength(1);
-      expect(aHistory[0].pluginId).toBe('plugin-a');
+      expect(aHistory[0]!.pluginId).toBe('plugin-a');
     });
 
     it('should return empty array when no history', () => {
@@ -105,7 +105,7 @@ describe('VersionManagementService', () => {
     it('should record failed updates', () => {
       VersionManagementService.recordUpdate('plugin-a', '1.0.0', '2.0.0', false);
       const history = VersionManagementService.getUpdateHistory();
-      expect(history[0].success).toBe(false);
+      expect(history[0]!.success).toBe(false);
     });
   });
 
@@ -116,7 +116,7 @@ describe('VersionManagementService', () => {
 
       const updates = VersionManagementService.getAvailableUpdates();
       expect(updates).toHaveLength(1);
-      expect(updates[0].pluginId).toBe('plugin-a');
+      expect(updates[0]!.pluginId).toBe('plugin-a');
     });
   });
 

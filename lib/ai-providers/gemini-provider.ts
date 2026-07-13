@@ -53,7 +53,7 @@ export class GeminiProvider implements IAiProvider {
 
   getCapabilities(model?: string): AiCapabilities {
     const modelInfo = GEMINI_MODELS.find(m => m.id === (model || this.getDefaultModel()));
-    return modelInfo?.capabilities || GEMINI_MODELS[0].capabilities;
+    return modelInfo?.capabilities || GEMINI_MODELS[0]!.capabilities;
   }
 
   async listModels(): Promise<AiModelInfo[]> {

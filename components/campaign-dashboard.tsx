@@ -32,7 +32,7 @@ export function CampaignDashboard({ projectId }: CampaignDashboardProps) {
   const [deliverableForm, setDeliverableForm] = useState(() => ({
     name: '',
     description: '',
-    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!,
     assignee: '',
   }));
 
@@ -76,7 +76,7 @@ export function CampaignDashboard({ projectId }: CampaignDashboardProps) {
       setDeliverableForm({
         name: '',
         description: '',
-        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!,
         assignee: '',
       });
 

@@ -229,8 +229,8 @@ export function EventHistoryViewer({ workspaceId }: EventHistoryViewerProps) {
             rowProps={{}}
             className="divide-y divide-gray-700 h-full w-full"
             rowComponent={({ index, style }) => {
-              const event = filteredEvents[index];
-              const prevEvent = index > 0 ? filteredEvents[index - 1] : null;
+              const event = filteredEvents[index]!;
+              const prevEvent = index > 0 ? filteredEvents[index - 1]! : null;
               const eventDate = event.createdAt || event.timestamp;
               const prevEventDate = prevEvent ? (prevEvent.createdAt || prevEvent.timestamp) : null;
               const showDateDivider =

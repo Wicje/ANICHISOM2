@@ -20,10 +20,10 @@ describe('BrowserClipService', () => {
     });
 
     expect(handler).toHaveBeenCalledTimes(1);
-    const event = handler.mock.calls[0][0] as CustomEvent;
-    expect(event.detail.url).toBe('https://example.com/article');
-    expect(event.detail.title).toBe('Test Article');
-    expect(event.detail.source).toBe('power-browser');
+    const event = handler.mock.calls[0]![0] as CustomEvent;
+    expect(event!.detail.url).toBe('https://example.com/article');
+    expect(event!.detail.title).toBe('Test Article');
+    expect(event!.detail.source).toBe('power-browser');
 
     window.removeEventListener('os:clip-to-moodboard', handler);
   });
@@ -39,7 +39,7 @@ describe('BrowserClipService', () => {
       source: 'power-browser',
     });
 
-    expect(handler.mock.calls[0][0].detail.image).toBe('https://example.com/thumb.png');
+    expect(handler.mock.calls[0]![0]!.detail.image).toBe('https://example.com/thumb.png');
     window.removeEventListener('os:clip-to-moodboard', handler);
   });
 
@@ -54,7 +54,7 @@ describe('BrowserClipService', () => {
       source: 'power-browser',
     });
 
-    expect(handler.mock.calls[0][0].detail.description).toBe('A great article');
+    expect(handler.mock.calls[0]![0]!.detail.description).toBe('A great article');
     window.removeEventListener('os:clip-to-moodboard', handler);
   });
 
@@ -67,7 +67,7 @@ describe('BrowserClipService', () => {
       title: 'Page',
     });
 
-    expect(handler.mock.calls[0][0].detail.source).toBe('browser');
+    expect(handler.mock.calls[0]![0]!.detail.source).toBe('browser');
     window.removeEventListener('os:clip-to-moodboard', handler);
   });
 
@@ -78,8 +78,8 @@ describe('BrowserClipService', () => {
     BrowserClipService.clipImage('https://example.com/image.png', 'Cool image', 'browser');
 
     expect(handler).toHaveBeenCalledTimes(1);
-    expect(handler.mock.calls[0][0].detail.image).toBe('https://example.com/image.png');
-    expect(handler.mock.calls[0][0].detail.title).toBe('Cool image');
+    expect(handler.mock.calls[0]![0]!.detail.image).toBe('https://example.com/image.png');
+    expect(handler.mock.calls[0]![0]!.detail.title).toBe('Cool image');
     window.removeEventListener('os:clip-to-moodboard', handler);
   });
 
@@ -90,8 +90,8 @@ describe('BrowserClipService', () => {
     BrowserClipService.clipLink('https://example.com', 'Example', 'browser');
 
     expect(handler).toHaveBeenCalledTimes(1);
-    expect(handler.mock.calls[0][0].detail.url).toBe('https://example.com');
-    expect(handler.mock.calls[0][0].detail.title).toBe('Example');
+    expect(handler.mock.calls[0]![0]!.detail.url).toBe('https://example.com');
+    expect(handler.mock.calls[0]![0]!.detail.title).toBe('Example');
     window.removeEventListener('os:clip-to-moodboard', handler);
   });
 
@@ -109,7 +109,7 @@ describe('BrowserClipService', () => {
     await BrowserClipService.clipWithMeta('https://example.com/blog/test-article');
 
     expect(handler).toHaveBeenCalledTimes(1);
-    expect(handler.mock.calls[0][0].detail.url).toBe('https://example.com/blog/test-article');
+    expect(handler.mock.calls[0]![0]!.detail.url).toBe('https://example.com/blog/test-article');
     window.removeEventListener('os:clip-to-moodboard', handler);
   });
 });

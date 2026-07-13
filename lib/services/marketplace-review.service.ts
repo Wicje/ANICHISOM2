@@ -109,7 +109,7 @@ export const MarketplaceReviewService = {
       submittedAt: Date.now(),
     };
     this._persist();
-    return this._state.submissions[submission.id];
+    return this._state.submissions[submission.id]!;
   },
 
   getSubmissions(status?: PluginSubmission['status']): PluginSubmission[] {

@@ -29,7 +29,7 @@ export function ClothingBrandPack({ window: osWindow }: { window: OSWindow }) {
   ]);
 
   useEffect(() => {
-    useClothingStore.getState().hydrate();
+    (useClothingStore as any).hydrate?.();
   }, []);
 
   return (
@@ -380,7 +380,7 @@ function Prototype3DTab() {
           </div>
        </div>
        
-       <div className="flex-1 bg-[#1a1a1a] rounded-xl overflow-hidden relative shadow-2xl border border-gray-800">
+       <div className="flex-1 bg-[var(--os-surface)] rounded-xl overflow-hidden relative shadow-2xl border border-gray-800">
           <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 bg-black/60 p-4 rounded-lg border border-white/10 backdrop-blur-md text-white">
              <h3 className="text-emerald-400 font-bold uppercase tracking-widest text-xs flex items-center gap-2"><Cuboid className="w-3 h-3" /> Simulation Engine</h3>
              <div className="text-xs text-white/70">Avatar: Female Standard US 6</div>
@@ -406,7 +406,7 @@ function Prototype3DTab() {
             shadow-intensity="1"
             exposure={mode === 'strain' ? "0.5" : "1"}
             environment-image="neutral"
-            style={{ width: '100%', height: '100%', backgroundColor: mode === 'strain' ? '#050505' : '#1a1a1a' }}
+            style={{ width: '100%', height: '100%', backgroundColor: mode === 'strain' ? 'var(--os-bg)' : 'var(--os-surface)' }}
           >
              {mode === 'strain' && (
                <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-red-500/10 via-transparent to-transparent animate-pulse" />
@@ -661,8 +661,8 @@ function ShopifyTab({ data, collections, onCreateCollection }: { data: any[]; co
                  </linearGradient>
                </defs>
                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} dy={10} />
-               <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} tickFormatter={(val) => `$${val}`} />
+               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--os-text-muted)' }} dy={10} />
+               <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--os-text-muted)' }} tickFormatter={(val) => `$${val}`} />
                <Tooltip 
                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                  formatter={(val: any) => [`$${val}`, 'Sales']}

@@ -51,7 +51,7 @@ export class QwenProvider implements IAiProvider {
 
   getCapabilities(model?: string): AiCapabilities {
     const modelInfo = QWEN_MODELS.find(m => m.id === (model || this.getDefaultModel()));
-    return modelInfo?.capabilities || QWEN_MODELS[0].capabilities;
+    return modelInfo?.capabilities || QWEN_MODELS[0]!.capabilities;
   }
 
   async listModels(): Promise<AiModelInfo[]> {

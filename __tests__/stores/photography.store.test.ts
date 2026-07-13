@@ -40,20 +40,20 @@ describe('PhotographyStore', () => {
       expect(id).toMatch(/^shoot_/);
       const shoot = usePhotographyStore.getState().shoots[id];
       expect(shoot).toBeDefined();
-      expect(shoot.name).toBe('Test Shoot');
-      expect(shoot.date).toBe('2026-07-01');
-      expect(shoot.location).toBe('Studio A');
-      expect(shoot.status).toBe('planned');
-      expect(shoot.imageCount).toBe(0);
-      expect(shoot.tags).toEqual([]);
+      expect(shoot!.name).toBe('Test Shoot');
+      expect(shoot!.date).toBe('2026-07-01');
+      expect(shoot!.location).toBe('Studio A');
+      expect(shoot!.status).toBe('planned');
+      expect(shoot!.imageCount).toBe(0);
+      expect(shoot!.tags).toEqual([]);
     });
 
     it('should update a shoot', () => {
       const id = usePhotographyStore.getState().createShoot('Old', '2026-07-01', 'Loc');
       usePhotographyStore.getState().updateShoot(id, { name: 'New', status: 'in-progress' });
       const shoot = usePhotographyStore.getState().shoots[id];
-      expect(shoot.name).toBe('New');
-      expect(shoot.status).toBe('in-progress');
+      expect(shoot!.name).toBe('New');
+      expect(shoot!.status).toBe('in-progress');
     });
 
     it('should not create shoots for unknown IDs', () => {
@@ -95,9 +95,9 @@ describe('PhotographyStore', () => {
       const planned = usePhotographyStore.getState().getShootsByStatus('planned');
       const completed = usePhotographyStore.getState().getShootsByStatus('completed');
       expect(planned).toHaveLength(1);
-      expect(planned[0].id).toBe(id1);
+      expect(planned[0]!.id).toBe(id1);
       expect(completed).toHaveLength(1);
-      expect(completed[0].id).toBe(id2);
+      expect(completed[0]!.id).toBe(id2);
     });
   });
 
@@ -107,25 +107,25 @@ describe('PhotographyStore', () => {
       expect(id).toMatch(/^gallery_/);
       const gallery = usePhotographyStore.getState().galleries[id];
       expect(gallery).toBeDefined();
-      expect(gallery.name).toBe('Test Gallery');
-      expect(gallery.status).toBe('draft');
-      expect(gallery.pin).toMatch(/^[a-z0-9]{6}$/);
-      expect(gallery.imageIds).toEqual([]);
-      expect(gallery.shareUrl).toContain(id);
+      expect(gallery!.name).toBe('Test Gallery');
+      expect(gallery!.status).toBe('draft');
+      expect(gallery!.pin).toMatch(/^[a-z0-9]{6}$/);
+      expect(gallery!.imageIds).toEqual([]);
+      expect(gallery!.shareUrl).toContain(id);
     });
 
     it('should create a gallery with shootId', () => {
       const shootId = usePhotographyStore.getState().createShoot('S', '2026-07-01', 'Loc');
       const galleryId = usePhotographyStore.getState().createGallery('Linked', shootId);
-      expect(usePhotographyStore.getState().galleries[galleryId].shootId).toBe(shootId);
+      expect(usePhotographyStore.getState().galleries[galleryId]!.shootId).toBe(shootId);
     });
 
     it('should update a gallery', () => {
       const id = usePhotographyStore.getState().createGallery('Old');
       usePhotographyStore.getState().updateGallery(id, { status: 'delivered', downloadCount: 5 });
       const g = usePhotographyStore.getState().galleries[id];
-      expect(g.status).toBe('delivered');
-      expect(g.downloadCount).toBe(5);
+      expect(g!.status).toBe('delivered');
+      expect(g!.downloadCount).toBe(5);
     });
 
     it('should delete a gallery', () => {
@@ -158,18 +158,18 @@ describe('PhotographyStore', () => {
       const id = usePhotographyStore.getState().createClient('Alice', 'alice@test.com', '555-0001');
       expect(id).toMatch(/^client_/);
       const client = usePhotographyStore.getState().clients[id];
-      expect(client.name).toBe('Alice');
-      expect(client.email).toBe('alice@test.com');
-      expect(client.phone).toBe('555-0001');
-      expect(client.shootIds).toEqual([]);
-      expect(client.totalSpent).toBe(0);
+      expect(client!.name).toBe('Alice');
+      expect(client!.email).toBe('alice@test.com');
+      expect(client!.phone).toBe('555-0001');
+      expect(client!.shootIds).toEqual([]);
+      expect(client!.totalSpent).toBe(0);
     });
 
     it('should update a client', () => {
       const id = usePhotographyStore.getState().createClient('Alice', 'a@t.com', '111');
       usePhotographyStore.getState().updateClient(id, { email: 'new@test.com', totalSpent: 500 });
-      expect(usePhotographyStore.getState().clients[id].email).toBe('new@test.com');
-      expect(usePhotographyStore.getState().clients[id].totalSpent).toBe(500);
+      expect(usePhotographyStore.getState().clients[id]!.email).toBe('new@test.com');
+      expect(usePhotographyStore.getState().clients[id]!.totalSpent).toBe(500);
     });
 
     it('should delete a client and clear activeClientId', () => {
@@ -196,7 +196,7 @@ describe('PhotographyStore', () => {
       usePhotographyStore.getState().updateClient(clientId, { shootIds: [shootId] });
       const shoots = usePhotographyStore.getState().getClientShoots(clientId);
       expect(shoots).toHaveLength(1);
-      expect(shoots[0].id).toBe(shootId);
+      expect(shoots[0]!.id).toBe(shootId);
     });
 
     it('should return empty array for unknown client', () => {
@@ -214,16 +214,16 @@ describe('PhotographyStore', () => {
       const id = usePhotographyStore.getState().createPrintOrder('gal_1', items);
       expect(id).toMatch(/^order_/);
       const order = usePhotographyStore.getState().printOrders[id];
-      expect(order.galleryId).toBe('gal_1');
-      expect(order.status).toBe('pending');
-      expect(order.total).toBe(130);
-      expect(order.items).toHaveLength(2);
+      expect(order!.galleryId).toBe('gal_1');
+      expect(order!.status).toBe('pending');
+      expect(order!.total).toBe(130);
+      expect(order!.items).toHaveLength(2);
     });
 
     it('should update a print order', () => {
       const id = usePhotographyStore.getState().createPrintOrder('gal_1', items);
       usePhotographyStore.getState().updatePrintOrder(id, { status: 'shipped' });
-      expect(usePhotographyStore.getState().printOrders[id].status).toBe('shipped');
+      expect(usePhotographyStore.getState().printOrders[id]!.status).toBe('shipped');
     });
 
     it('should delete a print order', () => {
@@ -256,19 +256,19 @@ describe('PhotographyStore', () => {
       const id = usePhotographyStore.getState().createWatermarkPreset('Default', '© Anichisom');
       expect(id).toMatch(/^watermark_/);
       const preset = usePhotographyStore.getState().watermarkPresets[id];
-      expect(preset.name).toBe('Default');
-      expect(preset.text).toBe('© Anichisom');
-      expect(preset.opacity).toBe(0.5);
-      expect(preset.position).toBe('bottom-right');
-      expect(preset.fontSize).toBe(24);
+      expect(preset!.name).toBe('Default');
+      expect(preset!.text).toBe('© Anichisom');
+      expect(preset!.opacity).toBe(0.5);
+      expect(preset!.position).toBe('bottom-right');
+      expect(preset!.fontSize).toBe(24);
     });
 
     it('should update a watermark preset', () => {
       const id = usePhotographyStore.getState().createWatermarkPreset('W', 'Text');
       usePhotographyStore.getState().updateWatermarkPreset(id, { opacity: 0.8, position: 'center' });
       const preset = usePhotographyStore.getState().watermarkPresets[id];
-      expect(preset.opacity).toBe(0.8);
-      expect(preset.position).toBe('center');
+      expect(preset!.opacity).toBe(0.8);
+      expect(preset!.position).toBe('center');
     });
 
     it('should delete a watermark preset and clear active', () => {

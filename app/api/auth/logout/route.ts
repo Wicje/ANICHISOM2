@@ -9,8 +9,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { checkRateLimit } from '@/lib/auth-validation';
 import { getAuthProvider } from '@/lib/auth-providers/provider-factory';
+import {
+  checkRouteRateLimit,
+  apiForbidden,
+  apiOk,
+  apiInternal,
+} from '@/lib/api-helpers';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,30 +25,17 @@ export async function POST(request: NextRequest) {
     if (origin && host) {
       const parsedOrigin = new URL(origin);
       if (parsedOrigin.host !== host) {
-        return NextResponse.json(
-          { error: 'Forbidden: CSRF check failed' },
-          { status: 403 }
-        );
+        return apiForbidden('Forbidden: CSRF check failed');
       }
     }
-    // Rate limiting: 20 requests per 5 minutes per IP
-    const clientIp = request.headers.get('x-forwarded-for') || 
-                     request.headers.get('x-client-ip') || 
-                     'unknown';
-    const rateLimitKey = `logout:${clientIp}`;
-    const rateLimitCheck = checkRateLimit(rateLimitKey, 20, 5 * 60 * 1000);
 
-    if (!rateLimitCheck.allowed) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        { status: 429 }
-      );
-    }
+    const rl = checkRouteRateLimit(request, 'AUTH_LOGIN');
+    if (rl) return rl;
 
     const authProvider = await getAuthProvider();
     await authProvider.logout();
 
-    const response = NextResponse.json({ success: true, message: 'Logged out successfully' });
+    const response = apiOk({ message: 'Logged out successfully' });
 
     // Clear session cookie
     response.cookies.delete('anichisom_session');
@@ -51,9 +43,6 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error('[auth/logout] Unexpected error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return apiInternal();
   }
 }

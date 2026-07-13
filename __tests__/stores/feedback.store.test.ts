@@ -27,34 +27,34 @@ describe('FeedbackStore', () => {
       expect(id).toMatch(/^fb_/);
       const item = useFeedbackStore.getState().feedback[id];
       expect(item).toBeDefined();
-      expect(item.type).toBe('bug');
-      expect(item.title).toBe('Crash');
-      expect(item.status).toBe('new');
+      expect(item!.type).toBe('bug');
+      expect(item!.title).toBe('Crash');
+      expect(item!.status).toBe('new');
     });
 
     it('should submit feature-request feedback', () => {
       const id = useFeedbackStore.getState().submitFeedback('feature-request', 'Dark mode', 'Add dark mode');
-      expect(useFeedbackStore.getState().feedback[id].type).toBe('feature-request');
+      expect(useFeedbackStore.getState().feedback[id]!.type).toBe('feature-request');
     });
 
     it('should submit general feedback', () => {
       const id = useFeedbackStore.getState().submitFeedback('general', 'Nice', 'Great app');
-      expect(useFeedbackStore.getState().feedback[id].type).toBe('general');
+      expect(useFeedbackStore.getState().feedback[id]!.type).toBe('general');
     });
 
     it('should submit ux-issue feedback', () => {
       const id = useFeedbackStore.getState().submitFeedback('ux-issue', 'Confusing', 'Hard to find settings');
-      expect(useFeedbackStore.getState().feedback[id].type).toBe('ux-issue');
+      expect(useFeedbackStore.getState().feedback[id]!.type).toBe('ux-issue');
     });
 
     it('should store optional rating', () => {
       const id = useFeedbackStore.getState().submitFeedback('general', 'Good', 'Works well', 5);
-      expect(useFeedbackStore.getState().feedback[id].rating).toBe(5);
+      expect(useFeedbackStore.getState().feedback[id]!.rating).toBe(5);
     });
 
     it('should store optional appId', () => {
       const id = useFeedbackStore.getState().submitFeedback('bug', 'Bug', 'In terminal', undefined, 'terminal');
-      expect(useFeedbackStore.getState().feedback[id].appId).toBe('terminal');
+      expect(useFeedbackStore.getState().feedback[id]!.appId).toBe('terminal');
     });
   });
 
@@ -90,7 +90,7 @@ describe('FeedbackStore', () => {
       // Simulate delay
       const id2 = useFeedbackStore.getState().submitFeedback('general', 'New', 'content');
       const recent = useFeedbackStore.getState().getRecentFeedback(10);
-      expect(recent[0].id).toBe(id2);
+      expect(recent[0]!.id).toBe(id2);
     });
 
     it('should respect the limit parameter', () => {

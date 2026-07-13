@@ -26,7 +26,7 @@ export function useCodeEditorState(projectId: string, initialContent: string | u
   const refreshFiles = async () => {
       const localFiles = await FS.readDir('');
       if (localFiles && localFiles.length > 0) {
-         setFiles(localFiles.map(f => ({ id: f.id, name: f.name, type: 'file', folder: f.id.includes('/') ? f.id.split('/')[0] : 'root' })));
+         setFiles(localFiles.map(f => ({ id: f.id, name: f.name, type: 'file', folder: f.id.includes('/') ? f.id.split('/')[0]! : 'root' })));
       }
   };
 

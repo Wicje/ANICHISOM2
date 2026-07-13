@@ -217,9 +217,9 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
 
   // Auto-select first if none provided but we have playlist
   if (!currentFileUrl && mediaFiles.length > 0) {
-     setCurrentFileUrl(mediaFiles[0].content || mediaFiles[0].id);
-     setCurrentMimeType(mediaFiles[0].mimeType);
-     setCurrentTitle(mediaFiles[0].name);
+     setCurrentFileUrl(mediaFiles[0]!.content || mediaFiles[0]!.id);
+     setCurrentMimeType(mediaFiles[0]!.mimeType);
+     setCurrentTitle(mediaFiles[0]!.name);
   }
 
   return (

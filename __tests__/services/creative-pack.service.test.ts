@@ -165,9 +165,9 @@ describe('CreativePackService', () => {
     it('should link and unlink brand to campaign via service', () => {
       const brandId = useBrandStore.getState().createBrand('Linkable');
       CreativePackService.linkBrandToCampaign(brandId, 'camp_link');
-      expect(useBrandStore.getState().brands[brandId].linkedCampaignIds).toContain('camp_link');
+      expect(useBrandStore.getState().brands[brandId]!.linkedCampaignIds).toContain('camp_link');
       CreativePackService.unlinkBrandFromCampaign(brandId, 'camp_link');
-      expect(useBrandStore.getState().brands[brandId].linkedCampaignIds).not.toContain('camp_link');
+      expect(useBrandStore.getState().brands[brandId]!.linkedCampaignIds).not.toContain('camp_link');
     });
 
     it('should get brands for campaign', () => {

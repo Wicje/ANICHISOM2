@@ -29,14 +29,14 @@ describe('GoogleSSOService', () => {
     it('should store config in localStorage', () => {
       GoogleSSOService.init(TEST_CONFIG);
       expect(localStorageMock['anichisom-google-sso']).toBeDefined();
-      const stored = JSON.parse(localStorageMock['anichisom-google-sso']);
+      const stored = JSON.parse(localStorageMock['anichisom-google-sso']!);
       expect(stored.clientId).toBe(TEST_CONFIG.clientId);
       expect(stored.redirectUri).toBe(TEST_CONFIG.redirectUri);
     });
 
     it('should store scopes in config', () => {
       GoogleSSOService.init(TEST_CONFIG);
-      const stored = JSON.parse(localStorageMock['anichisom-google-sso']);
+      const stored = JSON.parse(localStorageMock['anichisom-google-sso']!);
       expect(stored.scopes).toEqual(TEST_CONFIG.scopes);
     });
   });

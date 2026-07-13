@@ -5,7 +5,7 @@
  * Persists to IndexedDB via debounced writes.
  */
 import { create } from 'zustand';
-import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { withPersistence } from '@/lib/stores/persisted-store';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -62,33 +62,6 @@ export interface Invoice {
   createdAt: number;
 }
 
-// ─── Storage ────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'anichisom-sidegigs-state';
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-function schedulePersist(state: SideGigsState) {
-  if (debounceTimer) clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => {
-    const data: PersistedSideGigs = {
-      gigs: state.gigs,
-      timeEntries: state.timeEntries,
-      invoices: state.invoices,
-      activeGigId: state.activeGigId,
-    };
-    idbSet(STORAGE_KEY, data).catch((e: unknown) => {
-      console.warn('[SideGigsStore] Failed to persist:', e);
-    });
-  }, 2000);
-}
-
-interface PersistedSideGigs {
-  gigs: Record<string, Gig>;
-  timeEntries: Record<string, TimeEntry>;
-  invoices: Record<string, Invoice>;
-  activeGigId: string | null;
-}
-
 // ─── Helpers ────────────────────────────────────────────────────────────
 
 function generateId(prefix: string): string {
@@ -103,7 +76,7 @@ function formatDuration(seconds: number): string {
 }
 
 function parseTimeToSeconds(time: string): number {
-  const [h, m] = time.split(':').map(Number);
+  const [h, m] = time.split(':').map(Number) as [number, number];
   return h * 3600 + m * 60;
 }
 
@@ -139,9 +112,6 @@ export interface SideGigsState {
   getInvoicesByStatus: (status: Invoice['status']) => Invoice[];
   generateInvoice: (gigId: string, dateRange: { start: string; end: string }) => string | null;
   getRevenueStats: () => { totalRevenue: number; outstanding: number; thisMonth: number };
-
-  // Persistence
-  hydrate: () => Promise<void>;
 }
 
 export const useSideGigsStore = create<SideGigsState>((set, get) => ({
@@ -170,7 +140,6 @@ export const useSideGigsStore = create<SideGigsState>((set, get) => ({
     };
     set((s) => {
       const gigs = { ...s.gigs, [id]: gig };
-      schedulePersist({ ...s, gigs });
       return { gigs };
     });
     return id;
@@ -184,7 +153,6 @@ export const useSideGigsStore = create<SideGigsState>((set, get) => ({
         ...s.gigs,
         [id]: { ...existing, ...updates, updatedAt: Date.now() },
       };
-      schedulePersist({ ...s, gigs });
       return { gigs };
     });
   },
@@ -193,16 +161,12 @@ export const useSideGigsStore = create<SideGigsState>((set, get) => ({
     set((s) => {
       const { [id]: _, ...rest } = s.gigs;
       const activeGigId = s.activeGigId === id ? null : s.activeGigId;
-      schedulePersist({ ...s, gigs: rest, activeGigId });
       return { gigs: rest, activeGigId };
     });
   },
 
   setActiveGig: (id) => {
-    set((s) => {
-      schedulePersist({ ...s, activeGigId: id });
-      return { activeGigId: id };
-    });
+    set({ activeGigId: id });
   },
 
   getGigsByStatus: (status) => {
@@ -230,7 +194,6 @@ export const useSideGigsStore = create<SideGigsState>((set, get) => ({
     };
     set((s) => {
       const timeEntries = { ...s.timeEntries, [id]: entry };
-      schedulePersist({ ...s, timeEntries });
       return { timeEntries };
     });
     return id;
@@ -244,7 +207,6 @@ export const useSideGigsStore = create<SideGigsState>((set, get) => ({
         ...s.timeEntries,
         [id]: { ...existing, ...updates },
       };
-      schedulePersist({ ...s, timeEntries });
       return { timeEntries };
     });
   },
@@ -252,7 +214,6 @@ export const useSideGigsStore = create<SideGigsState>((set, get) => ({
   deleteTimeEntry: (id) => {
     set((s) => {
       const { [id]: _, ...rest } = s.timeEntries;
-      schedulePersist({ ...s, timeEntries: rest });
       return { timeEntries: rest };
     });
   },
@@ -322,7 +283,6 @@ export const useSideGigsStore = create<SideGigsState>((set, get) => ({
     };
     set((s) => {
       const invoices = { ...s.invoices, [id]: invoice };
-      schedulePersist({ ...s, invoices });
       return { invoices };
     });
     return id;
@@ -336,7 +296,6 @@ export const useSideGigsStore = create<SideGigsState>((set, get) => ({
         ...s.invoices,
         [id]: { ...existing, ...updates },
       };
-      schedulePersist({ ...s, invoices });
       return { invoices };
     });
   },
@@ -344,7 +303,6 @@ export const useSideGigsStore = create<SideGigsState>((set, get) => ({
   deleteInvoice: (id) => {
     set((s) => {
       const { [id]: _, ...rest } = s.invoices;
-      schedulePersist({ ...s, invoices: rest });
       return { invoices: rest };
     });
   },
@@ -425,24 +383,8 @@ export const useSideGigsStore = create<SideGigsState>((set, get) => ({
 
     return { totalRevenue, outstanding, thisMonth };
   },
-
-  // ─── Persistence ─────────────────────────────────────────────────
-
-  hydrate: async () => {
-    try {
-      const data = await idbGet<PersistedSideGigs>(STORAGE_KEY);
-      if (data) {
-        set({
-          gigs: data.gigs || {},
-          timeEntries: data.timeEntries || {},
-          invoices: data.invoices || {},
-          activeGigId: data.activeGigId || null,
-        });
-      }
-    } catch (e) {
-      console.warn('[SideGigsStore] Failed to hydrate:', e);
-    }
-  },
 }));
+
+withPersistence(useSideGigsStore, 'sidegigs-state', ['gigs', 'timeEntries', 'invoices', 'activeGigId']);
 
 export { formatDuration, parseTimeToSeconds };

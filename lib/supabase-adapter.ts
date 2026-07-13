@@ -19,7 +19,7 @@ import {
 type SupabaseDB = Database;
 
 function client() {
-  return getSupabase() as any;
+  return getSupabase();
 }
 
 // ============================================================================
@@ -35,8 +35,8 @@ function toDate(val: unknown): Date {
 }
 
 /** Serialize dates in a nested object to ISO strings for Supabase */
-function serializeDates<T extends Record<string, any>>(obj: T): T {
-  const out: any = { ...obj };
+function serializeDates(obj: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...obj };
   for (const [k, v] of Object.entries(out)) {
     if (v instanceof Date) out[k] = v.toISOString();
     else if (Array.isArray(v)) {
@@ -49,7 +49,7 @@ function serializeDates<T extends Record<string, any>>(obj: T): T {
 }
 
 /** Unserialize ISO strings back to Dates in a row */
-function unserializeDates(row: any, dateFields: string[]): any {
+function unserializeDates(row: Record<string, unknown>, dateFields: string[]): Record<string, unknown> {
   const out = { ...row };
   for (const field of dateFields) {
     if (out[field]) out[field] = toDate(out[field]);
@@ -94,7 +94,7 @@ export const workspaceAdapter = {
         ...data,
         createdAt: toDate(data.createdAt),
         updatedAt: toDate(data.updatedAt),
-        members: (data.members ?? []).map((m: any) => ({
+        members: (data.members ?? []).map((m: Record<string, unknown>) => ({
           ...m,
           joinedAt: toDate(m.joinedAt),
         })),
@@ -112,11 +112,11 @@ export const workspaceAdapter = {
         .select('*')
         .contains('members', [{ userId }]);
       if (error || !data) return [];
-      return data.map((row: any) => ({
+      return data.map((row: Record<string, unknown>) => ({
         ...row,
         createdAt: toDate(row.createdAt),
         updatedAt: toDate(row.updatedAt),
-        members: (row.members ?? []).map((m: any) => ({
+        members: (row.members as Record<string, unknown>[] ?? []).map((m: Record<string, unknown>) => ({
           ...m,
           joinedAt: toDate(m.joinedAt),
         })),
@@ -129,7 +129,7 @@ export const workspaceAdapter = {
 
   async update(workspaceId: string, updates: Partial<Workspace>): Promise<void> {
     try {
-      const payload: any = { ...updates, updatedAt: new Date().toISOString() };
+      const payload: Record<string, unknown> = { ...updates, updatedAt: new Date().toISOString() };
       if (updates.members) {
         payload.members = updates.members.map((m) => ({
           ...m,
@@ -149,7 +149,7 @@ export const workspaceAdapter = {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'workspaces', filter: `id=eq.${workspaceId}` },
-        (payload: any) => {
+        (payload: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) => {
           if (payload.eventType === 'DELETE') {
             callback(null);
             return;
@@ -159,7 +159,7 @@ export const workspaceAdapter = {
             ...row,
             createdAt: toDate(row.createdAt),
             updatedAt: toDate(row.updatedAt),
-            members: (row.members ?? []).map((m: any) => ({
+            members: (row.members as Record<string, unknown>[] ?? []).map((m: Record<string, unknown>) => ({
               ...m,
               joinedAt: toDate(m.joinedAt),
             })),
@@ -229,12 +229,12 @@ export const projectAdapter = {
           ...data.timeline,
           startDate: toDate(data.timeline?.startDate),
           endDate: toDate(data.timeline?.endDate),
-          milestones: (data.timeline?.milestones ?? []).map((m: any) => ({
+          milestones: (data.timeline?.milestones ?? []).map((m: Record<string, unknown>) => ({
             ...m,
             date: toDate(m.date),
           })),
         },
-        deliverables: (data.deliverables ?? []).map((d: any) => ({
+        deliverables: (data.deliverables ?? []).map((d: Record<string, unknown>) => ({
           ...d,
           dueDate: toDate(d.dueDate),
         })),
@@ -253,20 +253,20 @@ export const projectAdapter = {
         .eq('workspaceId', workspaceId)
         .order('updatedAt', { ascending: false });
       if (error || !data) return [];
-      return data.map((row: any) => ({
+      return data.map((row: Record<string, unknown>) => ({
         ...row,
         createdAt: toDate(row.createdAt),
         updatedAt: toDate(row.updatedAt),
         timeline: {
-          ...row.timeline,
-          startDate: toDate(row.timeline?.startDate),
-          endDate: toDate(row.timeline?.endDate),
-          milestones: (row.timeline?.milestones ?? []).map((m: any) => ({
+          ...(row.timeline as Record<string, unknown>),
+          startDate: toDate((row.timeline as Record<string, unknown>)?.startDate),
+          endDate: toDate((row.timeline as Record<string, unknown>)?.endDate),
+          milestones: ((row.timeline as Record<string, unknown>)?.milestones as Record<string, unknown>[] ?? []).map((m: Record<string, unknown>) => ({
             ...m,
             date: toDate(m.date),
           })),
         },
-        deliverables: (row.deliverables ?? []).map((d: any) => ({
+        deliverables: (row.deliverables as Record<string, unknown>[] ?? []).map((d: Record<string, unknown>) => ({
           ...d,
           dueDate: toDate(d.dueDate),
         })),
@@ -279,7 +279,7 @@ export const projectAdapter = {
 
   async update(projectId: string, updates: Partial<Project>): Promise<void> {
     try {
-      const payload: any = { ...updates, updatedAt: new Date().toISOString() };
+      const payload: Record<string, unknown> = { ...updates, updatedAt: new Date().toISOString() };
       if (updates.timeline) {
         payload.timeline = {
           ...updates.timeline,
@@ -310,7 +310,7 @@ export const projectAdapter = {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'projects', filter: `id=eq.${projectId}` },
-        (payload: any) => {
+        (payload: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) => {
           if (payload.eventType === 'DELETE') {
             callback(null);
             return;
@@ -321,15 +321,15 @@ export const projectAdapter = {
             createdAt: toDate(row.createdAt),
             updatedAt: toDate(row.updatedAt),
             timeline: {
-              ...row.timeline,
-              startDate: toDate(row.timeline?.startDate),
-              endDate: toDate(row.timeline?.endDate),
-              milestones: (row.timeline?.milestones ?? []).map((m: any) => ({
+              ...(row.timeline as Record<string, unknown>),
+              startDate: toDate((row.timeline as Record<string, unknown>)?.startDate),
+              endDate: toDate((row.timeline as Record<string, unknown>)?.endDate),
+              milestones: ((row.timeline as Record<string, unknown>)?.milestones as Record<string, unknown>[] ?? []).map((m: Record<string, unknown>) => ({
                 ...m,
                 date: toDate(m.date),
               })),
             },
-            deliverables: (row.deliverables ?? []).map((d: any) => ({
+            deliverables: (row.deliverables as Record<string, unknown>[] ?? []).map((d: Record<string, unknown>) => ({
               ...d,
               dueDate: toDate(d.dueDate),
             })),
@@ -397,7 +397,7 @@ export const fileAdapter = {
         .select('*')
         .eq('projectId', projectId);
       if (error || !data) return [];
-      return data.map((row: any) => ({
+      return data.map((row: Record<string, unknown>) => ({
         ...row,
         createdAt: toDate(row.createdAt),
         updatedAt: toDate(row.updatedAt),
@@ -410,7 +410,7 @@ export const fileAdapter = {
 
   async update(fileId: string, updates: Partial<ProjectFile>): Promise<void> {
     try {
-      const payload: any = { ...updates, updatedAt: new Date().toISOString() };
+      const payload: Record<string, unknown> = { ...updates, updatedAt: new Date().toISOString() };
       await client().from('files').update(payload).eq('id', fileId);
     } catch (error) {
       console.error('[v0] Failed to update file:', error);
@@ -446,7 +446,7 @@ export const eventAdapter = {
 
   async getByWorkspace(
     workspaceId: string,
-    _constraints: any[] = []
+    _constraints: Array<Record<string, unknown>> = []
   ): Promise<Event[]> {
     try {
       // Extract limit from constraints (only constraint Supabase adapter needs)
@@ -464,7 +464,7 @@ export const eventAdapter = {
         .order('timestamp', { ascending: false })
         .limit(limitVal);
       if (error || !data) return [];
-      return data.map((row: any) => ({
+      return data.map((row: Record<string, unknown>) => ({
         ...row,
         timestamp: toDate(row.timestamp),
       })) as Event[];
@@ -483,7 +483,7 @@ export const eventAdapter = {
         .eq('entityId', entityId)
         .order('timestamp', { ascending: false });
       if (error || !data) return [];
-      return data.map((row: any) => ({
+      return data.map((row: Record<string, unknown>) => ({
         ...row,
         timestamp: toDate(row.timestamp),
       })) as Event[];
@@ -505,7 +505,7 @@ export const eventAdapter = {
         .order('timestamp', { ascending: false })
         .limit(500);
       if (data) {
-        currentEvents = data.map((row: any) => ({
+        currentEvents = data.map((row: Record<string, unknown>) => ({
           ...row,
           timestamp: toDate(row.timestamp),
         })) as Event[];
@@ -520,7 +520,7 @@ export const eventAdapter = {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'events', filter: `workspaceId=eq.${workspaceId}` },
-        (payload: any) => {
+        (payload: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) => {
           if (payload.eventType === 'DELETE') {
             currentEvents = currentEvents.filter((e) => e.id !== payload.old?.id);
           } else {
@@ -574,7 +574,7 @@ export const presenceAdapter = {
         .eq('workspaceId', workspaceId)
         .eq('isOnline', true);
       if (error || !data) return [];
-      return data.map((row: any) => ({
+      return data.map((row: Record<string, unknown>) => ({
         ...row,
         lastSeen: toDate(row.lastSeen),
       })) as Presence[];
@@ -633,7 +633,7 @@ export const snapshotAdapter = {
         .eq('projectId', projectId)
         .order('createdAt', { ascending: false });
       if (error || !data) return [];
-      return data.map((row: any) => ({
+      return data.map((row: Record<string, unknown>) => ({
         ...row,
         createdAt: toDate(row.createdAt),
       })) as Snapshot[];

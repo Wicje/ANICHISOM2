@@ -7,6 +7,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { apiError, apiInternal, apiOk } from '@/lib/api-helpers';
 
 // Reuse challenge store from registration route
 const CHALLENGE_TTL = 60_000;
@@ -25,10 +26,7 @@ export async function POST(request: NextRequest) {
     const { credentialIds } = body;
 
     if (!credentialIds || !Array.isArray(credentialIds) || credentialIds.length === 0) {
-      return NextResponse.json(
-        { error: 'credentialIds array is required' },
-        { status: 400 },
-      );
+      return apiError('credentialIds array is required');
     }
 
     // Generate challenge
@@ -42,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     const rpId = process.env.NEXT_PUBLIC_RP_ID || 'localhost';
 
-    return NextResponse.json({
+    return apiOk({
       challengeId,
       challenge,
       rpId,
@@ -56,10 +54,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[Passkey Auth] Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate authentication challenge' },
-      { status: 500 },
-    );
+    return apiInternal('Failed to generate authentication challenge');
   }
 }
 

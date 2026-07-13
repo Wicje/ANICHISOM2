@@ -7,25 +7,18 @@
  * Auth required — AI works FOR the user.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { resolveSession } from '@/lib/session-store';
+import { NextRequest } from 'next/server';
+import { requireSession, apiOk, apiInternal } from '@/lib/api-helpers';
 import { listAllModels, getEnabledProviders, getRegisteredProviders, getFallbackChain, getDefaultProviderId } from '@/lib/ai-providers/ai-provider-factory';
 
 export async function GET(request: NextRequest) {
   try {
-    const sessionCookie = request.cookies.get('anichisom_session');
-    if (!sessionCookie || !sessionCookie.value) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-
-    const sessionData = resolveSession(sessionCookie.value);
-    if (!sessionData) {
-      return NextResponse.json({ error: 'Session expired' }, { status: 401 });
-    }
+    const authResult = requireSession(request);
+    if (!authResult.ok) return authResult.response;
 
     const models = await listAllModels();
 
-    return NextResponse.json({
+    return apiOk({
       models,
       defaultProvider: getDefaultProviderId(),
       fallbackChain: getFallbackChain(),
@@ -34,6 +27,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('[ai/models] Error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return apiInternal();
   }
 }

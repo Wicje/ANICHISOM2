@@ -47,11 +47,11 @@ export function MiniBrowser({ window }: { window: OSWindow }) {
       { id: '1', url: window.data?.url || '', title: 'New Tab', history: [window.data?.url || ''], historyIndex: 0 }
     ]
   );
-  const [activeTabId, setActiveTabId] = useState<string>(window.data?.activeTabId || tabs[0].id);
+  const [activeTabId, setActiveTabId] = useState<string>(window.data?.activeTabId || tabs[0]!.id);
   const [isFocusMode, setIsFocusMode] = useState(window.data?.isFocusMode || false);
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>(loadBookmarks());
 
-  const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
+  const activeTab = (tabs.find(t => t.id === activeTabId) || tabs[0])!;
   const [inputUrl, setInputUrl] = useState(activeTab.url);
 
   const isBookmarked = bookmarks.some(b => b.url === activeTab.url);
@@ -184,7 +184,7 @@ export function MiniBrowser({ window }: { window: OSWindow }) {
     const newTabs = tabs.filter(t => t.id !== id);
     setTabs(newTabs);
     if (activeTabId === id) {
-      setActiveTabId(newTabs[newTabs.length - 1].id);
+      setActiveTabId(newTabs[newTabs.length - 1]!.id);
     }
   };
 

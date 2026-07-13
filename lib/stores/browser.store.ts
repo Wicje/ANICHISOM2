@@ -109,7 +109,7 @@ export const useBrowserStore = create<BrowserState>((set, get) => ({
     set((s) => {
       const next = [...s.pinnedApps];
       const [moved] = next.splice(fromIndex, 1);
-      next.splice(toIndex, 0, moved);
+      next.splice(toIndex, 0, moved!);
       idbSet(PINNED_APPS_KEY, next);
       return { pinnedApps: next };
     });
@@ -148,7 +148,7 @@ export const useBrowserStore = create<BrowserState>((set, get) => ({
     const { tabs, activeTabId } = get();
     if (tabs.length <= 1) return;
     const next = tabs.filter((t) => t.id !== id);
-    const newActive = activeTabId === id ? next[next.length - 1].id : activeTabId;
+    const newActive = activeTabId === id ? next[next.length - 1]!.id : activeTabId;
     set((s) => {
       const updatedTabs = s.tabs.filter((t) => t.id !== id);
       idbSet(TABS_KEY, updatedTabs.map((t) => ({ id: t.id, url: t.url, title: t.title, pinnedAppId: t.pinnedAppId })));
@@ -220,7 +220,7 @@ export const useBrowserStore = create<BrowserState>((set, get) => ({
         historyIndex: t.historyIndex || 0,
         pinnedAppId: t.pinnedAppId,
       }));
-      updates.activeTabId = updates.tabs![0].id;
+      updates.activeTabId = updates.tabs![0]!.id;
     }
     if (Object.keys(updates).length > 0) set(updates);
   },

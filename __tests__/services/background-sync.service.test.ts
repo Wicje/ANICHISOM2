@@ -84,7 +84,7 @@ describe('BackgroundSyncService', () => {
 
       const pending = await BackgroundSyncService.getPendingActions();
       expect(pending).toHaveLength(1);
-      expect(pending[0].retries).toBe(1);
+      expect(pending[0]!.retries).toBe(1);
     });
 
     it('should mark as failed after max retries', async () => {
@@ -115,7 +115,7 @@ describe('BackgroundSyncService', () => {
 
       const pending = await BackgroundSyncService.getPendingActions();
       expect(pending).toHaveLength(1);
-      expect(pending[0].retries).toBe(0);
+      expect(pending[0]!.retries).toBe(0);
     });
 
     it('should return false when retrying non-existent action', async () => {

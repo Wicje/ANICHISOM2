@@ -23,8 +23,8 @@ describe('MoodboardStore', () => {
       const board = addBoard('Design Inspo');
       const { boards, activeBoardId } = useMoodboardStore.getState();
       expect(boards).toHaveLength(1);
-      expect(boards[0].name).toBe('Design Inspo');
-      expect(boards[0].nodes).toEqual([]);
+      expect(boards[0]!.name).toBe('Design Inspo');
+      expect(boards[0]!.nodes).toEqual([]);
       expect(activeBoardId).toBe(board.id);
     });
 
@@ -34,7 +34,7 @@ describe('MoodboardStore', () => {
       addBoard('Board 2');
       deleteBoard(b1.id);
       expect(useMoodboardStore.getState().boards).toHaveLength(1);
-      expect(useMoodboardStore.getState().boards[0].name).toBe('Board 2');
+      expect(useMoodboardStore.getState().boards[0]!.name).toBe('Board 2');
     });
 
     it('should clear activeBoardId when deleting active board', () => {
@@ -48,7 +48,7 @@ describe('MoodboardStore', () => {
       const { addBoard, updateBoard } = useMoodboardStore.getState();
       const b = addBoard('Old Name');
       updateBoard(b.id, { name: 'New Name' });
-      expect(useMoodboardStore.getState().boards[0].name).toBe('New Name');
+      expect(useMoodboardStore.getState().boards[0]!.name).toBe('New Name');
     });
 
     it('should set active board', () => {
@@ -76,15 +76,15 @@ describe('MoodboardStore', () => {
       recordVote('node-1', true);
       const { voteResults } = useMoodboardStore.getState();
       expect(voteResults).toHaveLength(1);
-      expect(voteResults[0].nodeId).toBe('node-1');
-      expect(voteResults[0].approved).toBe(true);
+      expect(voteResults[0]!.nodeId).toBe('node-1');
+      expect(voteResults[0]!.approved).toBe(true);
     });
 
     it('should record reject vote', () => {
       const { startVote, recordVote } = useMoodboardStore.getState();
       startVote();
       recordVote('node-1', false);
-      expect(useMoodboardStore.getState().voteResults[0].approved).toBe(false);
+      expect(useMoodboardStore.getState().voteResults[0]!.approved).toBe(false);
     });
 
     it('should advance vote index', () => {
@@ -119,7 +119,7 @@ describe('MoodboardStore', () => {
       setAutoClip(false);
       addClip({ url: 'https://example.com', title: 'Example' });
       expect(useMoodboardStore.getState().clipQueue).toHaveLength(1);
-      expect(useMoodboardStore.getState().clipQueue[0].url).toBe('https://example.com');
+      expect(useMoodboardStore.getState().clipQueue[0]!.url).toBe('https://example.com');
     });
 
     it('should process clip queue', () => {
@@ -150,7 +150,7 @@ describe('MoodboardStore', () => {
       const { addBoard, linkBoardToCampaign } = useMoodboardStore.getState();
       const b = addBoard('Test');
       linkBoardToCampaign(b.id, 'campaign-1');
-      expect(useMoodboardStore.getState().boards[0].campaignId).toBe('campaign-1');
+      expect(useMoodboardStore.getState().boards[0]!.campaignId).toBe('campaign-1');
     });
 
     it('should unlink board from campaign', () => {
@@ -158,7 +158,7 @@ describe('MoodboardStore', () => {
       const b = addBoard('Test');
       linkBoardToCampaign(b.id, 'campaign-1');
       unlinkBoardFromCampaign(b.id);
-      expect(useMoodboardStore.getState().boards[0].campaignId).toBeUndefined();
+      expect(useMoodboardStore.getState().boards[0]!.campaignId).toBeUndefined();
     });
 
     it('should get boards for campaign', () => {

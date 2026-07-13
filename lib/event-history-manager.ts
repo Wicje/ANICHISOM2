@@ -262,7 +262,7 @@ export class EventHistoryManager {
         totalEvents: events.length,
         userCount: userSet.size,
         eventTypes,
-        lastEventTime: events.length > 0 ? (events[events.length - 1].createdAt || events[events.length - 1].timestamp) : null,
+        lastEventTime: events.length > 0 ? (events[events.length - 1]!.createdAt || events[events.length - 1]!.timestamp) : null,
       };
     } catch (error) {
       console.error('[v0] Failed to get activity stats:', error);

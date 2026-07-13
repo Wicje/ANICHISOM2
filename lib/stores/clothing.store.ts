@@ -5,7 +5,7 @@
  * Persists to IndexedDB via debounced writes.
  */
 import { create } from 'zustand';
-import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { withPersistence } from '@/lib/stores/persisted-store';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -51,37 +51,6 @@ export interface Collection {
   createdAt: number;
 }
 
-// ─── Storage ────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'anichisom-clothing-state';
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-function schedulePersist(state: ClothingState) {
-  if (debounceTimer) clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => {
-    const data: PersistedClothing = {
-      designs: state.designs,
-      patterns: state.patterns,
-      orders: state.orders,
-      collections: state.collections,
-      activeDesignId: state.activeDesignId,
-      activeCollectionId: state.activeCollectionId,
-    };
-    idbSet(STORAGE_KEY, data).catch((e: unknown) => {
-      console.warn('[ClothingStore] Failed to persist:', e);
-    });
-  }, 2000);
-}
-
-interface PersistedClothing {
-  designs: Record<string, Design>;
-  patterns: Record<string, Pattern>;
-  orders: Record<string, ProductionOrder>;
-  collections: Record<string, Collection>;
-  activeDesignId: string | null;
-  activeCollectionId: string | null;
-}
-
 // ─── Helpers ────────────────────────────────────────────────────────────
 
 function generateId(): string {
@@ -121,9 +90,6 @@ interface ClothingState {
   deleteCollection: (id: string) => void;
   addDesignToCollection: (collectionId: string, designId: string) => void;
   removeDesignFromCollection: (collectionId: string, designId: string) => void;
-
-  // ─── Persistence ─────────────────────────────────────────────────
-  hydrate: () => Promise<void>;
 }
 
 export const useClothingStore = create<ClothingState>((set, get) => ({
@@ -150,7 +116,6 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
     };
     set((s) => {
       const designs = { ...s.designs, [id]: design };
-      schedulePersist({ ...s, designs });
       return { designs, activeDesignId: id };
     });
     return id;
@@ -164,7 +129,6 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
         ...s.designs,
         [id]: { ...existing, ...updates, updatedAt: Date.now() },
       };
-      schedulePersist({ ...s, designs });
       return { designs };
     });
   },
@@ -173,7 +137,6 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
     set((s) => {
       const { [id]: _, ...rest } = s.designs;
       const activeDesignId = s.activeDesignId === id ? null : s.activeDesignId;
-      schedulePersist({ ...s, designs: rest, activeDesignId });
       return { designs: rest, activeDesignId };
     });
   },
@@ -197,7 +160,6 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
     };
     set((s) => {
       const patterns = { ...s.patterns, [id]: pattern };
-      schedulePersist({ ...s, patterns });
       return { patterns };
     });
     return id;
@@ -211,7 +173,6 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
         ...s.patterns,
         [id]: { ...existing, ...updates },
       };
-      schedulePersist({ ...s, patterns });
       return { patterns };
     });
   },
@@ -219,7 +180,6 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
   deletePattern: (id) => {
     set((s) => {
       const { [id]: _, ...rest } = s.patterns;
-      schedulePersist({ ...s, patterns: rest });
       return { patterns: rest };
     });
   },
@@ -244,7 +204,6 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
     };
     set((s) => {
       const orders = { ...s.orders, [id]: order };
-      schedulePersist({ ...s, orders });
       return { orders };
     });
     return id;
@@ -258,7 +217,6 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
         ...s.orders,
         [id]: { ...existing, ...updates },
       };
-      schedulePersist({ ...s, orders });
       return { orders };
     });
   },
@@ -266,7 +224,6 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
   deleteOrder: (id) => {
     set((s) => {
       const { [id]: _, ...rest } = s.orders;
-      schedulePersist({ ...s, orders: rest });
       return { orders: rest };
     });
   },
@@ -285,7 +242,6 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
     };
     set((s) => {
       const collections = { ...s.collections, [id]: collection };
-      schedulePersist({ ...s, collections });
       return { collections, activeCollectionId: id };
     });
     return id;
@@ -299,7 +255,6 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
         ...s.collections,
         [id]: { ...existing, ...updates },
       };
-      schedulePersist({ ...s, collections });
       return { collections };
     });
   },
@@ -308,7 +263,6 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
     set((s) => {
       const { [id]: _, ...rest } = s.collections;
       const activeCollectionId = s.activeCollectionId === id ? null : s.activeCollectionId;
-      schedulePersist({ ...s, collections: rest, activeCollectionId });
       return { collections: rest, activeCollectionId };
     });
   },
@@ -324,7 +278,6 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
           designIds: [...collection.designIds, designId],
         },
       };
-      schedulePersist({ ...s, collections });
       return { collections };
     });
   },
@@ -340,28 +293,9 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
           designIds: collection.designIds.filter((dId) => dId !== designId),
         },
       };
-      schedulePersist({ ...s, collections });
       return { collections };
     });
   },
-
-  // ─── Persistence ─────────────────────────────────────────────────
-
-  hydrate: async () => {
-    try {
-      const data = await idbGet<PersistedClothing>(STORAGE_KEY);
-      if (data) {
-        set({
-          designs: data.designs || {},
-          patterns: data.patterns || {},
-          orders: data.orders || {},
-          collections: data.collections || {},
-          activeDesignId: data.activeDesignId || null,
-          activeCollectionId: data.activeCollectionId || null,
-        });
-      }
-    } catch (e) {
-      console.warn('[ClothingStore] Failed to hydrate:', e);
-    }
-  },
 }));
+
+withPersistence(useClothingStore, 'clothing-state', ['designs', 'patterns', 'orders', 'collections', 'activeDesignId', 'activeCollectionId']);

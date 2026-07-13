@@ -173,7 +173,7 @@ export function CallsApp({ window: osWindow }: { window: OSWindow }) {
           {/* Main Video Area */}
           <div className="flex-1 bg-black relative p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
              {/* Local User */}
-              <div className="relative rounded-2xl overflow-hidden bg-[#1a1a1a] border border-white/10 flex items-center justify-center">
+              <div className="relative rounded-2xl overflow-hidden bg-[var(--os-surface)] border border-white/10 flex items-center justify-center">
                  {videoOff ? (
                     <div className="w-24 h-24 rounded-full bg-blue-500/20 flex items-center justify-center text-3xl font-medium text-blue-400 z-10">
                        {currentUser?.name?.charAt(0) || 'U'}
@@ -193,7 +193,7 @@ export function CallsApp({ window: osWindow }: { window: OSWindow }) {
              </div>
 
              {/* Remote User */}
-             <div className="relative rounded-2xl overflow-hidden bg-[#1a1a1a] border border-white/10 flex items-center justify-center">
+             <div className="relative rounded-2xl overflow-hidden bg-[var(--os-surface)] border border-white/10 flex items-center justify-center">
                 {connectionStatus === 'connected' && remoteStream ? (
                   <video
                     ref={remoteVideoRef}
@@ -249,7 +249,7 @@ export function CallsApp({ window: osWindow }: { window: OSWindow }) {
           </div>
 
           {/* Controls Bar */}
-          <div className="h-20 bg-[#1a1a1a] border-t border-white/5 flex items-center justify-center gap-4 px-6 shrink-0">
+          <div className="h-20 bg-[var(--os-surface)] border-t border-white/5 flex items-center justify-center gap-4 px-6 shrink-0">
              <button
                onClick={toggleMic}
                className={cn("w-12 h-12 rounded-full flex items-center justify-center transition-colors", micMuted ? "bg-rose-500 hover:bg-rose-600 text-white" : "bg-white/10 hover:bg-white/20 text-white")}

@@ -36,10 +36,10 @@ describe('HardwareStore', () => {
       expect(id).toMatch(/^hw_/);
       const comp = useHardwareStore.getState().components[id];
       expect(comp).toBeDefined();
-      expect(comp.name).toBe('ESP32');
-      expect(comp.type).toBe('mcu');
-      expect(comp.manufacturer).toBe('Espressif');
-      expect(comp.unitCost).toBe(3.50);
+      expect(comp!.name).toBe('ESP32');
+      expect(comp!.type).toBe('mcu');
+      expect(comp!.manufacturer).toBe('Espressif');
+      expect(comp!.unitCost).toBe(3.50);
     });
   });
 
@@ -50,9 +50,9 @@ describe('HardwareStore', () => {
       );
       useHardwareStore.getState().updateComponent(id, { unitCost: 0.02, footprint: '0603' });
       const comp = useHardwareStore.getState().components[id];
-      expect(comp.unitCost).toBe(0.02);
-      expect(comp.footprint).toBe('0603');
-      expect(comp.name).toBe('R1');
+      expect(comp!.unitCost).toBe(0.02);
+      expect(comp!.footprint).toBe('0603');
+      expect(comp!.name).toBe('R1');
     });
 
     it('should not create new components for unknown IDs', () => {
@@ -95,19 +95,19 @@ describe('HardwareStore', () => {
       const id = useHardwareStore.getState().createSchematic('Main Board', 'Primary MCU board');
       expect(id).toMatch(/^hw_/);
       const sch = useHardwareStore.getState().schematics[id];
-      expect(sch.name).toBe('Main Board');
-      expect(sch.description).toBe('Primary MCU board');
-      expect(sch.componentIds).toEqual([]);
-      expect(sch.connections).toEqual([]);
+      expect(sch!.name).toBe('Main Board');
+      expect(sch!.description).toBe('Primary MCU board');
+      expect(sch!.componentIds).toEqual([]);
+      expect(sch!.connections).toEqual([]);
     });
   });
 
   describe('updateSchematic', () => {
     it('should update schematic and bump updatedAt', () => {
       const id = useHardwareStore.getState().createSchematic('Old Name');
-      const origTs = useHardwareStore.getState().schematics[id].updatedAt;
+      const origTs = useHardwareStore.getState().schematics[id]!.updatedAt;
       useHardwareStore.getState().updateSchematic(id, { name: 'New Name' });
-      const sch = useHardwareStore.getState().schematics[id];
+      const sch = useHardwareStore.getState().schematics[id]!;
       expect(sch.name).toBe('New Name');
       expect(sch.updatedAt).toBeGreaterThanOrEqual(origTs);
     });
@@ -172,9 +172,9 @@ describe('HardwareStore', () => {
       const id = useHardwareStore.getState().createFirmware('Sensor FW', '1.0.0', 'Initial release');
       expect(id).toMatch(/^hw_/);
       const fw = useHardwareStore.getState().firmwareVersions[id];
-      expect(fw.name).toBe('Sensor FW');
-      expect(fw.version).toBe('1.0.0');
-      expect(fw.status).toBe('draft');
+      expect(fw!.name).toBe('Sensor FW');
+      expect(fw!.version).toBe('1.0.0');
+      expect(fw!.status).toBe('draft');
     });
   });
 
@@ -182,7 +182,7 @@ describe('HardwareStore', () => {
     it('should update firmware status', () => {
       const id = useHardwareStore.getState().createFirmware('FW', '0.1.0');
       useHardwareStore.getState().updateFirmware(id, { status: 'staged' });
-      expect(useHardwareStore.getState().firmwareVersions[id].status).toBe('staged');
+      expect(useHardwareStore.getState().firmwareVersions[id]!.status).toBe('staged');
     });
 
     it('should not create new firmware for unknown IDs', () => {
@@ -225,9 +225,9 @@ describe('HardwareStore', () => {
       const id = useHardwareStore.getState().addSupplier('Mouser', 'distributor');
       expect(id).toMatch(/^hw_/);
       const sup = useHardwareStore.getState().suppliers[id];
-      expect(sup.name).toBe('Mouser');
-      expect(sup.type).toBe('distributor');
-      expect(sup.linked).toBe(false);
+      expect(sup!.name).toBe('Mouser');
+      expect(sup!.type).toBe('distributor');
+      expect(sup!.linked).toBe(false);
     });
   });
 
@@ -243,20 +243,20 @@ describe('HardwareStore', () => {
     it('should link and unlink a supplier', () => {
       const id = useHardwareStore.getState().addSupplier('PCBWay', 'fab-house');
       useHardwareStore.getState().linkSupplier(id);
-      const linked = useHardwareStore.getState().suppliers[id];
+      const linked = useHardwareStore.getState().suppliers[id]!;
       expect(linked.linked).toBe(true);
       expect(linked.lastSync).toBeGreaterThan(0);
 
       useHardwareStore.getState().unlinkSupplier(id);
-      expect(useHardwareStore.getState().suppliers[id].linked).toBe(false);
+      expect(useHardwareStore.getState().suppliers[id]!.linked).toBe(false);
     });
 
     it('should not re-link an already linked supplier', () => {
       const id = useHardwareStore.getState().addSupplier('JLCPCB', 'fab-house');
       useHardwareStore.getState().linkSupplier(id);
-      const ts = useHardwareStore.getState().suppliers[id].lastSync;
+      const ts = useHardwareStore.getState().suppliers[id]!.lastSync;
       useHardwareStore.getState().linkSupplier(id);
-      expect(useHardwareStore.getState().suppliers[id].lastSync).toBe(ts);
+      expect(useHardwareStore.getState().suppliers[id]!.lastSync).toBe(ts);
     });
   });
 });
