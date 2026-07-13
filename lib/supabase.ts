@@ -1,24 +1,17 @@
 /**
- * Supabase Client Singleton
+ * Supabase Client Singleton (Browser)
  *
- * Single entry point for all Supabase operations.
- * Replaces the Firebase client entirely.
+ * Uses @supabase/ssr for proper session management.
+ * Server-side usage should go through utils/supabase/server.ts instead.
  */
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+import { createClient } from '@/utils/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 let _client: SupabaseClient | null = null;
 
 export function getSupabase(): SupabaseClient {
   if (_client) return _client;
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('[Supabase] NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be set');
-  }
-  _client = createClient(supabaseUrl || '', supabaseAnonKey || '', {
-    auth: { persistSession: false },
-  });
+  _client = createClient();
   return _client;
 }
 

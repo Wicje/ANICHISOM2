@@ -15,7 +15,7 @@ export class SupabaseAuthProvider implements AuthProvider {
       const { createClient } = require('@supabase/supabase-js');
       this.supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
       );
     } catch {
       console.warn('Supabase not configured. Using Supabase provider requires NEXT_PUBLIC_SUPABASE_* env vars');
