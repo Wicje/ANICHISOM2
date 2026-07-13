@@ -65,6 +65,30 @@ vi.mock('@/components/apps/feedback-widget', () => ({
   default: () => <div data-testid="feedback-widget" />,
 }));
 
+vi.mock('@/components/login-screen', () => ({
+  __esModule: true,
+  LoginScreen: () => <div data-testid="login-screen" />,
+  default: () => <div data-testid="login-screen" />,
+}));
+
+vi.mock('@/utils/supabase/client', () => ({
+  createClient: vi.fn(() => ({
+    auth: {
+      getUser: vi.fn().mockResolvedValue({ data: { user: null } }),
+      signOut: vi.fn().mockResolvedValue(undefined),
+      onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+    },
+  })),
+}));
+
+vi.mock('@/utils/supabase/server', () => ({
+  createClient: vi.fn(() => ({
+    auth: {
+      getUser: vi.fn().mockResolvedValue({ data: { user: null } }),
+    },
+  })),
+}));
+
 vi.mock('sonner', () => ({
   Toaster: () => <div data-testid="toaster" />,
   toast: { info: vi.fn(), error: vi.fn(), success: vi.fn(), warning: vi.fn() },
@@ -93,6 +117,7 @@ const { authStoreState } = vi.hoisted(() => ({
     setCurrentUser: vi.fn(),
     logout: vi.fn(),
     wipeSession: vi.fn(),
+    checkSession: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -241,12 +266,13 @@ describe('Desktop', () => {
     expect(screen.getByTestId('onboarding-wizard')).toBeTruthy();
   });
 
-  it('renders empty container when no user is logged in and onboarding is completed', () => {
+  it('renders LoginScreen when no user is logged in and onboarding is completed', () => {
     authStoreState.currentUser = null;
     onboardingStoreState.onboarding = { completed: true, selectedRole: 'admin', selectedApps: [], customApps: [] };
     const { container } = render(<Desktop />);
     const innerDiv = container.querySelector('.fixed.inset-0');
     expect(innerDiv).toBeTruthy();
+    expect(screen.getByTestId('login-screen')).toBeTruthy();
     expect(screen.queryByTestId('menu-bar')).toBeNull();
   });
 

@@ -30,7 +30,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      const { createClient } = await import('@/utils/supabase/client');
+      const supabase = createClient();
+      await supabase.auth.signOut();
     } catch (e) {
       console.error('Logout error:', e);
     }
@@ -39,6 +41,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   wipeSession: async () => {
+    try {
+      const { createClient } = await import('@/utils/supabase/client');
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch { /* ignore */ }
     await clear();
     localStorage.clear();
     window.location.reload();
@@ -46,26 +53,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   checkSession: async () => {
     try {
-      const response = await fetch('/api/auth/session', {
-        method: 'GET',
-        credentials: 'include',
-      });
+      const { createClient } = await import('@/utils/supabase/client');
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
 
-      if (!response.ok) {
+      if (user) {
+        const osUser: OSUser = {
+          id: user.id,
+          name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+          role: (user.user_metadata?.role as OSRole) || 'user',
+          avatarUrl: user.user_metadata?.avatar_url,
+        };
+        set({ currentUser: osUser });
+        idbSet('anichisom_os_user_cache', osUser);
+      } else {
         set({ currentUser: null });
-    await idbDel('anichisom_os_user_cache');
-        return;
+        await idbDel('anichisom_os_user_cache');
       }
-
-      const data = await response.json();
-      const osUser: OSUser = {
-        id: data.user.id,
-        name: data.user.uniqueId,
-        role: (data.user.role as OSRole) || 'user',
-      };
-
-      set({ currentUser: osUser });
-      idbSet('anichisom_os_user_cache', osUser);
     } catch {
       const cachedUser = await idbGet('anichisom_os_user_cache');
       if (cachedUser) {

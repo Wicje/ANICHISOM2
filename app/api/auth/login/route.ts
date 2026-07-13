@@ -20,7 +20,7 @@ import {
   sanitizeInput,
 } from '@/lib/auth-validation';
 import { getAuthProvider } from '@/lib/auth-providers/provider-factory';
-import { createSession, createDevMasterSession } from '@/lib/session-store';
+import { createSession } from '@/lib/session-store';
 import {
   apiError,
   apiForbidden,
@@ -93,38 +93,6 @@ export async function POST(request: NextRequest) {
 
     // Get configured auth provider
     const authProvider = await getAuthProvider();
-
-    // Dev-only master key bypass — requires DEV_MASTER_KEY env var (S-02 hardened)
-    // NEVER available in production; requires explicit opt-in via environment
-    const devMasterKey = process.env.DEV_MASTER_KEY;
-    if (
-      process.env.NODE_ENV === 'development' &&
-      devMasterKey &&
-      uniqueId === devMasterKey
-    ) {
-      const crypto = await import('crypto');
-      const devToken = 'dev-master-' + crypto.randomBytes(32).toString('hex');
-      createDevMasterSession(devToken);
-      const response = apiOk({
-        user: {
-          id: 'master-user-id',
-          uniqueId: 'dev-master',
-          role: 'admin',
-        },
-      });
-
-      response.cookies.set({
-        name: 'anichisom_session',
-        value: devToken,
-        httpOnly: true,
-        secure: false,
-        sameSite: 'strict',
-        path: '/',
-        maxAge: 24 * 60 * 60,
-      });
-
-      return response;
-    }
 
     // Attempt login
     let result;

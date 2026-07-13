@@ -1,355 +1,195 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useOS, OSRole } from '@/lib/os-context';
-import { Power, Key, Loader2, AlertCircle, Terminal, Fingerprint } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useAuthStore, OSRole } from '@/lib/stores/auth.store';
+import { createClient } from '@/utils/supabase/client';
+import { Key, Loader2, AlertCircle, Mail, Lock, UserPlus, LogIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  isWebAuthnSupported,
-  isPlatformAuthenticatorAvailable,
-  registerPasskey,
-  authenticateWithPasskey,
-  getPasskeyMetadata,
-} from '@/lib/services/webauthn.service';
-import { initSessionEncryption } from '@/lib/services/session-encryption.service';
 
-const AVATARS = [
-  { id: 'founder', name: 'Founder', role: 'admin', avatarUrl: 'https://api.dicebear.com/9.x/micah/svg?seed=Founder&backgroundColor=transparent' },
-  { id: 'creative-dir', name: 'Creative Director', role: 'admin', avatarUrl: 'https://api.dicebear.com/9.x/micah/svg?seed=Director&backgroundColor=transparent' },
-  { id: 'designer', name: 'UI/UX Designer', role: 'admin', avatarUrl: 'https://api.dicebear.com/9.x/micah/svg?seed=Designer&backgroundColor=transparent' },
-  { id: 'frontend-dev', name: 'Frontend Developer', role: 'technician', avatarUrl: 'https://api.dicebear.com/9.x/micah/svg?seed=Developer&backgroundColor=transparent' },
-  { id: 'filmmaker', name: 'Filmmaker', role: 'filmmaker', avatarUrl: 'https://api.dicebear.com/9.x/micah/svg?seed=Filmmaker&backgroundColor=transparent' },
-  { id: 'copywriter', name: 'Copywriter', role: 'user', avatarUrl: 'https://api.dicebear.com/9.x/micah/svg?seed=Copywriter&backgroundColor=transparent' },
-  { id: 'forensics', name: 'Data Recovery', role: 'technician', avatarUrl: 'https://api.dicebear.com/9.x/micah/svg?seed=Recovery&backgroundColor=transparent' },
-];
+type AuthMode = 'login' | 'signup';
 
 export function LoginScreen() {
-  const router = useRouter();
-  const { setCurrentUser } = useOS();
-  
+  const { setCurrentUser } = useAuthStore();
+  const supabase = createClient();
+
+  const [mode, setMode] = useState<AuthMode>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<any>(null);
-  const [passkey, setPasskey] = useState('');
-  const [showOverride, setShowOverride] = useState(false);
-  const [webAuthnSupported, setWebAuthnSupported] = useState(false);
-  const [hasPasskeys, setHasPasskeys] = useState(false);
-  const [isAuthenticatingPasskey, setIsAuthenticatingPasskey] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
-    const check = async () => {
-      const supported = isWebAuthnSupported();
-      setWebAuthnSupported(supported);
-      if (supported) {
-        const meta = await getPasskeyMetadata();
-        setHasPasskeys(meta.length > 0);
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setCurrentUser({
+          id: user.id,
+          name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+          role: (user.user_metadata?.role as OSRole) || 'user',
+          avatarUrl: user.user_metadata?.avatar_url,
+        });
       }
-    };
-    check();
+    });
   }, []);
 
-  const completeLogin = async (userId: string, userName: string, userRole: string, avatarUrl: string) => {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uniqueId: userId }),
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || 'Login failed');
-    }
-
-    setCurrentUser({
-      id: data.user.id,
-      name: userName,
-      role: data.user.role as OSRole,
-      avatarUrl,
-    } as any);
-
-    // Initialize session encryption after successful login
-    try {
-      await initSessionEncryption(userId);
-    } catch (e) {
-      console.warn('[Login] Session encryption init failed (non-blocking):', e);
-    }
-
-    router.push('/');
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!selectedUser) {
-      setError('Please select a user');
-      return;
-    }
-
-    setIsLoading(true);
     setError('');
+    setSuccessMsg('');
+    setIsLoading(true);
 
     try {
-      await completeLogin(selectedUser.id, selectedUser.name, selectedUser.role, selectedUser.avatarUrl);
-    } catch (err: any) {
-      setError(err.message || 'Failed to login. Please try again.');
+      if (mode === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { name: displayName || email.split('@')[0], role: 'user' },
+          },
+        });
+
+        if (error) throw error;
+
+        if (data.user && !data.session) {
+          setSuccessMsg('Check your email to confirm your account, then log in.');
+          setIsLoading(false);
+          return;
+        }
+
+        if (data.session?.user) {
+          setCurrentUser({
+            id: data.session.user.id,
+            name: data.session.user.user_metadata?.name || email.split('@')[0],
+            role: (data.session.user.user_metadata?.role as OSRole) || 'user',
+          });
+        }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) throw error;
+
+        setCurrentUser({
+          id: data.user.id,
+          name: data.user.user_metadata?.name || email.split('@')[0],
+          role: (data.user.user_metadata?.role as OSRole) || 'user',
+          avatarUrl: data.user.user_metadata?.avatar_url,
+        });
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Authentication failed';
+      setError(message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handlePasskeyLogin = async () => {
-    if (!selectedUser) {
-      setError('Please select a user first');
-      return;
-    }
-
-    setIsAuthenticatingPasskey(true);
-    setError('');
-
-    try {
-      const meta = await getPasskeyMetadata();
-      if (meta.length === 0) {
-        // No passkeys registered — register one now
-        const result = await registerPasskey(
-          selectedUser.id,
-          selectedUser.id,
-          selectedUser.name,
-        );
-        // Save metadata locally
-        const { savePasskeyMetadata } = await import('@/lib/services/webauthn.service');
-        await savePasskeyMetadata(result);
-
-        // Also register with the Rust auth service if available
-        try {
-          const { rustAuth } = await import('@/lib/services/rust-client');
-          await rustAuth.passkeyRegisterStart(selectedUser.id, selectedUser.name);
-          await rustAuth.passkeyRegisterFinish({
-            username: selectedUser.id,
-            credential_id: result.credentialId,
-            public_key: result.publicKey,
-            label: result.label,
-          });
-        } catch {
-          // Rust service may not be available — continue with local registration
-        }
-
-        await completeLogin(selectedUser.id, selectedUser.name, selectedUser.role, selectedUser.avatarUrl);
-        return;
-      }
-
-      // Authenticate with existing passkey
-      const credentialIds = meta.map((m) => m.credentialId);
-      const authResult = await authenticateWithPasskey(credentialIds);
-
-      await completeLogin(selectedUser.id, selectedUser.name, selectedUser.role, selectedUser.avatarUrl);
-    } catch (err: any) {
-      if (err.message.includes('cancelled')) {
-        setError('Passkey authentication was cancelled');
-      } else {
-        setError(err.message || 'Passkey login failed');
-      }
-    } finally {
-      setIsAuthenticatingPasskey(false);
-    }
-  };
-
   return (
-    <div className="fixed inset-0 bg-[#0a0a0a] flex items-center justify-center p-4 selection:bg-white selection:text-black font-sans">
-      {/* Black and white noise/texture background */}
+    <div className="fixed inset-0 bg-[#0a0a0a] flex items-center justify-center p-4 font-sans">
       <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
 
-      <div className="relative z-10 w-full max-w-2xl flex flex-col items-center">
-        {/* Logo & Title */}
-        <div className="flex flex-col items-center gap-4 mb-12 text-center">
-          <div className="flex items-center gap-3 justify-center">
+      <div className="relative z-10 w-full max-w-md">
+        <div className="flex flex-col items-center gap-4 mb-10 text-center">
+          <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-white rounded-none flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.15)]">
               <Key className="w-6 h-6 text-black" />
             </div>
-            <div className="font-mono text-2xl font-bold text-white tracking-[0.2em] ml-2 uppercase">
+            <div className="font-mono text-2xl font-bold text-white tracking-[0.2em] uppercase">
               Anichisom OS
             </div>
           </div>
           <p className="text-white/40 text-xs max-w-xs font-mono uppercase tracking-widest">
-            Select identity to authenticate
+            {mode === 'login' ? 'Sign in to your workspace' : 'Create your account'}
           </p>
         </div>
 
         {error && (
-          <div className="w-full max-w-md bg-white/5 border border-white/20 text-white text-xs p-4 flex items-start gap-3 mb-8 backdrop-blur-md font-mono uppercase tracking-wide">
+          <div className="w-full bg-white/5 border border-white/20 text-white text-xs p-4 flex items-start gap-3 mb-6 backdrop-blur-md font-mono uppercase tracking-wide">
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        {!selectedUser ? (
-          /* Avatar Grid */
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 w-full max-w-3xl">
-            {AVATARS.map((user) => (
-              <button
-                key={user.id}
-                onClick={() => setSelectedUser(user)}
-                className="flex flex-col items-center gap-4 p-4 hover:bg-white/5 transition-all group focus:outline-none"
-              >
-                <div className="relative w-20 h-20 rounded-full overflow-hidden border border-white/20 group-hover:border-white transition-colors bg-white/10">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img 
-                    src={user.avatarUrl} 
-                    alt={user.name}
-                    className="w-full h-full object-cover grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
-                  />
-                </div>
-                <div className="text-center">
-                  <div className="text-white font-medium text-xs tracking-wider uppercase">{user.name}</div>
-                  <div className="text-white/40 text-[9px] uppercase tracking-[0.2em] mt-1">{user.role}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-        ) : (
-          /* Login Card */
-          <div className="w-full max-w-sm flex flex-col gap-8 p-10 bg-black border border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] animate-in fade-in zoom-in-95 duration-300">
-            <div className="flex flex-col items-center gap-5 mb-2">
-              <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-white bg-white/10">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img 
-                  src={selectedUser.avatarUrl} 
-                  alt={selectedUser.name}
-                  className="w-full h-full object-cover grayscale"
-                />
-              </div>
-              <div className="text-center">
-                <h2 className="text-lg font-bold text-white uppercase tracking-widest">{selectedUser.name}</h2>
-                <p className="text-white/40 text-[10px] uppercase tracking-[0.2em] mt-2">{selectedUser.role}</p>
-              </div>
-            </div>
-
-            {/* Passkey / Biometric Login */}
-            {webAuthnSupported && (
-              <button
-                type="button"
-                onClick={handlePasskeyLogin}
-                disabled={isAuthenticatingPasskey}
-                className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white disabled:opacity-50 disabled:cursor-not-allowed font-bold py-4 transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs"
-              >
-                {isAuthenticatingPasskey ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Authenticating...
-                  </>
-                ) : (
-                  <>
-                    <Fingerprint className="w-4 h-4" />
-                    {hasPasskeys ? 'Sign in with Passkey' : 'Register Passkey'}
-                  </>
-                )}
-              </button>
-            )}
-
-            {/* Divider */}
-            {webAuthnSupported && (
-              <div className="flex items-center gap-4">
-                <div className="flex-1 h-px bg-white/10" />
-                <span className="text-white/20 text-[9px] uppercase tracking-widest">or</span>
-                <div className="flex-1 h-px bg-white/10" />
-              </div>
-            )}
-
-            {/* Password Login */}
-            <form onSubmit={handleLogin} className="flex flex-col gap-6">
-              <div className="flex flex-col gap-2">
-                <input
-                  type="password"
-                  value={passkey}
-                  onChange={(e) => setPasskey(e.target.value)}
-                  placeholder="AUTHORIZATION KEY"
-                  className="w-full bg-transparent border-b border-white/20 hover:border-white/50 focus:border-white px-2 py-3 text-center text-white placeholder-white/20 focus:outline-none transition-colors text-sm tracking-[0.3em] font-mono"
-                  autoFocus
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-white hover:bg-neutral-200 text-black disabled:opacity-50 disabled:cursor-not-allowed font-bold py-4 transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Authenticating
-                  </>
-                ) : (
-                  <>
-                    <Key className="w-4 h-4" />
-                    Enter System
-                  </>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedUser(null);
-                  setPasskey('');
-                  setError('');
-                }}
-                className="text-white/30 hover:text-white text-[10px] uppercase tracking-widest transition-colors mt-2"
-              >
-                Switch Identity
-              </button>
-            </form>
+        {successMsg && (
+          <div className="w-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs p-4 flex items-start gap-3 mb-6 backdrop-blur-md font-mono uppercase tracking-wide">
+            <span>{successMsg}</span>
           </div>
         )}
 
-        {/* Footer & Override Menu */}
-        <div className="mt-16 text-center text-white/30 text-xs flex flex-col items-center gap-6 justify-center">
-          
-          {showOverride ? (
-            <div className="flex flex-col items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <input 
-                type="password"
-                placeholder="INPUT OVERRIDE KEY"
-                className="bg-transparent border-b border-white text-center text-white focus:outline-none text-xs w-48 pb-2 tracking-[0.2em] font-mono uppercase"
-                autoFocus
-                onKeyDown={async (e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const val = e.currentTarget.value;
-                    if (val === 'ANICHISOM') {
-                      setIsLoading(true);
-                      try {
-                        await completeLogin('ANICHISOM', 'ANICHISOM', 'admin', 'https://api.dicebear.com/9.x/micah/svg?seed=Master&backgroundColor=transparent');
-                      } catch (err: any) {
-                        setError(err.message || 'Override failed');
-                        setIsLoading(false);
-                        setShowOverride(false);
-                      }
-                    } else {
-                      setError('Access Denied');
-                      setShowOverride(false);
-                    }
-                  } else if (e.key === 'Escape') {
-                    setShowOverride(false);
-                  }
-                }}
-                onBlur={() => setShowOverride(false)}
-              />
-              <span className="text-[9px] uppercase tracking-widest text-white/40">Press ESC to cancel</span>
+        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-5 p-8 bg-black border border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)]">
+          {mode === 'signup' && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-mono">Name</label>
+              <div className="flex items-center border-b border-white/20 focus-within:border-white transition-colors">
+                <UserPlus className="w-4 h-4 text-white/30 shrink-0" />
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Your name"
+                  className="w-full bg-transparent px-3 py-3 text-white placeholder-white/20 focus:outline-none text-sm tracking-wide"
+                />
+              </div>
             </div>
-          ) : (
-            <button 
-              onClick={() => setShowOverride(true)}
-              className="text-white/20 hover:text-white flex items-center gap-2 text-[10px] uppercase tracking-widest transition-colors font-mono"
-            >
-              <Terminal className="w-3 h-3" />
-              <span>System Override</span>
-            </button>
           )}
 
-          <div className="flex items-center gap-2 font-mono uppercase tracking-widest text-[9px] text-white/20">
-            <Power className="w-3 h-3" />
-            <span>OS Kernel v2.0 • Monochrome</span>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-mono">Email</label>
+            <div className="flex items-center border-b border-white/20 focus-within:border-white transition-colors">
+              <Mail className="w-4 h-4 text-white/30 shrink-0" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@email.com"
+                required
+                className="w-full bg-transparent px-3 py-3 text-white placeholder-white/20 focus:outline-none text-sm tracking-wide"
+              />
+            </div>
           </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-mono">Password</label>
+            <div className="flex items-center border-b border-white/20 focus-within:border-white transition-colors">
+              <Lock className="w-4 h-4 text-white/30 shrink-0" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={mode === 'signup' ? 'Min 6 characters' : 'Your password'}
+                required
+                minLength={6}
+                className="w-full bg-transparent px-3 py-3 text-white placeholder-white/20 focus:outline-none text-sm tracking-wide"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-white hover:bg-neutral-200 text-black disabled:opacity-50 disabled:cursor-not-allowed font-bold py-4 transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs mt-2"
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : mode === 'login' ? (
+              <LogIn className="w-4 h-4" />
+            ) : (
+              <UserPlus className="w-4 h-4" />
+            )}
+            {isLoading ? 'Authenticating...' : mode === 'login' ? 'Sign In' : 'Create Account'}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setSuccessMsg(''); }}
+            className="text-white/30 hover:text-white text-xs uppercase tracking-widest transition-colors font-mono"
+          >
+            {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+          </button>
         </div>
       </div>
     </div>

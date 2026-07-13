@@ -71,7 +71,7 @@ const MemoizedWindow = React.memo(
 export { APP_MANIFEST as APPS } from '@/lib/app-manifest';
 
 export function Desktop() {
-  const { currentUser, logout, wipeSession } = useAuthStore();
+  const { currentUser, logout, wipeSession, checkSession } = useAuthStore();
   const windows = useWindowStore((s) => s.windows);
   const openWindow = useWindowStore((s) => s.openWindow);
   const closeWindow = useWindowStore((s) => s.closeWindow);
@@ -99,13 +99,14 @@ export function Desktop() {
   const [registryVersion, setRegistryVersion] = useState(0);
   const [componentCache, setComponentCache] = useState<Map<string, React.ComponentType<any>>>(new Map());
 
-  // Initialize plugin registry
+  // Initialize plugin registry + check Supabase session
   useEffect(() => {
     loadInstallStates();
     const allAppIds = APP_MANIFEST.map(a => a.id);
     registerBuiltinPlugins(allAppIds);
     (useOnboardingStore as any).hydrate?.();
     hydrateColorMode();
+    checkSession();
   }, []);
 
   // Sync colorMode to document.documentElement
@@ -406,21 +407,8 @@ export function Desktop() {
     }
   }, []);
 
-  // Auto-create local user when onboarding completes but no user exists,
-  // then install the apps they selected during onboarding.
+  // Install onboarding-selected apps once user is authenticated
   const onboardingAppsInstalledRef = React.useRef(false);
-
-  useEffect(() => {
-    if (onboarding.completed && !currentUser) {
-      const role = onboarding.selectedRole || 'other';
-      const user = {
-        id: `local-${Date.now()}`,
-        name: 'User',
-        role: role as any,
-      };
-      useAuthStore.getState().setCurrentUser(user);
-    }
-  }, [onboarding.completed, currentUser, onboarding.selectedRole]);
 
   useEffect(() => {
     if (onboarding.completed && currentUser && !onboardingAppsInstalledRef.current) {
@@ -430,7 +418,6 @@ export function Desktop() {
         appsToInstall.forEach((appId) => {
           useWorkspaceStore.getState().installApp(appId);
         });
-        // Auto-open the first installed app after a short delay
         setTimeout(() => {
           const firstApp = appsToInstall[0];
           if (firstApp) {
