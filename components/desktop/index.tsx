@@ -25,6 +25,7 @@ import { WindowSwitcher } from './window-switcher';
 import { DesktopIcons } from './desktop-icons';
 import { SnapshotsMenu } from './snapshots-menu';
 import OnboardingWizard from '@/components/apps/onboarding-wizard';
+import { LoginScreen } from '@/components/login-screen';
 import FeedbackWidget from '@/components/apps/feedback-widget';
 import { useOnboardingStore } from '@/lib/stores/onboarding.store';
 import { useNotificationStore } from '@/lib/stores/notification.store';
@@ -444,6 +445,7 @@ export function Desktop() {
     return (
       <div className="fixed inset-0 w-full h-full overflow-hidden flex flex-col font-sans select-none">
         {!onboarding.completed && <OnboardingWizard />}
+        {onboarding.completed && <LoginScreen />}
       </div>
     );
   }
