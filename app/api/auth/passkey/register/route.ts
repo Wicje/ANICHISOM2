@@ -5,23 +5,24 @@
  * Body: { username: string, displayName: string }
  * Returns: { challenge, rpId, user }
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import crypto from 'crypto';
 import { apiError, apiInternal, apiOk } from '@/lib/api-helpers';
 
-const CHALLENGE_TTL = 60_000; // 60 seconds
+const CHALLENGE_TTL = 60_000;
 const challenges = new Map<string, { challenge: string; expiresAt: number }>();
 
-// Cleanup expired challenges periodically
-setInterval(() => {
+function cleanupExpired() {
   const now = Date.now();
   for (const [key, value] of challenges) {
     if (value.expiresAt < now) challenges.delete(key);
   }
-}, 30_000);
+}
 
 export async function POST(request: NextRequest) {
   try {
+    cleanupExpired();
+
     const body = await request.json();
     const { username, displayName } = body;
 
@@ -29,11 +30,9 @@ export async function POST(request: NextRequest) {
       return apiError('username and displayName are required');
     }
 
-    // Generate challenge
     const challenge = crypto.randomBytes(32).toString('base64url');
     const challengeId = crypto.randomUUID();
 
-    // Store challenge with TTL
     challenges.set(challengeId, {
       challenge,
       expiresAt: Date.now() + CHALLENGE_TTL,
@@ -54,8 +53,8 @@ export async function POST(request: NextRequest) {
         displayName,
       },
       pubKeyCredParams: [
-        { alg: -7, type: 'public-key' },   // ES256
-        { alg: -257, type: 'public-key' }, // RS256
+        { alg: -7, type: 'public-key' },
+        { alg: -257, type: 'public-key' },
       ],
       authenticatorSelection: {
         authenticatorAttachment: 'platform',
@@ -70,5 +69,3 @@ export async function POST(request: NextRequest) {
     return apiInternal('Failed to generate registration challenge');
   }
 }
-
-export { challenges as challengeStore };

@@ -5,23 +5,24 @@
  * Body: { credentialIds: string[] }
  * Returns: { challenge, rpId, allowCredentials }
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import crypto from 'crypto';
 import { apiError, apiInternal, apiOk } from '@/lib/api-helpers';
 
-// Reuse challenge store from registration route
 const CHALLENGE_TTL = 60_000;
 const challenges = new Map<string, { challenge: string; expiresAt: number }>();
 
-setInterval(() => {
+function cleanupExpired() {
   const now = Date.now();
   for (const [key, value] of challenges) {
     if (value.expiresAt < now) challenges.delete(key);
   }
-}, 30_000);
+}
 
 export async function POST(request: NextRequest) {
   try {
+    cleanupExpired();
+
     const body = await request.json();
     const { credentialIds } = body;
 
@@ -29,7 +30,6 @@ export async function POST(request: NextRequest) {
       return apiError('credentialIds array is required');
     }
 
-    // Generate challenge
     const challenge = crypto.randomBytes(32).toString('base64url');
     const challengeId = crypto.randomUUID();
 
@@ -57,5 +57,3 @@ export async function POST(request: NextRequest) {
     return apiInternal('Failed to generate authentication challenge');
   }
 }
-
-export { challenges as challengeStore };
