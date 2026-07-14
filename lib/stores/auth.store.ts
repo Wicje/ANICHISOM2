@@ -12,6 +12,7 @@ export type OSUser = {
 
 type AuthState = {
   currentUser: OSUser | null;
+  sessionChecked: boolean;
   setCurrentUser: (user: OSUser | null) => void;
   logout: () => Promise<void>;
   wipeSession: () => Promise<void>;
@@ -20,6 +21,7 @@ type AuthState = {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   currentUser: null,
+  sessionChecked: false,
 
   setCurrentUser: (user) => {
     set({ currentUser: user });
@@ -64,16 +66,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           role: (user.user_metadata?.role as OSRole) || 'user',
           avatarUrl: user.user_metadata?.avatar_url,
         };
-        set({ currentUser: osUser });
+        set({ currentUser: osUser, sessionChecked: true });
         idbSet('anichisom_os_user_cache', osUser);
       } else {
-        set({ currentUser: null });
+        set({ currentUser: null, sessionChecked: true });
         await idbDel('anichisom_os_user_cache');
       }
     } catch {
       const cachedUser = await idbGet('anichisom_os_user_cache');
       if (cachedUser) {
-        set({ currentUser: cachedUser });
+        set({ currentUser: cachedUser, sessionChecked: true });
+      } else {
+        set({ sessionChecked: true });
       }
     }
   },

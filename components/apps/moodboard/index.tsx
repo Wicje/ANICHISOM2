@@ -646,6 +646,7 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
             onAddComment={(text) => addNodeComment(node.id, text)}
             onSetLabel={(label) => setNodeLabel(node.id, label)}
             onRemoveCampaignLink={() => removeCampaignLink(node.id)}
+            onSetCampaignLink={() => setShowCampaignLink(node.id)}
             connectFromId={connectFromId}
             onConnectTo={addConnection}
           />

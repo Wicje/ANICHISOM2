@@ -90,6 +90,7 @@ export type FileState = {
   addSmartRoute: (route: SmartRoute) => void;
   removeSmartRoute: (pattern: string) => void;
   resolveSmartRoute: (mimeType: string, fileName: string) => string | null;
+  getCompatibleApps: (mimeType: string, fileName: string) => SmartRoute[];
 
   // File operations
   getFilteredFiles: () => FileItem[];
@@ -101,11 +102,11 @@ const DEFAULT_SMART_ROUTES: SmartRoute[] = [
   { pattern: 'video/*', appId: 'media-player', label: 'Open in Media Player' },
   { pattern: 'audio/*', appId: 'media-player', label: 'Open in Media Player' },
   { pattern: 'application/pdf', appId: 'pdf-reader', label: 'Open in PDF Reader' },
-  { pattern: 'text/*', appId: 'code-editor', label: 'Open in Code Editor' },
-  { pattern: 'application/json', appId: 'code-editor', label: 'Open in Code Editor' },
+  { pattern: 'text/*', appId: 'code', label: 'Open in Code Editor' },
+  { pattern: 'application/json', appId: 'code', label: 'Open in Code Editor' },
   { pattern: '*.psd', appId: 'moodboard', label: 'Open in Moodboard' },
   { pattern: '*.ai', appId: 'moodboard', label: 'Open in Moodboard' },
-  { pattern: '*.figma', appId: 'browser', label: 'Open in Power Browser' },
+  { pattern: '*.figma', appId: 'power-browser', label: 'Open in Power Browser' },
 ];
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -219,6 +220,11 @@ export const useFileStore = create<FileState>((set, get) => ({
       }
     }
     return null;
+  },
+
+  getCompatibleApps: (mimeType, fileName) => {
+    const { smartRoutes } = get();
+    return smartRoutes.filter(route => matchesPattern(route.pattern, mimeType, fileName));
   },
 
   // Filtered files

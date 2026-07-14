@@ -80,7 +80,7 @@ const MemoizedWindow = React.memo(
 export { APP_MANIFEST as APPS } from '@/lib/app-manifest';
 
 export function Desktop() {
-  const { currentUser, logout, wipeSession, checkSession } = useAuthStore();
+  const { currentUser, logout, wipeSession, checkSession, sessionChecked } = useAuthStore();
   const windows = useWindowStore((s) => s.windows);
   const openWindow = useWindowStore((s) => s.openWindow);
   const closeWindow = useWindowStore((s) => s.closeWindow);
@@ -461,6 +461,17 @@ export function Desktop() {
       }
     }
   }, [onboarding.completed, currentUser, onboarding.selectedApps]);
+
+  if (!sessionChecked) {
+    return (
+      <div className="fixed inset-0 w-full h-full overflow-hidden flex items-center justify-center bg-[#0a0a0a]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#4da3ff', borderTopColor: 'transparent' }} />
+          <span className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.6)' }}>ANICHISOM OS</span>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return (

@@ -5,7 +5,7 @@ import { useOS, OSWindow } from '@/lib/os-context';
 import {
   Folder, File as FileIcon, FileText, Image as ImageIcon, Video, Box, Search,
   Plus, Trash2, HardDrive, RefreshCw, ChevronRight, Download, Upload,
-  Cloud, WifiOff, Link, Unlink, Loader2, ExternalLink, Lock
+  Cloud, WifiOff, Link, Unlink, Loader2, ExternalLink, Lock, Eye
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FS, LocalFile } from '@/lib/fs';
@@ -55,6 +55,9 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   const [syncPromptFile, setSyncPromptFile] = useState<{ name: string; size: number; type: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: LocalFile } | null>(null);
 
   const revokeObjectUrls = () => {
     for (const url of objectUrlsRef.current) {
@@ -339,6 +342,25 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
             </>
           )}
 
+          {/* Quick Links */}
+          <div className="px-3 mt-6 mb-2 text-[10px] font-bold uppercase tracking-widest text-white/40">Quick Links</div>
+          <div className="flex flex-col gap-1 px-2">
+            {[
+              { name: 'Google Drive', url: 'https://drive.google.com', icon: '🟢' },
+              { name: 'Google Photos', url: 'https://photos.google.com', icon: '🟡' },
+              { name: 'Dropbox', url: 'https://www.dropbox.com', icon: '🔵' },
+            ].map(link => (
+              <button
+                key={link.name}
+                onClick={() => window.open(link.url, '_blank')}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
+              >
+                <span className="text-base">{link.icon}</span>
+                {link.name}
+              </button>
+            ))}
+          </div>
+
           {/* Refresh cloud sources */}
           <div className="px-3 mt-4">
             <button
@@ -474,6 +496,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                   <div
                     key={i}
                     onDoubleClick={() => handleFileOpen(file)}
+                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, file }); }}
                     className="group flex flex-col items-center p-4 rounded-xl border border-transparent hover:bg-white/5 hover:border-white/10 hover:shadow-xl transition-all cursor-pointer relative"
                   >
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1 z-10">
@@ -567,6 +590,55 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
           )}
         </div>
       </div>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed z-[9999] bg-[#1c1c1e] border border-white/10 rounded-xl shadow-2xl py-1 w-56"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => setContextMenu(null)}
+        >
+          <button
+            onClick={() => handleFileOpen(contextMenu.file)}
+            className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 flex items-center gap-2 text-white/80"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Open
+          </button>
+          <button
+            onClick={() => {
+              const compatible = useFileStore.getState().getCompatibleApps(contextMenu.file.mimeType || '', contextMenu.file.name);
+              if (compatible.length > 1) {
+                const appIds = compatible.map(r => r.appId);
+                const label = prompt(`Open with (${appIds.join(', ')}):`);
+                if (label && appIds.includes(label.trim())) {
+                  openWindow(label.trim(), contextMenu.file.name, { fileId: contextMenu.file.id, content: contextMenu.file.content });
+                }
+              } else if (compatible.length === 1) {
+                handleFileOpen(contextMenu.file);
+              } else {
+                openWindow('code', contextMenu.file.name, { fileId: contextMenu.file.id, content: contextMenu.file.content });
+              }
+            }}
+            className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 flex items-center gap-2 text-white/80"
+          >
+            <Eye className="w-3.5 h-3.5" /> Open With...
+          </button>
+          <div className="border-t border-white/5 my-1" />
+          <button
+            onClick={() => downloadFile(contextMenu.file, { stopPropagation: () => {} } as any)}
+            className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 flex items-center gap-2 text-white/80"
+          >
+            <Download className="w-3.5 h-3.5" /> Download
+          </button>
+          <button
+            onClick={() => deleteFile(contextMenu.file.id, { stopPropagation: () => {} } as any)}
+            className="w-full text-left px-3 py-2 text-xs hover:bg-rose-500/20 text-rose-400 flex items-center gap-2"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> Delete
+          </button>
+        </div>
+      )}
 
       {/* Sync Prompt Banner for large files */}
       {syncPromptFile && (

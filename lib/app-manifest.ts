@@ -90,7 +90,7 @@ export const APP_MANIFEST: AppManifestEntry[] = [
   { id: 'assistant', component: null as any, icon: MessageSquare, title: 'Assistant', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'dev', description: 'AI-powered assistant' },
 
   // Productivity
-  { id: 'campaign', component: null as any, icon: Zap, title: 'Campaign Lab', roles: ['admin', 'filmmaker'], isCore: false, category: 'productivity', description: 'Campaign management and analytics' },
+  { id: 'campaign', component: null as any, icon: Zap, title: 'Campaign Lab', roles: ['admin', 'filmmaker', 'user', 'technician', 'photographer', 'developer', 'designer', 'marketer', 'business', 'student', 'other'], isCore: false, category: 'productivity', description: 'Campaign management and analytics' },
   { id: 'productivity', component: null as any, icon: Grid, title: 'Productivity Suite', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'All-in-one productivity tools' },
   { id: 'proposal-generator', component: null as any, icon: FileText, title: 'Proposal Generator', roles: ['admin', 'filmmaker'], isCore: false, category: 'productivity', description: 'Generate proposals and estimates' },
   { id: 'side-gigs', component: null as any, icon: Briefcase, title: 'Side Gigs', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'Manage side projects and gigs' },

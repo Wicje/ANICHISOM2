@@ -16,7 +16,7 @@ export function DraggableNode({
   node, cameraScale, groups, tags, onDelete, onPositionChange, onContentChange,
   onSizeChange, onToggleLock, onSetBackground, onAddTag, onRemoveTag,
   onSetGroup, onRemoveGroup, onAddReaction, onAddComment, onSetLabel,
-  onRemoveCampaignLink, connectFromId, onConnectTo,
+  onRemoveCampaignLink, onSetCampaignLink, connectFromId, onConnectTo,
 }: {
   node: BoardNode; cameraScale: number; groups: BoardGroup[]; tags: BoardTag[];
   onDelete: () => void; onPositionChange: (x: number, y: number) => void;
@@ -26,6 +26,7 @@ export function DraggableNode({
   onSetGroup: (groupId: string) => void; onRemoveGroup: () => void;
   onAddReaction: (emoji: string) => void; onAddComment: (text: string) => void;
   onSetLabel: (label: string) => void; onRemoveCampaignLink: () => void;
+  onSetCampaignLink: () => void;
   connectFromId: string | null; onConnectTo: (fromId: string, toId: string) => void;
 }) {
   const dragControls = useDragControls();
@@ -33,7 +34,8 @@ export function DraggableNode({
   const [showComments, setShowComments] = useState(false);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const [resizeDir, setResizeDir] = useState<string>('');
+  const [resizeDir, setResizeDir] = useState('');
+  const [commentText, setCommentText] = useState('');
   const nodeRef = useRef<HTMLDivElement>(null);
   const resizeStart = useRef({ x: 0, y: 0, w: 0, h: 0 });
 
@@ -252,14 +254,24 @@ export function DraggableNode({
             <input
               className="flex-1 text-xs border border-black/10 rounded px-2 py-1 outline-none focus:border-blue-400"
               placeholder="Add comment..."
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                  onAddComment(e.currentTarget.value.trim());
-                  e.currentTarget.value = '';
+                if (e.key === 'Enter' && commentText.trim()) {
+                  onAddComment(commentText.trim());
+                  setCommentText('');
                 }
               }}
             />
-            <button className="w-6 h-6 rounded flex items-center justify-center bg-blue-500 text-white hover:bg-blue-600">
+            <button
+              onClick={() => {
+                if (commentText.trim()) {
+                  onAddComment(commentText.trim());
+                  setCommentText('');
+                }
+              }}
+              className="w-6 h-6 rounded flex items-center justify-center bg-blue-500 text-white hover:bg-blue-600"
+            >
               <Send className="w-3 h-3" />
             </button>
           </div>
@@ -278,9 +290,15 @@ export function DraggableNode({
           <button onClick={() => { onRemoveGroup(); setShowContextMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 flex items-center gap-2">
             <Minus className="w-3 h-3" /> Remove Group
           </button>
-          <button onClick={() => { onRemoveCampaignLink(); setShowContextMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 flex items-center gap-2">
-            <ExternalLink className="w-3 h-3" /> Unlink Campaign
-          </button>
+          {node.campaignLinkId ? (
+            <button onClick={() => { onRemoveCampaignLink(); setShowContextMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 flex items-center gap-2">
+              <ExternalLink className="w-3 h-3" /> Unlink Campaign
+            </button>
+          ) : (
+            <button onClick={() => { onSetCampaignLink(); setShowContextMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 flex items-center gap-2">
+              <ExternalLink className="w-3 h-3" /> Link to Campaign
+            </button>
+          )}
           <div className="border-t border-black/5 my-1" />
           <div className="px-3 py-1 text-[10px] font-bold text-black/30 uppercase">Background</div>
           <div className="px-2 pb-1 flex flex-wrap gap-1">

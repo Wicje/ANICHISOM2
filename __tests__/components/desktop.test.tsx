@@ -114,6 +114,7 @@ vi.mock('socket.io-client', () => ({
 const { authStoreState } = vi.hoisted(() => ({
   authStoreState: {
     currentUser: { id: 'u1', name: 'Test', role: 'admin' } as { id: string; name: string; role: string } | null,
+    sessionChecked: true,
     setCurrentUser: vi.fn(),
     logout: vi.fn(),
     wipeSession: vi.fn(),
@@ -143,7 +144,7 @@ const defaultWindow = {
 const defaultTheme = {
   wallpaper: 'test-wallpaper.jpg',
   themeColor: '#000',
-  fontFamily: 'system-ui',
+  fontFamily: '"ABeeZee", system-ui, sans-serif',
   screenShader: 'none',
   performanceMode: 'light' as const,
   colorMode: 'light' as const,
@@ -256,11 +257,13 @@ describe('Desktop', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     authStoreState.currentUser = { id: 'u1', name: 'Test', role: 'admin' };
+    authStoreState.sessionChecked = true;
     onboardingStoreState.onboarding = { completed: true, selectedRole: 'admin', selectedApps: [], customApps: [] };
   });
 
   it('renders the onboarding wizard when no user is logged in and onboarding not completed', () => {
     authStoreState.currentUser = null;
+    authStoreState.sessionChecked = true;
     onboardingStoreState.onboarding = { completed: false, selectedRole: null, selectedApps: [], customApps: [] };
     render(<Desktop />);
     expect(screen.getByTestId('onboarding-wizard')).toBeTruthy();
@@ -268,6 +271,7 @@ describe('Desktop', () => {
 
   it('renders LoginScreen when no user is logged in and onboarding is completed', () => {
     authStoreState.currentUser = null;
+    authStoreState.sessionChecked = true;
     onboardingStoreState.onboarding = { completed: true, selectedRole: 'admin', selectedApps: [], customApps: [] };
     const { container } = render(<Desktop />);
     const innerDiv = container.querySelector('.fixed.inset-0');
@@ -305,7 +309,7 @@ describe('Desktop', () => {
   it('sets the fontFamily style on the root element', () => {
     const { container } = render(<Desktop />);
     const root = container.firstChild as HTMLElement;
-    expect(root.style.fontFamily).toBe('system-ui');
+    expect(root.style.fontFamily).toBe('"ABeeZee", system-ui, sans-serif');
   });
 
   it('includes the wallpaper in the rendered output', () => {

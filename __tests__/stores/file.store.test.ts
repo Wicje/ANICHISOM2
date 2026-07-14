@@ -147,7 +147,7 @@ describe('FileStore', () => {
 
     it('should resolve text to code editor', () => {
       const { resolveSmartRoute } = useFileStore.getState();
-      expect(resolveSmartRoute('text/plain', 'readme.txt')).toBe('code-editor');
+      expect(resolveSmartRoute('text/plain', 'readme.txt')).toBe('code');
     });
 
     it('should resolve PDF to pdf reader', () => {

@@ -92,7 +92,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
     if (isDomain) {
       if (!inputUrl.startsWith('http')) finalUrl = `https://${inputUrl}`;
     } else {
-      finalUrl = `https://duckduckgo.com/?q=${encodeURIComponent(inputUrl)}`;
+      finalUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(inputUrl)}`;
     }
     navigateTab(activeTabId, finalUrl, '');
   };

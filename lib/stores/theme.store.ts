@@ -25,7 +25,7 @@ type ThemeState = {
 export const useThemeStore = create<ThemeState>((set, get) => ({
   wallpaper: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop',
   themeColor: '#0058bc',
-  fontFamily: 'system-ui, sans-serif',
+  fontFamily: '"ABeeZee", system-ui, sans-serif',
   screenShader: 'none',
   performanceMode: 'heavy',
   colorMode: 'light',

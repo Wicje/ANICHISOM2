@@ -14,7 +14,12 @@ import { TextStyle } from '@tiptap/extension-text-style';
 import FontFamily from '@tiptap/extension-font-family';
 import Collaboration from '@tiptap/extension-collaboration';
 // @ts-ignore
-import { Parser } from 'hot-formula-parser';
+let Parser: any;
+try {
+  Parser = require('hot-formula-parser').Parser;
+} catch {
+  // graceful fallback if not installed
+}
 import { useCollaborativeDoc, CollaborativeDocState } from '@/lib/hooks/useCollaborativeDoc';
 
 type AppType = 'word' | 'sheets' | 'slides' | 'pdf';
@@ -190,10 +195,14 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
       window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Exported', message: 'Sheet exported as CSV.' } }));
     } else if (activeTab === 'slides') {
       const canvas = fabricCanvasRef.current;
-      if (!canvas) return;
-      const dataUrl = canvas.toDataURL({ format: 'png', multiplier: 2 });
-      downloadDataURL(`${projectId}.png`, dataUrl);
-      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Exported', message: 'Slide exported as PNG.' } }));
+      if (!canvas?.toDataURL) return;
+      try {
+        const dataUrl = canvas.toDataURL({ format: 'png', multiplier: 2 });
+        downloadDataURL(`${projectId}.png`, dataUrl);
+        window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Exported', message: 'Slide exported as PNG.' } }));
+      } catch {
+        window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Export Failed', message: 'Could not export slide.' } }));
+      }
     }
   };
 
@@ -496,7 +505,11 @@ function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab }
   const observeListenerRef = useRef<any>(null);
   const YRef = useRef<any>(null);
 
-  const parser = useRef(new Parser()).current;
+  const parser = useRef<any>(null);
+
+  if (!parser.current && Parser) {
+    parser.current = new Parser();
+  }
 
   // Keep parent ref synced for export
   useEffect(() => {
@@ -505,18 +518,23 @@ function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab }
 
   // Configure formula parser to resolve cell coordinates (e.g. A1, B2) to values from data state
   useEffect(() => {
-    parser.on('callCellValue', (cellCoord: any, done: any) => {
+    if (!parser.current) return;
+    try {
+      parser.current.on('callCellValue', (cellCoord: any, done: any) => {
        const col = cellCoord.column.index;
        const row = cellCoord.row.index + 1;
        const cellId = `${String.fromCharCode(65 + col)}${row}`;
 
-       let val = data[cellId];
-       if (val && val.startsWith('=')) {
-          const res = parser.parse(val.substring(1));
-          val = res.error ? res.error : res.result;
-       }
-       done(val || '');
-    });
+        let val = data[cellId];
+        if (val && val.startsWith('=')) {
+           try {
+             const res = parser.current?.parse(val.substring(1));
+             val = res?.error || res?.result;
+           } catch { /* ignore */ }
+        }
+        done(val || '');
+     });
+     } catch { /* parser not available */ }
   }, [data, parser]);
 
   // Sync Y.Map -> React state when synced
@@ -611,10 +629,14 @@ function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab }
               const cellId = `${c}${r}`;
               const rawValue = data[cellId] !== undefined ? data[cellId] : (r === 1 ? `Header ${c}` : r === 2 && c === 'A' ? '1250.00' : '');
               
-              let displayValue = rawValue;
-              if (activeCell !== cellId && typeof rawValue === 'string' && rawValue.startsWith('=')) {
-                 const res = parser.parse(rawValue.substring(1));
-                 displayValue = res.error ? res.error : res.result?.toString() || '';
+               let displayValue = rawValue;
+               if (activeCell !== cellId && typeof rawValue === 'string' && rawValue.startsWith('=')) {
+                 try {
+                   const res = parser.current?.parse(rawValue.substring(1));
+                   displayValue = res?.error || res?.result?.toString() || rawValue;
+                 } catch {
+                   displayValue = rawValue;
+                 }
               }
               
               return (
