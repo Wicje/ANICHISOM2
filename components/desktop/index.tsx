@@ -41,19 +41,59 @@ function AppLoadingSkeleton() {
   );
 }
 
-function WindowErrorBoundary({ children }: { children: React.ReactNode }) {
+function AppCrashFallback({ appId, onRetry }: { appId: string; onRetry: () => void }) {
   return (
-    <React.Suspense fallback={<AppLoadingSkeleton />}>
-      <React.Fragment>{children}</React.Fragment>
-    </React.Suspense>
+    <div className="w-full h-full flex items-center justify-center" style={{ background: 'var(--os-surface)' }}>
+      <div className="flex flex-col items-center gap-3 text-center max-w-xs">
+        <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+          <span className="text-red-500 text-lg font-bold">!</span>
+        </div>
+        <span className="text-sm font-medium" style={{ color: 'var(--os-text)' }}>App crashed</span>
+        <span className="text-xs" style={{ color: 'var(--os-text-muted)' }}>{appId}</span>
+        <button
+          onClick={onRetry}
+          className="mt-2 px-4 py-1.5 text-xs font-medium rounded-lg transition-colors"
+          style={{ background: 'var(--os-hover)', color: 'var(--os-text)' }}
+        >
+          Retry
+        </button>
+      </div>
+    </div>
   );
 }
 
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class WindowErrorBoundary extends React.Component<
+  { children: React.ReactNode; appId: string; onRetry: () => void },
+  ErrorBoundaryState
+> {
+  state: ErrorBoundaryState = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error(`[App:${this.props.appId}] crashed:`, error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <AppCrashFallback appId={this.props.appId} onRetry={this.props.onRetry} />;
+    }
+    return this.props.children;
+  }
+}
+
 const MemoizedWindow = React.memo(
-  ({ win, AppComponent }: { win: any; AppComponent: React.ComponentType<any> }) => {
+  ({ win, AppComponent, onRetry }: { win: any; AppComponent: React.ComponentType<any>; onRetry: () => void }) => {
     return (
       <WindowFrame osWindow={win}>
-        <WindowErrorBoundary>
+        <WindowErrorBoundary appId={win.appId} onRetry={onRetry}>
           <AppComponent window={win} />
         </WindowErrorBoundary>
       </WindowFrame>
@@ -119,6 +159,7 @@ export function Desktop() {
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [registryVersion, setRegistryVersion] = useState(0);
   const componentCacheRef = useRef<Map<string, React.ComponentType<any>>>(new Map());
+  const failedImportsRef = useRef<Set<string>>(new Set());
   const [componentCacheVersion, setComponentCacheVersion] = useState(0);
 
   // Initialize plugin registry + check Supabase session
@@ -176,7 +217,7 @@ export function Desktop() {
   useEffect(() => {
     const uncached = windows
       .map(w => w.appId)
-      .filter(id => !componentCacheRef.current.has(id));
+      .filter(id => !componentCacheRef.current.has(id) && !failedImportsRef.current.has(id));
 
     if (uncached.length === 0) return;
 
@@ -184,10 +225,17 @@ export function Desktop() {
       let changed = false;
       for (const appId of uncached) {
         if (componentCacheRef.current.has(appId)) continue;
-        const component = await resolveAppComponent(appId);
-        if (component) {
-          componentCacheRef.current.set(appId, component);
-          changed = true;
+        try {
+          const component = await resolveAppComponent(appId);
+          if (component) {
+            componentCacheRef.current.set(appId, component);
+            changed = true;
+          } else {
+            failedImportsRef.current.add(appId);
+          }
+        } catch (err) {
+          console.error(`[Desktop] Failed to load app "${appId}":`, err);
+          failedImportsRef.current.add(appId);
         }
       }
       if (changed) setComponentCacheVersion(v => v + 1);
@@ -535,8 +583,34 @@ export function Desktop() {
 
         {visibleWindows.map(win => {
           const AppComponent = componentCacheRef.current.get(win.appId);
-          if (!AppComponent) return <AppLoadingSkeleton key={`loading-${win.id}`} />;
-          return <MemoizedWindow key={win.id} win={win} AppComponent={AppComponent} />;
+          if (!AppComponent) {
+            if (failedImportsRef.current.has(win.appId)) {
+              return (
+                <WindowFrame key={`failed-${win.id}`} osWindow={win}>
+                  <AppCrashFallback
+                    appId={win.appId}
+                    onRetry={() => {
+                      failedImportsRef.current.delete(win.appId);
+                      componentCacheRef.current.delete(win.appId);
+                      setComponentCacheVersion(v => v + 1);
+                    }}
+                  />
+                </WindowFrame>
+              );
+            }
+            return <AppLoadingSkeleton key={`loading-${win.id}`} />;
+          }
+          return (
+            <MemoizedWindow
+              key={win.id}
+              win={win}
+              AppComponent={AppComponent}
+              onRetry={() => {
+                componentCacheRef.current.delete(win.appId);
+                setComponentCacheVersion(v => v + 1);
+              }}
+            />
+          );
         })}
       </main>
 

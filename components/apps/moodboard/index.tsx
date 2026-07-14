@@ -560,7 +560,16 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
 
   const presentableNodes = useMemo(() => nodes.filter(n => n.type === 'image' || n.type === 'embed' || (n.type === 'text' && n.content.length > 10)), [nodes]);
 
-  if (!collab.synced) return null;
+  if (!collab.synced) {
+    return (
+      <div className="w-full h-full bg-[#eee] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+          <span className="text-sm text-black/50 font-medium">Syncing moodboard...</span>
+        </div>
+      </div>
+    );
+  }
 
   if (presentMode) {
     const node = presentableNodes[presentIndex];

@@ -29,9 +29,9 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
   const allowedApps = useMemo(() => {
     if (!currentUser) return [];
     return APP_MANIFEST.filter(app =>
-      app.roles.includes(currentUser.role) && (app.isCore || installedApps.includes(app.id) || isPluginActive(app.id))
+      app.roles.includes(currentUser.role)
     );
-  }, [currentUser, installedApps]);
+  }, [currentUser]);
 
   const activeWindows = useMemo(
     () => windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined),
@@ -73,9 +73,7 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
         </div>
         <div className="w-px h-10 mx-1" style={{ background: 'var(--os-border)' }}></div>
 
-        {allowedApps.filter(app => {
-          return app.isCore || installedApps.includes(app.id);
-        }).map(app => {
+        {allowedApps.map(app => {
           const isOpen = activeWindows.some(w => w.appId === app.id);
           const isFocused = activeWindows.some(w => w.appId === app.id && !w.isMinimized && w.zIndex >= highestZIndex);
 
