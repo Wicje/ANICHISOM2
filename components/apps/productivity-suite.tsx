@@ -181,8 +181,8 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
 
   const handleExport = () => {
     if (activeTab === 'word') {
-      if (!wordEditor) return;
-      const html = wordEditor.getHTML();
+      if (!we) return;
+      const html = we.getHTML();
       const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Document</title><style>body{font-family:Inter,sans-serif;max-width:816px;margin:40px auto;padding:0 24px;line-height:1.6;color:#1e293b;}h1,h2{margin-top:1.5em;}blockquote{border-left:3px solid rgba(13,13,13,0.1);padding-left:1rem;margin-left:0;}</style></head><body>${html}</body></html>`;
       downloadFile(`${projectId}.html`, fullHtml, 'text/html');
       window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Exported', message: 'Word document exported as HTML.' } }));
@@ -205,6 +205,9 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
       }
     }
   };
+
+  // Safely reference the editor — null it out if destroyed to prevent commandManager crashes
+  const we = wordEditor && !wordEditor.isDestroyed ? wordEditor : null;
 
   return (
     <div className="w-full h-full flex bg-white text-slate-800 font-sans shadow-2xl relative overflow-hidden">
@@ -331,58 +334,58 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
            </div>
            
            {activeTab === 'word' && (
-             <div className="flex items-center gap-2">
-               <select
-                 className="text-xs border border-slate-200 rounded px-2 py-1 outline-none bg-slate-50"
-                 value={
-                   wordEditor?.isActive('heading', { level: 1 }) ? 'h1'
-                   : wordEditor?.isActive('heading', { level: 2 }) ? 'h2'
-                   : 'normal'
-                 }
-                 onChange={(e) => {
-                   if (!wordEditor) return;
-                   const val = e.target.value;
-                   if (val === 'normal') {
-                     wordEditor.chain().focus().setParagraph().run();
-                   } else if (val === 'h1') {
-                     wordEditor.chain().focus().toggleHeading({ level: 1 }).run();
-                   } else if (val === 'h2') {
-                     wordEditor.chain().focus().toggleHeading({ level: 2 }).run();
-                   }
-                 }}
-               >
-                 <option value="normal">Normal Text</option>
-                 <option value="h1">Heading 1</option>
-                 <option value="h2">Heading 2</option>
-               </select>
-               <select
-                 className="text-xs border border-slate-200 rounded px-2 py-1 outline-none bg-slate-50"
-                 value={wordEditor?.getAttributes('textStyle').fontFamily || 'Inter'}
-                 onChange={(e) => {
-                   if (!wordEditor) return;
-                   wordEditor.chain().focus().setFontFamily(e.target.value).run();
-                 }}
-               >
-                 <option value="Inter">Inter</option>
-                 <option value="Space Grotesk">Space Grotesk</option>
-                 <option value="JetBrains Mono">JetBrains Mono</option>
-               </select>
-               <div className="flex items-center gap-1 px-2 border-l border-slate-200">
-                 <button
-                   className={cn("p-1 hover:bg-slate-100 rounded font-bold text-slate-700", wordEditor?.isActive('bold') && "bg-slate-200 text-blue-600")}
-                   onClick={() => wordEditor?.chain().focus().toggleBold().run()}
-                 >B</button>
-                 <button
-                   className={cn("p-1 hover:bg-slate-100 rounded italic text-slate-700", wordEditor?.isActive('italic') && "bg-slate-200 text-blue-600")}
-                   onClick={() => wordEditor?.chain().focus().toggleItalic().run()}
-                 >I</button>
-                 <button
-                   className={cn("p-1 hover:bg-slate-100 rounded underline text-slate-700", wordEditor?.isActive('underline') && "bg-slate-200 text-blue-600")}
-                   onClick={() => wordEditor?.chain().focus().toggleUnderline().run()}
-                 >U</button>
-               </div>
-             </div>
-           )}
+              <div className="flex items-center gap-2">
+                <select
+                  className="text-xs border border-slate-200 rounded px-2 py-1 outline-none bg-slate-50"
+                  value={
+                    we?.isActive('heading', { level: 1 }) ? 'h1'
+                    : we?.isActive('heading', { level: 2 }) ? 'h2'
+                    : 'normal'
+                  }
+                  onChange={(e) => {
+                    if (!we) return;
+                    const val = e.target.value;
+                    if (val === 'normal') {
+                      we.chain().focus().setParagraph().run();
+                    } else if (val === 'h1') {
+                      we.chain().focus().toggleHeading({ level: 1 }).run();
+                    } else if (val === 'h2') {
+                      we.chain().focus().toggleHeading({ level: 2 }).run();
+                    }
+                  }}
+                >
+                  <option value="normal">Normal Text</option>
+                  <option value="h1">Heading 1</option>
+                  <option value="h2">Heading 2</option>
+                </select>
+                <select
+                  className="text-xs border border-slate-200 rounded px-2 py-1 outline-none bg-slate-50"
+                  value={we?.getAttributes('textStyle').fontFamily || 'Inter'}
+                  onChange={(e) => {
+                    if (!we) return;
+                    we.chain().focus().setFontFamily(e.target.value).run();
+                  }}
+                >
+                  <option value="Inter">Inter</option>
+                  <option value="Space Grotesk">Space Grotesk</option>
+                  <option value="JetBrains Mono">JetBrains Mono</option>
+                </select>
+                <div className="flex items-center gap-1 px-2 border-l border-slate-200">
+                  <button
+                    className={cn("p-1 hover:bg-slate-100 rounded font-bold text-slate-700", we?.isActive('bold') && "bg-slate-200 text-blue-600")}
+                    onClick={() => we?.chain().focus().toggleBold().run()}
+                  >B</button>
+                  <button
+                    className={cn("p-1 hover:bg-slate-100 rounded italic text-slate-700", we?.isActive('italic') && "bg-slate-200 text-blue-600")}
+                    onClick={() => we?.chain().focus().toggleItalic().run()}
+                  >I</button>
+                  <button
+                    className={cn("p-1 hover:bg-slate-100 rounded underline text-slate-700", we?.isActive('underline') && "bg-slate-200 text-blue-600")}
+                    onClick={() => we?.chain().focus().toggleUnderline().run()}
+                  >U</button>
+                </div>
+              </div>
+            )}
 
            {activeTab === 'sheets' && (
              <div className="flex items-center gap-2 w-full max-w-md">
