@@ -89,11 +89,17 @@ export class VirtualFS {
   async touch(path: string): Promise<void> {
     const resolved = this.resolvePath(path);
     await FS.write(resolved, '');
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path: resolved } }));
+    }
   }
 
   async mkdir(path: string): Promise<void> {
     const resolved = this.resolvePath(path);
     await FS.write(`${resolved}/.keep`, '');
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path: resolved } }));
+    }
   }
 
   async rm(path: string, recursive = false): Promise<void> {
@@ -103,11 +109,17 @@ export class VirtualFS {
       if (entries.length > 0) throw new Error(`rm: ${path}: is a directory (use -r)`);
     }
     await FS.delete(resolved);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path: resolved } }));
+    }
   }
 
   async write(path: string, content: string): Promise<void> {
     const resolved = this.resolvePath(path);
     await FS.write(resolved, content);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path: resolved } }));
+    }
   }
 
   async append(path: string, content: string): Promise<void> {
@@ -125,6 +137,9 @@ export class VirtualFS {
     const content = file.content && !file.content.startsWith('blob:') ? file.content : '';
     await FS.write(destResolved, content);
     await FS.delete(srcResolved);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path: destResolved } }));
+    }
   }
 
   async cp(src: string, dest: string): Promise<void> {
@@ -134,6 +149,9 @@ export class VirtualFS {
     if (!file) throw new Error(`cp: ${src}: No such file or directory`);
     const content = file.content && !file.content.startsWith('blob:') ? file.content : '';
     await FS.write(destResolved, content);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path: destResolved } }));
+    }
   }
 
   async stat(path: string): Promise<VFSEntry> {

@@ -49,8 +49,8 @@ export function CommandPalette() {
   if (!isOpen) return null;
 
   const allowedApps = useMemo(() => Object.entries(APPS).filter(([appId, config]) => 
-    config.roles.includes(currentUser?.role || 'user') && (config.isCore || installedApps.includes(appId))
-  ), [currentUser?.role, installedApps]);
+    config.roles.includes(currentUser?.role || 'user')
+  ), [currentUser?.role]);
 
   const commands: { id: string; name: string; type: string; icon: any; action: () => void; hideOnEmpty?: boolean }[] = useMemo(() => {
     const cmds: { id: string; name: string; type: string; icon: any; action: () => void; hideOnEmpty?: boolean }[] = [];

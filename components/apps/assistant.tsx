@@ -3,6 +3,7 @@ import { OSWindow } from '@/lib/os-context';
 import { Sparkles, Send, Bot, User, Settings2, Loader2, AlertCircle, ChevronDown } from 'lucide-react';
 import { useOS } from '@/lib/os-context';
 import { StorageAdapter } from '@/lib/storage';
+import { APP_MANIFEST } from '@/lib/app-manifest';
 import {
   getAiProvider,
   getRegisteredProviders,
@@ -10,6 +11,8 @@ import {
   listAllModels,
 } from '@/lib/ai-providers/ai-provider-factory';
 import { AiModelInfo } from '@/lib/ai-providers/ai-provider';
+
+const APP_LIST_FOR_AI = APP_MANIFEST.map(a => `${a.id}: ${a.title} — ${a.description || ''}`).join('\n');
 
 const INITIAL_MESSAGE: { role: 'ai'; text: string } = { role: 'ai', text: 'Hello! I am your OS System Assistant. I can open apps, change themes, toggle shaders, or answer questions using Claude, Gemini, Qwen, or other AI models. What can I do for you?' };
 
@@ -111,9 +114,26 @@ export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
 
     try {
       const provider = getAiProvider(selectedProvider);
+      const systemPrompt = `You are the ANICHISOM OS System Assistant. You help users operate their desktop environment.
+
+Available apps the user can open (use the open command or suggest them):
+${APP_LIST_FOR_AI}
+
+You can help with:
+- Opening apps (terminal, files, browser, moodboard, campaign, code, settings, etc.)
+- Changing theme colors (blue, red, green, purple, or any hex color)
+- Toggling screen shaders (crt, night/warm, off)
+- Answering questions about the OS and apps
+
+When a user asks to open an app, respond naturally like "Opening [app name] for you!" — the system handles the actual launch.`;
+
       const response = await provider.chat({
         model: selectedModel,
-        messages: [{ role: 'user', content: userMessage }],
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...messages.map(m => ({ role: m.role === 'user' ? 'user' as const : 'assistant' as const, content: m.text })),
+          { role: 'user', content: userMessage },
+        ],
       });
 
       setMessages(prev => [...prev, { role: 'ai', text: response.text }]);
@@ -132,11 +152,13 @@ export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
       let response = "I don't quite understand that command yet. Try asking me to 'open terminal' or 'change theme to blue'.";
       
       if (cmd.includes('open')) {
-        const apps = ['terminal', 'files', 'browser', 'settings', 'colorpicker', 'hardware', 'config', 'store', 'media-player', 'code'];
-        const found = apps.find(a => cmd.includes(a));
+        // Match against all apps from manifest (by ID and title)
+        const found = APP_MANIFEST.find(a => 
+          cmd.includes(a.id) || cmd.includes(a.title.toLowerCase())
+        );
         if (found) {
-          openWindow(found);
-          response = `Opening ${found} for you right now.`;
+          openWindow(found.id);
+          response = `Opening ${found.title} for you right now.`;
         }
       } else if (cmd.includes('theme') || cmd.includes('color')) {
          if (cmd.includes('blue')) { setThemeColor('#3b82f6'); response = 'Theme updated to Blue.'; }

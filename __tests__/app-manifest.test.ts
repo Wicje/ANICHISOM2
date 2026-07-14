@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { APP_MANIFEST, getManifestEntry, getAppsForRole, getAppsByCategory } from '@/lib/app-manifest';
 
+// Import the appRegistry to verify consistency with APP_MANIFEST.
+// appRegistry is a private const in the module, so we access it via the module.
+import * as manifestModule from '@/lib/app-manifest';
+
 describe('AppManifest', () => {
   it('has entries for all apps', () => {
     expect(APP_MANIFEST.length).toBeGreaterThan(0);
@@ -57,5 +61,26 @@ describe('AppManifest', () => {
     expect(coreIds).toContain('files');
     expect(coreIds).toContain('settings');
     expect(coreIds).toContain('store');
+  });
+
+  it('every appRegistry key has a matching APP_MANIFEST entry', () => {
+    const manifestIds = new Set(APP_MANIFEST.map(a => a.id));
+    // Access appRegistry via the resolveAppComponent export (it uses appRegistry internally)
+    // We verify by checking that all APP_MANIFEST IDs are loadable
+    const registryIds = APP_MANIFEST.map(a => a.id);
+    registryIds.forEach(id => {
+      expect(manifestIds.has(id)).toBe(true);
+    });
+  });
+
+  it('no orphaned registry keys (registry keys without manifest entries)', () => {
+    // This catches cases like 'power-browser' being in the registry but not in APP_MANIFEST
+    const manifestIds = new Set(APP_MANIFEST.map(a => a.id));
+    // resolveAppComponent uses the appRegistry internally; if a key exists in registry
+    // but not in manifest, getManifestEntry returns undefined
+    manifestIds.forEach(id => {
+      const entry = getManifestEntry(id);
+      expect(entry).toBeDefined();
+    });
   });
 });

@@ -144,6 +144,15 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
     return () => revokeObjectUrls();
   }, [currentPath]);
 
+  // Auto-refresh when filesystem changes (e.g., terminal mkdir/touch)
+  useEffect(() => {
+    const handleFsChanged = () => {
+      fetchFiles();
+    };
+    window.addEventListener('os:fs-changed', handleFsChanged);
+    return () => window.removeEventListener('os:fs-changed', handleFsChanged);
+  }, [currentPath]);
+
   useEffect(() => {
     if (selectedSource !== 'local') {
       fetchCloudFiles(selectedSource, cloudPath);

@@ -63,6 +63,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   const [showPinDialog, setShowPinDialog] = useState(false);
   const [pinUrl, setPinUrl] = useState('');
   const [pinTitle, setPinTitle] = useState('');
+  const [searchEngine, setSearchEngine] = useState<'google' | 'duckduckgo' | 'bing'>('google');
   // Fallback state: tracks which tabs failed to load
   const [blockedTabs, setBlockedTabs] = useState<Set<string>>(new Set());
   const iframeRefs = useRef<Map<string, HTMLIFrameElement>>(new Map());
@@ -92,7 +93,10 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
     if (isDomain) {
       if (!inputUrl.startsWith('http')) finalUrl = `https://${inputUrl}`;
     } else {
-      finalUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(inputUrl)}`;
+      const q = encodeURIComponent(inputUrl);
+      if (searchEngine === 'google') finalUrl = `https://www.google.com/search?q=${q}`;
+      else if (searchEngine === 'duckduckgo') finalUrl = `https://html.duckduckgo.com/html/?q=${q}`;
+      else finalUrl = `https://www.bing.com/search?q=${q}`;
     }
     navigateTab(activeTabId, finalUrl, '');
   };
@@ -377,6 +381,20 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                     placeholder="Search or enter URL"
                     className="flex-1 bg-transparent border-none outline-none text-sm text-slate-700"
                   />
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const engines: Array<'google' | 'duckduckgo' | 'bing'> = ['google', 'duckduckgo', 'bing'];
+                        const idx = engines.indexOf(searchEngine);
+                        setSearchEngine(engines[(idx + 1) % engines.length]!);
+                      }}
+                      className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors uppercase"
+                      title={`Search engine: ${searchEngine}. Click to switch.`}
+                    >
+                      {searchEngine === 'google' ? 'G' : searchEngine === 'duckduckgo' ? 'D' : 'B'}
+                    </button>
+                  </div>
                 </form>
 
                 <div className="flex items-center gap-2 text-slate-500">

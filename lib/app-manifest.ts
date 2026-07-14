@@ -36,12 +36,11 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
   'admin': () => import('@/components/apps/admin-panel'),
   'color-picker': () => import('@/components/apps/color-picker'),
   'calls': () => import('@/components/apps/calls'),
-  'marketplace': () => import('@/components/apps/marketplace'),
+
   'productivity': () => import('@/components/apps/productivity-suite'),
   'pdf-reader': () => import('@/components/apps/pdf-reader'),
   'screen-recorder': () => import('@/components/apps/screen-recorder'),
   'media-player': () => import('@/components/apps/media-player'),
-  'power-browser': () => import('@/components/apps/power-browser'),
   'hardware-manager': () => import('@/components/apps/hardware-manager'),
   'asset-pipeline': () => import('@/components/apps/asset-pipeline'),
   'config-manager': () => import('@/components/apps/config-manager'),
@@ -71,7 +70,6 @@ export const APP_MANIFEST: AppManifestEntry[] = [
   { id: 'config-manager', component: null as any, icon: Wrench, title: 'Config Manager', roles: ['admin', 'filmmaker', 'technician'], isCore: false, category: 'system', description: 'System configuration management' },
   { id: 'plugin-sandbox', component: null as any, icon: Puzzle, title: 'Plugin Sandbox', roles: ['admin', 'filmmaker', 'technician'], isCore: false, category: 'system', description: 'Run third-party plugins safely' },
   { id: 'privacy-settings', component: null as any, icon: Shield, title: 'Privacy Settings', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'system', description: 'Per-app privacy controls and encryption settings' },
-  { id: 'marketplace', component: null as any, icon: Store, title: 'Marketplace', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'system', description: 'Browse and install apps' },
   { id: 'history', component: null as any, icon: Clock, title: 'History', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'system', description: 'Activity history' },
 
   // Creative

@@ -31,6 +31,7 @@ const LEVEL_ICONS: Record<PageLevel, React.ComponentType<{ className?: string }>
 export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
   const { currentUser, workspaceMode, openWindow } = useOS();
   const store = useCampaignStore();
+  const [moreMenuOpen, setMoreMenuOpen] = React.useState(false);
 
   // ─── Collab ────────────────────────────────────────────────
   const projectId = osWindow.data?.projectId || 'global';
@@ -415,9 +416,34 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
               </button>
             )}
             {/* More */}
-            <button className="p-1 hover:bg-black/5 rounded relative">
-              <MoreHorizontal className="w-4 h-4 text-[#37352f]/70" />
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setMoreMenuOpen(!moreMenuOpen)} 
+                className="p-1 hover:bg-black/5 rounded relative"
+              >
+                <MoreHorizontal className="w-4 h-4 text-[#37352f]/70" />
+              </button>
+              {moreMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 bg-white border border-black/10 rounded-xl shadow-2xl w-56 py-2 z-50">
+                  {activePage && (
+                    <>
+                      <button onClick={() => { updatePage(activePage.id, { trash: true, trashedAt: Date.now() }); setMoreMenuOpen(false); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                        <Trash className="w-4 h-4" /> Move to Trash
+                      </button>
+                      <button onClick={() => { navigator.clipboard.writeText(activePage.title); setMoreMenuOpen(false); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-[#37352f]/70 hover:bg-black/5 transition-colors">
+                        <Copy className="w-4 h-4" /> Copy title
+                      </button>
+                      <button onClick={() => { setShareModalOpen(true); setMoreMenuOpen(false); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-[#37352f]/70 hover:bg-black/5 transition-colors">
+                        <Share2 className="w-4 h-4" /> Share & Permissions
+                      </button>
+                      <button onClick={() => { openWindow('assistant', 'AI Writing Assistant'); setMoreMenuOpen(false); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-[#37352f]/70 hover:bg-black/5 transition-colors">
+                        <Brain className="w-4 h-4" /> AI Assistant
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
