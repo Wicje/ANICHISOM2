@@ -6,6 +6,7 @@
  */
 import { create } from 'zustand';
 import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { generateId } from '@/lib/utils';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -82,13 +83,9 @@ interface PersistedBrand {
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
-function generateId(): string {
-  return `brand_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
 function createDefaultBrand(name: string): BrandGuidelines {
   return {
-    id: generateId(),
+    id: generateId('brand'),
     brandName: name,
     colors: [],
     typography: {

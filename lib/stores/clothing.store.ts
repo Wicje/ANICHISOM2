@@ -6,6 +6,7 @@
  */
 import { create } from 'zustand';
 import { withPersistence } from '@/lib/stores/persisted-store';
+import { generateId } from '@/lib/utils';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -49,12 +50,6 @@ export interface Collection {
   designIds: string[];
   status: 'planning' | 'active' | 'completed';
   createdAt: number;
-}
-
-// ─── Helpers ────────────────────────────────────────────────────────────
-
-function generateId(): string {
-  return `clothing_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 // ─── State ──────────────────────────────────────────────────────────────
@@ -103,7 +98,7 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
   // ─── Design CRUD ──────────────────────────────────────────────────
 
   createDesign: (name, category) => {
-    const id = generateId();
+    const id = generateId('clothing');
     const now = Date.now();
     const design: Design = {
       id,
@@ -148,7 +143,7 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
   // ─── Pattern CRUD ─────────────────────────────────────────────────
 
   createPattern: (designId, name, sizes, fabricType, yardage) => {
-    const id = generateId();
+    const id = generateId('clothing');
     const pattern: Pattern = {
       id,
       designId,
@@ -191,7 +186,7 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
   // ─── Order CRUD ───────────────────────────────────────────────────
 
   createOrder: (designId, quantity, manufacturer, unitCost, dueDate) => {
-    const id = generateId();
+    const id = generateId('clothing');
     const order: ProductionOrder = {
       id,
       designId,
@@ -231,7 +226,7 @@ export const useClothingStore = create<ClothingState>((set, get) => ({
   // ─── Collection CRUD ──────────────────────────────────────────────
 
   createCollection: (name, season) => {
-    const id = generateId();
+    const id = generateId('clothing');
     const collection: Collection = {
       id,
       name,

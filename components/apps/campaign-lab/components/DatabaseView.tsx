@@ -2,8 +2,8 @@ import React, { useState, useMemo, useCallback } from 'react';
 import {
   Block, DatabaseSchema, DatabaseRow, DatabaseProperty, DatabaseViewConfig,
   ViewFilter, ViewSort, SelectOption, PropertyType, PropertyValue,
-} from '../types';
-import { SELECT_COLORS } from '../data';
+} from '@/lib/campaign-types';
+import { SELECT_COLORS } from '@/lib/campaign-data';
 import {
   Database, Columns, LayoutList, Clock, Calendar, Plus, GalleryHorizontal,
   Filter, SortAsc, SortDesc, X, ChevronDown, GripVertical, Trash2,

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Block, BlockType, DatabaseSchema, DatabaseStore } from '../types';
-import { SLASH_COMMANDS, TEAM_MEMBERS } from '../data';
+import { Block, BlockType, DatabaseSchema, DatabaseStore } from '@/lib/campaign-types';
+import { SLASH_COMMANDS, TEAM_MEMBERS } from '@/lib/campaign-data';
 import { DatabaseView } from './DatabaseView';
 import { GripVertical, CheckSquare, Square, Image as ImageIcon, Trash2, AtSign, ChevronRight, Copy, Table2, Code2, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';

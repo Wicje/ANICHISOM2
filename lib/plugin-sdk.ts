@@ -70,8 +70,8 @@ function getParentOrigin(): string {
     }
   }
 
-  // Last resort: use wildcard (parent sandbox validates origin anyway)
-  return '*';
+  // Cannot determine parent origin — reject RPC to prevent injection
+  throw new Error('Plugin SDK: cannot determine parent origin; RPC disabled');
 }
 
 function rpcCall(method: string, ...args: any[]): Promise<any> {

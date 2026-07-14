@@ -12,8 +12,8 @@ interface WindowSwitcherProps {
 }
 
 export function WindowSwitcher({ switcherIndex }: WindowSwitcherProps) {
-  const { windows } = useWindowStore();
-  const { activeWorkspace } = useWorkspaceStore();
+  const windows = useWindowStore((s) => s.windows);
+  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
 
   return (
     <div className="absolute inset-0 z-[300] flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-auto">

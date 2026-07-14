@@ -12,8 +12,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-import { Page, Block, DatabaseSchema, PermissionLevel, BlockComment, PageLevel } from './types';
-import { TEMPLATES, DEFAULT_PAGES, DEFAULT_DATABASES, COVER_GRADIENTS, PERMISSION_LABELS, TEAM_MEMBERS } from './data';
+import { Page, Block, DatabaseSchema, PermissionLevel, BlockComment, PageLevel } from '@/lib/campaign-types';
+import { TEMPLATES, DEFAULT_PAGES, DEFAULT_DATABASES, COVER_GRADIENTS, PERMISSION_LABELS, TEAM_MEMBERS } from '@/lib/campaign-data';
 import { useCollaborativeDoc } from '@/lib/hooks/useCollaborativeDoc';
 import { useCampaignStore } from '@/lib/stores/campaign.store';
 import { CursorOverlay } from './components/CursorOverlay';

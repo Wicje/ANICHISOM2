@@ -3,8 +3,9 @@ import {
   Page, PageLevel, DatabaseSchema, DatabaseStore,
   CampaignShare, LinkedDatabase, Notification, NotificationType,
   BlockComment, Block,
-} from '@/components/apps/campaign-lab/types';
-import { DEFAULT_DATABASES } from '@/components/apps/campaign-lab/data';
+} from '@/lib/campaign-types';
+import { DEFAULT_DATABASES } from '@/lib/campaign-data';
+import { generateId } from '@/lib/utils';
 
 // ─── Store Types ────────────────────────────────────────────
 export type CampaignState = {
@@ -65,9 +66,6 @@ export type CampaignState = {
   setCoverPickerOpen: (open: boolean) => void;
 };
 
-// ─── Helpers ────────────────────────────────────────────────
-const makeId = (): string => crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
 // ─── Store ──────────────────────────────────────────────────
 export const useCampaignStore = create<CampaignState>((set, get) => ({
   // ─── Core data ──────────────────────────────────────────
@@ -96,11 +94,11 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
     const campaignIdForPage = parentPage?.campaignId || (derivedLevel === 'campaign' ? null : parentId);
 
     const newPage: Page = {
-      id: makeId(),
+      id: generateId(),
       parentId,
       title: '',
       icon: '📄',
-      blocks: [{ id: makeId(), type: 'p', content: '' }],
+      blocks: [{ id: generateId(), type: 'p', content: '' }],
       updatedAt: Date.now(),
       createdAt: Date.now(),
       expanded: true,
@@ -256,7 +254,7 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
 
   linkDatabase: (sourceDbId, targetCampaignId, label) => {
     const link: LinkedDatabase = {
-      id: makeId(),
+      id: generateId(),
       sourceDbId,
       targetCampaignId,
       label,
@@ -281,9 +279,9 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
   // ─── Campaign sharing ──────────────────────────────────
   createShareLink: (campaignId, label, clientName) => {
     const share: CampaignShare = {
-      id: makeId(),
+      id: generateId(),
       campaignId,
-      token: makeId(),
+      token: generateId(),
       permission: 'viewer',
       createdAt: Date.now(),
       label,
@@ -308,7 +306,7 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
   // ─── Notifications ─────────────────────────────────────
   addNotification: (type, userId, fromUserId, fromUserName, pageId, message, campaignId) => {
     const notification: Notification = {
-      id: makeId(),
+      id: generateId(),
       type,
       userId,
       fromUserId,

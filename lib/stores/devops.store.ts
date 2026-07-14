@@ -6,6 +6,7 @@
  */
 import { create } from 'zustand';
 import { withPersistence } from '@/lib/stores/persisted-store';
+import { generateId } from '@/lib/utils';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -69,12 +70,6 @@ export interface ApiEndpoint {
   requestCount: number;
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────
-
-function generateId(): string {
-  return `devops_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
 // ─── State ──────────────────────────────────────────────────────────────
 
 interface DevopsState {
@@ -126,7 +121,7 @@ export const useDevopsStore = create<DevopsState>((set, get) => ({
   // ─── Deployment CRUD ─────────────────────────────────────────────
 
   createDeployment: (service, environment, version) => {
-    const id = generateId();
+    const id = generateId('devops');
     const deployment: Deployment = {
       id,
       service,

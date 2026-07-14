@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useWindowActions } from '@/lib/hooks/use-window-actions';
+import { useWindowStore } from '@/lib/stores/window.store';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useWorkspaceStore } from '@/lib/stores/workspace.store';
 import { useAuthStore } from '@/lib/stores/auth.store';
@@ -19,14 +20,25 @@ interface DockProps {
 
 export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setShowMissionControl }: DockProps) {
   const { currentUser } = useAuthStore();
-  const { windows, openWindow, focusWindow, minimizeWindow, highestZIndex } = useWindowActions();
-  const { activeWorkspace, installedApps, recentApps } = useWorkspaceStore();
+  const { openWindow, focusWindow, minimizeWindow } = useWindowActions();
+  const windows = useWindowStore((s) => s.windows);
+  const highestZIndex = useWindowStore((s) => s.highestZIndex);
+  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
+  const installedApps = useWorkspaceStore((s) => s.installedApps);
+
+  const allowedApps = useMemo(() => {
+    if (!currentUser) return [];
+    return APP_MANIFEST.filter(app =>
+      app.roles.includes(currentUser.role) && (app.isCore || installedApps.includes(app.id) || isPluginActive(app.id))
+    );
+  }, [currentUser, installedApps]);
+
+  const activeWindows = useMemo(
+    () => windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined),
+    [windows, activeWorkspace]
+  );
 
   if (!currentUser) return null;
-
-  const allowedApps = APP_MANIFEST.filter(app =>
-    app.roles.includes(currentUser.role) && (app.isCore || installedApps.includes(app.id) || isPluginActive(app.id))
-  );
 
   return (
     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[260] pointer-events-none">
@@ -64,7 +76,6 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
         {allowedApps.filter(app => {
           return app.isCore || installedApps.includes(app.id);
         }).map(app => {
-          const activeWindows = windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined);
           const isOpen = activeWindows.some(w => w.appId === app.id);
           const isFocused = activeWindows.some(w => w.appId === app.id && !w.isMinimized && w.zIndex >= highestZIndex);
 

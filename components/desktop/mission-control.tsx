@@ -12,9 +12,11 @@ interface MissionControlProps {
 }
 
 export function MissionControl({ onClose }: MissionControlProps) {
-  const { wallpaper } = useThemeStore();
-  const { windows, focusWindow } = useWindowStore();
-  const { activeWorkspace, setActiveWorkspace } = useWorkspaceStore();
+  const wallpaper = useThemeStore((s) => s.wallpaper);
+  const windows = useWindowStore((s) => s.windows);
+  const focusWindow = useWindowStore((s) => s.focusWindow);
+  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
+  const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace);
 
   return (
     <div className="absolute inset-0 z-[240] bg-black/40 backdrop-blur-xl pointer-events-auto flex flex-col animate-in fade-in duration-200">

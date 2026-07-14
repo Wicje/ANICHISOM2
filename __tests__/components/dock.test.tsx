@@ -27,16 +27,19 @@ vi.mock('@/lib/stores/theme.store', () => ({
   ),
 }));
 
-vi.mock('@/lib/stores/workspace.store', () => ({
-  useWorkspaceStore: Object.assign(
-    vi.fn(() => ({
-      activeWorkspace: 0,
-      installedApps: ['terminal', 'browser'],
-      recentApps: [],
-    })),
-    { getState: vi.fn(() => ({ activeWorkspace: 0, installedApps: ['terminal', 'browser'], recentApps: [] })) }
-  ),
-}));
+vi.mock('@/lib/stores/window.store', () => {
+  const state = { windows: [], highestZIndex: 10 };
+  const store = (selector?: any) => (typeof selector === 'function' ? selector(state) : state);
+  store.getState = vi.fn(() => state);
+  return { useWindowStore: store };
+});
+
+vi.mock('@/lib/stores/workspace.store', () => {
+  const state = { activeWorkspace: 0, installedApps: ['terminal', 'browser'], recentApps: [] };
+  const store = (selector?: any) => (typeof selector === 'function' ? selector(state) : state);
+  store.getState = vi.fn(() => state);
+  return { useWorkspaceStore: store };
+});
 
 vi.mock('lucide-react', () => ({
   Grid: (p: any) => <svg data-testid="icon-grid" {...p} />,

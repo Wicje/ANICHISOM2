@@ -85,11 +85,11 @@ export function PluginSandbox({ window: osWindow }: { window: OSWindow }) {
 
           // ── Calls ──
           case 'calls.startCall':
-            openWindow('mini-browser', 'Call', { contextId: args[0] });
+            openWindow('power-browser', 'Call', { contextId: args[0] });
             result = true;
             break;
           case 'calls.joinCall':
-            openWindow('mini-browser', 'Call', { roomId: args[0] });
+            openWindow('power-browser', 'Call', { roomId: args[0] });
             result = true;
             break;
 
@@ -244,7 +244,7 @@ export function PluginSandbox({ window: osWindow }: { window: OSWindow }) {
         ref={iframeRef}
         src={pluginUrl}
         className="flex-1 w-full border-none bg-white"
-        sandbox="allow-scripts allow-same-origin"
+        sandbox="allow-scripts"
         title={`Plugin ${osWindow.title}`}
       />
     </div>

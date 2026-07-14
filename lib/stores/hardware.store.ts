@@ -6,6 +6,7 @@
  */
 import { create } from 'zustand';
 import { withPersistence } from '@/lib/stores/persisted-store';
+import { generateId } from '@/lib/utils';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -60,12 +61,6 @@ export interface Supplier {
   apiKey?: string;
   linked: boolean;
   lastSync?: number;
-}
-
-// ─── Helpers ────────────────────────────────────────────────────────────
-
-function generateId(): string {
-  return `hw_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 // ─── State ──────────────────────────────────────────────────────────────
@@ -128,7 +123,7 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
   // ─── Component CRUD ──────────────────────────────────────────────
 
   createComponent: (name, type, value, footprint, manufacturer, unitCost, datasheetUrl) => {
-    const id = generateId();
+    const id = generateId('hw');
     const component: HwComponent = {
       id,
       name,
@@ -172,7 +167,7 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
   // ─── Schematic CRUD ─────────────────────────────────────────────
 
   createSchematic: (name, description = '') => {
-    const id = generateId();
+    const id = generateId('hw');
     const schematic: Schematic = {
       id,
       name,
@@ -224,7 +219,7 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
   // ─── Firmware CRUD ──────────────────────────────────────────────
 
   createFirmware: (name, version, changelog = '') => {
-    const id = generateId();
+    const id = generateId('hw');
     const fw: FirmwareVersion = {
       id,
       name,
@@ -266,7 +261,7 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
   // ─── Supplier CRUD ──────────────────────────────────────────────
 
   addSupplier: (name, type) => {
-    const id = generateId();
+    const id = generateId('hw');
     const supplier: Supplier = {
       id,
       name,

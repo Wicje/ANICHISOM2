@@ -5,6 +5,7 @@
  */
 import { create } from 'zustand';
 import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { generateId } from '@/lib/utils';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -44,12 +45,6 @@ function schedulePersist(state: FeedbackStoreState) {
   }, 2000);
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────
-
-function generateId(): string {
-  return `fb_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
 // ─── State ──────────────────────────────────────────────────────────────
 
 interface FeedbackStoreState {
@@ -73,7 +68,7 @@ export const useFeedbackStore = create<FeedbackStoreState>((set, get) => ({
   feedback: {},
 
   submitFeedback: (type, title, content, rating, appId) => {
-    const id = generateId();
+    const id = generateId('fb');
     const now = Date.now();
     const existingIds = Object.keys(get().feedback);
     const lastTs = existingIds.length > 0

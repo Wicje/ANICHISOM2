@@ -6,6 +6,7 @@
  */
 import { create } from 'zustand';
 import { withPersistence } from '@/lib/stores/persisted-store';
+import { generateId } from '@/lib/utils';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -63,12 +64,6 @@ export interface Report {
   status: 'draft' | 'review' | 'final';
   createdAt: number;
   updatedAt: number;
-}
-
-// ─── Helpers ────────────────────────────────────────────────────────────
-
-function generateId(prefix: string): string {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 // ─── State ──────────────────────────────────────────────────────────────

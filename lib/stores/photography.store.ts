@@ -6,6 +6,7 @@
  */
 import { create } from 'zustand';
 import { withPersistence } from '@/lib/stores/persisted-store';
+import { generateId } from '@/lib/utils';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -79,12 +80,6 @@ export interface PersistedPhotography {
   activeShootId: string | null;
   activeClientId: string | null;
   activeWatermarkPresetId: string | null;
-}
-
-// ─── Helpers ────────────────────────────────────────────────────────────
-
-function generateId(prefix: string): string {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 // ─── State ──────────────────────────────────────────────────────────────

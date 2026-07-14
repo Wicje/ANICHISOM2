@@ -1,7 +1,8 @@
 import {
   Block, Page, DatabaseSchema, DatabaseProperty, DatabaseRow, SelectOption,
   DatabaseViewConfig, BlockType, PageLevel
-} from './types';
+} from '@/lib/campaign-types';
+import { generateId } from '@/lib/utils';
 import {
   Type, Heading1, Heading2, Heading3, CheckSquare, List, Image as ImageIcon,
   Database, Code, FileText, ListOrdered, ChevronRight, Table, Quote, Minus,
@@ -44,8 +45,6 @@ const SELECT_COLORS: Record<string, string> = {
 export { SELECT_COLORS };
 
 // ─── Default Database Schemas ────────────────────────────────
-const makeId = () => crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
 export const DEFAULT_DATABASES: DatabaseSchema[] = [
   {
     id: 'db-deliverables',

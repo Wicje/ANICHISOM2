@@ -82,8 +82,11 @@ export function MenuBar({
   logout,
   wipeSession,
 }: MenuBarProps) {
-  const { currentUser } = useAuthStore();
-  const { workspaceMode, setWorkspaceMode, activeWorkspace, setActiveWorkspace } = useWorkspaceStore();
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const workspaceMode = useWorkspaceStore((s) => s.workspaceMode);
+  const setWorkspaceMode = useWorkspaceStore((s) => s.setWorkspaceMode);
+  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
+  const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace);
 
   if (!currentUser) return null;
 

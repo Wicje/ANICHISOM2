@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Page, PageLevel } from '../types';
+import { Page, PageLevel } from '@/lib/campaign-types';
 import { ChevronRight, Trash2, Plus, Star, StarOff, Search, Clock, Trash, RotateCcw, Target, Layers, CheckSquare, ListTodo } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
