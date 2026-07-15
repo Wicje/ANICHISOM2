@@ -268,18 +268,18 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   const displayFiles = isViewingLocal ? filteredFiles : filteredCloudFiles;
 
   return (
-    <div className="w-full h-full flex bg-[#0f0f0f] text-[#ececec] font-sans overflow-hidden">
+    <div className="w-full h-full flex bg-[var(--os-bg)] text-[var(--os-text)] font-sans overflow-hidden">
 
       {/* Sidebar */}
-      <div className="w-56 bg-[var(--os-surface)] border-r border-white/5 flex flex-col shrink-0">
-        <div className="h-14 flex items-center px-4 border-b border-white/5 text-sm font-semibold tracking-wide text-white/80">
+      <div className="w-56 bg-[var(--os-glass-bg)] backdrop-blur-xl border-r border-[var(--os-border)] flex flex-col shrink-0">
+        <div className="h-14 flex items-center px-4 border-b border-[var(--os-border)] text-sm font-semibold tracking-wide text-[var(--os-text)]">
           <HardDrive className="w-4 h-4 mr-2 text-emerald-500" />
           Files Bridge
         </div>
 
         <div className="flex-1 overflow-y-auto py-4">
           {/* Local storage */}
-          <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-white/40">Local Disk</div>
+          <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--os-text-muted)]">Local Disk</div>
           <div className="flex flex-col gap-1 px-2">
             {['Root', 'Desktop', 'Documents', 'Downloads', 'Media'].map(loc => (
               <button
@@ -287,11 +287,11 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                 onClick={() => { setCurrentPath(loc); setSelectedSource('local'); }}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
-                  isViewingLocal && currentPath === loc ? "bg-blue-600 text-white" : "text-white/70 hover:bg-white/5 hover:text-white",
-                  !isViewingLocal && "text-white/50"
+                  isViewingLocal && currentPath === loc ? "bg-[var(--os-active)] text-[var(--os-primary)]" : "text-[var(--os-text-muted)] hover:bg-[var(--os-hover)] hover:text-[var(--os-text)]",
+                  !isViewingLocal && "text-[var(--os-text-muted)] opacity-60"
                 )}
               >
-                <Folder className={cn("w-4 h-4", isViewingLocal && currentPath === loc ? "text-white" : "text-blue-400")} fill="currentColor" />
+                <Folder className={cn("w-4 h-4", isViewingLocal && currentPath === loc ? "text-[var(--os-primary)]" : "text-[var(--os-primary)]")} fill="currentColor" />
                 {loc}
               </button>
             ))}
@@ -300,7 +300,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
           {/* Cloud storage */}
           {cloudSources.length > 0 && (
             <>
-              <div className="px-3 mt-6 mb-2 text-[10px] font-bold uppercase tracking-widest text-white/40">Cloud Storage</div>
+              <div className="px-3 mt-6 mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--os-text-muted)]">Cloud Storage</div>
               <div className="flex flex-col gap-1 px-2">
                 {cloudSources.map(source => (
                   <div key={source.id}>
@@ -315,7 +315,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                       }}
                       className={cn(
                         "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
-                        selectedSource === source.id ? "bg-emerald-600/20 text-emerald-400" : "text-white/70 hover:bg-white/5 hover:text-white",
+                        selectedSource === source.id ? "bg-[var(--os-active)] text-[var(--os-primary)]" : "text-[var(--os-text-muted)] hover:bg-[var(--os-hover)] hover:text-[var(--os-text)]",
                         !source.configured && "opacity-40"
                       )}
                     >
@@ -323,7 +323,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                       <div className="flex-1 min-w-0">
                         <div className="truncate font-medium">{source.name}</div>
                         {source.connected && source.accountName && (
-                          <div className="text-[10px] text-white/40 truncate">{source.accountName}</div>
+                          <div className="text-[10px] text-[var(--os-text-muted)] truncate">{source.accountName}</div>
                         )}
                       </div>
                       {connectLoading === source.id ? (
@@ -335,7 +335,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                       )}
                     </button>
                     {!source.configured && (
-                      <div className="px-3 text-[9px] text-white/20">Not configured on server</div>
+                      <div className="px-3 text-[9px] text-[var(--os-text-muted)] opacity-60">Not configured on server</div>
                     )}
                     {!source.connected && source.configured && (
                       <button
@@ -352,7 +352,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
           )}
 
           {/* Quick Links */}
-          <div className="px-3 mt-6 mb-2 text-[10px] font-bold uppercase tracking-widest text-white/40">Quick Links</div>
+          <div className="px-3 mt-6 mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--os-text-muted)]">Quick Links</div>
           <div className="flex flex-col gap-1 px-2">
             {[
               { name: 'Google Drive', url: 'https://drive.google.com', icon: '🟢' },
@@ -362,7 +362,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
               <button
                 key={link.name}
                 onClick={() => window.open(link.url, '_blank')}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-[var(--os-text-muted)] hover:bg-[var(--os-hover)] hover:text-[var(--os-text)] transition-colors"
               >
                 <span className="text-base">{link.icon}</span>
                 {link.name}
@@ -374,7 +374,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
           <div className="px-3 mt-4">
             <button
               onClick={() => { fetchCloudSources(); if (selectedSource !== 'local') fetchCloudFiles(selectedSource, cloudPath); }}
-              className="flex items-center gap-2 px-3 py-1.5 text-[10px] text-white/40 hover:text-white/60 transition-colors"
+              className="flex items-center gap-2 px-3 py-1.5 text-[10px] text-[var(--os-text-muted)] hover:text-[var(--os-text)] transition-colors"
             >
               <RefreshCw className="w-3 h-3" />
               Refresh connections
@@ -384,7 +384,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
 
         {/* Status footer */}
         <div className="p-4 border-t border-[var(--os-border)]">
-          <div className="bg-[var(--os-surface)] p-3 rounded-lg border border-[var(--os-border)]">
+          <div className="bg-[var(--os-surface-elevated)] p-3 rounded-lg border border-[var(--os-border)]">
             <div className="flex items-center gap-2 text-[10px] text-emerald-400 font-semibold">
               <Lock className="w-3 h-3" />
               Privacy-First
@@ -397,53 +397,53 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#0a0a0a]">
+      <div className="flex-1 flex flex-col min-w-0 bg-[var(--os-bg)]">
 
         {/* Toolbar */}
-        <div className="h-14 border-b border-white/5 flex items-center justify-between px-6 bg-[#121212] shrink-0">
+        <div className="h-14 border-b border-[var(--os-border)] flex items-center justify-between px-6 bg-[var(--os-surface)] backdrop-blur-xl shrink-0">
 
           {/* Breadcrumbs */}
-          <div className="flex items-center gap-2 text-sm text-white/80 font-medium">
+          <div className="flex items-center gap-2 text-sm text-[var(--os-text)] font-medium">
             <button
               onClick={() => { setSelectedSource('local'); setCurrentPath('Root'); }}
-              className="hover:text-blue-400 transition-colors"
+              className="hover:text-[var(--os-primary)] transition-colors"
             >
               OS
             </button>
-            <ChevronRight className="w-3 h-3 text-white/40" />
+            <ChevronRight className="w-3 h-3 text-[var(--os-text-muted)]" />
             {isViewingLocal ? (
-              <span className="text-white">{currentPath}</span>
+              <span className="text-[var(--os-text)]">{currentPath}</span>
             ) : (
               <>
-                <span className="text-emerald-400">{selectedSource}</span>
-                <ChevronRight className="w-3 h-3 text-white/40" />
-                <span className="text-white">{cloudPath === 'root' ? 'Root' : cloudPath}</span>
+                <span className="text-[var(--os-primary)]">{selectedSource}</span>
+                <ChevronRight className="w-3 h-3 text-[var(--os-text-muted)]" />
+                <span className="text-[var(--os-text)]">{cloudPath === 'root' ? 'Root' : cloudPath}</span>
               </>
             )}
           </div>
 
           <div className="flex items-center gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--os-text-muted)]" />
               <input
                 type="text"
                 placeholder="Search files..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-48 bg-[var(--os-surface)] border border-white/10 rounded-full py-1.5 pl-9 pr-4 text-sm text-white outline-none focus:border-blue-500 transition-colors shadow-inner"
+                className="w-48 bg-[var(--os-surface-elevated)] border border-[var(--os-border)] rounded-full py-1.5 pl-9 pr-4 text-sm text-[var(--os-text)] outline-none focus:border-[var(--os-primary)] transition-colors shadow-inner"
               />
             </div>
 
-            <div className="h-6 w-px bg-white/10 mx-1"></div>
+            <div className="h-6 w-px bg-[var(--os-border)] mx-1"></div>
 
-            <button onClick={() => { isViewingLocal ? fetchFiles() : fetchCloudFiles(selectedSource, cloudPath); }} className="p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/10 transition-colors" title="Refresh">
+            <button onClick={() => { isViewingLocal ? fetchFiles() : fetchCloudFiles(selectedSource, cloudPath); }} className="p-1.5 rounded-md text-[var(--os-text-muted)] hover:text-[var(--os-text)] hover:bg-[var(--os-hover)] transition-colors" title="Refresh">
                <RefreshCw className="w-4 h-4" />
             </button>
 
             {isViewingLocal && (
               <>
                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" multiple />
-                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-md text-sm font-medium transition-colors" title="Upload Files">
+                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--os-hover)] hover:bg-[var(--os-active)] rounded-md text-sm font-medium transition-colors" title="Upload Files">
                    <Upload className="w-4 h-4" /> Upload
                 </button>
 
@@ -453,11 +453,11 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                   const path = currentPath === 'Root' ? name : `${currentPath}/${name}`;
                   await FS.write(`${path}/.keep`, "");
                   fetchFiles();
-                }} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-md text-sm font-medium transition-colors">
+                }} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--os-hover)] hover:bg-[var(--os-active)] rounded-md text-sm font-medium transition-colors">
                    <Folder className="w-4 h-4" /> New Folder
                 </button>
 
-                <button onClick={createNewFile} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-md text-white text-sm font-medium transition-colors shadow-lg shadow-blue-500/20">
+                <button onClick={createNewFile} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--os-primary)] hover:bg-[var(--os-primary-container)] rounded-md text-white text-sm font-medium transition-colors shadow-lg shadow-[var(--os-primary)]/20">
                    <Plus className="w-4 h-4" /> New File
                 </button>
               </>
@@ -474,14 +474,14 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
         {/* File Grid */}
         <div className="flex-1 overflow-y-auto p-6">
           {isViewingLocal && !isLoaded ? (
-            <div className="flex items-center justify-center h-full text-white/40 text-sm">Loading files...</div>
+            <div className="flex items-center justify-center h-full text-[var(--os-text-muted)] text-sm">Loading files...</div>
           ) : !isViewingLocal && cloudLoading ? (
-            <div className="flex items-center justify-center h-full text-white/40 text-sm">
+            <div className="flex items-center justify-center h-full text-[var(--os-text-muted)] text-sm">
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               Loading from {selectedSource}...
             </div>
           ) : displayFiles.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full gap-4 text-white/40">
+            <div className="flex flex-col items-center justify-center h-full gap-4 text-[var(--os-text-muted)]">
               <Folder className="w-16 h-16 opacity-20" />
               <p className="text-sm">
                 {isViewingLocal
@@ -490,7 +490,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                 }
               </p>
               {isViewingLocal && (
-                <button onClick={createNewFile} className="px-4 py-2 bg-white/5 rounded-md text-white hover:bg-white/10 transition-colors">Create a file</button>
+                <button onClick={createNewFile} className="px-4 py-2 bg-[var(--os-hover)] rounded-md text-[var(--os-text)] hover:bg-[var(--os-active)] transition-colors">Create a file</button>
               )}
             </div>
           ) : isViewingLocal ? (
@@ -506,14 +506,14 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                     key={i}
                     onDoubleClick={() => handleFileOpen(file)}
                     onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, file }); }}
-                    className="group flex flex-col items-center p-4 rounded-xl border border-transparent hover:bg-white/5 hover:border-white/10 hover:shadow-xl transition-all cursor-pointer relative"
+                    className="group flex flex-col items-center p-4 rounded-xl border border-transparent hover:bg-[var(--os-hover)] hover:border-[var(--os-border)] hover:shadow-xl transition-all cursor-pointer relative"
                   >
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1 z-10">
-                      <button onClick={(e) => downloadFile(file, e)} className="p-1.5 hover:bg-blue-500 rounded-md bg-black/60 backdrop-blur" title="Download">
-                        <Download className="w-3.5 h-3.5 text-white" />
+                      <button onClick={(e) => downloadFile(file, e)} className="p-1.5 hover:bg-[var(--os-primary)] rounded-md bg-[var(--os-surface-elevated)] backdrop-blur border border-[var(--os-border)]" title="Download">
+                        <Download className="w-3.5 h-3.5 text-[var(--os-text)]" />
                       </button>
-                      <button onClick={(e) => deleteFile(file.id, e)} className="p-1.5 hover:bg-red-500 rounded-md bg-black/60 backdrop-blur" title="Delete">
-                        <Trash2 className="w-3.5 h-3.5 text-white" />
+                      <button onClick={(e) => deleteFile(file.id, e)} className="p-1.5 hover:bg-[var(--os-error)] rounded-md bg-[var(--os-surface-elevated)] backdrop-blur border border-[var(--os-border)]" title="Delete">
+                        <Trash2 className="w-3.5 h-3.5 text-[var(--os-text)]" />
                       </button>
                     </div>
 
@@ -528,10 +528,10 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                         <FileText className="w-12 h-12 text-white/50 drop-shadow-md" />
                       )}
                     </div>
-                    <span className="text-xs font-medium text-white/90 text-center line-clamp-2 w-full break-words">
+                    <span className="text-xs font-medium text-[var(--os-text)] text-center line-clamp-2 w-full break-words">
                       {file.name}
                     </span>
-                    <span className="text-[10px] text-white/40 mt-1 uppercase tracking-wider">
+                    <span className="text-[10px] text-[var(--os-text-muted)] mt-1 uppercase tracking-wider">
                       {isImage ? 'Image' : isMedia ? 'Media' : isPdf ? 'PDF' : 'Document'}
                     </span>
                   </div>
@@ -550,13 +550,13 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                   <div
                     key={file.id}
                     onDoubleClick={() => handleCloudFileOpen(file)}
-                    className="group flex flex-col items-center p-4 rounded-xl border border-transparent hover:bg-white/5 hover:border-white/10 hover:shadow-xl transition-all cursor-pointer relative"
+                    className="group flex flex-col items-center p-4 rounded-xl border border-transparent hover:bg-[var(--os-hover)] hover:border-[var(--os-border)] hover:shadow-xl transition-all cursor-pointer relative"
                   >
                     {file.webUrl && (
                       <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                         <button
                           onClick={(e) => { e.stopPropagation(); window.open(file.webUrl!, '_blank'); }}
-                          className="p-1.5 hover:bg-emerald-500 rounded-md bg-black/60 backdrop-blur"
+                          className="p-1.5 hover:bg-emerald-500 rounded-md bg-[var(--os-surface-elevated)] backdrop-blur border border-[var(--os-border)]"
                           title="Open in browser"
                         >
                           <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
@@ -578,14 +578,14 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                       ) : isPdf ? (
                         <FileText className="w-12 h-12 text-orange-500 drop-shadow-md" />
                       ) : (
-                        <FileText className="w-12 h-12 text-white/50 drop-shadow-md" />
+                        <FileText className="w-12 h-12 text-[var(--os-text-muted)] drop-shadow-md" />
                       )}
                     </div>
 
-                    <span className="text-xs font-medium text-white/90 text-center line-clamp-2 w-full break-words">
+                    <span className="text-xs font-medium text-[var(--os-text)] text-center line-clamp-2 w-full break-words">
                       {file.name}
                     </span>
-                    <span className="text-[10px] text-white/40 mt-1">
+                    <span className="text-[10px] text-[var(--os-text-muted)] mt-1">
                       {file.isFolder ? 'Folder' : isImage ? 'Image' : isMedia ? 'Media' : isPdf ? 'PDF' : 'Document'}
                       {file.size && !file.isFolder && ` · ${(file.size / 1024).toFixed(0)}KB`}
                     </span>
@@ -603,14 +603,14 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
       {/* Context Menu */}
       {contextMenu && (
         <div
-          className="fixed z-[9999] bg-[#1c1c1e] border border-white/10 rounded-xl shadow-2xl py-1 w-56"
+          className="fixed z-[9999] bg-[var(--os-glass-bg)] backdrop-blur-xl border border-[var(--os-glass-border)] rounded-xl shadow-2xl py-1 w-56"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => setContextMenu(null)}
         >
           <button
             onClick={() => handleFileOpen(contextMenu.file)}
-            className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 flex items-center gap-2 text-white/80"
+            className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
           >
             <ExternalLink className="w-3.5 h-3.5" /> Open
           </button>
@@ -629,20 +629,20 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                 openWindow('code', contextMenu.file.name, { fileId: contextMenu.file.id, content: contextMenu.file.content });
               }
             }}
-            className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 flex items-center gap-2 text-white/80"
+            className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
           >
             <Eye className="w-3.5 h-3.5" /> Open With...
           </button>
-          <div className="border-t border-white/5 my-1" />
+          <div className="border-t border-[var(--os-border)] my-1" />
           <button
             onClick={() => downloadFile(contextMenu.file, { stopPropagation: () => {} } as any)}
-            className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 flex items-center gap-2 text-white/80"
+            className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
           >
             <Download className="w-3.5 h-3.5" /> Download
           </button>
           <button
             onClick={() => deleteFile(contextMenu.file.id, { stopPropagation: () => {} } as any)}
-            className="w-full text-left px-3 py-2 text-xs hover:bg-rose-500/20 text-rose-400 flex items-center gap-2"
+            className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-error)]/20 text-[var(--os-error)] flex items-center gap-2"
           >
             <Trash2 className="w-3.5 h-3.5" /> Delete
           </button>
