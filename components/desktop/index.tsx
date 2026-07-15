@@ -25,6 +25,7 @@ import { WindowSwitcher } from './window-switcher';
 import { DesktopIcons } from './desktop-icons';
 import { SnapshotsMenu } from './snapshots-menu';
 import { NotchNook } from '@/components/dock/notch-nook';
+import { WidgetStack } from '@/components/notifications/widget-stack';
 import OnboardingWizard from '@/components/apps/onboarding-wizard';
 import { LoginScreen } from '@/components/login-screen';
 import FeedbackWidget from '@/components/apps/feedback-widget';
@@ -151,6 +152,7 @@ export function Desktop() {
   const [showMissionControl, setShowMissionControl] = useState(false);
   const [showControlCenter, setShowControlCenter] = useState(false);
   const [showNotchNook, setShowNotchNook] = useState(false);
+  const [showWidgetStack, setShowWidgetStack] = useState(false);
   const [showSwitcher, setShowSwitcher] = useState(false);
   const [switcherIndex, setSwitcherIndex] = useState(0);
   const [showSnapshots, setShowSnapshots] = useState(false);
@@ -305,6 +307,7 @@ export function Desktop() {
       'ctrl+w': 'action:close-active-window',
       'ctrl+m': 'action:minimize-active-window',
       'alt+n': 'action:notch-nook',
+      'alt+w': 'action:widget-stack',
     };
 
     import('@/lib/fs').then(({ FS }) => {
@@ -369,6 +372,8 @@ export function Desktop() {
           if (focused) minimizeWindow(focused.id);
         } else if (action === 'action:notch-nook') {
           setShowNotchNook(prev => !prev);
+        } else if (action === 'action:widget-stack') {
+          setShowWidgetStack(prev => !prev);
         }
       }
     };
@@ -393,12 +398,15 @@ export function Desktop() {
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     const handleNotchNookToggle = () => setShowNotchNook(prev => !prev);
+    const handleWidgetStackToggle = () => setShowWidgetStack(prev => !prev);
     window.addEventListener('os:toggle-notch-nook', handleNotchNookToggle);
+    window.addEventListener('os:toggle-widget-stack', handleWidgetStackToggle);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('os:config-updated', handleConfigUpdate);
       window.removeEventListener('os:toggle-notch-nook', handleNotchNookToggle);
+      window.removeEventListener('os:toggle-widget-stack', handleWidgetStackToggle);
     };
   }, [openWindow, closeWindow, minimizeWindow, focusWindow]);
 
@@ -628,6 +636,11 @@ export function Desktop() {
       {showNotchNook && (
         <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-[300]">
           <NotchNook />
+        </div>
+      )}
+      {showWidgetStack && (
+        <div className="absolute top-12 right-4 z-[300]">
+          <WidgetStack />
         </div>
       )}
 

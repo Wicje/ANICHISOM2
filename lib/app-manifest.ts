@@ -71,8 +71,6 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
   'nothing-product': () => import('@/components/moodboard/nothing-product'),
   'samur-ai-board': () => import('@/components/moodboard/samur-ai-board'),
   'notification-settings': () => import('@/components/settings/notification-settings'),
-  'widget-stack': () => import('@/components/notifications/widget-stack'),
-  'side-gigs-marketplace': () => import('@/components/side-gigs-marketplace'),
 };
 
 // Static metadata — loaded eagerly (tiny)
@@ -108,7 +106,6 @@ export const APP_MANIFEST: AppManifestEntry[] = [
   { id: 'productivity', component: null as any, icon: Grid, title: 'Productivity Suite', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'All-in-one productivity tools' },
   { id: 'proposal-generator', component: null as any, icon: FileText, title: 'Proposal Generator', roles: ['admin', 'filmmaker'], isCore: false, category: 'productivity', description: 'Generate proposals and estimates' },
   { id: 'side-gigs', component: null as any, icon: Briefcase, title: 'Side Gigs', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'Manage side projects and gigs' },
-  { id: 'side-gigs-marketplace', component: null as any, icon: Briefcase, title: 'Side Gigs Marketplace', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'Freelance opportunity marketplace' },
   { id: 'calls', component: null as any, icon: Phone, title: 'Calls', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'Video and voice calls' },
 
   // Media
@@ -134,7 +131,6 @@ export const APP_MANIFEST: AppManifestEntry[] = [
 
   // Dock & Widgets
   { id: 'notification-settings', component: null as any, icon: Bell, title: 'Notification Settings', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'system', description: 'Configure notification preferences' },
-  { id: 'widget-stack', component: null as any, icon: Layout, title: 'Widget Stack', roles: ['admin', 'filmmaker', 'user'], isCore: false, category: 'system', description: 'Stackable desktop widgets' },
 
   // Packs
   { id: 'clothing-brand-pack', component: null as any, icon: Grid, title: 'Clothing Brand Pack', roles: ['admin', 'filmmaker'], isCore: false, category: 'creative', description: 'Clothing brand management tools' },
