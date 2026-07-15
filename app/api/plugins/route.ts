@@ -64,6 +64,26 @@ export async function POST(request: NextRequest) {
       return apiError(`Plugin with id "${body.id}" already exists`, 409);
     }
 
+    // Validate entryUrl for SSRF if iframe runtime
+    if (body.runtime === 'iframe' && body.entryUrl) {
+      try {
+        const entryUrl = new URL(body.entryUrl);
+        if (entryUrl.protocol !== 'https:') {
+          return apiError('entryUrl must use HTTPS', 400);
+        }
+        // Block private/internal IPs
+        const hostname = entryUrl.hostname;
+        if (hostname === 'localhost' || hostname === '127.0.0.1' ||
+            hostname.startsWith('10.') || hostname.startsWith('192.168.') ||
+            hostname.startsWith('172.') || hostname.endsWith('.local') ||
+            hostname.endsWith('.internal')) {
+          return apiError('entryUrl cannot point to private/internal addresses', 400);
+        }
+      } catch {
+        return apiError('Invalid entryUrl format', 400);
+      }
+    }
+
     const listing: PluginListing = {
       id: body.id,
       name: body.name,

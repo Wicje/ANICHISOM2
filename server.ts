@@ -110,9 +110,17 @@ app.prepare().then(async () => {
   }
 
   wss.on('connection', (ws, req) => {
-    const clientIp = (req.headers['x-forwarded-for'] as string) ||
-                     (req.headers['x-client-ip'] as string) ||
-                     req.socket.remoteAddress || 'unknown';
+    // Auth check: require valid session cookie
+    const cookieHeader = req.headers.cookie || '';
+    const sessionMatch = cookieHeader.match(/anichisom_session=([^;]+)/);
+    const supabaseMatch = cookieHeader.match(/sb-[a-z0-9]+-auth-token=([^;]+)/);
+    const hasSession = (sessionMatch?.[1] && resolveSession(sessionMatch[1])) || supabaseMatch;
+    if (!hasSession) {
+      ws.close(1008, 'Authentication required');
+      return;
+    }
+
+    const clientIp = req.socket.remoteAddress || 'unknown';
     const count = wsConnections.get(clientIp) || 0;
     if (count >= WS_MAX_CONNECTIONS_PER_IP) {
       ws.close(1008, 'Rate limit exceeded');

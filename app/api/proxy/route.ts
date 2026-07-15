@@ -152,10 +152,11 @@ function validateProxyRequest(request: NextRequest): { targetUrl: string; error?
     };
   }
 
-  // Rate limit check
-  const clientIp = request.headers.get('x-forwarded-for') ||
-                   request.headers.get('x-client-ip') ||
-                   'unknown';
+  // Rate limit check — parse rightmost IP from x-forwarded-for (trusted on Vercel)
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  const clientIp = forwardedFor
+    ? forwardedFor.split(',').pop()?.trim() || 'unknown'
+    : request.headers.get('x-client-ip') || 'unknown';
   const rateCheck = checkProxyRateLimit(clientIp);
   if (!rateCheck.allowed) {
     return {
@@ -201,11 +202,11 @@ function validateProxyRequest(request: NextRequest): { targetUrl: string; error?
 // Build CSP header for proxied content — restrict to the proxied domain, not wildcard
 function buildProxyCSP(proxiedOrigin: string): string {
   return [
-    `default-src ${proxiedOrigin} 'unsafe-inline' 'unsafe-eval' data: blob:`,
+    `default-src ${proxiedOrigin} 'unsafe-inline' data: blob:`,
     `frame-src ${proxiedOrigin}`,
     `img-src ${proxiedOrigin} data: blob: http: https:`,
     `style-src ${proxiedOrigin} 'unsafe-inline'`,
-    `script-src ${proxiedOrigin} 'unsafe-inline' 'unsafe-eval'`,
+    `script-src ${proxiedOrigin} 'unsafe-inline'`,
     `connect-src ${proxiedOrigin} ws: wss:`,
   ].join('; ');
 }
@@ -219,14 +220,55 @@ export async function GET(request: NextRequest) {
     const parsedUrl = new URL(targetUrl);
     const proxiedOrigin = parsedUrl.origin;
 
-    const response = await fetch(targetUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-      },
-      redirect: 'follow',
-    });
+    // Follow redirects manually to re-validate each URL against SSRF checks
+    let currentUrl = targetUrl;
+    let response: Response | null = null;
+    const MAX_REDIRECTS = 5;
+
+    for (let i = 0; i <= MAX_REDIRECTS; i++) {
+      if (isPrivateUrl(currentUrl)) {
+        return new NextResponse(JSON.stringify({
+          error: true,
+          message: `Redirect blocked: ${currentUrl} is a private/internal URL (SSRF protection)`,
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', 'X-Proxy-Error': 'true' },
+        });
+      }
+
+      response = await fetch(currentUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+        },
+        redirect: 'manual',
+      });
+
+      // If not a redirect, break and use this response
+      if (response.status < 300 || response.status >= 400) break;
+
+      // Get redirect location
+      const location = response.headers.get('location');
+      if (!location) break;
+
+      // Resolve relative redirects
+      try {
+        currentUrl = new URL(location, currentUrl).href;
+      } catch {
+        break; // Invalid redirect URL
+      }
+    }
+
+    if (!response) {
+      return new NextResponse(JSON.stringify({
+        error: true,
+        message: 'Failed to fetch: no response',
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'X-Proxy-Error': 'true' },
+      });
+    }
 
     if (!response.ok) {
       return new NextResponse(JSON.stringify({

@@ -44,8 +44,12 @@ export function createSession(token: string, userId: string, uniqueId: string, r
 
 /**
  * Create a dev-only master session (shorter TTL)
+ * SECURITY: Only allowed in development mode
  */
 export function createDevMasterSession(token: string): void {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('createDevMasterSession is not allowed in production');
+  }
   createSession(token, 'master-user-id', 'ANICHISOM', 'admin', DEV_SESSION_TTL_MS);
 }
 

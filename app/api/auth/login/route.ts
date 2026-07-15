@@ -70,9 +70,10 @@ export async function POST(request: NextRequest) {
     const uniqueId = sanitizeInput(bodyObj.uniqueId as string);
 
     // Rate limiting: 10 attempts per 5 minutes per IP
-    const clientIp = request.headers.get('x-forwarded-for') || 
-                     request.headers.get('x-client-ip') || 
-                     'unknown';
+    const forwardedFor = request.headers.get('x-forwarded-for');
+    const clientIp = forwardedFor
+      ? forwardedFor.split(',').pop()?.trim() || 'unknown'
+      : request.headers.get('x-client-ip') || 'unknown';
     const rateLimitKey = `login:${clientIp}`;
     const rateLimitCheck = checkRateLimit(rateLimitKey, 10, 5 * 60 * 1000);
 

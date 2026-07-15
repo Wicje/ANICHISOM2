@@ -22,8 +22,18 @@ const tokenStore = new Map<string, TokenData>();
 const ENCRYPTION_KEY = process.env.TOKEN_ENCRYPTION_KEY || '';
 const TOKEN_TTL_MS = 3600 * 1000; // 1 hour default access token TTL
 
+// Warn in production if encryption key is missing
+if (process.env.NODE_ENV === 'production' && !ENCRYPTION_KEY) {
+  console.error('[SECURITY] TOKEN_ENCRYPTION_KEY is not set — OAuth tokens stored in plaintext!');
+}
+
 function encrypt(text: string): string {
-  if (!ENCRYPTION_KEY) return text; // Dev mode: no encryption
+  if (!ENCRYPTION_KEY) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[SECURITY] Encrypting with empty key — tokens are NOT encrypted');
+    }
+    return text; // Dev mode: no encryption
+  }
   const iv = crypto.randomBytes(16);
   const key = Buffer.from(ENCRYPTION_KEY, 'hex');
   const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);

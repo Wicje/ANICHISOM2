@@ -91,9 +91,12 @@ export function checkRouteRateLimit(
   userId?: string
 ): NextResponse | null {
   const config = RATE_LIMITS[limitKey];
-  const clientIp = request.headers.get('x-forwarded-for') ||
-                   request.headers.get('x-client-ip') ||
-                   'unknown';
+  // Parse rightmost IP from x-forwarded-for (original client behind trusted proxy).
+  // On Vercel, this header is set by infrastructure and cannot be spoofed by clients.
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  const clientIp = forwardedFor
+    ? forwardedFor.split(',').pop()?.trim() || 'unknown'
+    : request.headers.get('x-client-ip') || 'unknown';
   const key = userId ? `${limitKey}:${userId}` : `${limitKey}:${clientIp}`;
   const result = checkRateLimit(key, config.max, config.windowMs);
 

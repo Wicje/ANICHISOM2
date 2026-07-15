@@ -202,15 +202,19 @@ export const MoodboardExportService = {
   .node-reactions { position: absolute; top: -8px; right: -8px; background: #ef4444; color: #fff; border-radius: 50%; width: 20px; height: 20px; font-size: 10px; display: flex; align-items: center; justify-content: center; }
   @media print { .board { page-break-inside: avoid; } }
 </style></head><body>
-<h1>${boardName}</h1>
+<h1>${escapeHtml(boardName)}</h1>
 <div class="board">
 ${nodes.map(n => {
   const x = n.x - minX + 100;
   const y = n.y - minY + 100;
   const reactions = n.reactions ? Object.values(n.reactions).reduce((s, a) => s + a.length, 0) : 0;
-  return `<div class="node" style="left:${x}px;top:${y}px;width:${n.width || 300}px;${n.backgroundColor ? `background:${n.backgroundColor}` : ''}">
-    <div class="node-content">${n.type === 'text' ? n.content : `[${n.type}] ${n.content.slice(0, 50)}`}</div>
-    ${n.label ? `<div class="node-label">${n.label}</div>` : ''}
+  const safeContent = n.type === 'text' ? escapeHtml(n.content) : escapeHtml(`[${n.type}] ${n.content.slice(0, 50)}`);
+  const safeLabel = n.label ? escapeHtml(n.label) : '';
+  // Only allow safe CSS color values for background
+  const safeBg = n.backgroundColor && /^(#[0-9a-fA-F]{3,8}|rgb\(|rgba\(|hsl\(|[a-z]+)$/i.test(n.backgroundColor) ? n.backgroundColor : '';
+  return `<div class="node" style="left:${x}px;top:${y}px;width:${n.width || 300}px;${safeBg ? `background:${safeBg}` : ''}">
+    <div class="node-content">${safeContent}</div>
+    ${safeLabel ? `<div class="node-label">${safeLabel}</div>` : ''}
     ${reactions > 0 ? `<div class="node-reactions">${reactions}</div>` : ''}
   </div>`;
 }).join('\n')}
@@ -224,6 +228,15 @@ ${nodes.map(n => {
 };
 
 // ─── Helpers ────────────────────────────────────────────────
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
