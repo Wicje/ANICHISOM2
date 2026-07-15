@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
 import { Cpu, Layers, Box, List, Terminal, Zap, CheckCircle, AlertTriangle, Download, Search, Bot, Send, Microchip, CircuitBoard, Wrench, Plus, X, Link as LinkIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import '@google/model-viewer';
+
 import { Storage } from '@/lib/storage';
 import { useHardwareStore, HwComponent, Schematic, FirmwareVersion, Supplier } from '@/lib/stores/hardware.store';
 
@@ -343,6 +343,9 @@ function PcbLayoutTab() {
 // 3. Virtual Simulation & 3D Preview (model-viewer)
 // ---------------------------------------------------------
 function Prototype3DTab() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => { import('@google/model-viewer').then(() => setReady(true)); }, []);
+  if (!ready) return <div className="flex-1 flex items-center justify-center text-white/40 text-sm">Loading 3D viewer...</div>;
   return (
     <div className="flex flex-col h-full p-4 gap-4">
       <div className="flex-1 bg-[#0a0a0a] rounded-xl border border-white/10 overflow-hidden relative shadow-2xl">

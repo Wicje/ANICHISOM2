@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 
 // ─── Mock child components to avoid deep render trees ────────────────
@@ -261,12 +261,12 @@ describe('Desktop', () => {
     onboardingStoreState.onboarding = { completed: true, selectedRole: 'admin', selectedApps: [], customApps: [] };
   });
 
-  it('renders the onboarding wizard when no user is logged in and onboarding not completed', () => {
+  it('renders the onboarding wizard when no user is logged in and onboarding not completed', async () => {
     authStoreState.currentUser = null;
     authStoreState.sessionChecked = true;
     onboardingStoreState.onboarding = { completed: false, selectedRole: null, selectedApps: [], customApps: [] };
     render(<Desktop />);
-    expect(screen.getByTestId('onboarding-wizard')).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId('onboarding-wizard')).toBeTruthy());
   });
 
   it('renders LoginScreen when no user is logged in and onboarding is completed', () => {

@@ -4,7 +4,7 @@ import { OSWindow, useOS } from '@/lib/os-context';
 import { Shirt, Scissors, Cuboid, Cpu, PenTool, Layers, Type, Download, Maximize, Target, Zap, Bot, Search, ShoppingBag, TrendingUp, Undo2, Redo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import '@google/model-viewer';
+
 import { useCollaborativeDoc, CollaborativeDocState } from '@/lib/hooks/useCollaborativeDoc';
 import { useClothingStore, Design, Collection, ProductionOrder } from '@/lib/stores/clothing.store';
 
@@ -362,6 +362,9 @@ function DraftingTab() {
 // ---------------------------------------------------------
 function Prototype3DTab() {
   const [mode, setMode] = useState<'fit' | 'strain' | 'physics'>('fit');
+  const [ready, setReady] = useState(false);
+  useEffect(() => { import('@google/model-viewer').then(() => setReady(true)); }, []);
+  if (!ready) return <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Loading 3D viewer...</div>;
   
   return (
     <div className="flex flex-col h-full p-4 gap-4">

@@ -15,22 +15,24 @@ import { FS, LocalFile } from '@/lib/fs';
 import { Toaster, toast } from 'sonner';
 import { MenuBar } from './menu-bar';
 import { Dock } from './dock';
-import { Launchpad } from './launchpad';
-import { MissionControl } from './mission-control';
-import { ControlCenter } from './control-center';
-import { LockScreen } from './lock-screen';
-import { ContextMenu, ContextMenuItem } from './context-menu';
-import { WidgetsLayer, Widget } from './widgets';
 import { WindowSwitcher } from './window-switcher';
 import { DesktopIcons } from './desktop-icons';
-import { SnapshotsMenu } from './snapshots-menu';
-import { NotchNook } from '@/components/dock/notch-nook';
-import { WidgetStack } from '@/components/notifications/widget-stack';
-import OnboardingWizard from '@/components/apps/onboarding-wizard';
+import { WidgetsLayer, Widget } from './widgets';
 import { LoginScreen } from '@/components/login-screen';
 import FeedbackWidget from '@/components/apps/feedback-widget';
 import { useOnboardingStore } from '@/lib/stores/onboarding.store';
 import { useNotificationStore } from '@/lib/stores/notification.store';
+
+const Launchpad = React.lazy(() => import('./launchpad').then(m => ({ default: m.Launchpad })));
+const MissionControl = React.lazy(() => import('./mission-control').then(m => ({ default: m.MissionControl })));
+const ControlCenter = React.lazy(() => import('./control-center').then(m => ({ default: m.ControlCenter })));
+const LockScreen = React.lazy(() => import('./lock-screen').then(m => ({ default: m.LockScreen })));
+const ContextMenu = React.lazy(() => import('./context-menu').then(m => ({ default: m.ContextMenu })));
+const SnapshotsMenu = React.lazy(() => import('./snapshots-menu').then(m => ({ default: m.SnapshotsMenu })));
+const NotchNook = React.lazy(() => import('@/components/dock/notch-nook').then(m => ({ default: m.NotchNook })));
+const WidgetStack = React.lazy(() => import('@/components/notifications/widget-stack').then(m => ({ default: m.WidgetStack })));
+const OnboardingWizard = React.lazy(() => import('@/components/apps/onboarding-wizard'));
+type ContextMenuItem = import('./context-menu').ContextMenuItem;
 
 function AppLoadingSkeleton() {
   return (
@@ -540,7 +542,7 @@ export function Desktop() {
   if (!currentUser) {
     return (
       <div className="fixed inset-0 w-full h-full overflow-hidden flex flex-col font-sans select-none">
-        {!onboarding.completed && <OnboardingWizard />}
+        {!onboarding.completed && <Suspense fallback={null}><OnboardingWizard /></Suspense>}
         {onboarding.completed && <LoginScreen />}
       </div>
     );
@@ -556,7 +558,7 @@ export function Desktop() {
       onDragLeave={() => setIsDraggingFile(false)}
       onDrop={handleDrop}
     >
-      {isLocked && <LockScreen onUnlock={() => setIsLocked(false)} />}
+      {isLocked && <Suspense fallback={null}><LockScreen onUnlock={() => setIsLocked(false)} /></Suspense>}
 
       <style>{`
         :root { --color-neon-blue: ${themeColor}; }
@@ -589,13 +591,13 @@ export function Desktop() {
         wipeSession={wipeSession}
       />
 
-      {showControlCenter && <ControlCenter onClose={() => setShowControlCenter(false)} />}
+      {showControlCenter && <Suspense fallback={null}><ControlCenter onClose={() => setShowControlCenter(false)} /></Suspense>}
 
       <main className="flex-1 relative z-10 w-full h-full overflow-hidden pointer-events-none">
         <DesktopIcons />
         <WidgetsLayer widgets={widgets} setWidgets={setWidgets} />
 
-        {showSnapshots && <SnapshotsMenu onClose={() => setShowSnapshots(false)} />}
+        {showSnapshots && <Suspense fallback={null}><SnapshotsMenu onClose={() => setShowSnapshots(false)} /></Suspense>}
 
         {visibleWindows.map(win => {
           const AppComponent = componentCacheRef.current.get(win.appId);
@@ -631,16 +633,16 @@ export function Desktop() {
       </main>
 
       {showSwitcher && <WindowSwitcher switcherIndex={switcherIndex} />}
-      {showLaunchpad && <Launchpad onClose={() => setShowLaunchpad(false)} />}
-      {showMissionControl && <MissionControl onClose={() => setShowMissionControl(false)} />}
+      {showLaunchpad && <Suspense fallback={null}><Launchpad onClose={() => setShowLaunchpad(false)} /></Suspense>}
+      {showMissionControl && <Suspense fallback={null}><MissionControl onClose={() => setShowMissionControl(false)} /></Suspense>}
       {showNotchNook && (
         <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-[300]">
-          <NotchNook />
+          <Suspense fallback={null}><NotchNook /></Suspense>
         </div>
       )}
       {showWidgetStack && (
         <div className="absolute top-12 right-4 z-[300]">
-          <WidgetStack />
+          <Suspense fallback={null}><WidgetStack /></Suspense>
         </div>
       )}
 
@@ -652,12 +654,14 @@ export function Desktop() {
       />
 
       {contextMenu && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          items={contextMenu.items}
-          onClose={() => setContextMenu(null)}
-        />
+        <Suspense fallback={null}>
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            items={contextMenu.items}
+            onClose={() => setContextMenu(null)}
+          />
+        </Suspense>
       )}
 
       {isDraggingFile && (
@@ -668,7 +672,7 @@ export function Desktop() {
         </div>
       )}
 
-      {!onboarding.completed && <OnboardingWizard />}
+      {!onboarding.completed && <Suspense fallback={null}><OnboardingWizard /></Suspense>}
       {onboarding.completed && <FeedbackWidget />}
 
       <Toaster
