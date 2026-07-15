@@ -9,7 +9,42 @@ export function WidgetStack({ window: osWindow }: { window?: any }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioFiles, setAudioFiles] = useState<LocalFile[]>([]);
   const [currentTrack, setCurrentTrack] = useState(0);
+  const [timerSeconds, setTimerSeconds] = useState(30 * 60);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerInput, setTimerInput] = useState('30');
+  const [showTimerInput, setShowTimerInput] = useState(false);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (!timerRunning || timerSeconds <= 0) {
+      setTimerRunning(false);
+      return;
+    }
+    const interval = setInterval(() => {
+      setTimerSeconds(prev => {
+        if (prev <= 1) {
+          setTimerRunning(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [timerRunning, timerSeconds]);
+
+  const formatTimer = (s: number) => {
+    const min = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  };
+
+  const changeTimer = () => {
+    const mins = parseInt(timerInput);
+    if (!isNaN(mins) && mins > 0) {
+      setTimerSeconds(mins * 60);
+      setTimerRunning(false);
+    }
+  };
 
   const now = new Date();
   const year = now.getFullYear();
@@ -176,21 +211,52 @@ export function WidgetStack({ window: osWindow }: { window?: any }) {
         </div>
 
         {/* Timer */}
-        <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/10 flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
-            </svg>
-            <span className="text-white text-xl font-light">30:00</span>
+        <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/10">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+              </svg>
+              <span className="text-white text-xl font-light">{formatTimer(timerSeconds)}</span>
+            </div>
+            <div className="ml-auto flex gap-2">
+              <button
+                onClick={() => {
+                  if (timerSeconds === 0) {
+                    setTimerSeconds(parseInt(timerInput) * 60 || 30 * 60);
+                  }
+                  setTimerRunning(!timerRunning);
+                }}
+                className="px-4 py-2 bg-white/10 rounded-xl text-white text-xs font-medium hover:bg-white/20 transition-colors"
+              >
+                {timerRunning ? 'Pause' : timerSeconds === 0 ? 'Start' : 'Resume'}
+              </button>
+              <button
+                onClick={() => setShowTimerInput(!showTimerInput)}
+                className="px-4 py-2 bg-white/10 rounded-xl text-white text-xs font-medium hover:bg-white/20 transition-colors"
+              >
+                Change<br />Timer
+              </button>
+            </div>
           </div>
-          <div className="ml-auto flex gap-2">
-            <button className="px-4 py-2 bg-white/10 rounded-xl text-white text-xs font-medium hover:bg-white/20 transition-colors">
-              Start
-            </button>
-            <button className="px-4 py-2 bg-white/10 rounded-xl text-white text-xs font-medium hover:bg-white/20 transition-colors">
-              Change<br />Timer
-            </button>
-          </div>
+          {showTimerInput && (
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/10">
+              <span className="text-white/60 text-xs">Minutes:</span>
+              <input
+                type="number"
+                value={timerInput}
+                onChange={(e) => setTimerInput(e.target.value)}
+                className="w-16 px-2 py-1 bg-white/10 rounded-lg text-white text-xs border border-white/20 focus:outline-none focus:ring-1 focus:ring-white/40"
+                min="1"
+              />
+              <button
+                onClick={() => { changeTimer(); setShowTimerInput(false); }}
+                className="px-3 py-1 bg-white/20 rounded-lg text-white text-xs font-medium hover:bg-white/30 transition-colors"
+              >
+                Set
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

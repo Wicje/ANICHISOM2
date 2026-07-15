@@ -1,13 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCampaignStore } from '@/lib/stores/campaign.store';
 import type { Page } from '@/lib/campaign-types';
 
-export function DigitalJournal() {
+export function DigitalJournal({ window: osWindow }: { window?: any }) {
   const pages = useCampaignStore((s) => s.pages);
+  const [checkedState, setCheckedState] = useState<Record<string, boolean>>({});
 
   const taskPages = pages.filter(
     (p: Page) => !p.trash && (p.level === 'task' || p.level === 'subtask')
@@ -15,20 +16,32 @@ export function DigitalJournal() {
 
   const primaryTasks = taskPages
     .filter((p: Page) => p.status === 'in-progress' || p.status === 'review')
-    .map((p: Page) => ({ text: p.title, checked: p.status === 'done' }));
+    .map((p: Page) => ({ text: p.title, id: p.id, checked: checkedState[p.id] ?? (p.status === 'done') }));
 
   const secondaryTasks = taskPages
     .filter(
       (p: Page) =>
         p.status === 'todo' || p.status === 'blocked' || p.status === undefined
     )
-    .map((p: Page) => ({ text: p.title, checked: p.status === 'done' }));
+    .map((p: Page) => ({ text: p.title, id: p.id, checked: checkedState[p.id] ?? (p.status === 'done') }));
+
+  const toggleCheck = (id: string) => {
+    setCheckedState(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
   });
+
+  const weeksRemaining = (() => {
+    const now = new Date();
+    const quarter = Math.floor(now.getMonth() / 3);
+    const endOfQuarter = new Date(now.getFullYear(), (quarter + 1) * 3, 0);
+    const diff = endOfQuarter.getTime() - now.getTime();
+    return Math.max(0, Math.ceil(diff / (7 * 86400000)));
+  })();
 
   return (
     <div className="w-full h-full flex items-center justify-center bg-[#c8d8c0] font-sans overflow-hidden p-8">
@@ -39,7 +52,7 @@ export function DigitalJournal() {
           <div className="mb-6">
             <div className="text-[9px] font-bold tracking-[0.3em] text-gray-400 uppercase mb-1">Current Timeline</div>
             <h1 className="text-3xl font-serif text-gray-900 mb-1">{today}</h1>
-            <p className="text-xs text-gray-400">Weeks remaining in quarter: 12</p>
+            <p className="text-xs text-gray-400">Weeks remaining in quarter: {weeksRemaining}</p>
           </div>
 
           {/* Primary Focus */}
@@ -47,7 +60,7 @@ export function DigitalJournal() {
             <h3 className="text-[9px] font-bold tracking-[0.3em] text-gray-400 uppercase mb-3">Primary Focus</h3>
             <div className="space-y-2">
               {primaryTasks.map((task, i) => (
-                <label key={i} className="flex items-start gap-2.5 cursor-pointer group">
+                <label key={i} className="flex items-start gap-2.5 cursor-pointer group" onClick={() => toggleCheck(task.id)}>
                   <div className={cn(
                     "w-4 h-4 rounded border flex items-center justify-center mt-0.5 shrink-0 transition-colors",
                     task.checked ? "bg-gray-900 border-gray-900" : "border-gray-300 group-hover:border-gray-400"
@@ -67,7 +80,7 @@ export function DigitalJournal() {
             <h3 className="text-[9px] font-bold tracking-[0.3em] text-gray-400 uppercase mb-3">Secondary Tasks</h3>
             <div className="space-y-2">
               {secondaryTasks.map((task, i) => (
-                <label key={i} className="flex items-start gap-2.5 cursor-pointer group">
+                <label key={i} className="flex items-start gap-2.5 cursor-pointer group" onClick={() => toggleCheck(task.id)}>
                   <div className={cn(
                     "w-4 h-4 rounded border flex items-center justify-center mt-0.5 shrink-0 transition-colors",
                     task.checked ? "bg-gray-900 border-gray-900" : "border-gray-300 group-hover:border-gray-400"

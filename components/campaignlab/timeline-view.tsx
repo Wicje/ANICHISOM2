@@ -31,14 +31,19 @@ function getDateLabel(ts: number): string {
 
 const sidebarIcons = [LayoutGrid, Plus, BarChart3, Folder, Tag, Zap, Settings];
 
-export function TimelineView() {
+export function TimelineView({ window: osWindow }: { window?: any }) {
   const pages = useCampaignStore((s) => s.pages);
   const [activeTab, setActiveTab] = useState<'day' | 'week' | 'month'>('day');
+  const [activeSidebar, setActiveSidebar] = useState(1);
   const [hoveredEntry, setHoveredEntry] = useState<number | null>(null);
 
   const entries = useMemo(() => {
+    const now = Date.now();
+    const dayMs = 86400000;
+    const cutoff = activeTab === 'day' ? now - dayMs : activeTab === 'week' ? now - 7 * dayMs : now - 30 * dayMs;
+
     const relevant = pages.filter(
-      (p) => !p.trash && (p.dueDate || p.updatedAt)
+      (p) => !p.trash && (p.dueDate || p.updatedAt) && p.updatedAt >= cutoff
     );
 
     relevant.sort((a, b) => b.updatedAt - a.updatedAt);
@@ -71,7 +76,7 @@ export function TimelineView() {
     }
 
     return result;
-  }, [pages]);
+  }, [pages, activeTab]);
 
   return (
     <div className="w-full h-full flex bg-[#f5f3f0] font-sans overflow-hidden rounded-xl">
@@ -80,9 +85,10 @@ export function TimelineView() {
         {sidebarIcons.map((Icon, i) => (
           <button
             key={i}
+            onClick={() => setActiveSidebar(i)}
             className={cn(
               "w-9 h-9 rounded-xl flex items-center justify-center transition-colors",
-              i === 1 ? "bg-gray-200 text-gray-800" : "text-gray-400 hover:bg-gray-200/50 hover:text-gray-600"
+              activeSidebar === i ? "bg-gray-200 text-gray-800" : "text-gray-400 hover:bg-gray-200/50 hover:text-gray-600"
             )}
           >
             <Icon className="w-4 h-4" />

@@ -39,8 +39,10 @@ const iconMap: Record<string, string> = {
   'assignment': '📋',
 };
 
-export function CommunityPage() {
+export function CommunityPage({ window: osWindow }: { window?: any }) {
   const [activeTab, setActiveTab] = useState<'feed' | 'payments' | 'members'>('feed');
+  const [activeSidebar, setActiveSidebar] = useState('Home');
+  const [searchQuery, setSearchQuery] = useState('');
   const notifications = useCampaignStore(s => s.notifications);
 
   const feedItems = useMemo(() =>
@@ -51,6 +53,30 @@ export function CommunityPage() {
     })),
     [notifications]
   );
+
+  const paymentItems = useMemo(() =>
+    notifications.filter((n: Notification) => n.type === 'assignment' || n.type === 'share').slice(0, 6).map((n: Notification, i: number) => ({
+      id: i + 1,
+      label: n.message.slice(0, 40),
+      amount: `$${(Math.random() * 100 + 10).toFixed(2)}`,
+      status: i % 2 === 0 ? 'Completed' : 'Pending',
+    })),
+    [notifications]
+  );
+
+  const memberItems = useMemo(() =>
+    notifications.slice(0, 8).map((n: Notification, i: number) => ({
+      name: n.message.split(' ').slice(0, 2).join(' ') || `Member ${i + 1}`,
+      role: i === 0 ? 'Admin' : i < 3 ? 'Moderator' : 'Member',
+      joined: relativeTime(n.createdAt),
+    })),
+    [notifications]
+  );
+
+  const filteredFeed = useMemo(() => {
+    if (!searchQuery) return feedItems;
+    return feedItems.filter(item => item.text.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [feedItems, searchQuery]);
 
   return (
     <div className="w-full h-full flex bg-[#0d1117] text-white font-sans overflow-hidden rounded-xl">
@@ -65,9 +91,10 @@ export function CommunityPage() {
           {sidebarItems.map((item, i) => (
             <button
               key={i}
+              onClick={() => setActiveSidebar(item.label)}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
-                item.active
+                activeSidebar === item.label
                   ? "bg-white/10 text-white font-medium"
                   : "text-white/50 hover:bg-white/5 hover:text-white/70"
               )}
@@ -99,6 +126,8 @@ export function CommunityPage() {
             <input
               type="text"
               placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-40 bg-white/5 border border-white/10 rounded-lg py-1.5 pl-9 pr-3 text-xs text-white outline-none focus:border-white/20"
             />
           </div>
@@ -146,15 +175,38 @@ export function CommunityPage() {
 
         {/* Content */}
         <div className="flex-1 flex px-6 pb-6 gap-6 overflow-hidden">
-          {/* Feed */}
+          {/* Feed / Payments / Members */}
           <div className="flex-1 space-y-3">
-            {feedItems.map((item, i) => (
+            {activeTab === 'feed' && filteredFeed.map((item, i) => (
               <div key={i} className="flex items-center gap-3 py-3 border-b border-white/5">
                 <span className="text-lg">{item.icon}</span>
                 <div className="flex-1">
                   <span className="text-sm text-white/80">{item.text}</span>
                 </div>
                 <span className="text-xs text-white/30">{item.time}</span>
+              </div>
+            ))}
+            {activeTab === 'payments' && paymentItems.map((item, i) => (
+              <div key={i} className="flex items-center gap-3 py-3 border-b border-white/5">
+                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                  <DollarSign className="w-4 h-4 text-green-400" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm text-white/80">{item.label}</div>
+                  <div className="text-[10px] text-white/40">{item.status}</div>
+                </div>
+                <span className="text-sm font-medium text-white/70">{item.amount}</span>
+              </div>
+            ))}
+            {activeTab === 'members' && memberItems.map((item, i) => (
+              <div key={i} className="flex items-center gap-3 py-3 border-b border-white/5">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-xs font-bold text-white">
+                  {item.name.charAt(0)}
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm text-white/80">{item.name}</div>
+                  <div className="text-[10px] text-white/40">{item.role} · Joined {item.joined}</div>
+                </div>
               </div>
             ))}
           </div>

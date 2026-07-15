@@ -52,16 +52,26 @@ function formatStatus(status?: string): string {
   return status.charAt(0).toUpperCase() + status.slice(1).replace(/-/g, ' ');
 }
 
-export function ProjectDashboard() {
+export function ProjectDashboard({ window: osWindow }: { window?: any }) {
   const [activeTab, setActiveTab] = useState<'active' | 'negotiating' | 'archived'>('active');
+  const [activeSidebar, setActiveSidebar] = useState('Projects');
   const pages = useCampaignStore(s => s.pages);
 
-  const projects = pages.filter(
+  const allProjects = pages.filter(
     p => !p.trash && (
       p.level === 'campaign' ||
       (!p.parentId && p.level !== 'subtask' && p.level !== 'task' && p.level !== 'phase')
     )
-  ).map((page: Page) => ({
+  );
+
+  const filteredProjects = allProjects.filter((page: Page) => {
+    if (activeTab === 'active') return page.status !== 'done';
+    if (activeTab === 'negotiating') return page.status === 'review' || page.status === 'blocked';
+    if (activeTab === 'archived') return page.status === 'done';
+    return true;
+  });
+
+  const projects = filteredProjects.map((page: Page) => ({
     name: page.title,
     date: formatTimestamp(page.updatedAt),
     status: formatStatus(page.status),
@@ -71,6 +81,7 @@ export function ProjectDashboard() {
     budget: `${page.blocks?.length || 0} blocks`,
     due: page.dueDate ? `Due ${page.dueDate}` : 'No due date',
     messages: page.blocks?.length || 0,
+    id: page.id,
   }));
 
   return (
@@ -108,9 +119,10 @@ export function ProjectDashboard() {
                 {section.items.map((item, ii) => (
                   <button
                     key={ii}
+                    onClick={() => setActiveSidebar(item.label)}
                     className={cn(
                       "flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-colors",
-                      item.active
+                      activeSidebar === item.label
                         ? "bg-gray-100 text-gray-900 font-medium"
                         : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                     )}
@@ -165,7 +177,7 @@ export function ProjectDashboard() {
           {/* Project cards */}
           <div className="flex gap-6 overflow-x-auto pb-4">
             {projects.map((project, i) => (
-              <div key={i} className="w-80 shrink-0 bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow">
+              <div key={i} className="w-80 shrink-0 bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow cursor-pointer" onClick={() => console.log('Project clicked:', project)}>
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50">
                   <div className="flex items-center gap-2">

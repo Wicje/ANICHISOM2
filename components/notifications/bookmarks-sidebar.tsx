@@ -65,8 +65,21 @@ const sidebarItems = [
   { id: 'extensions', icon: Puzzle, label: 'Extensions' },
 ];
 
-export function BookmarksSidebar() {
+export function BookmarksSidebar({ window: osWindow }: { window?: any }) {
   const [activeItem, setActiveItem] = useState('bookmarks');
+  const [bookmarksList, setBookmarksList] = useState(bookmarks);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showChangeTimer, setShowChangeTimer] = useState(false);
+
+  const filteredBookmarks = bookmarksList.filter(b =>
+    b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    b.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    b.tags.some(t => t.label.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const removeBookmark = (index: number) => {
+    setBookmarksList(prev => prev.filter((_, i) => i !== index));
+  };
 
   return (
     <div className="w-full h-full flex bg-[#f5f5f5] font-sans overflow-hidden rounded-xl">
@@ -122,11 +135,23 @@ export function BookmarksSidebar() {
 
         {/* Bookmarks list */}
         <div className="flex-1 overflow-y-auto px-8 pb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Today, June 10</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Today, {new Date().toLocaleDateString()}</h2>
+
+          <div className="mb-6">
+            <input
+              type="text"
+              placeholder="Search bookmarks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg bg-gray-100 border border-gray-200 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
 
           <div className="space-y-6">
-            {bookmarks.map((item, i) => (
-              <div key={i} className="flex gap-4">
+            {filteredBookmarks.map((item, i) => {
+              const realIndex = bookmarksList.indexOf(item);
+              return (
+              <div key={i} className="flex gap-4 group">
                 {/* Avatar */}
                 <div className={cn("w-12 h-12 rounded-full flex items-center justify-center text-2xl shrink-0", item.avatarColor)}>
                   {item.avatar}
@@ -141,6 +166,12 @@ export function BookmarksSidebar() {
                     </svg>
                     <span className="text-xs text-gray-400">{item.handle}</span>
                     {item.time && <span className="text-xs text-gray-400 ml-auto">{item.time}</span>}
+                    <button
+                      onClick={() => removeBookmark(realIndex)}
+                      className="ml-1 w-5 h-5 rounded-full bg-gray-200 text-gray-500 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-white transition-all"
+                    >
+                      ×
+                    </button>
                   </div>
                   <p className="text-sm text-gray-600 mb-2 line-clamp-2">{item.text}</p>
                   {item.tags.length > 0 && (
@@ -154,7 +185,8 @@ export function BookmarksSidebar() {
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

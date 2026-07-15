@@ -7,15 +7,6 @@ import { useCollaborativeDoc, CollaborativeDocState } from '@/lib/hooks/useColla
 
 type ViewMode = 'player' | 'coverflow';
 
-// Coverflow tracks data
-const coverflowTracks = [
-  { title: 'Diamonds Glac...', artist: 'Rihanna', color: '#8B7355' },
-  { title: 'Velvet Rive...', artist: 'Rihanna', color: '#555' },
-  { title: 'Blinding Lights', artist: 'The Weeknd', color: '#C4842D' },
-  { title: 'Papa 1 Theme', artist: 'Tyler', color: '#444' },
-  { title: 'Chennai Express', artist: 'Raja, Ila,...', color: '#555' },
-];
-
 export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
   const { workspaceMode } = useOS();
   const collab = useCollaborativeDoc({
@@ -45,6 +36,13 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
 
   const isAudio = currentMimeType?.startsWith('audio/');
   const isVideo = currentMimeType?.startsWith('video/') || (!isAudio && currentFileUrl);
+
+  const coverflowTracks = mediaFiles.map((f, i) => ({
+    title: f.name.replace(/\.[^.]+$/, '').substring(0, 15),
+    artist: f.mimeType?.startsWith('audio/') ? 'Audio File' : 'Video File',
+    color: `hsl(${(i * 47) % 360}, 40%, 30%)`,
+    file: f,
+  }));
 
   // Fetch local media files from OS filesystem
   useEffect(() => {
@@ -266,7 +264,16 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
                     transform: `translateX(${offset * 120}px) scale(${isActive ? 1 : 0.85}) rotateY(${offset * -8}deg)`,
                     opacity: absOffset > 2 ? 0 : 1 - absOffset * 0.2,
                   }}
-                  onClick={() => setCoverflowIndex(i)}
+                  onClick={() => {
+                    setCoverflowIndex(i);
+                    const f = coverflowTracks[i]?.file;
+                    if (f?.content) {
+                      setCurrentFileUrl(f.content);
+                      setCurrentMimeType(f.mimeType);
+                      setCurrentTitle(f.name.replace(/\.[^.]+$/, ''));
+                      setIsPlaying(true);
+                    }
+                  }}
                 >
                   <div className="w-full h-full rounded-xl flex items-end p-4" style={{ background: `linear-gradient(135deg, ${track.color}, ${track.color}dd)` }}>
                     <div className="w-full">

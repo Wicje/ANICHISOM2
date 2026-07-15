@@ -95,12 +95,33 @@ export function NothingProduct({ window: osWindow }: { window: any }) {
 
           {/* Color selector */}
           <div className="mb-6">
-            <button className="flex items-center gap-2 text-xs font-medium text-gray-900 tracking-wider">
+            <button
+              onClick={() => setSelectedColor(prev => prev === 'WHITE' ? 'BLACK' : 'WHITE')}
+              className="flex items-center gap-2 text-xs font-medium text-gray-900 tracking-wider"
+            >
               {selectedColor}
               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M6 9l6 6 6-6" />
               </svg>
             </button>
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => setSelectedColor('WHITE')}
+                className={cn(
+                  "w-6 h-6 rounded-full border-2 transition-colors",
+                  selectedColor === 'WHITE' ? "border-gray-900" : "border-gray-300"
+                )}
+                style={{ background: 'linear-gradient(135deg, #f5f5f5, #e0e0e0)' }}
+              />
+              <button
+                onClick={() => setSelectedColor('BLACK')}
+                className={cn(
+                  "w-6 h-6 rounded-full border-2 transition-colors",
+                  selectedColor === 'BLACK' ? "border-gray-900" : "border-gray-300"
+                )}
+                style={{ background: 'linear-gradient(135deg, #333, #111)' }}
+              />
+            </div>
           </div>
 
           {/* Price and CTA */}

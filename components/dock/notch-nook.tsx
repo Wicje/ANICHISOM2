@@ -9,6 +9,7 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioFiles, setAudioFiles] = useState<LocalFile[]>([]);
   const [currentTrack, setCurrentTrack] = useState(0);
+  const [activeTab, setActiveTab] = useState<'nook' | 'tray'>('nook');
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -66,10 +67,22 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
       <div className="flex items-center gap-6 bg-[#1c1c1e]/95 backdrop-blur-2xl rounded-2xl px-5 py-3 shadow-2xl border border-white/10 max-w-lg">
         {/* Tab indicators */}
         <div className="flex items-center gap-3 shrink-0">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-xs font-medium text-white">
+          <button
+            onClick={() => setActiveTab('nook')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+              activeTab === 'nook' ? "bg-white/10 text-white" : "text-white/50 hover:text-white/80"
+            )}
+          >
             <Music className="w-3 h-3" /> Nook
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-white/50 hover:text-white/80 transition-colors">
+          <button
+            onClick={() => setActiveTab('tray')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+              activeTab === 'tray' ? "bg-white/10 text-white" : "text-white/50 hover:text-white/80"
+            )}
+          >
             <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" />
             </svg>

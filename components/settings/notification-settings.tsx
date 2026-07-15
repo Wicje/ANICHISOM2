@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Home, LayoutDashboard, Folder, CheckSquare, BarChart3, Users,
   LifeBuoy, Settings, Search, ChevronDown, ChevronLeft
@@ -13,7 +13,9 @@ interface NotificationCategory {
   channels: { push: boolean; email: boolean; sms: boolean };
 }
 
-const categories: NotificationCategory[] = [
+const STORAGE_KEY = 'anichisom-notification-prefs';
+
+const defaultCategories: NotificationCategory[] = [
   {
     name: 'Comments',
     description: 'These are notifications for comments on your posts and replies to your comments.',
@@ -54,14 +56,27 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void 
 }
 
 export function NotificationSettings({ window: osWindow }: { window?: any }) {
-  const [notifs, setNotifs] = useState(categories);
+  const [notifs, setNotifs] = useState<NotificationCategory[]>(defaultCategories);
+  const [activeSidebar, setActiveSidebar] = useState('Projects');
+  const [activeTab, setActiveTab] = useState(7);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) setNotifs(JSON.parse(saved));
+    } catch { /* ignore */ }
+  }, []);
 
   const toggleChannel = (catIndex: number, channel: 'push' | 'email' | 'sms') => {
-    setNotifs(prev => prev.map((cat, i) =>
-      i === catIndex
-        ? { ...cat, channels: { ...cat.channels, [channel]: !cat.channels[channel] } }
-        : cat
-    ));
+    setNotifs(prev => {
+      const next = prev.map((cat, i) =>
+        i === catIndex
+          ? { ...cat, channels: { ...cat.channels, [channel]: !cat.channels[channel] } }
+          : cat
+      );
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
   };
 
   const sidebarItems = [
@@ -104,9 +119,10 @@ export function NotificationSettings({ window: osWindow }: { window?: any }) {
           {sidebarItems.map((item, i) => (
             <button
               key={i}
+              onClick={() => setActiveSidebar(item.label)}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-colors",
-                i === 2
+                activeSidebar === item.label
                   ? "bg-blue-50 text-blue-700 font-medium"
                   : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
               )}
@@ -162,9 +178,10 @@ export function NotificationSettings({ window: osWindow }: { window?: any }) {
             {tabs.map((tab, i) => (
               <button
                 key={i}
+                onClick={() => setActiveTab(i)}
                 className={cn(
                   "px-4 py-2.5 text-sm whitespace-nowrap border-b-2 transition-colors -mb-px",
-                  i === 7
+                  activeTab === i
                     ? "border-blue-600 text-blue-600 font-medium"
                     : "border-transparent text-gray-500 hover:text-gray-700"
                 )}

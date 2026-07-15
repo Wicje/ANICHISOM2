@@ -1,11 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { FS, LocalFile } from '@/lib/fs';
 import {
   Download, FileText, Monitor, HardDrive, Cloud, WifiOff, Search,
   ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+function formatSize(bytes?: number): string {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
 
 const sidebarSections = [
   {
@@ -28,23 +36,6 @@ const sidebarSections = [
   },
 ];
 
-interface FileItem {
-  name: string;
-  items: number;
-}
-
-const todayFiles: FileItem[] = [
-  { name: 'geist-font', items: 6 },
-  { name: 'PulseBoard', items: 12 },
-  { name: 'Atlas', items: 8 },
-];
-
-const yesterdayFiles: FileItem[] = [
-  { name: 'AEUX_0.8.2', items: 4 },
-  { name: 'Invoices', items: 48 },
-  { name: 'Liquid', items: 2 },
-];
-
 function FolderIconLarge() {
   return (
     <svg viewBox="0 0 80 65" fill="none" className="w-full h-full">
@@ -64,8 +55,37 @@ function FolderIconLarge() {
   );
 }
 
-export function FinderDark() {
+export function FinderDark({ window: osWindow }: { window?: any }) {
   const [activeItem, setActiveItem] = useState('downloads');
+  const [files, setFiles] = useState<LocalFile[]>([]);
+  const [currentPath, setCurrentPath] = useState('');
+  const [navStack, setNavStack] = useState<string[]>(['']);
+  const [navIndex, setNavIndex] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const loadFiles = async () => {
+      try {
+        const pathMap: Record<string, string> = {
+          downloads: 'Downloads',
+          documents: 'Documents',
+          desktop: 'Desktop',
+          applications: '',
+          icloud: '',
+          user: '',
+          airdrop: '',
+          network: '',
+        };
+        const dir = pathMap[activeItem] ?? '';
+        const items = await FS.readDir(dir);
+        setFiles(items || []);
+        setCurrentPath(dir);
+      } catch {
+        setFiles([]);
+      }
+    };
+    loadFiles();
+  }, [activeItem]);
 
   return (
     <div className="w-full h-full flex bg-[#1e1e1e]/95 backdrop-blur-2xl rounded-xl overflow-hidden shadow-2xl border border-white/10 font-sans">
@@ -88,7 +108,13 @@ export function FinderDark() {
                 {section.items.map(item => (
                   <button
                     key={item.id}
-                    onClick={() => setActiveItem(item.id)}
+                    onClick={() => {
+                      const newStack = [...navStack.slice(0, navIndex + 1), item.id];
+                      setNavStack(newStack);
+                      setNavIndex(newStack.length - 1);
+                      setActiveItem(item.id);
+                      setSearchQuery('');
+                    }}
                     className={cn(
                       "flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors",
                       activeItem === item.id
@@ -112,20 +138,42 @@ export function FinderDark() {
         <div className="h-12 flex items-center justify-between px-4 border-b border-white/5 shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1">
-              <button className="p-1 rounded hover:bg-white/10 text-white/40">
+              <button
+                className="p-1 rounded hover:bg-white/10 text-white/40 disabled:opacity-30"
+                disabled={navIndex <= 0}
+                onClick={() => {
+                  if (navIndex > 0) {
+                    const prev = navStack[navIndex - 1] ?? '';
+                    setNavIndex(navIndex - 1);
+                    setActiveItem(prev);
+                  }
+                }}
+              >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <button className="p-1 rounded hover:bg-white/10 text-white/40">
+              <button
+                className="p-1 rounded hover:bg-white/10 text-white/40 disabled:opacity-30"
+                disabled={navIndex >= navStack.length - 1}
+                onClick={() => {
+                  if (navIndex < navStack.length - 1) {
+                    const next = navStack[navIndex + 1] ?? '';
+                    setNavIndex(navIndex + 1);
+                    setActiveItem(next);
+                  }
+                }}
+              >
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
-            <h2 className="text-[15px] font-semibold text-white">Downloads</h2>
+            <h2 className="text-[15px] font-semibold text-white">{currentPath || 'Home'}</h2>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
             <input
               type="text"
               placeholder=""
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-40 bg-white/5 border border-white/10 rounded-md py-1 pl-8 pr-3 text-xs text-white outline-none focus:border-white/20"
             />
           </div>
@@ -133,53 +181,43 @@ export function FinderDark() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* Today */}
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold text-white/80 mb-3">Today</h3>
-            <div className="grid grid-cols-3 gap-4">
-              {todayFiles.map((file, i) => (
-                <div key={i} className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-white/5 cursor-pointer transition-colors">
-                  <div className="w-16 h-14">
-                    <FolderIconLarge />
-                  </div>
-                  <span className="text-[11px] text-white/80 text-center font-medium">{file.name}</span>
-                  <span className="text-[9px] text-white/30">{file.items} items</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Yesterday */}
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold text-white/80 mb-3">Yesterday</h3>
-            <div className="grid grid-cols-3 gap-4">
-              {yesterdayFiles.map((file, i) => (
-                <div key={i} className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-white/5 cursor-pointer transition-colors">
-                  <div className="w-16 h-14">
-                    <FolderIconLarge />
-                  </div>
-                  <span className="text-[11px] text-white/80 text-center font-medium">{file.name}</span>
-                  <span className="text-[9px] text-white/30">{file.items} items</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Previous 7 Days */}
-          <div>
-            <h3 className="text-sm font-semibold text-white/80 mb-3">Previous 7 Days</h3>
-            <div className="grid grid-cols-3 gap-4">
-              {[{ name: 'Projects', items: 24 }, { name: 'Backups', items: 7 }].map((file, i) => (
-                <div key={i} className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-white/5 cursor-pointer transition-colors">
-                  <div className="w-16 h-14">
-                    <FolderIconLarge />
-                  </div>
-                  <span className="text-[11px] text-white/80 text-center font-medium">{file.name}</span>
-                  <span className="text-[9px] text-white/30">{file.items} items</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          {(() => {
+            const filtered = files.filter((f) =>
+              !searchQuery || f.name.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+            if (filtered.length === 0) {
+              return <p className="text-white/30 text-sm mt-8 text-center">No items</p>;
+            }
+            return (
+              <div className="grid grid-cols-3 gap-4">
+                {filtered.map((file) => {
+                  const isFolder = !file.mimeType || file.mimeType.endsWith('/');
+                  return (
+                    <div
+                      key={file.id}
+                      className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-white/5 cursor-pointer transition-colors"
+                      onClick={() => {
+                        if (isFolder) {
+                          const newStack = [...navStack.slice(0, navIndex + 1), activeItem];
+                          setNavStack(newStack);
+                          setNavIndex(newStack.length - 1);
+                          setActiveItem(file.name);
+                        }
+                      }}
+                    >
+                      <div className="w-16 h-14">
+                        <FolderIconLarge />
+                      </div>
+                      <span className="text-[11px] text-white/80 text-center font-medium">{file.name}</span>
+                      <span className="text-[9px] text-white/30">
+                        {isFolder ? (file.size ?? 0) + ' items' : formatSize(file.size)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

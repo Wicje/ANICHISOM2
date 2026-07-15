@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -10,6 +10,7 @@ interface Movie {
   streaming: string;
   countries: number;
   posterColor: string;
+  posterPath?: string;
 }
 
 const movies: Movie[] = [
@@ -23,8 +24,51 @@ const movies: Movie[] = [
   { title: 'Past Lives', year: 2023, streaming: 'Streaming 23 countries', countries: 23, posterColor: '#4682B4' },
 ];
 
-export function MovieBrowser() {
+export function MovieBrowser({ window: osWindow }: { window?: any }) {
   const [activeTab, setActiveTab] = useState<'popular' | 'new' | 'upcoming'>('popular');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Movie[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (!debouncedQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const searchMovies = async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch(
+          `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(debouncedQuery)}&api_key=demo&language=en-US&page=1`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(
+            (data.results || []).slice(0, 8).map((m: any) => ({
+              title: m.title || 'Untitled',
+              year: m.release_date ? parseInt(m.release_date) : 0,
+              streaming: m.overview ? m.overview.slice(0, 60) + '...' : 'No description',
+              countries: m.vote_count || 0,
+              posterColor: `hsl(${Math.abs(m.id * 37) % 360}, 40%, 30%)`,
+              posterPath: m.poster_path ? `https://image.tmdb.org/t/p/w300${m.poster_path}` : undefined,
+            }))
+          );
+        }
+      } catch {
+        // API may not be available, fall back to static data
+      }
+      setIsLoading(false);
+    };
+    searchMovies();
+  }, [debouncedQuery]);
+
+  const displayMovies = searchResults.length > 0 ? searchResults : movies;
 
   return (
     <div className="w-full h-full flex flex-col bg-white font-sans overflow-hidden">
@@ -59,6 +103,8 @@ export function MovieBrowser() {
           <input
             type="text"
             placeholder="Search movies or tv shows..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-64 bg-gray-100 rounded-full py-2 pl-10 pr-4 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-gray-200"
           />
         </div>
@@ -71,16 +117,19 @@ export function MovieBrowser() {
       {/* Grid */}
       <div className="flex-1 overflow-y-auto px-8 pb-8">
         <div className="grid grid-cols-4 gap-x-6 gap-y-8">
-          {movies.map((movie, i) => (
+          {displayMovies.map((movie, i) => (
             <div key={i} className="flex flex-col gap-3 group cursor-pointer">
               <div className="relative rounded-xl overflow-hidden aspect-[2/3] shadow-md group-hover:shadow-xl transition-shadow">
-                <div
-                  className="w-full h-full"
-                  style={{ background: `linear-gradient(135deg, ${movie.posterColor}, ${movie.posterColor}cc)` }}
-                />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-white/30 text-lg font-bold">{movie.title.charAt(0)}</span>
-                </div>
+                {movie.posterPath ? (
+                  <img src={movie.posterPath} alt={movie.title} className="w-full h-full object-cover" />
+                ) : (
+                  <>
+                    <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${movie.posterColor}, ${movie.posterColor}cc)` }} />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-white/30 text-lg font-bold">{movie.title.charAt(0)}</span>
+                    </div>
+                  </>
+                )}
               </div>
               <div>
                 <div className="flex items-baseline justify-between">

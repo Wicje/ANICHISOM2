@@ -58,8 +58,9 @@ const neuralinkTree: Array<{ label: string; count?: number; indent?: boolean; ex
   { label: 'Channels', count: 12, indent: true },
 ];
 
-export function FileManagement() {
+export function FileManagement({ window: osWindow }: { window?: any }) {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [activeSidebar, setActiveSidebar] = useState('Dashboard');
   const pages = useCampaignStore((s) => s.pages);
 
   const folders: FolderItem[] = useMemo(() => {
@@ -102,7 +103,7 @@ export function FileManagement() {
             <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Folders</div>
             <div className="flex flex-col gap-0.5">
               {sidebarTree.map((item, i) => (
-                <button key={i} className="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-gray-600 hover:bg-gray-50">
+                <button key={i} onClick={() => setActiveSidebar(item.label)} className={cn("flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-colors", activeSidebar === item.label ? "bg-gray-100 text-gray-900 font-medium" : "text-gray-600 hover:bg-gray-50")}>
                   <div className="flex items-center gap-2">
                     {item.label === 'Dashboard' && <LayoutDashboard className="w-3.5 h-3.5 text-gray-400" />}
                     {item.label === 'Calendar' && <Calendar className="w-3.5 h-3.5 text-gray-400" />}
@@ -122,9 +123,9 @@ export function FileManagement() {
             <div className="flex flex-col gap-0.5">
               {neuralinkTree.map((item, i) => (
                 <React.Fragment key={i}>
-                  <button className={cn(
+                  <button onClick={() => setActiveSidebar(item.label)} className={cn(
                     "flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-colors",
-                    'active' in item && item.active ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-600 hover:bg-gray-50"
+                    activeSidebar === item.label ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-600 hover:bg-gray-50"
                   )}>
                     <div className="flex items-center gap-2">
                       {item.expanded ? <ChevronDown className="w-3 h-3 text-gray-400" /> : item.children ? <ChevronRight className="w-3 h-3 text-gray-400" /> : <div className="w-3" />}
@@ -186,8 +187,8 @@ export function FileManagement() {
             <div className="flex items-center gap-4">
               <h1 className="text-lg font-bold text-gray-900">Documents</h1>
               <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
-                <button className="px-3 py-1 rounded-md text-xs font-medium text-gray-700 bg-white shadow-sm">List View</button>
-                <button className="px-3 py-1 rounded-md text-xs font-medium text-gray-500 hover:text-gray-700">
+                <button onClick={() => setViewMode('list')} className={cn("px-3 py-1 rounded-md text-xs font-medium transition-colors", viewMode === 'list' ? "text-gray-700 bg-white shadow-sm" : "text-gray-500 hover:text-gray-700")}>List View</button>
+                <button onClick={() => setViewMode('grid')} className={cn("px-3 py-1 rounded-md text-xs font-medium transition-colors", viewMode === 'grid' ? "text-gray-700 bg-white shadow-sm" : "text-gray-500 hover:text-gray-700")}>
                   <Grid3x3 className="w-3.5 h-3.5 inline mr-1" />
                   Grid
                 </button>
@@ -200,7 +201,7 @@ export function FileManagement() {
 
         {/* Folder cards */}
         <div className="px-6 py-4 border-b border-gray-100">
-          <div className="flex gap-4">
+          <div className={cn(viewMode === 'grid' ? "grid grid-cols-3 gap-4" : "flex gap-4")}>
             {folders.map((folder, i) => (
               <div key={i} className="flex-1 bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition-shadow cursor-pointer">
                 <div className="w-14 h-12 mb-3">
@@ -226,6 +227,7 @@ export function FileManagement() {
 
         {/* File list */}
         <div className="flex-1 overflow-y-auto">
+          {viewMode === 'list' ? (
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100">
@@ -256,6 +258,23 @@ export function FileManagement() {
               ))}
             </tbody>
           </table>
+          ) : (
+          <div className="grid grid-cols-3 gap-4 p-6">
+            {files.map((file, i) => (
+              <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition-shadow cursor-pointer">
+                <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mb-3">
+                  <span className="text-blue-500 text-sm">📄</span>
+                </div>
+                <div className="text-xs font-medium text-gray-700 mb-1">{file.name}</div>
+                <div className="text-[10px] text-gray-400">{file.date}</div>
+                <div className="flex items-center gap-1.5 mt-2">
+                  <div className={cn("w-4 h-4 rounded-full", file.avatarColor)} />
+                  <span className="text-[10px] text-gray-500">{file.addedBy}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          )}
         </div>
       </div>
     </div>
