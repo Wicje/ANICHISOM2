@@ -5,7 +5,7 @@ import { useOS, OSWindow } from '@/lib/os-context';
 import {
   Folder, File as FileIcon, FileText, Image as ImageIcon, Video, Box, Search,
   Plus, Trash2, HardDrive, RefreshCw, ChevronRight, Download, Upload,
-  Cloud, WifiOff, Link, Unlink, Loader2, ExternalLink, Lock, Eye
+  Cloud, Link, Unlink, Loader2, ExternalLink, Lock, Eye
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FS, LocalFile } from '@/lib/fs';
@@ -120,15 +120,15 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
     setCloudLoading(false);
   };
 
-  // Connect a cloud storage provider
+  // Connect a cloud storage provider — opens OAuth flow in the OS browser
   const handleConnect = async (providerId: string) => {
     setConnectLoading(providerId);
     try {
       const res = await fetch(`/api/storage/connect/${providerId}`);
       if (res.ok) {
         const data = await res.json();
-        // Open OAuth URL in the mini-browser or external window
-        window.open(data.authUrl, '_blank');
+        // Open OAuth flow inside the OS browser instead of external tab
+        openWindow('browser', `Connect ${providerId}`, { url: data.authUrl });
       }
     } catch (err) {
       console.error('Connect error:', err);
@@ -444,27 +444,8 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
             </>
           )}
 
-          {/* Quick Links */}
-          <div className="px-3 mt-6 mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--os-text-muted)]">Quick Links</div>
-          <div className="flex flex-col gap-1 px-2">
-            {[
-              { name: 'Google Drive', url: 'https://drive.google.com', icon: '🟢' },
-              { name: 'Google Photos', url: 'https://photos.google.com', icon: '🟡' },
-              { name: 'Dropbox', url: 'https://www.dropbox.com', icon: '🔵' },
-            ].map(link => (
-              <button
-                key={link.name}
-                onClick={() => window.open(link.url, '_blank')}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-[var(--os-text-muted)] hover:bg-[var(--os-hover)] hover:text-[var(--os-text)] transition-colors"
-              >
-                <span className="text-base">{link.icon}</span>
-                {link.name}
-              </button>
-            ))}
-          </div>
-
           {/* Refresh cloud sources */}
-          <div className="px-3 mt-4">
+          <div className="px-3 mt-6">
             <button
               onClick={() => { fetchCloudSources(); if (selectedSource !== 'local') fetchCloudFiles(selectedSource, cloudPath); }}
               className="flex items-center gap-2 px-3 py-1.5 text-[10px] text-[var(--os-text-muted)] hover:text-[var(--os-text)] transition-colors"
@@ -706,18 +687,6 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                     onDoubleClick={() => handleCloudFileOpen(file)}
                     className="group flex flex-col items-center p-4 rounded-xl border border-transparent hover:bg-[var(--os-hover)] hover:border-[var(--os-border)] hover:shadow-xl transition-all cursor-pointer relative"
                   >
-                    {file.webUrl && (
-                      <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); window.open(file.webUrl!, '_blank'); }}
-                          className="p-1.5 hover:bg-emerald-500 rounded-md bg-[var(--os-surface-elevated)] backdrop-blur border border-[var(--os-border)]"
-                          title="Open in browser"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
-                        </button>
-                      </div>
-                    )}
-
                     <div className="w-16 h-16 mb-4 flex items-center justify-center relative">
                       {file.isFolder ? (
                         <Folder className="w-12 h-12 text-emerald-400 drop-shadow-md" fill="currentColor" />

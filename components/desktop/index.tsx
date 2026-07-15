@@ -69,25 +69,45 @@ function AppCrashFallback({ appId, onRetry }: { appId: string; onRetry: () => vo
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
+  retryCount: number;
 }
 
 class WindowErrorBoundary extends React.Component<
   { children: React.ReactNode; appId: string; onRetry: () => void },
   ErrorBoundaryState
 > {
-  state: ErrorBoundaryState = { hasError: false, error: null };
+  state: ErrorBoundaryState = { hasError: false, error: null, retryCount: 0 };
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error(`[App:${this.props.appId}] crashed:`, error, info.componentStack);
+    // Auto-retry once after a short delay
+    if (this.state.retryCount < 1) {
+      setTimeout(() => {
+        this.setState(prev => ({ hasError: false, error: null, retryCount: prev.retryCount + 1 }));
+      }, 500);
+    }
   }
 
   render() {
     if (this.state.hasError) {
-      return <AppCrashFallback appId={this.props.appId} onRetry={this.props.onRetry} />;
+      if (this.state.retryCount < 1) {
+        return (
+          <div className="w-full h-full flex items-center justify-center" style={{ background: 'var(--os-surface)' }}>
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--os-primary)', borderTopColor: 'transparent' }} />
+              <span className="text-xs font-medium" style={{ color: 'var(--os-text-muted)' }}>Reloading...</span>
+            </div>
+          </div>
+        );
+      }
+      return <AppCrashFallback appId={this.props.appId} onRetry={() => {
+        this.setState({ hasError: false, error: null, retryCount: 0 });
+        this.props.onRetry();
+      }} />;
     }
     return this.props.children;
   }
@@ -241,7 +261,16 @@ export function Desktop() {
           }
         } catch (err) {
           console.error(`[Desktop] Failed to load app "${appId}":`, err);
-          failedImportsRef.current.add(appId);
+          // Auto-retry once after a short delay for transient failures
+          if (!failedImportsRef.current.has(`retry:${appId}`)) {
+            failedImportsRef.current.add(`retry:${appId}`);
+            setTimeout(() => {
+              failedImportsRef.current.delete(`retry:${appId}`);
+              setComponentCacheVersion(v => v + 1);
+            }, 1000);
+          } else {
+            failedImportsRef.current.add(appId);
+          }
         }
       }
       if (changed) setComponentCacheVersion(v => v + 1);
