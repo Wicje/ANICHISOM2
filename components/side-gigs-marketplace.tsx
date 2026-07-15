@@ -574,3 +574,5 @@ export function SideGigsMarketplace() {
     </div>
   );
 }
+
+export default SideGigsMarketplace;

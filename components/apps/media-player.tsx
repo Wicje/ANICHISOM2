@@ -1,9 +1,20 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
-import { Play, Pause, SkipForward, SkipBack, Volume2, Maximize, Film, Music, ListVideo, X, LayoutGrid } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Volume2, Maximize, Film, Music, ListVideo, X, LayoutGrid, Disc } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FS, LocalFile } from '@/lib/fs';
 import { useCollaborativeDoc, CollaborativeDocState } from '@/lib/hooks/useCollaborativeDoc';
+
+type ViewMode = 'player' | 'coverflow';
+
+// Coverflow tracks data
+const coverflowTracks = [
+  { title: 'Diamonds Glac...', artist: 'Rihanna', color: '#8B7355' },
+  { title: 'Velvet Rive...', artist: 'Rihanna', color: '#555' },
+  { title: 'Blinding Lights', artist: 'The Weeknd', color: '#C4842D' },
+  { title: 'Papa 1 Theme', artist: 'Tyler', color: '#444' },
+  { title: 'Chennai Express', artist: 'Raja, Ila,...', color: '#555' },
+];
 
 export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
   const { workspaceMode } = useOS();
@@ -23,6 +34,8 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
   const [volume, setVolume] = useState(1);
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [mediaFiles, setMediaFiles] = useState<LocalFile[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>('player');
+  const [coverflowIndex, setCoverflowIndex] = useState(2);
 
   const [currentFileUrl, setCurrentFileUrl] = useState<string | undefined>(osWindow.data?.fileUrl);
   const [currentMimeType, setCurrentMimeType] = useState<string | undefined>(osWindow.data?.mimeType);
@@ -222,6 +235,79 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
      setCurrentTitle(mediaFiles[0]!.name);
   }
 
+  // Coverflow View
+  if (viewMode === 'coverflow') {
+    return (
+      <div className="flex flex-col w-full h-full bg-gradient-to-b from-[#C4842D] via-[#A06820] to-[#7A4E15] font-sans overflow-hidden">
+        {/* View Toggle */}
+        <div className="absolute top-4 right-4 z-30">
+          <button onClick={() => setViewMode('player')} className="p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md transition-colors" title="Switch to Player">
+            <Play className="w-4 h-4 text-white" />
+          </button>
+        </div>
+
+        {/* Cover Flow */}
+        <div className="relative w-full h-[60%] flex items-center justify-center" style={{ perspective: '800px' }}>
+          <div className="relative flex items-center justify-center w-full h-full">
+            {coverflowTracks.map((track, i) => {
+              const offset = i - coverflowIndex;
+              const absOffset = Math.abs(offset);
+              const isActive = i === coverflowIndex;
+              return (
+                <div
+                  key={i}
+                  className={cn(
+                    "absolute transition-all duration-500 cursor-pointer rounded-xl overflow-hidden shadow-2xl",
+                    isActive ? "z-20" : "z-10"
+                  )}
+                  style={{
+                    width: isActive ? '240px' : '180px',
+                    height: isActive ? '280px' : '220px',
+                    transform: `translateX(${offset * 120}px) scale(${isActive ? 1 : 0.85}) rotateY(${offset * -8}deg)`,
+                    opacity: absOffset > 2 ? 0 : 1 - absOffset * 0.2,
+                  }}
+                  onClick={() => setCoverflowIndex(i)}
+                >
+                  <div className="w-full h-full rounded-xl flex items-end p-4" style={{ background: `linear-gradient(135deg, ${track.color}, ${track.color}dd)` }}>
+                    <div className="w-full">
+                      <div className="text-white/60 text-sm font-medium truncate">{track.title}</div>
+                      <div className="text-white/40 text-xs truncate">{track.artist}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Player Controls */}
+        <div className="w-full max-w-xl px-6 mt-auto mb-12 mx-auto">
+          <div className="bg-white/10 backdrop-blur-2xl rounded-2xl px-6 py-3 flex items-center gap-4 border border-white/10">
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="w-10 h-10 rounded-lg overflow-hidden bg-white/10">
+                <div className="w-full h-full" style={{ background: coverflowTracks[coverflowIndex]?.color ?? '#555' }} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-semibold text-white truncate">{coverflowTracks[coverflowIndex]?.title ?? ''}</div>
+                <div className="text-[10px] text-white/50 truncate">{coverflowTracks[coverflowIndex]?.artist ?? ''}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 mx-auto">
+              <button onClick={playPrev} className="text-white/60 hover:text-white transition-colors"><SkipBack className="w-4 h-4 fill-current" /></button>
+              <button onClick={() => setIsPlaying(!isPlaying)} className="text-white hover:text-white/80 transition-colors">
+                {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}
+              </button>
+              <button onClick={playNext} className="text-white/60 hover:text-white transition-colors"><SkipForward className="w-4 h-4 fill-current" /></button>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <button className="text-white/40 hover:text-white/70 transition-colors"><Volume2 className="w-4 h-4" /></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex w-full h-full bg-black text-white font-sans overflow-hidden">
       
@@ -239,6 +325,13 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
             className="p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md pointer-events-auto transition-colors"
           >
             <ListVideo className="w-4 h-4" />
+          </button>
+          <button 
+            onClick={(e) => { e.preventDefault(); setViewMode('coverflow'); }}
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md pointer-events-auto transition-colors"
+            title="Coverflow View"
+          >
+            <Disc className="w-4 h-4" />
           </button>
         </div>
 

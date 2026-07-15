@@ -40,6 +40,10 @@ Desktop.ini
 .codex/
 .cursor/
 .claude/
+.opencode/
+
+# Reference images
+refs/
 
 # Generated output
 eslint-output.json

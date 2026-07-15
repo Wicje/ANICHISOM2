@@ -8,7 +8,8 @@ import {
   Download, Upload, Trash2, Clock, Lock, Wifi, Bluetooth,
   Smartphone, MonitorSpeaker, Tv, Gamepad2, Joystick,
   HardDrive, Database, Server, Cloud, CloudOff, Box, Table,
-  Calculator, Play, Circle, Headphones, Film, Mic, Briefcase, Phone
+  Calculator, Play, Circle, Headphones, Film, Mic, Briefcase, Phone, BookOpen,
+  Layout, Sparkles
 } from 'lucide-react';
 
 export type AppManifestEntry = {
@@ -57,6 +58,22 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
   'brand-guides': () => import('@/components/apps/brand-guides'),
   'client-portal': () => import('@/components/apps/client-portal'),
   'privacy-settings': () => import('@/components/apps/privacy-settings'),
+  'movie-browser': () => import('@/components/media/movie-browser'),
+  'books-collection': () => import('@/components/media/books-collection'),
+  'bookmarks-sidebar': () => import('@/components/notifications/bookmarks-sidebar'),
+  'campaign-dashboard': () => import('@/components/campaignlab/project-dashboard'),
+  'campaign-timeline': () => import('@/components/campaignlab/timeline-view'),
+  'campaign-community': () => import('@/components/campaignlab/community-page'),
+  'digital-journal': () => import('@/components/campaignlab/digital-journal'),
+  'campaign-files': () => import('@/components/campaignlab/file-management'),
+  'canvas-board': () => import('@/components/moodboard/canvas-board'),
+  'digital-library': () => import('@/components/moodboard/digital-library'),
+  'nothing-product': () => import('@/components/moodboard/nothing-product'),
+  'samur-ai-board': () => import('@/components/moodboard/samur-ai-board'),
+  'notch-nook': () => import('@/components/dock/notch-nook'),
+  'notification-settings': () => import('@/components/settings/notification-settings'),
+  'widget-stack': () => import('@/components/notifications/widget-stack'),
+  'side-gigs-marketplace': () => import('@/components/side-gigs-marketplace'),
 };
 
 // Static metadata — loaded eagerly (tiny)
@@ -92,12 +109,34 @@ export const APP_MANIFEST: AppManifestEntry[] = [
   { id: 'productivity', component: null as any, icon: Grid, title: 'Productivity Suite', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'All-in-one productivity tools' },
   { id: 'proposal-generator', component: null as any, icon: FileText, title: 'Proposal Generator', roles: ['admin', 'filmmaker'], isCore: false, category: 'productivity', description: 'Generate proposals and estimates' },
   { id: 'side-gigs', component: null as any, icon: Briefcase, title: 'Side Gigs', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'Manage side projects and gigs' },
+  { id: 'side-gigs-marketplace', component: null as any, icon: Briefcase, title: 'Side Gigs Marketplace', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'Freelance opportunity marketplace' },
   { id: 'calls', component: null as any, icon: Phone, title: 'Calls', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'Video and voice calls' },
 
   // Media
   { id: 'media-player', component: null as any, icon: Play, title: 'Media Player', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'media', description: 'Media player for video and audio' },
   { id: 'pdf-reader', component: null as any, icon: FileText, title: 'PDF Reader', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'media', description: 'PDF viewer' },
   { id: 'screen-recorder', component: null as any, icon: Circle, title: 'Screen Recorder', roles: ['admin', 'filmmaker', 'technician'], isCore: false, category: 'media', description: 'Screen recording tool' },
+  { id: 'movie-browser', component: null as any, icon: Film, title: 'Movie Browser', roles: ['admin', 'filmmaker', 'user'], isCore: false, category: 'media', description: 'Browse popular movies and TV shows' },
+  { id: 'books-collection', component: null as any, icon: BookOpen, title: 'Books Collection', roles: ['admin', 'filmmaker', 'user'], isCore: false, category: 'media', description: 'A curated collection of books and reading materials' },
+  { id: 'bookmarks-sidebar', component: null as any, icon: Bookmark, title: 'Bookmarks', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'Save and organize your favorite bookmarks' },
+
+  // Campaign Lab Views
+  { id: 'campaign-dashboard', component: null as any, icon: Layout, title: 'Campaign Dashboard', roles: ['admin', 'filmmaker', 'marketer'], isCore: false, category: 'productivity', description: 'Campaign project dashboard and overview' },
+  { id: 'campaign-timeline', component: null as any, icon: Clock, title: 'Campaign Timeline', roles: ['admin', 'filmmaker', 'marketer'], isCore: false, category: 'productivity', description: 'Campaign timeline and scheduling view' },
+  { id: 'campaign-community', component: null as any, icon: Users, title: 'Campaign Community', roles: ['admin', 'filmmaker', 'marketer'], isCore: false, category: 'social', description: 'Campaign community and collaboration page' },
+  { id: 'digital-journal', component: null as any, icon: FileText, title: 'Digital Journal', roles: ['admin', 'filmmaker', 'user'], isCore: false, category: 'productivity', description: 'Digital journal and notes' },
+  { id: 'campaign-files', component: null as any, icon: FolderOpen, title: 'Campaign Files', roles: ['admin', 'filmmaker', 'marketer'], isCore: false, category: 'productivity', description: 'Campaign file management' },
+
+  // Moodboard Views
+  { id: 'canvas-board', component: null as any, icon: Palette, title: 'Canvas Board', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'Visual canvas board for notes and images' },
+  { id: 'digital-library', component: null as any, icon: BookOpen, title: 'Digital Library', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'Digital asset library and collection' },
+  { id: 'nothing-product', component: null as any, icon: Eye, title: 'Nothing Product', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'Product visualization board' },
+  { id: 'samur-ai-board', component: null as any, icon: Sparkles, title: 'SamurAI Board', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'AI-powered creative board' },
+
+  // Dock & Widgets
+  { id: 'notch-nook', component: null as any, icon: Music, title: 'Notch Nook', roles: ['admin', 'filmmaker', 'user'], isCore: false, category: 'media', description: 'Music player dock widget' },
+  { id: 'notification-settings', component: null as any, icon: Bell, title: 'Notification Settings', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'system', description: 'Configure notification preferences' },
+  { id: 'widget-stack', component: null as any, icon: Layout, title: 'Widget Stack', roles: ['admin', 'filmmaker', 'user'], isCore: false, category: 'system', description: 'Stackable desktop widgets' },
 
   // Packs
   { id: 'clothing-brand-pack', component: null as any, icon: Grid, title: 'Clothing Brand Pack', roles: ['admin', 'filmmaker'], isCore: false, category: 'creative', description: 'Clothing brand management tools' },

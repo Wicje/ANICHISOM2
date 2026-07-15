@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { OSWindow } from '@/lib/os-context';
-import { Sparkles, Send, Bot, User, Settings2, Loader2, AlertCircle, ChevronDown } from 'lucide-react';
+import { Sparkles, Send, Bot, User, Settings2, Loader2, AlertCircle, ChevronDown, Home, Bookmark, Zap, Layout } from 'lucide-react';
 import { useOS } from '@/lib/os-context';
 import { StorageAdapter } from '@/lib/storage';
 import { APP_MANIFEST } from '@/lib/app-manifest';
@@ -11,10 +11,13 @@ import {
   listAllModels,
 } from '@/lib/ai-providers/ai-provider-factory';
 import { AiModelInfo } from '@/lib/ai-providers/ai-provider';
+import { cn } from '@/lib/utils';
 
 const APP_LIST_FOR_AI = APP_MANIFEST.map(a => `${a.id}: ${a.title} — ${a.description || ''}`).join('\n');
 
 const INITIAL_MESSAGE: { role: 'ai'; text: string } = { role: 'ai', text: 'Hello! I am your OS System Assistant. I can open apps, change themes, toggle shaders, or answer questions using Claude, Gemini, Qwen, or other AI models. What can I do for you?' };
+
+type ViewMode = 'chat' | 'mindpalace';
 
 export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
   const { openWindow, setThemeColor, setScreenShader, notify, workspaceMode } = useOS();
@@ -29,6 +32,18 @@ export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
   const [availableModels, setAvailableModels] = useState<AiModelInfo[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
+
+  // View mode: 'chat' (default) or 'mindpalace'
+  const [viewMode, setViewMode] = useState<ViewMode>('chat');
+
+  // MindPalace state
+  const [mpTab, setMpTab] = useState<'home' | 'remember' | 'settings'>('home');
+  const [futureCards, setFutureCards] = useState([
+    { id: 1, text: 'Learn to use the Campaign Lab for marketing workflows', done: false },
+    { id: 2, text: 'Set up my creative workspace with Moodboard', done: false },
+    { id: 3, text: 'Explore the Hardware Pack for 3D model viewing', done: false },
+  ]);
+  const [mpInput, setMpInput] = useState('');
 
   useEffect(() => {
     // Initialize AI providers
@@ -202,8 +217,134 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
     }
   };
 
+  // MindPalace handlers
+  const addFutureCard = () => {
+    if (!mpInput.trim()) return;
+    setFutureCards(prev => [...prev, { id: Date.now(), text: mpInput, done: false }]);
+    setMpInput('');
+  };
+
+  const toggleFutureCard = (id: number) => {
+    setFutureCards(prev => prev.map(c => c.id === id ? { ...c, done: !c.done } : c));
+  };
+
+  const deleteFutureCard = (id: number) => {
+    setFutureCards(prev => prev.filter(c => c.id !== id));
+  };
+
   if (!isLoaded) return <div className="p-8 text-[#888]">Loading Assistant...</div>;
 
+  // --- MindPalace View ---
+  if (viewMode === 'mindpalace') {
+    return (
+      <div className="flex w-full h-full bg-[#08080c] text-white font-sans overflow-hidden">
+        {/* Left Sidebar */}
+        <div className="w-14 bg-black/50 border-r border-white/10 flex flex-col items-center py-4 gap-4 shrink-0">
+          <button onClick={() => setMpTab('home')} className={cn('p-2 rounded-xl transition-all', mpTab === 'home' ? 'bg-white/10 text-white' : 'text-white/50 hover:text-white hover:bg-white/5')} title="Home">
+            <Home className="w-5 h-5" />
+          </button>
+          <button onClick={() => setMpTab('remember')} className={cn('p-2 rounded-xl transition-all', mpTab === 'remember' ? 'bg-white/10 text-white' : 'text-white/50 hover:text-white hover:bg-white/5')} title="Remember">
+            <Bookmark className="w-5 h-5" />
+          </button>
+          <div className="flex-1" />
+          <button onClick={() => setMpTab('settings')} className={cn('p-2 rounded-xl transition-all', mpTab === 'settings' ? 'bg-white/10 text-white' : 'text-white/50 hover:text-white hover:bg-white/5')} title="Settings">
+            <Settings2 className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Header */}
+          <div className="h-12 border-b border-white/10 bg-black/30 flex items-center justify-between px-4 shrink-0">
+            <div className="flex items-center gap-2">
+              <Layout className="w-4 h-4 text-white/50" />
+              <span className="text-sm font-medium text-white/70">{mpTab === 'home' ? 'MindPalace' : mpTab === 'remember' ? 'Remember' : 'Settings'}</span>
+            </div>
+            <button onClick={() => setViewMode('chat')} className="px-3 py-1 text-xs rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+              Chat
+            </button>
+          </div>
+
+          {/* Home Tab */}
+          {mpTab === 'home' && (
+            <div className="flex-1 flex flex-col items-center justify-center p-8">
+              <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-6">
+                <Sparkles className="w-8 h-8 text-white/50" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Ask your data anything</h2>
+              <p className="text-white/40 text-sm mb-8 text-center max-w-md">
+                I can help you find files, analyze data, manage tasks, and connect your workspace.
+              </p>
+              <div className="w-full max-w-lg relative">
+                <input
+                  type="text"
+                  value={mpInput}
+                  onChange={(e) => setMpInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addFutureCard()}
+                  placeholder="Ask me anything about your data..."
+                  className="w-full bg-white/5 border border-white/10 rounded-full py-3 pl-4 pr-12 text-sm outline-none focus:border-white/20 transition-colors"
+                />
+                <button onClick={addFutureCard} className="absolute right-2 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Remember Tab */}
+          {mpTab === 'remember' && (
+            <div className="flex-1 overflow-y-auto p-6">
+              <h3 className="text-lg font-bold mb-4">Remember</h3>
+              <p className="text-white/40 text-sm">Your saved memories and context will appear here.</p>
+            </div>
+          )}
+
+          {/* Settings Tab */}
+          {mpTab === 'settings' && (
+            <div className="flex-1 overflow-y-auto p-6">
+              <h3 className="text-lg font-bold mb-4">MindPalace Settings</h3>
+              <p className="text-white/40 text-sm">Configure your MindPalace preferences here.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Right Panel: Future */}
+        <div className="w-72 bg-black/30 border-l border-white/10 flex flex-col shrink-0">
+          <div className="h-12 border-b border-white/10 flex items-center px-4 shrink-0">
+            <Zap className="w-4 h-4 text-yellow-400 mr-2" />
+            <span className="text-sm font-medium">Future</span>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {futureCards.map(card => (
+              <div key={card.id} className="group p-3 bg-white/5 border border-white/10 rounded-xl hover:border-white/20 transition-all">
+                <div className="flex items-start gap-2">
+                  <button onClick={() => toggleFutureCard(card.id)} className={cn('mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all', card.done ? 'bg-green-500 border-green-500' : 'border-white/30 hover:border-white/50')}>
+                    {card.done && <span className="text-[10px] text-white">✓</span>}
+                  </button>
+                  <span className={cn('text-sm flex-1', card.done && 'line-through text-white/30')}>{card.text}</span>
+                  <button onClick={() => deleteFutureCard(card.id)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all">
+                    <span className="text-xs text-white/40">×</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="p-3 border-t border-white/10">
+            <input
+              type="text"
+              value={mpInput}
+              onChange={(e) => setMpInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addFutureCard()}
+              placeholder="Add a future task..."
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs outline-none focus:border-white/20 transition-colors"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Chat View (default) ---
   return (
     <div className="flex flex-col w-full h-full bg-[#111] text-white font-sans overflow-hidden">
       
@@ -245,13 +386,22 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
           </div>
         )}
 
-        <button
-          onClick={() => setShowSettings(!showSettings)}
-          className="p-1 hover:bg-white/10 rounded transition-colors shrink-0"
-          title="Settings"
-        >
-          <Settings2 className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setViewMode('mindpalace')}
+            className="px-3 py-1 text-xs rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+            title="MindPalace"
+          >
+            MindPalace
+          </button>
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="p-1 hover:bg-white/10 rounded transition-colors shrink-0"
+            title="Settings"
+          >
+            <Settings2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Chat History */}
