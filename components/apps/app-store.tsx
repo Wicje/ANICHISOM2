@@ -18,6 +18,13 @@ import {
 } from '@/lib/plugin-registry';
 import { usePluginStore } from '@/lib/stores/plugin.store';
 import { PluginService } from '@/lib/services/plugin.service';
+import { APP_MANIFEST } from '@/lib/app-manifest';
+import { AppIconInline } from '@/components/ui/app-icon';
+
+// Look up iconImage from the manifest by app ID
+function getIconImage(appId: string): string | undefined {
+  return APP_MANIFEST.find(a => a.id === appId)?.iconImage;
+}
 
 // ─── Static catalog for apps/packs not yet in the dynamic registry ──────
 
@@ -173,8 +180,9 @@ export function AppStoreApp({ window: osWindow }: { window: OSWindow }) {
           <div className="max-w-2xl mx-auto space-y-6">
             {/* Header */}
             <div className="flex items-start gap-6">
-              <div className="w-20 h-20 rounded-2xl bg-white/10 flex items-center justify-center text-4xl shrink-0 shadow-inner">
-                {detailItem.icon}
+              <div className="w-20 h-20 rounded-2xl bg-white/10 flex items-center justify-center text-4xl shrink-0 shadow-inner overflow-hidden">
+                <AppIconInline iconImage={getIconImage(detailItem.id)} size={64} className="w-full h-full object-contain" />
+                {!getIconImage(detailItem.id) && <span className="text-4xl">{detailItem.icon}</span>}
               </div>
               <div className="flex-1">
                 <h1 className="text-2xl font-bold mb-1">{detailItem.name}</h1>
@@ -382,7 +390,10 @@ export function AppStoreApp({ window: osWindow }: { window: OSWindow }) {
                       onClick={() => setDetailView(app.id)}
                     >
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-xl">{app.icon}</div>
+                        <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-xl overflow-hidden">
+                          <AppIconInline iconImage={getIconImage(app.id)} size={36} className="w-full h-full object-contain" />
+                          {!getIconImage(app.id) && <span className="text-xl">{app.icon}</span>}
+                        </div>
                         <div>
                           <div className="font-bold text-sm">{app.name}</div>
                           <div className="flex items-center gap-1 text-[10px] text-yellow-500 font-bold"><Star className="w-2.5 h-2.5 fill-yellow-500" /> {app.rating}</div>
@@ -410,8 +421,9 @@ export function AppStoreApp({ window: osWindow }: { window: OSWindow }) {
                       className="bg-white/5 border border-white/10 rounded-xl p-4 flex gap-4 hover:bg-white/10 transition-colors cursor-pointer group"
                       onClick={() => setDetailView(item.id)}
                     >
-                      <div className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center text-2xl shrink-0 shadow-inner">
-                        {item.icon}
+                      <div className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center text-2xl shrink-0 shadow-inner overflow-hidden">
+                        <AppIconInline iconImage={getIconImage(item.id)} size={48} className="w-full h-full object-contain" />
+                        {!getIconImage(item.id) && <span className="text-2xl">{item.icon}</span>}
                       </div>
                       <div className="flex flex-col justify-center flex-1 min-w-0">
                         <div className="font-bold text-sm truncate flex items-center gap-2">
@@ -468,7 +480,10 @@ export function AppStoreApp({ window: osWindow }: { window: OSWindow }) {
                 if (!item) return (
                   <div key={appId} className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-lg">📦</div>
+                      <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-lg overflow-hidden">
+                        <AppIconInline iconImage={getIconImage(appId)} size={36} className="w-full h-full object-contain" />
+                        {!getIconImage(appId) && <span className="text-lg">📦</span>}
+                      </div>
                       <div>
                         <div className="font-bold text-sm">{appId}</div>
                         <div className="text-[10px] text-white/30">Custom or legacy app</div>
@@ -483,7 +498,10 @@ export function AppStoreApp({ window: osWindow }: { window: OSWindow }) {
                 return (
                   <div key={appId} className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-lg">{item.icon}</div>
+                      <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-lg overflow-hidden">
+                        <AppIconInline iconImage={getIconImage(item.id)} size={36} className="w-full h-full object-contain" />
+                        {!getIconImage(item.id) && <span className="text-lg">{item.icon}</span>}
+                      </div>
                       <div>
                         <div className="font-bold text-sm">{item.name}</div>
                         <div className="text-[10px] text-white/30">{item.category}</div>

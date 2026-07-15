@@ -4,6 +4,7 @@ import React, { useState, useEffect, useTransition, useMemo } from 'react';
 import { useOS } from '@/lib/os-context';
 import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Search, Archive, Clipboard, AppWindow, File, Music, Layout } from 'lucide-react';
 import { APP_MANIFEST as APPS } from '@/lib/app-manifest';
+import { AppIconInline } from '@/components/ui/app-icon';
 import { FS } from '@/lib/fs';
 
 export function CommandPalette() {
@@ -52,8 +53,8 @@ export function CommandPalette() {
     config.roles.includes(currentUser?.role || 'user')
   ), [currentUser?.role]);
 
-  const commands: { id: string; name: string; type: string; icon: any; action: () => void; hideOnEmpty?: boolean }[] = useMemo(() => {
-    const cmds: { id: string; name: string; type: string; icon: any; action: () => void; hideOnEmpty?: boolean }[] = [];
+  const commands: { id: string; name: string; type: string; icon: any; iconImage?: string; action: () => void; hideOnEmpty?: boolean }[] = useMemo(() => {
+    const cmds: { id: string; name: string; type: string; icon: any; iconImage?: string; action: () => void; hideOnEmpty?: boolean }[] = [];
 
     allowedApps.forEach(([appId, config]) => {
        cmds.push({
@@ -61,6 +62,7 @@ export function CommandPalette() {
           name: `Open ${config.title}`,
           type: 'Application',
           icon: config.icon,
+          iconImage: config.iconImage,
           action: () => openWindow(appId)
        });
     });
@@ -167,7 +169,6 @@ export function CommandPalette() {
             <div className="p-4 text-center font-mono text-sm" style={{ color: 'var(--os-text-muted)' }}>No commands found.</div>
           ) : (
             filtered.map((cmd, i) => {
-              const Icon = cmd.icon;
               return (
                 <button
                   key={cmd.id}
@@ -183,7 +184,7 @@ export function CommandPalette() {
                   onMouseEnter={(e) => { if (i !== 0) e.currentTarget.style.background = 'var(--os-hover)'; }}
                   onMouseLeave={(e) => { if (i !== 0) e.currentTarget.style.background = 'transparent'; }}
                 >
-                  <Icon className="w-5 h-5 mr-4" style={{ color: 'var(--os-primary)' }} />
+                  <AppIconInline icon={cmd.icon} iconImage={cmd.iconImage} size={20} className="mr-4 text-[var(--os-primary)]" />
                   <div className="flex flex-col">
                     <span className="text-sm font-medium" style={{ color: 'var(--os-text)' }}>{cmd.name}</span>
                     <span className="text-[10px]" style={{ color: 'var(--os-text-muted)' }}>{cmd.type}</span>

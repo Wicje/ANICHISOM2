@@ -59,6 +59,15 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: LocalFile } | null>(null);
 
+  // Drag-and-drop state
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounterRef = useRef(0);
+
+  // Import from URL state
+  const [importUrl, setImportUrl] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [showImportUrl, setShowImportUrl] = useState(false);
+
   const revokeObjectUrls = () => {
     for (const url of objectUrlsRef.current) {
       URL.revokeObjectURL(url);
@@ -233,6 +242,90 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
       }
     }
     fetchFiles();
+  };
+
+  // Drag-and-drop handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounterRef.current = 0;
+
+    const droppedFiles = e.dataTransfer.files;
+    if (!droppedFiles || droppedFiles.length === 0) return;
+
+    for (let i = 0; i < droppedFiles.length; i++) {
+      const file = droppedFiles[i]!;
+      const filePath = currentPath === 'Root' ? file.name : `${currentPath}/${file.name}`;
+      await FS.write(filePath, file, file.type);
+      if (file.size > 5 * 1024 * 1024) {
+        setSyncPromptFile({ name: file.name, size: file.size, type: file.type });
+      }
+    }
+    fetchFiles();
+  };
+
+  // Import file from URL
+  const handleImportFromUrl = async () => {
+    if (!importUrl.trim()) return;
+    setImporting(true);
+    try {
+      const res = await fetch('/api/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: importUrl.trim() }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const contentType = res.headers.get('content-type') || blob.type || 'application/octet-stream';
+      // Extract filename from URL or content-disposition
+      const cdHeader = res.headers.get('content-disposition');
+      let filename = 'imported-file';
+      if (cdHeader) {
+        const match = cdHeader.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (match?.[1]) filename = match[1].replace(/['"]/g, '');
+      } else {
+        const urlPath = new URL(importUrl.trim()).pathname;
+        filename = decodeURIComponent(urlPath.split('/').pop() || 'imported-file');
+        if (!filename.includes('.')) {
+          const ext = contentType.split('/')[1]?.split(';')[0];
+          if (ext && ext !== 'octet-stream') filename += `.${ext}`;
+        }
+      }
+      const filePath = currentPath === 'Root' ? filename : `${currentPath}/${filename}`;
+      await FS.write(filePath, blob, contentType);
+      fetchFiles();
+      setImportUrl('');
+      setShowImportUrl(false);
+    } catch (err) {
+      console.error('Import failed:', err);
+      alert(`Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setImporting(false);
+    }
   };
 
   const deleteFile = async (id: string, e: React.MouseEvent) => {
@@ -447,6 +540,10 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                    <Upload className="w-4 h-4" /> Upload
                 </button>
 
+                <button onClick={() => setShowImportUrl(!showImportUrl)} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--os-hover)] hover:bg-[var(--os-active)] rounded-md text-sm font-medium transition-colors" title="Import from URL">
+                   <Cloud className="w-4 h-4" /> Import URL
+                </button>
+
                 <button onClick={async () => {
                   const name = prompt("Enter new folder name:");
                   if (!name) return;
@@ -472,7 +569,49 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
         </div>
 
         {/* File Grid */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div
+          className="flex-1 overflow-y-auto p-6 relative"
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
+          {/* Import from URL panel */}
+          {showImportUrl && (
+            <div className="mb-4 p-3 bg-[var(--os-surface)] border border-[var(--os-border)] rounded-xl flex items-center gap-3">
+              <Cloud className="w-4 h-4 text-[var(--os-text-muted)] shrink-0" />
+              <input
+                type="url"
+                placeholder="Paste file URL (image, video, document, etc.)"
+                value={importUrl}
+                onChange={e => setImportUrl(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleImportFromUrl()}
+                className="flex-1 bg-transparent text-sm text-[var(--os-text)] outline-none placeholder:text-[var(--os-text-muted)]"
+                autoFocus
+              />
+              <button
+                onClick={handleImportFromUrl}
+                disabled={!importUrl.trim() || importing}
+                className="px-3 py-1.5 bg-[var(--os-primary)] hover:bg-[var(--os-primary-container)] disabled:opacity-40 rounded-md text-white text-sm font-medium transition-colors"
+              >
+                {importing ? 'Importing...' : 'Import'}
+              </button>
+              <button onClick={() => { setShowImportUrl(false); setImportUrl(''); }} className="p-1 text-[var(--os-text-muted)] hover:text-[var(--os-text)]">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Drag-and-drop overlay */}
+          {isDragging && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-[var(--os-primary)]/10 border-2 border-dashed border-[var(--os-primary)] rounded-xl backdrop-blur-sm pointer-events-none">
+              <div className="flex flex-col items-center gap-3 text-[var(--os-primary)]">
+                <Upload className="w-12 h-12 animate-bounce" />
+                <p className="text-lg font-semibold">Drop files here</p>
+                <p className="text-sm opacity-70">Files will be saved to {currentPath}</p>
+              </div>
+            </div>
+          )}
           {isViewingLocal && !isLoaded ? (
             <div className="flex items-center justify-center h-full text-[var(--os-text-muted)] text-sm">Loading files...</div>
           ) : !isViewingLocal && cloudLoading ? (
@@ -490,7 +629,22 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                 }
               </p>
               {isViewingLocal && (
-                <button onClick={createNewFile} className="px-4 py-2 bg-[var(--os-hover)] rounded-md text-[var(--os-text)] hover:bg-[var(--os-active)] transition-colors">Create a file</button>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="flex items-center gap-2 text-xs opacity-60">
+                    <Upload className="w-4 h-4" /> Drag files here or
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-[var(--os-primary)] hover:bg-[var(--os-primary-container)] rounded-md text-white text-sm font-medium transition-colors shadow-lg shadow-[var(--os-primary)]/20">
+                      Upload Files
+                    </button>
+                    <button onClick={() => setShowImportUrl(true)} className="px-4 py-2 bg-[var(--os-hover)] hover:bg-[var(--os-active)] rounded-md text-[var(--os-text)] text-sm font-medium transition-colors">
+                      Import from URL
+                    </button>
+                    <button onClick={createNewFile} className="px-4 py-2 bg-[var(--os-hover)] hover:bg-[var(--os-active)] rounded-md text-[var(--os-text)] text-sm font-medium transition-colors">
+                      Create File
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           ) : isViewingLocal ? (

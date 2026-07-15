@@ -9,6 +9,7 @@ import { useAuthStore } from '@/lib/stores/auth.store';
 import { Grid, Layers, Folder } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { APP_MANIFEST } from '@/lib/app-manifest';
+import { AppIcon } from '@/components/ui/app-icon';
 import { getAllPlugins, isPluginActive } from '@/lib/plugin-registry';
 
 interface DockProps {
@@ -98,7 +99,7 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
                   background: isOpen ? 'var(--os-active)' : 'var(--os-hover)',
                 }}
               >
-                <app.icon className="w-7 h-7" style={{ color: 'var(--os-text)' }} aria-hidden="true" />
+                <AppIcon icon={app.icon} iconImage={app.iconImage} className="w-7 h-7" aria-hidden="true" />
               </button>
               {isOpen && (
                 <span aria-hidden="true" className="absolute -bottom-1.5 w-1 h-1 rounded-full shadow-sm" style={{ background: 'var(--os-text)' }} />
