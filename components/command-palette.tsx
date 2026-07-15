@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useTransition, useMemo } from 'react';
 import { useOS } from '@/lib/os-context';
-import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Search, Archive, Clipboard, AppWindow, File } from 'lucide-react';
+import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Search, Archive, Clipboard, AppWindow, File, Music } from 'lucide-react';
 import { APP_MANIFEST as APPS } from '@/lib/app-manifest';
 import { FS } from '@/lib/fs';
 
@@ -83,6 +83,14 @@ export function CommandPalette() {
           icon: File,
           action: () => openWindow('code', `Editing: ${file.name}`, { filename: file.name })
        });
+    });
+
+    cmds.push({
+      id: 'notch-nook',
+      name: 'Toggle Notch Nook',
+      type: 'System',
+      icon: Music,
+      action: () => window.dispatchEvent(new Event('os:toggle-notch-nook')),
     });
 
     if (clipboardText) {

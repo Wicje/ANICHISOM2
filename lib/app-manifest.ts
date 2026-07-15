@@ -70,7 +70,6 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
   'digital-library': () => import('@/components/moodboard/digital-library'),
   'nothing-product': () => import('@/components/moodboard/nothing-product'),
   'samur-ai-board': () => import('@/components/moodboard/samur-ai-board'),
-  'notch-nook': () => import('@/components/dock/notch-nook'),
   'notification-settings': () => import('@/components/settings/notification-settings'),
   'widget-stack': () => import('@/components/notifications/widget-stack'),
   'side-gigs-marketplace': () => import('@/components/side-gigs-marketplace'),
@@ -134,7 +133,6 @@ export const APP_MANIFEST: AppManifestEntry[] = [
   { id: 'samur-ai-board', component: null as any, icon: Sparkles, title: 'SamurAI Board', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'AI-powered creative board' },
 
   // Dock & Widgets
-  { id: 'notch-nook', component: null as any, icon: Music, title: 'Notch Nook', roles: ['admin', 'filmmaker', 'user'], isCore: false, category: 'media', description: 'Music player dock widget' },
   { id: 'notification-settings', component: null as any, icon: Bell, title: 'Notification Settings', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'system', description: 'Configure notification preferences' },
   { id: 'widget-stack', component: null as any, icon: Layout, title: 'Widget Stack', roles: ['admin', 'filmmaker', 'user'], isCore: false, category: 'system', description: 'Stackable desktop widgets' },
 

@@ -24,6 +24,7 @@ import { WidgetsLayer, Widget } from './widgets';
 import { WindowSwitcher } from './window-switcher';
 import { DesktopIcons } from './desktop-icons';
 import { SnapshotsMenu } from './snapshots-menu';
+import { NotchNook } from '@/components/dock/notch-nook';
 import OnboardingWizard from '@/components/apps/onboarding-wizard';
 import { LoginScreen } from '@/components/login-screen';
 import FeedbackWidget from '@/components/apps/feedback-widget';
@@ -149,6 +150,7 @@ export function Desktop() {
   const [showLaunchpad, setShowLaunchpad] = useState(false);
   const [showMissionControl, setShowMissionControl] = useState(false);
   const [showControlCenter, setShowControlCenter] = useState(false);
+  const [showNotchNook, setShowNotchNook] = useState(false);
   const [showSwitcher, setShowSwitcher] = useState(false);
   const [switcherIndex, setSwitcherIndex] = useState(0);
   const [showSnapshots, setShowSnapshots] = useState(false);
@@ -302,6 +304,7 @@ export function Desktop() {
       'ctrl+space': 'action:launchpad',
       'ctrl+w': 'action:close-active-window',
       'ctrl+m': 'action:minimize-active-window',
+      'alt+n': 'action:notch-nook',
     };
 
     import('@/lib/fs').then(({ FS }) => {
@@ -364,6 +367,8 @@ export function Desktop() {
           const activeW = curWindows.filter(w => w.workspace === curWorkspace || w.workspace === undefined);
           const focused = activeW.find(w => !w.isMinimized && w.zIndex >= curZIndex);
           if (focused) minimizeWindow(focused.id);
+        } else if (action === 'action:notch-nook') {
+          setShowNotchNook(prev => !prev);
         }
       }
     };
@@ -387,10 +392,13 @@ export function Desktop() {
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    const handleNotchNookToggle = () => setShowNotchNook(prev => !prev);
+    window.addEventListener('os:toggle-notch-nook', handleNotchNookToggle);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('os:config-updated', handleConfigUpdate);
+      window.removeEventListener('os:toggle-notch-nook', handleNotchNookToggle);
     };
   }, [openWindow, closeWindow, minimizeWindow, focusWindow]);
 
@@ -617,6 +625,11 @@ export function Desktop() {
       {showSwitcher && <WindowSwitcher switcherIndex={switcherIndex} />}
       {showLaunchpad && <Launchpad onClose={() => setShowLaunchpad(false)} />}
       {showMissionControl && <MissionControl onClose={() => setShowMissionControl(false)} />}
+      {showNotchNook && (
+        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-[300]">
+          <NotchNook />
+        </div>
+      )}
 
       <Dock
         showLaunchpad={showLaunchpad}
