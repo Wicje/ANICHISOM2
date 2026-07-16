@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { useCollaborativeDoc } from '@/lib/hooks/useCollaborativeDoc';
 import { SyncPromptBanner } from '../sync-prompt-banner';
 import { MoodboardExportService } from '@/lib/services/moodboard-export.service';
+import { OSPrompt } from '@/components/ui/os-modal';
 
 import type { BoardNode, Comment, Connection, CanvasMode, BoardGroup, BoardTag } from './types';
 import { REACTION_EMOJIS, NODE_COLORS, GROUP_COLORS, TAG_COLORS, SNAP_GRID_SIZE } from './types';
@@ -73,6 +74,7 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
   const [presentIndex, setPresentIndex] = useState(0);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showCampaignLink, setShowCampaignLink] = useState<string | null>(null);
+  const [showAddUrl, setShowAddUrl] = useState(false);
 
   const [syncPromptFile, setSyncPromptFile] = useState<{ name: string; size: number; type: string } | null>(null);
 
@@ -201,7 +203,7 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 50 * 1024 * 1024) { alert('File too large. Max 50MB.'); return; }
+    if (file.size > 50 * 1024 * 1024) { window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'File Too Large', message: 'Maximum file size is 50MB.' } })); return; }
     const fileId = crypto.randomUUID();
     await set(`blob_${fileId}`, file);
     const type = file.type.startsWith('video/') ? 'video' : 'image';
@@ -223,9 +225,8 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
   }, [_updateYNode, centerCanvasX, centerCanvasY]);
 
   const handleAddLink = useCallback(() => {
-    const url = prompt('Enter a URL (YouTube, Instagram, Pinterest, Image, etc.):');
-    if (url) processUrl(url);
-  }, [processUrl]);
+    setShowAddUrl(true);
+  }, []);
 
   const deleteNode = useCallback((id: string) => {
     collab.sharedTypesRef.current.nodes?.delete(id);
@@ -901,6 +902,15 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
           onKeepLocal={() => setSyncPromptFile(null)}
         />
       )}
+
+      {/* Add URL Prompt */}
+      <OSPrompt
+        open={showAddUrl}
+        onClose={() => setShowAddUrl(false)}
+        onSubmit={(url) => { if (url) processUrl(url); }}
+        title="Add Link"
+        placeholder="Enter a URL (YouTube, Instagram, Pinterest, Image, etc.)"
+      />
     </div>
   );
 }

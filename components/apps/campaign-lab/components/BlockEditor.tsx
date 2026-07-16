@@ -546,7 +546,7 @@ function CodeBlock({ block, index, updateBlock, handleChange, handleKeyDown }: {
 
   const copyCode = () => {
     navigator.clipboard.writeText(block.content);
-    window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Copied', message: 'Code copied to clipboard.' } }));
+    window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Copied', description: 'Code copied to clipboard.' } }));
   };
 
   return (

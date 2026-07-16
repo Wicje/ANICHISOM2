@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import React from 'react';
 
 // ─── Mock child components to avoid deep render trees ────────────────
@@ -96,6 +96,7 @@ vi.mock('sonner', () => ({
 
 vi.mock('motion/react', () => ({
   motion: { div: React.forwardRef((p: any, r: any) => <div ref={r} {...p} />) },
+  AnimatePresence: ({ children }: any) => <>{children}</>,
   useDragControls: vi.fn(() => ({ start: vi.fn() })),
   useReducedMotion: vi.fn(() => false),
 }));
@@ -228,6 +229,13 @@ vi.mock('@/lib/stores/notification.store', () => ({
   ),
 }));
 
+vi.mock('@/components/ui/skeleton', () => ({
+  Skeleton: (p: any) => <div data-testid="skeleton" {...p} />,
+  CardSkeleton: () => <div data-testid="card-skeleton" />,
+  PageSkeleton: () => <div data-testid="page-skeleton" />,
+  BootSplash: () => null,
+}));
+
 vi.mock('@/lib/plugin-registry', () => ({
   subscribe: vi.fn(() => vi.fn()),
   getAllPlugins: vi.fn(() => []),
@@ -255,10 +263,15 @@ import { Desktop } from '@/components/desktop';
 
 describe('Desktop', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.clearAllMocks();
     authStoreState.currentUser = { id: 'u1', name: 'Test', role: 'admin' };
     authStoreState.sessionChecked = true;
     onboardingStoreState.onboarding = { completed: true, selectedRole: 'admin', selectedApps: [], customApps: [] };
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('renders the onboarding wizard when no user is logged in and onboarding not completed', async () => {
@@ -266,22 +279,25 @@ describe('Desktop', () => {
     authStoreState.sessionChecked = true;
     onboardingStoreState.onboarding = { completed: false, selectedRole: null, selectedApps: [], customApps: [] };
     render(<Desktop />);
+    await act(async () => { vi.advanceTimersByTime(2500); });
     await waitFor(() => expect(screen.getByTestId('onboarding-wizard')).toBeTruthy());
   });
 
-  it('renders LoginScreen when no user is logged in and onboarding is completed', () => {
+  it('renders LoginScreen when no user is logged in and onboarding is completed', async () => {
     authStoreState.currentUser = null;
     authStoreState.sessionChecked = true;
     onboardingStoreState.onboarding = { completed: true, selectedRole: 'admin', selectedApps: [], customApps: [] };
-    const { container } = render(<Desktop />);
-    const innerDiv = container.querySelector('.fixed.inset-0');
+    render(<Desktop />);
+    await act(async () => { vi.advanceTimersByTime(2500); });
+    const innerDiv = document.querySelector('.fixed.inset-0');
     expect(innerDiv).toBeTruthy();
     expect(screen.getByTestId('login-screen')).toBeTruthy();
     expect(screen.queryByTestId('menu-bar')).toBeNull();
   });
 
-  it('renders the full desktop shell when a user is logged in', () => {
+  it('renders the full desktop shell when a user is logged in', async () => {
     render(<Desktop />);
+    await act(async () => { vi.advanceTimersByTime(2500); });
     expect(screen.getByTestId('menu-bar')).toBeTruthy();
     expect(screen.getByTestId('dock')).toBeTruthy();
     expect(screen.getByTestId('command-palette')).toBeTruthy();
@@ -290,31 +306,37 @@ describe('Desktop', () => {
     expect(screen.getByTestId('toaster')).toBeTruthy();
   });
 
-  it('renders the feedback widget when onboarding is completed', () => {
+  it('renders the feedback widget when onboarding is completed', async () => {
     render(<Desktop />);
+    await act(async () => { vi.advanceTimersByTime(2500); });
     expect(screen.getByTestId('feedback-widget')).toBeTruthy();
   });
 
-  it('does not render launchpad or mission control by default', () => {
+  it('does not render launchpad or mission control by default', async () => {
     render(<Desktop />);
+    await act(async () => { vi.advanceTimersByTime(2500); });
     expect(screen.queryByTestId('launchpad')).toBeNull();
     expect(screen.queryByTestId('mission-control')).toBeNull();
   });
 
-  it('does not render the lock screen initially', () => {
+  it('does not render the lock screen initially', async () => {
     render(<Desktop />);
+    await act(async () => { vi.advanceTimersByTime(2500); });
     expect(screen.queryByTestId('lock-screen')).toBeNull();
   });
 
-  it('sets the fontFamily style on the root element', () => {
-    const { container } = render(<Desktop />);
-    const root = container.firstChild as HTMLElement;
+  it('sets the fontFamily style on the root element', async () => {
+    render(<Desktop />);
+    await act(async () => { vi.advanceTimersByTime(2500); });
+    const root = document.querySelector('.fixed.inset-0') as HTMLElement;
+    expect(root).toBeTruthy();
     expect(root.style.fontFamily).toBe('"ABeeZee", system-ui, sans-serif');
   });
 
-  it('includes the wallpaper in the rendered output', () => {
-    const { container } = render(<Desktop />);
-    const allDivs = container.querySelectorAll('div');
+  it('includes the wallpaper in the rendered output', async () => {
+    render(<Desktop />);
+    await act(async () => { vi.advanceTimersByTime(2500); });
+    const allDivs = document.querySelectorAll('div');
     const bgDiv = Array.from(allDivs).find(
       (d) => d.className.includes('bg-cover') && d.className.includes('bg-center')
     );

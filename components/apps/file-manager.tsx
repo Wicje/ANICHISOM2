@@ -5,12 +5,13 @@ import { useOS, OSWindow } from '@/lib/os-context';
 import {
   Folder, File as FileIcon, FileText, Image as ImageIcon, Video, Box, Search,
   Plus, Trash2, HardDrive, RefreshCw, ChevronRight, Download, Upload,
-  Cloud, Link, Unlink, Loader2, ExternalLink, Lock, Eye
+  Cloud, Link, Unlink, Loader2, ExternalLink, Lock, Eye, Pencil
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FS, LocalFile } from '@/lib/fs';
 import { useFileStore } from '@/lib/stores/file.store';
 import { SyncPromptBanner } from './sync-prompt-banner';
+import { OSPrompt, OSConfirm, OSModal } from '@/components/ui/os-modal';
 
 type CloudSource = {
   id: string;
@@ -59,6 +60,13 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: LocalFile } | null>(null);
 
+  // Selection state
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+
+  // Rename state
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
   // Drag-and-drop state
   const [isDragging, setIsDragging] = useState(false);
   const dragCounterRef = useRef(0);
@@ -67,6 +75,15 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   const [importUrl, setImportUrl] = useState('');
   const [importing, setImporting] = useState(false);
   const [showImportUrl, setShowImportUrl] = useState(false);
+
+  // Modal states
+  const [showNewFile, setShowNewFile] = useState(false);
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [showOpenWith, setShowOpenWith] = useState(false);
+  const [openWithApps, setOpenWithApps] = useState<{ appId: string; label: string }[]>([]);
+  const [openWithFile, setOpenWithFile] = useState<LocalFile | null>(null);
 
   const revokeObjectUrls = () => {
     for (const url of objectUrlsRef.current) {
@@ -148,6 +165,8 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   };
 
   useEffect(() => {
+    setSelectedFileId(null);
+    setRenamingId(null);
     fetchFiles();
     fetchCloudSources();
     return () => revokeObjectUrls();
@@ -327,7 +346,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
       setShowImportUrl(false);
     } catch (err) {
       console.error('Import failed:', err);
-      alert(`Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Import Failed', message: err instanceof Error ? err.message : 'Unknown error' } }));
     } finally {
       setImporting(false);
     }
@@ -335,9 +354,16 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
 
   const deleteFile = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this file?")) return;
-    await FS.delete(id);
-    fetchFiles();
+    setPendingDeleteId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (pendingDeleteId) {
+      await FS.delete(pendingDeleteId);
+      fetchFiles();
+    }
+    setPendingDeleteId(null);
   };
 
   const downloadFile = (file: LocalFile, e: React.MouseEvent) => {
@@ -351,8 +377,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
     document.body.removeChild(a);
   };
 
-  const createNewFile = async () => {
-    const name = prompt("Enter new file name (e.g. document.txt):");
+  const createNewFile = async (name: string) => {
     if (!name) return;
     const filePath = currentPath === 'Root' ? name : `${currentPath}/${name}`;
     await FS.write(filePath, "");
@@ -542,17 +567,11 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                    <Cloud className="w-4 h-4" /> Import URL
                 </button>
 
-                <button onClick={async () => {
-                  const name = prompt("Enter new folder name:");
-                  if (!name) return;
-                  const path = currentPath === 'Root' ? name : `${currentPath}/${name}`;
-                  await FS.mkdir(path);
-                  fetchFiles();
-                }} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--os-hover)] hover:bg-[var(--os-active)] rounded-md text-sm font-medium transition-colors">
+                <button onClick={() => setShowNewFolder(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--os-hover)] hover:bg-[var(--os-active)] rounded-md text-sm font-medium transition-colors">
                    <Folder className="w-4 h-4" /> New Folder
                 </button>
 
-                <button onClick={createNewFile} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--os-primary)] hover:bg-[var(--os-primary-container)] rounded-md text-white text-sm font-medium transition-colors shadow-lg shadow-[var(--os-primary)]/20">
+                <button onClick={() => setShowNewFile(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--os-primary)] hover:bg-[var(--os-primary-container)] rounded-md text-white text-sm font-medium transition-colors shadow-lg shadow-[var(--os-primary)]/20">
                    <Plus className="w-4 h-4" /> New File
                 </button>
               </>
@@ -638,7 +657,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                     <button onClick={() => setShowImportUrl(true)} className="px-4 py-2 bg-[var(--os-hover)] hover:bg-[var(--os-active)] rounded-md text-[var(--os-text)] text-sm font-medium transition-colors">
                       Import from URL
                     </button>
-                    <button onClick={createNewFile} className="px-4 py-2 bg-[var(--os-hover)] hover:bg-[var(--os-active)] rounded-md text-[var(--os-text)] text-sm font-medium transition-colors">
+                    <button onClick={() => setShowNewFile(true)} className="px-4 py-2 bg-[var(--os-hover)] hover:bg-[var(--os-active)] rounded-md text-[var(--os-text)] text-sm font-medium transition-colors">
                       Create File
                     </button>
                   </div>
@@ -647,7 +666,20 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
             </div>
           ) : isViewingLocal ? (
             // Local files grid
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 pb-12">
+            <div
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 pb-12"
+              onClick={(e) => { if (e.target === e.currentTarget) { setSelectedFileId(null); setRenamingId(null); } }}
+              onKeyDown={(e) => {
+                if (e.key === 'F2' && selectedFileId) {
+                  const file = files.find(f => f.id === selectedFileId);
+                  if (file) {
+                    setRenamingId(file.id);
+                    setRenameValue(file.name);
+                  }
+                }
+              }}
+              tabIndex={0}
+            >
               {filteredFiles.map((file, i) => {
                 const isFolder = file.isFolder === true || file.mimeType === 'inode/directory';
                 const isMedia = !isFolder && (file.mimeType?.startsWith('video/') || file.mimeType?.startsWith('audio/'));
@@ -657,9 +689,15 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                 return (
                   <div
                     key={i}
+                    onClick={() => setSelectedFileId(file.id)}
                     onDoubleClick={() => handleFileOpen(file)}
                     onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); if (!isFolder) setContextMenu({ x: e.clientX, y: e.clientY, file }); }}
-                    className="group flex flex-col items-center p-4 rounded-xl border border-transparent hover:bg-[var(--os-hover)] hover:border-[var(--os-border)] hover:shadow-xl transition-all cursor-pointer relative"
+                    className={cn(
+                      "group flex flex-col items-center p-4 rounded-xl border transition-all cursor-pointer relative",
+                      selectedFileId === file.id
+                        ? "ring-2 ring-[var(--os-primary)] bg-[var(--os-hover)] border-[var(--os-primary)]"
+                        : "border-transparent hover:bg-[var(--os-hover)] hover:border-[var(--os-border)] hover:shadow-xl"
+                    )}
                   >
                     {!isFolder && (
                       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1 z-10">
@@ -685,9 +723,33 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                         <FileText className="w-12 h-12 text-white/50 drop-shadow-md" />
                       )}
                     </div>
-                    <span className="text-xs font-medium text-[var(--os-text)] text-center line-clamp-2 w-full break-words">
-                      {file.name}
-                    </span>
+                    {renamingId === file.id ? (
+                      <input
+                        type="text"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={() => {
+                          if (renameValue.trim() && renameValue !== file.name) {
+                            const oldPath = file.id;
+                            const dir = oldPath.includes('/') ? oldPath.substring(0, oldPath.lastIndexOf('/')) : '';
+                            const newPath = dir ? `${dir}/${renameValue}` : renameValue;
+                            FS.write(newPath, file.content || '').then(() => FS.delete(oldPath)).then(() => fetchFiles());
+                          }
+                          setRenamingId(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                          if (e.key === 'Escape') setRenamingId(null);
+                        }}
+                        className="w-full text-xs text-center bg-white border border-[var(--os-primary)] rounded px-1 py-0.5 outline-none"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span className="text-xs font-medium text-[var(--os-text)] text-center line-clamp-2 w-full break-words">
+                        {file.name}
+                      </span>
+                    )}
                     <span className="text-[10px] text-[var(--os-text-muted)] mt-1 uppercase tracking-wider">
                       {isFolder ? 'Folder' : isImage ? 'Image' : isMedia ? 'Media' : isPdf ? 'PDF' : 'Document'}
                     </span>
@@ -763,11 +825,9 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
             onClick={() => {
               const compatible = useFileStore.getState().getCompatibleApps(contextMenu.file.mimeType || '', contextMenu.file.name);
               if (compatible.length > 1) {
-                const appIds = compatible.map(r => r.appId);
-                const label = prompt(`Open with (${appIds.join(', ')}):`);
-                if (label && appIds.includes(label.trim())) {
-                  openWindow(label.trim(), contextMenu.file.name, { fileId: contextMenu.file.id, content: contextMenu.file.content });
-                }
+                setOpenWithApps(compatible);
+                setOpenWithFile(contextMenu.file);
+                setShowOpenWith(true);
               } else if (compatible.length === 1) {
                 handleFileOpen(contextMenu.file);
               } else {
@@ -777,6 +837,16 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
             className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
           >
             <Eye className="w-3.5 h-3.5" /> Open With...
+          </button>
+          <button
+            onClick={() => {
+              setRenamingId(contextMenu.file.id);
+              setRenameValue(contextMenu.file.name);
+              setContextMenu(null);
+            }}
+            className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
+          >
+            <Pencil className="w-3.5 h-3.5" /> Rename
           </button>
           <div className="border-t border-[var(--os-border)] my-1" />
           <button
@@ -804,6 +874,61 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
           onKeepLocal={() => setSyncPromptFile(null)}
         />
       )}
+
+      {/* New File Prompt */}
+      <OSPrompt
+        open={showNewFile}
+        onClose={() => setShowNewFile(false)}
+        onSubmit={(name) => createNewFile(name)}
+        title="New File"
+        placeholder="Enter new file name (e.g. document.txt)"
+      />
+
+      {/* New Folder Prompt */}
+      <OSPrompt
+        open={showNewFolder}
+        onClose={() => setShowNewFolder(false)}
+        onSubmit={async (name) => {
+          if (!name) return;
+          const path = currentPath === 'Root' ? name : `${currentPath}/${name}`;
+          await FS.mkdir(path);
+          fetchFiles();
+        }}
+        title="New Folder"
+        placeholder="Enter new folder name"
+      />
+
+      {/* Delete Confirmation */}
+      <OSConfirm
+        open={showDeleteConfirm}
+        onClose={() => { setShowDeleteConfirm(false); setPendingDeleteId(null); }}
+        onConfirm={confirmDelete}
+        title="Delete File"
+        message="Are you sure you want to delete this file?"
+        confirmLabel="Delete"
+        danger
+      />
+
+      {/* Open With Modal */}
+      <OSModal open={showOpenWith} onClose={() => setShowOpenWith(false)} title="Open With">
+        <div className="space-y-1">
+          {openWithApps.map(app => (
+            <button
+              key={app.appId}
+              onClick={() => {
+                if (openWithFile) {
+                  openWindow(app.appId, openWithFile.name, { fileId: openWithFile.id, content: openWithFile.content });
+                }
+                setShowOpenWith(false);
+              }}
+              className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-[var(--os-hover)] transition-colors"
+              style={{ color: 'var(--os-text)' }}
+            >
+              {app.label}
+            </button>
+          ))}
+        </div>
+      </OSModal>
     </div>
   );
 }

@@ -211,7 +211,14 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
   const undo = collab.undo;
   const redo = collab.redo;
 
-  if (!collab.synced) return null;
+  if (!collab.synced) return (
+    <div className="w-full h-full flex items-center justify-center bg-white">
+      <div className="flex flex-col items-center gap-3 text-slate-400">
+        <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin" />
+        <span className="text-sm">Syncing workspace...</span>
+      </div>
+    </div>
+  );
 
   // ─── Render ────────────────────────────────────────────────
   return (

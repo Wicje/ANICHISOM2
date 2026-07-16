@@ -13,6 +13,8 @@ import { CommandPalette } from '@/components/command-palette';
 import { FS, LocalFile } from '@/lib/fs';
 
 import { Toaster, toast } from 'sonner';
+import { Skeleton, CardSkeleton, PageSkeleton, BootSplash } from '@/components/ui/skeleton';
+import { AnimatePresence, motion } from 'motion/react';
 import { MenuBar } from './menu-bar';
 import { Dock } from './dock';
 import { WindowSwitcher } from './window-switcher';
@@ -187,6 +189,7 @@ export function Desktop() {
   const componentCacheRef = useRef<Map<string, React.ComponentType<any>>>(new Map());
   const failedImportsRef = useRef<Set<string>>(new Set());
   const [componentCacheVersion, setComponentCacheVersion] = useState(0);
+  const [booting, setBooting] = useState(true);
 
   // Initialize plugin registry + check Supabase session
   useEffect(() => {
@@ -196,6 +199,11 @@ export function Desktop() {
     (useOnboardingStore as any).hydrate?.();
     hydrateColorMode();
     checkSession();
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setBooting(false), 2000);
+    return () => clearTimeout(timer);
   }, []);
 
   // Sync colorMode to document.documentElement
@@ -557,21 +565,25 @@ export function Desktop() {
     }
   }, [onboarding.completed, currentUser, onboarding.selectedApps]);
 
-  if (!sessionChecked) {
+  if (booting || !sessionChecked) {
     return (
-      <div className="fixed inset-0 w-full h-full overflow-hidden flex items-center justify-center bg-[#0a0a0a]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#4da3ff', borderTopColor: 'transparent' }} />
-          <span className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.6)' }}>ANICHISOM OS</span>
-        </div>
-      </div>
+      <AnimatePresence>
+        <motion.div
+          key="boot"
+          initial={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <BootSplash />
+        </motion.div>
+      </AnimatePresence>
     );
   }
 
   if (!currentUser) {
     return (
       <div className="fixed inset-0 w-full h-full overflow-hidden flex flex-col font-sans select-none">
-        {!onboarding.completed && <Suspense fallback={null}><OnboardingWizard /></Suspense>}
+        {!onboarding.completed && <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--os-text-muted)' }} /></div>}><OnboardingWizard /></Suspense>}
         {onboarding.completed && <LoginScreen />}
       </div>
     );
@@ -587,7 +599,7 @@ export function Desktop() {
       onDragLeave={() => setIsDraggingFile(false)}
       onDrop={handleDrop}
     >
-      {isLocked && <Suspense fallback={null}><LockScreen onUnlock={() => setIsLocked(false)} /></Suspense>}
+      {isLocked && <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--os-text-muted)' }} /></div>}><LockScreen onUnlock={() => setIsLocked(false)} /></Suspense>}
 
       <style>{`
         :root { --color-neon-blue: ${themeColor}; }
@@ -620,13 +632,13 @@ export function Desktop() {
         wipeSession={wipeSession}
       />
 
-      {showControlCenter && <Suspense fallback={null}><ControlCenter onClose={() => setShowControlCenter(false)} /></Suspense>}
+      {showControlCenter && <Suspense fallback={<PageSkeleton />}><ControlCenter onClose={() => setShowControlCenter(false)} /></Suspense>}
 
       <main className="flex-1 relative z-10 w-full h-full overflow-hidden pointer-events-none">
         <DesktopIcons />
         <WidgetsLayer widgets={widgets} setWidgets={setWidgets} />
 
-        {showSnapshots && <Suspense fallback={null}><SnapshotsMenu onClose={() => setShowSnapshots(false)} /></Suspense>}
+        {showSnapshots && <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--os-text-muted)' }} /></div>}><SnapshotsMenu onClose={() => setShowSnapshots(false)} /></Suspense>}
 
         {visibleWindows.map(win => {
           const AppComponent = componentCacheRef.current.get(win.appId);
@@ -662,16 +674,16 @@ export function Desktop() {
       </main>
 
       {showSwitcher && <WindowSwitcher switcherIndex={switcherIndex} />}
-      {showLaunchpad && <Suspense fallback={null}><Launchpad onClose={() => setShowLaunchpad(false)} /></Suspense>}
-      {showMissionControl && <Suspense fallback={null}><MissionControl onClose={() => setShowMissionControl(false)} /></Suspense>}
+      {showLaunchpad && <Suspense fallback={<CardSkeleton />}><Launchpad onClose={() => setShowLaunchpad(false)} /></Suspense>}
+      {showMissionControl && <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--os-text-muted)' }} /></div>}><MissionControl onClose={() => setShowMissionControl(false)} /></Suspense>}
       {showNotchNook && (
         <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-[300]">
-          <Suspense fallback={null}><NotchNook /></Suspense>
+          <Suspense fallback={<div className="flex items-center justify-center p-4"><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--os-text-muted)' }} /></div>}><NotchNook /></Suspense>
         </div>
       )}
       {showWidgetStack && (
         <div className="absolute top-12 right-4 z-[300]">
-          <Suspense fallback={null}><WidgetStack /></Suspense>
+          <Suspense fallback={<div className="flex items-center justify-center p-4"><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--os-text-muted)' }} /></div>}><WidgetStack /></Suspense>
         </div>
       )}
 
@@ -683,7 +695,7 @@ export function Desktop() {
       />
 
       {contextMenu && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--os-text-muted)' }} /></div>}>
           <ContextMenu
             x={contextMenu.x}
             y={contextMenu.y}
@@ -701,7 +713,7 @@ export function Desktop() {
         </div>
       )}
 
-      {!onboarding.completed && <Suspense fallback={null}><OnboardingWizard /></Suspense>}
+      {!onboarding.completed && <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--os-text-muted)' }} /></div>}><OnboardingWizard /></Suspense>}
       {onboarding.completed && <FeedbackWidget />}
 
       <Toaster

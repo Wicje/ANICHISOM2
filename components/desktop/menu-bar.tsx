@@ -9,6 +9,7 @@ import { Search, Zap, ZapOff, Cloud, ShieldCheck, Power, Users, RefreshCw } from
 import { PresenceIndicator } from '@/components/presence-indicator';
 import { WorkspaceSelector } from '@/components/workspace-selector';
 import { useCollabStatusStore } from '@/lib/stores/collab-status.store';
+import { useNotificationStore } from '@/lib/stores/notification.store';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -90,6 +91,7 @@ export function MenuBar({
   const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace);
   const isConnected = useCollabStatusStore((s) => s.isConnected());
   const totalPeers = useCollabStatusStore((s) => s.totalPeers());
+  const unreadCount = useNotificationStore((s) => s.notifications.filter(n => !n.read).length);
 
   if (!currentUser) return null;
 
@@ -254,10 +256,15 @@ export function MenuBar({
             </div>
           </div>
           <button
-            className="cursor-pointer transition-colors focus:outline-none flex items-center gap-2 px-2 py-1 rounded transition-colors"
+            className="cursor-pointer transition-colors focus:outline-none flex items-center gap-2 px-2 py-1 rounded transition-colors relative"
             onClick={() => setShowControlCenter(!showControlCenter)}
             style={{ color: 'var(--os-text)' }}
           >
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 flex items-center justify-center bg-red-500 text-white text-[8px] font-bold rounded-full border border-[var(--os-bg)] px-0.5 leading-none">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
             <OsClock />
           </button>
         </div>

@@ -115,12 +115,12 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
     saveDocIndex(newList);
     setProjectId(newId);
     setDocTitle('New Document');
-    window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Document Created', message: 'A new document has been created.' } }));
+    window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Document Created', description: 'A new document has been created.' } }));
   };
 
   const deleteDoc = (docId: string) => {
     if (docList.length <= 1) {
-      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Cannot Delete', message: 'You must have at least one document.' } }));
+      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Cannot Delete', description: 'You must have at least one document.' } }));
       return;
     }
     const newList = docList.filter(d => d.id !== docId);
@@ -132,7 +132,7 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
       setProjectId(newList[0]!.id);
       setDocTitle(newList[0]!.title);
     }
-    window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Document Deleted', message: 'The document has been removed.' } }));
+    window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Document Deleted', description: 'The document has been removed.' } }));
   };
 
   const renameDoc = (docId: string, newTitle: string) => {
@@ -158,7 +158,7 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
     Storage.getDoc('docs', `slides-fabric-${docId}`, workspaceMode).then((data: any) => {
       if (data) Storage.setDoc('docs', `slides-fabric-${newId}`, data, workspaceMode);
     });
-    window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Document Duplicated', message: 'A copy has been created.' } }));
+    window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Document Duplicated', description: 'A copy has been created.' } }));
   };
 
   const switchDoc = (docId: string) => {
@@ -184,23 +184,23 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
       const html = we.getHTML();
       const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Document</title><style>body{font-family:Inter,sans-serif;max-width:816px;margin:40px auto;padding:0 24px;line-height:1.6;color:#1e293b;}h1,h2{margin-top:1.5em;}blockquote{border-left:3px solid rgba(13,13,13,0.1);padding-left:1rem;margin-left:0;}</style></head><body>${html}</body></html>`;
       downloadFile(`${projectId}.html`, fullHtml, 'text/html');
-      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Exported', message: 'Word document exported as HTML.' } }));
+      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Exported', description: 'Word document exported as HTML.' } }));
     } else if (activeTab === 'sheets') {
       const data = sheetsDataRef.current;
       const cols = Array.from({ length: 15 }, (_, i) => String.fromCharCode(65 + i));
       const rows = Array.from({ length: 30 }, (_, i) => i + 1);
       const csvLines = rows.map(r => cols.map(c => data[`${c}${r}`] || '').join(','));
       downloadFile(`${projectId}.csv`, csvLines.join('\n'), 'text/csv');
-      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Exported', message: 'Sheet exported as CSV.' } }));
+      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Exported', description: 'Sheet exported as CSV.' } }));
     } else if (activeTab === 'slides') {
       const canvas = fabricCanvasRef.current;
       if (!canvas?.toDataURL) return;
       try {
         const dataUrl = canvas.toDataURL({ format: 'png', multiplier: 2 });
         downloadDataURL(`${projectId}.png`, dataUrl);
-        window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Exported', message: 'Slide exported as PNG.' } }));
+        window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Exported', description: 'Slide exported as PNG.' } }));
       } catch {
-        window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Export Failed', message: 'Could not export slide.' } }));
+        window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Export Failed', description: 'Could not export slide.' } }));
       }
     }
   };
@@ -326,9 +326,9 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
         {/* Toolbar */}
         <div className="flex items-center gap-4 px-4 py-2 bg-white border-t border-slate-200">
            <div className="flex items-center gap-1 border-r border-slate-200 pr-4">
-             <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Save to local-first DB" onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Document Saved', message: 'Your work has been securely saved.' }}))}><Save className="w-4 h-4" /></button>
+             <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Save to local-first DB" onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Document Saved', description: 'Your work has been securely saved.' }}))}><Save className="w-4 h-4" /></button>
              <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Print" onClick={() => window.print()}><Printer className="w-4 h-4" /></button>
-             <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Share via Self-Host" onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Share Link Created', message: 'Link copied to clipboard.' }}))}><Share2 className="w-4 h-4" /></button>
+             <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Share via Self-Host" onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Share Link Created', description: 'Link copied to clipboard.' }}))}><Share2 className="w-4 h-4" /></button>
              <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Export" onClick={handleExport}><Download className="w-4 h-4" /></button>
            </div>
            
@@ -943,7 +943,7 @@ function PdfEditor({ initialUrl }: { initialUrl?: string }) {
        const url = URL.createObjectURL(file);
        setPdfUrl(url);
     } else if (file) {
-      alert("Please upload a valid PDF file.");
+      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Invalid File', message: 'Please upload a valid PDF file.' } }));
     }
   };
 

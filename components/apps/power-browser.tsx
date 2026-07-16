@@ -61,6 +61,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   } = useBrowserStore();
 
   const [inputUrl, setInputUrl] = useState('');
+  const [loading, setLoading] = useState(false);
   const [showPinDialog, setShowPinDialog] = useState(false);
   const [pinUrl, setPinUrl] = useState('');
   const [pinTitle, setPinTitle] = useState('');
@@ -99,6 +100,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
       else if (searchEngine === 'duckduckgo') finalUrl = `https://html.duckduckgo.com/html/?q=${q}`;
       else finalUrl = `https://www.bing.com/search?q=${q}`;
     }
+    setLoading(true);
     navigateTab(activeTabId, finalUrl, '');
   };
 
@@ -148,6 +150,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
 
   const reload = () => {
     if (!activeTab) return;
+    setLoading(true);
     const current = activeTab.url;
     useBrowserStore.getState().updateTabUrl(activeTabId, '', '');
     setTimeout(() => {
@@ -172,6 +175,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   };
 
   const handleIframeLoad = (tabId: string) => {
+    setLoading(false);
     const iframe = iframeRefs.current.get(tabId);
     if (!iframe) return;
 
@@ -215,6 +219,13 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
 
   return (
     <div className="w-full h-full flex flex-col bg-white text-black font-sans relative group/browser">
+      <style>{`
+        @keyframes browser-loading {
+          0% { width: 0%; margin-left: 0; }
+          50% { width: 60%; margin-left: 20%; }
+          100% { width: 0%; margin-left: 100%; }
+        }
+      `}</style>
 
       {/* Floating Controls (Focus Mode) */}
       {focusMode && (
@@ -458,6 +469,17 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                   </button>
                 </div>
               </div>
+              {loading && (
+                <div className="h-0.5 w-full overflow-hidden" style={{ background: 'var(--os-border)' }}>
+                  <div
+                    className="h-full"
+                    style={{
+                      background: 'var(--os-primary, #6366f1)',
+                      animation: 'browser-loading 1.5s ease-in-out infinite',
+                    }}
+                  />
+                </div>
+              )}
             </div>
           )}
 

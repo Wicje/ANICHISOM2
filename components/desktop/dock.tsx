@@ -8,6 +8,7 @@ import { useWorkspaceStore } from '@/lib/stores/workspace.store';
 import { useAuthStore } from '@/lib/stores/auth.store';
 import { Grid, Layers, Folder } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useNotificationStore } from '@/lib/stores/notification.store';
 import { APP_MANIFEST } from '@/lib/app-manifest';
 import { AppIcon } from '@/components/ui/app-icon';
 import { getAllPlugins, isPluginActive } from '@/lib/plugin-registry';
@@ -26,6 +27,7 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
   const highestZIndex = useWindowStore((s) => s.highestZIndex);
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
   const installedApps = useWorkspaceStore((s) => s.installedApps);
+  const unreadCount = useNotificationStore((s) => s.notifications.filter(n => !n.read).length);
 
   const allowedApps = useMemo(() => {
     if (!currentUser) return [];
@@ -43,7 +45,10 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
 
   return (
     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[260] pointer-events-none">
-      <nav role="toolbar" aria-label="Application dock" className="flex items-end gap-3 px-3 py-2 glass-panel rounded-3xl shadow-2xl pointer-events-auto contain-layout">
+      <nav role="toolbar" aria-label="Application dock" className="flex items-end gap-3 px-3 py-2 glass-panel rounded-3xl shadow-2xl pointer-events-auto contain-layout relative">
+        {unreadCount > 0 && (
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[var(--os-bg)]" />
+        )}
         <div className="relative group flex flex-col items-center justify-end">
           <button
             aria-label="Launchpad"
