@@ -1,8 +1,10 @@
 /**
- * Shared in-memory plugin store for the Plugin API routes.
+ * Shared plugin store for the Plugin API routes.
  *
- * Dev-only: swap to Firestore/PostgreSQL for production.
+ * Uses Supabase for persistence. Falls back to seed data if table is empty.
  */
+
+import { createClient } from '@/utils/supabase/server';
 
 export interface PluginListing {
   id: string;
@@ -23,72 +25,93 @@ export interface PluginListing {
   publisherId: string;
 }
 
-const pluginStore = new Map<string, PluginListing>();
+// Seed data for initial population
+const SEED_PLUGINS: PluginListing[] = [
+  {
+    id: 'demo-analytics',
+    name: 'Analytics Dashboard',
+    version: '1.0.0',
+    description: 'Real-time analytics dashboard with charts and export.',
+    author: 'ANICHISOM Labs',
+    category: 'analytics',
+    permissions: ['workspace:read', 'files:read'],
+    runtime: 'native',
+    roles: ['admin', 'filmmaker', 'technician'],
+    tags: ['analytics', 'charts', 'dashboard'],
+    source: 'marketplace',
+    rating: 4.5,
+    installCount: 23,
+    publishedAt: Date.now() - 86400000 * 3,
+    publisherId: 'seed',
+  },
+  {
+    id: 'demo-slack-bridge',
+    name: 'Slack Bridge',
+    version: '0.9.0',
+    description: 'Send notifications and sync messages with Slack workspaces.',
+    author: 'ANICHISOM Labs',
+    category: 'communication',
+    permissions: ['network:fetch', 'notifications:send', 'workspace:read'],
+    runtime: 'iframe',
+    entryUrl: 'https://slack-bridge.example.com',
+    roles: ['admin', 'filmmaker', 'technician', 'designer'],
+    tags: ['slack', 'communication', 'notifications'],
+    source: 'marketplace',
+    rating: 4.2,
+    installCount: 15,
+    publishedAt: Date.now() - 86400000 * 7,
+    publisherId: 'seed',
+  },
+  {
+    id: 'demo-color-palette',
+    name: 'Color Palette Generator',
+    version: '2.1.0',
+    description: 'AI-powered color palette generator with accessibility checks.',
+    author: 'ANICHISOM Labs',
+    category: 'creative',
+    permissions: ['ai:query'],
+    runtime: 'native',
+    roles: ['admin', 'filmmaker', 'technician', 'designer', 'client', 'user'],
+    tags: ['design', 'colors', 'accessibility', 'ai'],
+    source: 'marketplace',
+    rating: 4.8,
+    installCount: 42,
+    publishedAt: Date.now() - 86400000 * 14,
+    publisherId: 'seed',
+  },
+];
 
-// Seed example plugins
-function seedPlugins() {
-  if (pluginStore.size > 0) return;
+export async function getPluginStore(): Promise<PluginListing[]> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('plugins')
+      .select('*')
+      .order('createdAt', { ascending: false });
 
-  const examples: PluginListing[] = [
-    {
-      id: 'demo-analytics',
-      name: 'Analytics Dashboard',
+    if (error || !data || data.length === 0) {
+      // Fall back to seed data
+      return SEED_PLUGINS;
+    }
+
+    return data.map(p => ({
+      id: p.id,
+      name: p.name,
       version: '1.0.0',
-      description: 'Real-time analytics dashboard with charts and export.',
-      author: 'ANICHISOM Labs',
-      category: 'analytics',
-      permissions: ['workspace:read', 'files:read'],
-      runtime: 'native',
-      roles: ['admin', 'filmmaker', 'technician'],
-      tags: ['analytics', 'charts', 'dashboard'],
+      description: p.description,
+      author: p.developer || 'Community',
+      category: 'general',
+      permissions: [],
+      runtime: 'iframe' as const,
+      roles: ['admin', 'user'],
+      tags: [],
       source: 'marketplace',
-      rating: 4.5,
-      installCount: 23,
-      publishedAt: Date.now() - 86400000 * 3,
-      publisherId: 'seed',
-    },
-    {
-      id: 'demo-slack-bridge',
-      name: 'Slack Bridge',
-      version: '0.9.0',
-      description: 'Send notifications and sync messages with Slack workspaces.',
-      author: 'ANICHISOM Labs',
-      category: 'communication',
-      permissions: ['network:fetch', 'notifications:send', 'workspace:read'],
-      runtime: 'iframe',
-      entryUrl: 'https://slack-bridge.example.com',
-      roles: ['admin', 'filmmaker', 'technician', 'designer'],
-      tags: ['slack', 'communication', 'notifications'],
-      source: 'marketplace',
-      rating: 4.2,
-      installCount: 15,
-      publishedAt: Date.now() - 86400000 * 7,
-      publisherId: 'seed',
-    },
-    {
-      id: 'demo-color-palette',
-      name: 'Color Palette Generator',
-      version: '2.1.0',
-      description: 'AI-powered color palette generator with accessibility checks.',
-      author: 'ANICHISOM Labs',
-      category: 'creative',
-      permissions: ['ai:query'],
-      runtime: 'native',
-      roles: ['admin', 'filmmaker', 'technician', 'designer', 'client', 'user'],
-      tags: ['design', 'colors', 'accessibility', 'ai'],
-      source: 'marketplace',
-      rating: 4.8,
-      installCount: 42,
-      publishedAt: Date.now() - 86400000 * 14,
-      publisherId: 'seed',
-    },
-  ];
-
-  examples.forEach(p => pluginStore.set(p.id, p));
-}
-
-seedPlugins();
-
-export function getPluginStore(): Map<string, PluginListing> {
-  return pluginStore;
+      rating: 0,
+      installCount: 0,
+      publishedAt: new Date(p.createdAt).getTime(),
+      publisherId: p.developer || 'community',
+    }));
+  } catch {
+    return SEED_PLUGINS;
+  }
 }

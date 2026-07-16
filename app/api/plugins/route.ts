@@ -7,6 +7,7 @@
 
 import { NextRequest } from 'next/server';
 import { requireAuth, checkRouteRateLimit, apiOk, apiError, apiInternal } from '@/lib/api-helpers';
+import { createClient } from '@/utils/supabase/server';
 import { getPluginStore, PluginListing } from './store';
 
 export async function GET(request: NextRequest) {
@@ -18,8 +19,7 @@ export async function GET(request: NextRequest) {
     const searchQuery = searchParams.get('search')?.toLowerCase();
     const category = searchParams.get('category');
 
-    const store = getPluginStore();
-    let results = Array.from(store.values());
+    let results = await getPluginStore();
 
     if (category && category !== 'All') {
       results = results.filter(p => p.category === category);
@@ -48,20 +48,11 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    const requiredFields = ['id', 'name', 'version', 'description', 'author', 'category', 'runtime', 'permissions'];
+    const requiredFields = ['name', 'description'];
     for (const field of requiredFields) {
       if (!(field in body)) {
         return apiError(`Missing required field: ${field}`);
       }
-    }
-
-    if (!['iframe', 'native'].includes(body.runtime)) {
-      return apiError('runtime must be "iframe" or "native"');
-    }
-
-    const store = getPluginStore();
-    if (store.has(body.id)) {
-      return apiError(`Plugin with id "${body.id}" already exists`, 409);
     }
 
     // Validate entryUrl for SSRF if iframe runtime
@@ -71,7 +62,6 @@ export async function POST(request: NextRequest) {
         if (entryUrl.protocol !== 'https:') {
           return apiError('entryUrl must use HTTPS', 400);
         }
-        // Block private/internal IPs
         const hostname = entryUrl.hostname;
         if (hostname === 'localhost' || hostname === '127.0.0.1' ||
             hostname.startsWith('10.') || hostname.startsWith('192.168.') ||
@@ -84,28 +74,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const listing: PluginListing = {
-      id: body.id,
-      name: body.name,
-      version: body.version,
-      description: body.description,
-      author: body.author,
-      category: body.category,
-      permissions: body.permissions || [],
-      runtime: body.runtime,
-      entryUrl: body.runtime === 'iframe' ? body.entryUrl : undefined,
-      roles: body.roles || ['admin', 'filmmaker', 'technician', 'designer', 'client', 'user'],
-      tags: body.tags || [],
-      source: 'marketplace',
-      rating: 0,
-      installCount: 0,
-      publishedAt: Date.now(),
-      publisherId: auth.userId,
-    };
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('plugins')
+      .insert({
+        name: body.name,
+        description: body.description || '',
+        developer: auth.userId,
+      })
+      .select()
+      .single();
 
-    store.set(listing.id, listing);
+    if (error) {
+      console.error('[plugins] POST Supabase error:', error.message);
+      return apiInternal();
+    }
 
-    return apiOk({ plugin: listing, message: 'Plugin published successfully' }, 201);
+    return apiOk({ plugin: data, message: 'Plugin published successfully' }, 201);
   } catch (error) {
     console.error('[plugins] POST Error:', error);
     return apiInternal();

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { withPersistence } from '@/lib/stores/persisted-store';
 import {
   Page, PageLevel, DatabaseSchema, DatabaseStore,
   CampaignShare, LinkedDatabase, Notification, NotificationType,
@@ -379,3 +380,5 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
   setShareModalOpen: (open) => set({ shareModalOpen: open }),
   setCoverPickerOpen: (open) => set({ coverPickerOpen: open }),
 }));
+
+withPersistence(useCampaignStore, 'campaign-state', ['pages', 'databaseStore', 'linkedDatabases', 'campaignShares', 'notifications']);

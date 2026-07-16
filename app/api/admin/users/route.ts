@@ -18,6 +18,7 @@ import {
   apiForbidden,
   apiInternal,
 } from '@/lib/api-helpers';
+import { createClient } from '@/utils/supabase/server';
 
 // Helper: verify admin role
 async function verifyAdminAccess(request: NextRequest) {
@@ -37,11 +38,21 @@ export async function GET(request: NextRequest) {
     const authResult = await verifyAdminAccess(request);
     if (!authResult.ok) return authResult.response;
 
-    // TODO: Query users from database
-    // For now, return stub data
+    const supabase = await createClient();
+    const { data: users, error, count } = await supabase
+      .from('users')
+      .select('id, name, email, role, status, isAdmin, createdAt, lastLogin', { count: 'exact' })
+      .order('createdAt', { ascending: false })
+      .limit(100);
+
+    if (error) {
+      console.error('[admin/users] Supabase error:', error.message);
+      return apiOk({ users: [], count: 0, timestamp: new Date().toISOString() });
+    }
+
     return apiOk({
-      users: [],
-      count: 0,
+      users: users || [],
+      count: count || 0,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

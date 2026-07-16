@@ -12,11 +12,11 @@ export function HardwareManagerApp({ window: osWindow }: { window: OSWindow }) {
   // Wireless State
   const [wifiNetworks, setWifiNetworks] = useState<{ ssid: string, strength: number, secure: boolean }[]>([]);
   const [scanning, setScanning] = useState(false);
-  const [connectedWifi, setConnectedWifi] = useState<string | null>('Ziklag_5G');
+  const [connectedWifi, setConnectedWifi] = useState<string | null>(null);
 
-  // Displays State
+  // Displays State — use Screen API
   const [displays, setDisplays] = useState<{ id: string, name: string, resolution: string, primary: boolean }[]>([
-    { id: '1', name: 'Built-in Retina Display', resolution: '2560x1600', primary: true }
+    { id: '1', name: `${typeof screen !== 'undefined' ? screen.width + 'x' + screen.height : 'Unknown'} Display`, resolution: `${typeof screen !== 'undefined' ? screen.width + 'x' + screen.height : 'Unknown'}`, primary: true }
   ]);
 
   // Phone State
@@ -25,17 +25,23 @@ export function HardwareManagerApp({ window: osWindow }: { window: OSWindow }) {
   // Keyboard State
   const [keyboardLayout, setKeyboardLayout] = useState('us');
 
-  // Mock Scanning for Wi-Fi
+  // Scan for Wi-Fi using Network Information API if available
   const scanWifi = () => {
     setScanning(true);
+    setWifiNetworks([]);
     setTimeout(() => {
-      setWifiNetworks([
-        { ssid: 'Ziklag_5G', strength: 100, secure: true },
-        { ssid: 'Guest_Network', strength: 60, secure: false },
-        { ssid: 'Studio_Network', strength: 80, secure: true },
-      ]);
+      const conn = typeof navigator !== 'undefined' ? (navigator as any).connection : null;
+      const networks: { ssid: string; strength: number; secure: boolean }[] = [];
+      if (conn) {
+        networks.push({
+          ssid: conn.type === 'wifi' ? 'Current Network' : 'Connected (' + (conn.type || 'unknown') + ')',
+          strength: conn.effectiveType === '4g' ? 100 : conn.effectiveType === '3g' ? 70 : 50,
+          secure: true,
+        });
+      }
+      setWifiNetworks(networks);
       setScanning(false);
-    }, 1500);
+    }, 800);
   };
 
   useEffect(() => {

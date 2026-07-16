@@ -17,6 +17,7 @@ import {
   apiForbidden,
   apiInternal,
 } from '@/lib/api-helpers';
+import { createClient } from '@/utils/supabase/server';
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,15 +30,25 @@ export async function GET(request: NextRequest) {
       return apiForbidden('Forbidden: Admin role required');
     }
 
-    // Return admin dashboard data (stub for now)
+    const supabase = await createClient();
+
+    // Query real counts from Supabase
+    const [usersResult, appsResult] = await Promise.all([
+      supabase.from('users').select('id', { count: 'exact', head: true }),
+      supabase.from('apps').select('id', { count: 'exact', head: true }),
+    ]);
+
+    const totalUsers = usersResult.count || 0;
+    const totalApps = appsResult.count || 0;
+
     return apiOk({
       admin: {
         userId: authResult.userId,
         role: authResult.userRole,
       },
       dashboard: {
-        totalUsers: 0,
-        totalApps: 0,
+        totalUsers,
+        totalApps,
         systemHealth: 'nominal',
         timestamp: new Date().toISOString(),
       },

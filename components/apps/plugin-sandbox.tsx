@@ -11,7 +11,7 @@ export function PluginSandbox({ window: osWindow }: { window: OSWindow }) {
   const [isReady, setIsReady] = useState(false);
   const [deniedCount, setDeniedCount] = useState(0);
 
-  const pluginUrl = osWindow.data?.pluginUrl || '/plugin-mock.html';
+  const pluginUrl = osWindow.data?.pluginUrl;
   const pluginId = osWindow.data?.pluginId as string | undefined;
   const pluginOrigin = (() => {
     try {
@@ -240,13 +240,23 @@ export function PluginSandbox({ window: osWindow }: { window: OSWindow }) {
         </div>
       </div>
 
-      <iframe
-        ref={iframeRef}
-        src={pluginUrl}
-        className="flex-1 w-full border-none bg-white"
-        sandbox="allow-scripts"
-        title={`Plugin ${osWindow.title}`}
-      />
+      {pluginUrl ? (
+        <iframe
+          ref={iframeRef}
+          src={pluginUrl}
+          className="flex-1 w-full border-none bg-white"
+          sandbox="allow-scripts"
+          title={`Plugin ${osWindow.title}`}
+        />
+      ) : (
+        <div className="flex-1 flex items-center justify-center bg-[#111] text-white/40">
+          <div className="text-center">
+            <ShieldAlert className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">No plugin URL provided</p>
+            <p className="text-xs text-white/20 mt-1">Install a plugin from the App Store to run it here</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

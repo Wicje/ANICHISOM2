@@ -1,78 +1,85 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Movie {
+  id: number;
   title: string;
   year: number;
-  streaming: string;
-  countries: number;
-  posterColor: string;
+  overview: string;
+  voteAverage: number;
   posterPath?: string;
+  backdropPath?: string;
 }
 
-const movies: Movie[] = [
-  { title: 'Dream Scenario', year: 2023, streaming: 'Streaming in 24 countries', countries: 24, posterColor: '#8B4513' },
-  { title: 'Drive-Away Dolls', year: 2024, streaming: 'Streaming in 8 countries', countries: 8, posterColor: '#CD853F' },
-  { title: 'Knight of Cups', year: 2015, streaming: 'Streaming 19 countries', countries: 19, posterColor: '#2F4F4F' },
-  { title: 'Memory', year: 2023, streaming: 'Streaming in 11 countries', countries: 11, posterColor: '#4A4A4A' },
-  { title: 'The Square', year: 2017, streaming: 'Streaming in 5 countries', countries: 5, posterColor: '#8B7355' },
-  { title: 'Close', year: 2022, streaming: 'Streaming in 27 countries', countries: 27, posterColor: '#556B2F' },
-  { title: 'Maestro', year: 2023, streaming: 'Streaming in 18 countries', countries: 18, posterColor: '#1a1a1a' },
-  { title: 'Past Lives', year: 2023, streaming: 'Streaming 23 countries', countries: 23, posterColor: '#4682B4' },
-];
+const TMDB_BASE = 'https://api.themoviedb.org/3';
+const TMDB_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY as string | undefined;
+
+async function fetchMovies(endpoint: string, params: Record<string, string> = {}): Promise<Movie[]> {
+  if (!TMDB_KEY) return [];
+  const url = new URL(`${TMDB_BASE}${endpoint}`);
+  url.searchParams.set('api_key', TMDB_KEY);
+  url.searchParams.set('language', 'en-US');
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  const res = await fetch(url.toString());
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.results || []).slice(0, 16).map((m: any) => ({
+    id: m.id,
+    title: m.title || 'Untitled',
+    year: m.release_date ? parseInt(m.release_date) : 0,
+    overview: m.overview || '',
+    voteAverage: m.vote_average || 0,
+    posterPath: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : undefined,
+    backdropPath: m.backdrop_path ? `https://image.tmdb.org/t/p/w780${m.backdrop_path}` : undefined,
+  }));
+}
 
 export function MovieBrowser({ window: osWindow }: { window?: any }) {
   const [activeTab, setActiveTab] = useState<'popular' | 'new' | 'upcoming'>('popular');
   const [searchQuery, setSearchQuery] = useState('');
+  const [movies, setMovies] = useState<Movie[]>([]);
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [debouncedQuery, setDebouncedQuery] = useState('');
 
+  // Load category movies
+  useEffect(() => {
+    const endpoints: Record<string, string> = {
+      popular: '/movie/popular',
+      new: '/movie/now_playing',
+      upcoming: '/movie/upcoming',
+    };
+    const endpoint = endpoints[activeTab];
+    if (!endpoint) return;
+    setIsLoading(true);
+    fetchMovies(endpoint, { page: '1' }).then(m => {
+      setMovies(m);
+      setIsLoading(false);
+    });
+  }, [activeTab]);
+
+  // Search
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(searchQuery), 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
   useEffect(() => {
-    if (!debouncedQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
-    const searchMovies = async () => {
-      setIsLoading(true);
-      try {
-        const res = await fetch(
-          `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(debouncedQuery)}&api_key=demo&language=en-US&page=1`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setSearchResults(
-            (data.results || []).slice(0, 8).map((m: any) => ({
-              title: m.title || 'Untitled',
-              year: m.release_date ? parseInt(m.release_date) : 0,
-              streaming: m.overview ? m.overview.slice(0, 60) + '...' : 'No description',
-              countries: m.vote_count || 0,
-              posterColor: `hsl(${Math.abs(m.id * 37) % 360}, 40%, 30%)`,
-              posterPath: m.poster_path ? `https://image.tmdb.org/t/p/w300${m.poster_path}` : undefined,
-            }))
-          );
-        }
-      } catch {
-        // API may not be available, fall back to static data
-      }
+    if (!debouncedQuery.trim()) { setSearchResults([]); return; }
+    setIsLoading(true);
+    fetchMovies('/search/movie', { query: debouncedQuery, page: '1' }).then(m => {
+      setSearchResults(m);
       setIsLoading(false);
-    };
-    searchMovies();
+    });
   }, [debouncedQuery]);
 
   const displayMovies = searchResults.length > 0 ? searchResults : movies;
 
   return (
     <div className="w-full h-full flex flex-col bg-white font-sans overflow-hidden">
-      {/* Header */}
       <div className="flex items-center justify-between px-8 py-4 shrink-0">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-1">
@@ -87,9 +94,7 @@ export function MovieBrowser({ window: osWindow }: { window?: any }) {
                 onClick={() => setActiveTab(tab)}
                 className={cn(
                   "capitalize transition-colors pb-1 border-b-2",
-                  activeTab === tab
-                    ? "text-gray-900 font-semibold border-gray-900"
-                    : "text-gray-400 border-transparent hover:text-gray-600"
+                  activeTab === tab ? "text-gray-900 font-semibold border-gray-900" : "text-gray-400 border-transparent hover:text-gray-600"
                 )}
               >
                 {tab}
@@ -97,53 +102,60 @@ export function MovieBrowser({ window: osWindow }: { window?: any }) {
             ))}
           </nav>
         </div>
-
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search movies or tv shows..."
+            placeholder="Search movies..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-64 bg-gray-100 rounded-full py-2 pl-10 pr-4 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-gray-200"
           />
         </div>
-
         <div className="text-xs text-gray-400">
-          Powered by <span className="font-semibold text-gray-600">FineTune</span>
+          Powered by <span className="font-semibold text-gray-600">TMDB</span>
         </div>
       </div>
 
-      {/* Grid */}
       <div className="flex-1 overflow-y-auto px-8 pb-8">
-        <div className="grid grid-cols-4 gap-x-6 gap-y-8">
-          {displayMovies.map((movie, i) => (
-            <div key={i} className="flex flex-col gap-3 group cursor-pointer">
-              <div className="relative rounded-xl overflow-hidden aspect-[2/3] shadow-md group-hover:shadow-xl transition-shadow">
-                {movie.posterPath ? (
-                  <img src={movie.posterPath} alt={movie.title} className="w-full h-full object-cover" />
-                ) : (
-                  <>
-                    <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${movie.posterColor}, ${movie.posterColor}cc)` }} />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-white/30 text-lg font-bold">{movie.title.charAt(0)}</span>
+        {!TMDB_KEY && (
+          <div className="text-center py-12 text-gray-400">
+            <p className="text-sm">TMDB API key not configured.</p>
+            <p className="text-xs mt-1">Add NEXT_PUBLIC_TMDB_API_KEY to your .env.local</p>
+          </div>
+        )}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-4 gap-x-6 gap-y-8">
+            {displayMovies.map((movie) => (
+              <div key={movie.id} className="flex flex-col gap-3 group cursor-pointer">
+                <div className="relative rounded-xl overflow-hidden aspect-[2/3] shadow-md group-hover:shadow-xl transition-shadow">
+                  {movie.posterPath ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={movie.posterPath} alt={movie.title} className="w-full h-full object-cover" loading="lazy" />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                      <span className="text-gray-400 text-lg font-bold">{movie.title.charAt(0)}</span>
                     </div>
-                  </>
-                )}
-              </div>
-              <div>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-sm font-semibold text-gray-900">{movie.title}</span>
-                  <span className="text-xs text-gray-400">{movie.year}</span>
+                  )}
                 </div>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-xs text-gray-400">{movie.streaming}</span>
-                  <button className="text-xs font-semibold text-gray-900 hover:underline">See where</button>
+                <div>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-sm font-semibold text-gray-900 truncate">{movie.title}</span>
+                    <span className="text-xs text-gray-400 shrink-0 ml-2">{movie.year}</span>
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-xs text-gray-400 truncate">{movie.overview ? movie.overview.slice(0, 50) + '...' : 'No description'}</span>
+                    <span className="text-xs font-bold text-yellow-600 shrink-0 ml-2">★ {movie.voteAverage.toFixed(1)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

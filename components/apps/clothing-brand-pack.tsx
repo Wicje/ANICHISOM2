@@ -7,6 +7,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 
 import { useCollaborativeDoc, CollaborativeDocState } from '@/lib/hooks/useCollaborativeDoc';
 import { useClothingStore, Design, Collection, ProductionOrder } from '@/lib/stores/clothing.store';
+import { getAiProvider } from '@/lib/ai-providers/ai-provider-factory';
 
 export function ClothingBrandPack({ window: osWindow }: { window: OSWindow }) {
   const { workspaceMode } = useOS();
@@ -427,6 +428,7 @@ function Prototype3DTab() {
 function ProductionTab({ orders, designs, onCreateOrder, onUpdateOrder }: { orders: ProductionOrder[]; designs: Design[]; onCreateOrder: (designId: string, quantity: number, manufacturer: string, unitCost: number, dueDate: string) => string; onUpdateOrder: (id: string, updates: Partial<Omit<ProductionOrder, 'id' | 'createdAt'>>) => void }) {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [aiResult, setAiResult] = useState('');
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [orderDesignId, setOrderDesignId] = useState('');
   const [orderQty, setOrderQty] = useState('100');
@@ -509,18 +511,43 @@ function ProductionTab({ orders, designs, onCreateOrder, onUpdateOrder }: { orde
                placeholder="Describe your design... e.g. 'Cyberpunk oversized cargo pants with reflective taping and asymmetrical pockets'"
                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all resize-none h-32 mb-4"
              />
-             <button 
-               onClick={() => { setIsGenerating(true); setTimeout(() => setIsGenerating(false), 2000); }}
+              <button 
+                onClick={async () => {
+                  if (!prompt.trim()) return;
+                  setIsGenerating(true);
+                  setAiResult('');
+                  try {
+                    const provider = getAiProvider();
+                    const response = await provider.chat({
+                      messages: [
+                        { role: 'system', content: 'You are an expert fashion design AI. Generate detailed clothing design concepts based on text descriptions. Include silhouette, materials, color palette, construction details, and market positioning. Be creative and specific.' },
+                        { role: 'user', content: prompt },
+                      ],
+                      maxTokens: 1024,
+                      temperature: 0.8,
+                    });
+                    setAiResult(response.text);
+                  } catch (err: any) {
+                    setAiResult(`Error: ${err?.message || 'AI provider unavailable. Check your API key configuration.'}`);
+                  }
+                  setIsGenerating(false);
+                }}
                className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-md shadow-indigo-600/20 hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
              >
                {isGenerating ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Zap className="w-4 h-4" /> Generate Concepts</>}
              </button>
              
-             {isGenerating && (
-               <div className="mt-6 flex-1 bg-gray-50 rounded-xl border border-dashed border-gray-300 flex items-center justify-center flex-col gap-2 animate-pulse">
-                  <div className="text-sm font-bold text-gray-400">Diffusion Model Processing...</div>
-               </div>
-             )}
+              {(isGenerating || aiResult) && (
+                <div className="mt-6 flex-1 bg-gray-50 rounded-xl border border-dashed border-gray-300 p-4 overflow-y-auto">
+                  {isGenerating ? (
+                    <div className="flex items-center justify-center flex-col gap-2 animate-pulse h-full">
+                      <div className="text-sm font-bold text-gray-400">Generating design concept...</div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{aiResult}</div>
+                  )}
+                </div>
+              )}
           </div>
           
           {/* Tech Pack Export & Cloud */}

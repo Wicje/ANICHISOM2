@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useOS } from '@/lib/os-context';
+import { useSideGigsStore } from '@/lib/stores/sidegigs.store';
 import {
   Briefcase, Plus, Search, Filter, Clock, DollarSign, Users, Star,
   MapPin, CheckCircle, AlertCircle, Heart, Share2, MessageSquare,
@@ -43,53 +44,22 @@ interface UserApplication {
 
 export function SideGigsMarketplace() {
   const { currentUser, workspaceId, emitEvent } = useOS();
-  const [gigs, setGigs] = useState<SideGig[]>(() => [
-    {
-      id: 'gig-1',
-      title: 'Brand Identity Design for Tech Startup',
-      description: 'Complete brand identity including logo, color palette, typography, and guidelines.',
-      budget: { min: 8000, max: 15000, currency: 'USD' },
-      skills: ['logo design', 'branding', 'typography', 'figma'],
-      timeline: { start: new Date(), end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
-      status: 'open',
-      postedBy: { id: 'user-1', name: 'TechVentures Inc', avatar: '🏢' },
-      applicants: 23,
-      rating: 4.8,
-      location: 'Remote',
-      remote: true,
-      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: 'gig-2',
-      title: 'E-commerce Website Redesign',
-      description: 'Modernize existing e-commerce platform with improved UX and conversion optimization.',
-      budget: { min: 12000, max: 25000, currency: 'USD' },
-      skills: ['ux design', 'web design', 'conversion optimization', 'figma'],
-      timeline: { start: new Date(), end: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) },
-      status: 'open',
-      postedBy: { id: 'user-2', name: 'ShopHub', avatar: '🛍️' },
-      applicants: 17,
-      rating: 4.9,
-      location: 'Remote',
-      remote: true,
-      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: 'gig-3',
-      title: 'Motion Graphics for Product Demo',
-      description: 'Create engaging motion graphics video for SaaS product demonstration.',
-      budget: { min: 3000, max: 8000, currency: 'USD' },
-      skills: ['motion graphics', 'after effects', 'video editing'],
-      timeline: { start: new Date(), end: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000) },
-      status: 'open',
-      postedBy: { id: 'user-3', name: 'CloudTools', avatar: '☁️' },
-      applicants: 12,
-      rating: 4.7,
-      location: 'Remote',
-      remote: true,
-      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-    },
-  ]);
+  const { gigs: storeGigs, createGig } = useSideGigsStore();
+  const gigs = Object.values(storeGigs).map(g => ({
+    id: g.id,
+    title: g.name,
+    description: g.description,
+    budget: { min: g.rate, max: g.rate * 2, currency: 'USD' },
+    skills: g.tags,
+    timeline: { start: new Date(g.createdAt), end: new Date(g.createdAt + 30 * 86400000) },
+    status: g.status === 'active' ? 'open' as const : g.status === 'completed' ? 'completed' as const : 'in-progress' as const,
+    postedBy: { id: g.clientEmail, name: g.clientName, avatar: undefined },
+    applicants: 0,
+    rating: 5,
+    location: 'Remote',
+    remote: true,
+    createdAt: new Date(g.createdAt),
+  }));
   const [selectedGig, setSelectedGig] = useState<SideGig | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSkills, setFilterSkills] = useState<string[]>([]);
@@ -143,37 +113,15 @@ export function SideGigsMarketplace() {
   const handleCreateGig = () => {
     if (!newGigData.title.trim()) return;
 
-    const newGig: SideGig = {
-      id: crypto.randomUUID(),
-      title: newGigData.title,
-      description: newGigData.description,
-      budget: {
-        min: newGigData.minBudget,
-        max: newGigData.maxBudget,
-        currency: 'USD',
-      },
-      skills: newGigData.skills
-        .split(',')
-        .map((s) => s.trim())
-        .filter((s) => s),
-      timeline: {
-        start: new Date(),
-        end: new Date(Date.now() + newGigData.timeline * 24 * 60 * 60 * 1000),
-      },
-      status: 'open',
-      postedBy: {
-        id: currentUser?.id || '',
-        name: currentUser?.name || 'Anonymous',
-        avatar: currentUser?.avatarUrl,
-      },
-      applicants: 0,
-      rating: 5,
-      location: 'Remote',
-      remote: true,
-      createdAt: new Date(),
-    };
-
-    setGigs([newGig, ...gigs]);
+    createGig(
+      newGigData.title,
+      currentUser?.name || 'Anonymous',
+      currentUser?.id || 'unknown',
+      newGigData.minBudget,
+      'fixed',
+      newGigData.description,
+      newGigData.skills.split(',').map(s => s.trim()).filter(s => s),
+    );
     setNewGigData({
       title: '',
       description: '',
@@ -183,14 +131,6 @@ export function SideGigsMarketplace() {
       timeline: 7,
     });
     setShowNewGigForm(false);
-
-    emitEvent({
-      type: 'gig_posted',
-      workspaceId,
-      entityId: newGig.id,
-      userId: currentUser?.id || 'unknown',
-      comment: `Posted new gig: ${newGig.title}`,
-    });
   };
 
   const handleSubmitProposal = () => {

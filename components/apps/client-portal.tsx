@@ -9,6 +9,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useBrandStore, BrandGuidelines } from '@/lib/stores/brand.store';
 import { useMoodboardStore, MoodboardBoard } from '@/lib/stores/moodboard.store';
+import { useCampaignStore } from '@/lib/stores/campaign.store';
 
 type PortalTab = 'overview' | 'moodboard' | 'proposals' | 'brand' | 'comments';
 
@@ -20,29 +21,35 @@ interface PortalComment {
   section?: string;
 }
 
-const MOCK_CAMPAIGN = {
-  name: 'Q3 Brand Campaign',
-  status: 'In Progress',
-  phases: [
-    { name: 'Discovery & Strategy', status: 'completed', progress: 100 },
-    { name: 'Visual Identity', status: 'in-progress', progress: 65 },
-    { name: 'Digital Experience', status: 'pending', progress: 0 },
-    { name: 'Handoff & Review', status: 'pending', progress: 0 },
-  ],
-};
-
 export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
   const [activeTab, setActiveTab] = useState<PortalTab>('overview');
   const [newComment, setNewComment] = useState('');
-  const [comments, setComments] = useState<PortalComment[]>([
-    { id: '1', author: 'Client', text: 'Love the color palette choices!', timestamp: Date.now() - 86400000, section: 'brand' },
-    { id: '2', author: 'Agency', text: 'Thanks! We refined the typography as discussed.', timestamp: Date.now() - 43200000, section: 'brand' },
-  ]);
+  const [comments, setComments] = useState<PortalComment[]>([]);
 
   const brands = useBrandStore((s) => Object.values(s.brands));
   const boards = useMoodboardStore((s) => Object.values(s.boards));
+  const { pages, getCampaignPages } = useCampaignStore();
   const linkedBrand = brands[0] || null;
   const linkedBoard = boards[0] || null;
+
+  // Derive campaign from first campaign-level page
+  const campaignPage = pages.find(p => p.level === 'campaign' && !p.trash);
+  const campaignPhases = campaignPage
+    ? getCampaignPages(campaignPage.id).filter(p => p.level === 'phase')
+    : [];
+  const campaign = campaignPage
+    ? {
+        name: campaignPage.title || 'Untitled Campaign',
+        status: campaignPhases.length === 0 ? 'Not Started'
+          : campaignPhases.every(p => p.status === 'done') ? 'Completed'
+          : 'In Progress',
+        phases: campaignPhases.map(p => ({
+          name: p.title || 'Untitled Phase',
+          status: p.status === 'done' ? 'completed' : p.status === 'in-progress' ? 'in-progress' : 'pending',
+          progress: p.status === 'done' ? 100 : p.status === 'in-progress' ? 65 : 0,
+        })),
+      }
+    : { name: 'No Campaign Created', status: 'Not Started', phases: [] as { name: string; status: string; progress: number }[] };
 
   const approvedNodes = useMemo(() => {
     if (!linkedBoard) return [];
@@ -71,11 +78,11 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
         <Eye className="w-5 h-5 text-blue-400" />
         <div>
           <h1 className="text-sm font-bold">Client Portal</h1>
-          <p className="text-[10px] text-white/40">Read-only view for {MOCK_CAMPAIGN.name}</p>
+          <p className="text-[10px] text-white/40">Read-only view for {campaign.name}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" /> {MOCK_CAMPAIGN.status}
+            <CheckCircle2 className="w-3 h-3" /> {campaign.status}
           </span>
         </div>
       </div>
@@ -111,7 +118,7 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
             <div className="space-y-6">
               <h2 className="text-lg font-bold">Campaign Progress</h2>
               <div className="space-y-3">
-                {MOCK_CAMPAIGN.phases.map((phase, i) => (
+                {campaign.phases.map((phase, i) => (
                   <div key={i} className="bg-white/5 border border-white/10 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-bold">{phase.name}</span>
@@ -211,7 +218,7 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
                   Comprehensive brand campaign including visual identity redesign, digital experience development, and strategic marketing rollout for Q3 2026.
                 </div>
                 <div className="space-y-2">
-                  {MOCK_CAMPAIGN.phases.map((phase, i) => (
+                  {campaign.phases.map((phase, i) => (
                     <div key={i} className="flex items-center gap-2 text-xs">
                       <CheckCircle2 className={cn("w-3.5 h-3.5", phase.status === 'completed' ? "text-emerald-400" : "text-white/20")} />
                       <span className={cn(phase.status === 'completed' ? "text-white/80" : "text-white/40")}>{phase.name}</span>

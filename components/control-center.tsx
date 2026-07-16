@@ -11,6 +11,18 @@ export function ControlCenter({ onClose }: { onClose: () => void }) {
   const [wifi, setWifi] = useState(true);
   const [bluetooth, setBluetooth] = useState(true);
   const [airdrop, setAirdrop] = useState(true);
+  const [wifiName, setWifiName] = useState('Connected');
+
+  // Detect network name on mount
+  useEffect(() => {
+    const conn = typeof navigator !== 'undefined' ? (navigator as any).connection : null;
+    if (conn) {
+      if (conn.type === 'wifi') setWifiName('Wi-Fi');
+      else if (conn.type === 'cellular') setWifiName('Cellular');
+      else if (conn.type === 'ethernet') setWifiName('Ethernet');
+      else setWifiName(conn.type || 'Connected');
+    }
+  }, []);
 
   // Apply brightness globally using CSS filters on body (mock)
   useEffect(() => {
@@ -30,7 +42,7 @@ export function ControlCenter({ onClose }: { onClose: () => void }) {
             </button>
             <div className="flex flex-col">
               <span className="text-sm font-bold leading-tight">Wi-Fi</span>
-              <span className="text-[10px] text-white/60">{wifi ? 'Ziklag_5G' : 'Off'}</span>
+              <span className="text-[10px] text-white/60">{wifi ? wifiName : 'Off'}</span>
             </div>
           </div>
           <div className="flex items-center gap-3">

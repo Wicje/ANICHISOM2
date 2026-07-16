@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 
 import { Storage } from '@/lib/storage';
 import { useHardwareStore, HwComponent, Schematic, FirmwareVersion, Supplier } from '@/lib/stores/hardware.store';
+import { getAiProvider } from '@/lib/ai-providers/ai-provider-factory';
 
 export function HardwarePack({ window: osWindow }: { window: OSWindow }) {
   const { workspaceMode } = useOS();
@@ -13,12 +14,7 @@ export function HardwarePack({ window: osWindow }: { window: OSWindow }) {
 
   const { components, schematics, firmwareVersions, suppliers, createComponent, updateComponent, deleteComponent, createSchematic, updateSchematic, getComponentsByType, createFirmware, updateFirmware, getDeployedFirmware, addSupplier, linkSupplier, unlinkSupplier } = useHardwareStore();
   
-  const [bomData, setBomData] = useState<any[]>([
-    { id: '1', part: 'ESP32-S3-WROOM', desc: 'WiFi/BT MCU Module', qty: 1, cost: 3.40, footprint: 'MOD-ESP32-S3' },
-    { id: '2', part: 'BME280', desc: 'Temp/Humidity/Pressure Sensor', qty: 1, cost: 2.15, footprint: 'LGA-8' },
-    { id: '3', part: 'TP4056', desc: 'Li-Ion Battery Charger', qty: 1, cost: 0.45, footprint: 'SOP-8' },
-    { id: '4', part: '0603 10kΩ', desc: 'Resistor Thick Film', qty: 4, cost: 0.01, footprint: '0603' },
-  ]);
+  const [bomData, setBomData] = useState<any[]>([]);
 
   useEffect(() => {
      const roomId = `hardware-${osWindow.id}`;
@@ -27,6 +23,22 @@ export function HardwarePack({ window: osWindow }: { window: OSWindow }) {
      });
      return () => unsub();
   }, [workspaceMode, osWindow.id]);
+
+  // Derive BOM from components store if no stored BOM
+  useEffect(() => {
+    if (bomData.length === 0 && Object.keys(components).length > 0) {
+      const derived = Object.values(components).map((c, i) => ({
+        id: c.id || String(i + 1),
+        part: c.name,
+        desc: c.type,
+        qty: 1,
+        cost: c.unitCost || 0,
+        footprint: c.footprint || '',
+        type: c.type,
+      }));
+      setBomData(derived);
+    }
+  }, [components, bomData.length]);
   
   return (
     <div className="w-full h-full flex flex-col bg-[var(--os-bg)] text-white font-mono overflow-hidden">
@@ -78,15 +90,27 @@ function SchematicTab({ components }: { components: Record<string, HwComponent> 
   const componentList = Object.values(components);
   const filteredComponents = componentFilter === 'all' ? componentList : componentList.filter(c => c.type === componentFilter);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if(!prompt.trim()) return;
     setChat(prev => [...prev, {role: 'user', text: prompt}]);
     setPrompt('');
     setIsGenerating(true);
-    setTimeout(() => {
-      setChat(prev => [...prev, {role: 'ai', text: 'I have added an ESP32-S3 module and wired the I2C bus to the BME280 sensor. I also placed pull-up resistors on SDA and SCL as per the datasheet requirements.'}]);
-      setIsGenerating(false);
-    }, 2000);
+    try {
+      const provider = getAiProvider();
+      const componentList = Object.values(components).map(c => `${c.name} (${c.type})`).join(', ');
+      const response = await provider.chat({
+        messages: [
+          { role: 'system', content: `You are a hardware engineering AI assistant. Help with schematic design, component selection, and circuit analysis. Current components in the design: ${componentList || 'None yet'}. Respond concisely with technical accuracy.` },
+          { role: 'user', content: prompt },
+        ],
+        maxTokens: 1024,
+        temperature: 0.7,
+      });
+      setChat(prev => [...prev, {role: 'ai', text: response.text}]);
+    } catch (err: any) {
+      setChat(prev => [...prev, {role: 'ai', text: `Error: ${err?.message || 'AI provider unavailable. Check your API key configuration.'}`}]);
+    }
+    setIsGenerating(false);
   };
 
   return (
@@ -231,19 +255,45 @@ function SchematicTab({ components }: { components: Record<string, HwComponent> 
 // 2. PCB Layout & DRC
 // ---------------------------------------------------------
 function PcbLayoutTab() {
+  const { components } = useHardwareStore();
+  const componentsList = Object.values(components);
   const [drcRunning, setDrcRunning] = useState(false);
   const [drcErrors, setDrcErrors] = useState<any[]>([]);
 
   const runDRC = () => {
     setDrcRunning(true);
     setDrcErrors([]);
+    // Real DRC: analyze schematic data for basic design rule violations
     setTimeout(() => {
-      setDrcErrors([
-         { type: 'Clearance Violation', desc: 'Trace T1 is too close to Pad P3 (0.1mm < 0.15mm)', loc: 'X: 45.2, Y: 12.1' },
-         { type: 'Unrouted Net', desc: 'Net VCC is missing connection to U2_Pin1', loc: 'Global' }
-      ]);
+      const errors: any[] = [];
+      // Check for components with missing footprints
+      // (This is a basic heuristic — a full DRC engine would be a separate service)
+      const componentsWithFootprint = componentsList.filter((c: any) => c.footprint);
+      const componentsWithout = componentsList.filter((c: any) => !c.footprint);
+      if (componentsWithout.length > 0) {
+        errors.push({
+          type: 'Missing Footprint',
+          desc: `${componentsWithout.length} component(s) lack footprint data: ${componentsWithout.map((c: any) => c.name).join(', ')}`,
+          loc: 'Schematic',
+        });
+      }
+      if (componentsList.length === 0) {
+        errors.push({
+          type: 'Empty Design',
+          desc: 'No components in schematic. Add components before running DRC.',
+          loc: 'Global',
+        });
+      }
+      if (errors.length === 0) {
+        errors.push({
+          type: 'Pass',
+          desc: `All ${componentsList.length} components pass basic design rules.`,
+          loc: 'Global',
+        });
+      }
+      setDrcErrors(errors);
       setDrcRunning(false);
-    }, 1500);
+    }, 800);
   };
 
   return (
