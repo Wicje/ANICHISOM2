@@ -38,6 +38,7 @@ type BrowserState = {
   splitView: boolean;
   splitViewTarget: string | null;
   bookmarks: Bookmark[];
+  _loaded: boolean;
 
   // Pinned apps
   addPinnedApp: (url: string, title: string, icon?: string) => void;
@@ -97,6 +98,7 @@ export const useBrowserStore = create<BrowserState>((set, get) => ({
   splitView: false,
   splitViewTarget: null,
   bookmarks: [],
+  _loaded: false,
 
   addPinnedApp: (url, title, icon) => {
     const pinned: PinnedApp = {
@@ -272,9 +274,11 @@ export const useBrowserStore = create<BrowserState>((set, get) => ({
       updates.activeTabId = updates.tabs![0]!.id;
     }
     if (Object.keys(updates).length > 0) set(updates);
+    set({ _loaded: true });
   },
 
   persist: () => {
+    if (!get()._loaded) return;
     const { pinnedApps, tabs, bookmarks } = get();
     idbSet(PINNED_APPS_KEY, pinnedApps);
     idbSet(TABS_KEY, tabs.map((t) => ({ id: t.id, url: t.url, title: t.title, pinnedAppId: t.pinnedAppId })));

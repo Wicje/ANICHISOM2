@@ -63,11 +63,11 @@ export class VirtualFS {
     try {
       const files = await FS.readDir(dirPath);
       return files
-        .filter(f => !f.name.endsWith('.meta'))
+        .filter(f => !f.name.endsWith('.meta') && f.name !== '.keep')
         .map(f => ({
           name: f.name,
           path: f.id,
-          isDir: !f.mimeType || f.mimeType === 'inode/directory',
+          isDir: f.isFolder === true || f.mimeType === 'inode/directory',
           size: f.size || 0,
           mimeType: f.mimeType || '',
         }));
@@ -96,10 +96,7 @@ export class VirtualFS {
 
   async mkdir(path: string): Promise<void> {
     const resolved = this.resolvePath(path);
-    await FS.write(`${resolved}/.keep`, '');
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path: resolved } }));
-    }
+    await FS.mkdir(resolved);
   }
 
   async rm(path: string, recursive = false): Promise<void> {

@@ -17,6 +17,14 @@ export function PrivacySettings() {
   const [userIdsInput, setUserIdsInput] = useState('');
   const [summary, setSummary] = useState({ private: 0, shared: 0, restricted: 0 });
 
+  // Hydrate from IDB on mount
+  useEffect(() => {
+    const store = usePrivacyStore as any;
+    if (typeof store.hydrate === 'function') {
+      store.hydrate();
+    }
+  }, []);
+
   // Get available apps from manifest (simplified — in production would use app store)
   const availableApps = [
     { id: 'browser', name: 'Power Browser' },
@@ -142,33 +150,65 @@ export function PrivacySettings() {
               const settings = appSettings[app.id];
               const level = settings?.level || workspaceDefaults.level;
               const isOverridden = !!settings;
+              const isExpanded = selectedApp === app.id;
 
               return (
-                <div
-                  key={app.id}
-                  className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                    selectedApp === app.id ? 'bg-blue-600/10 border-blue-500' : 'bg-gray-700/30 border-gray-600'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${
-                      level === 'private' ? 'bg-red-400' : level === 'restricted' ? 'bg-yellow-400' : 'bg-green-400'
-                    }`} />
-                    <span className="font-medium">{app.name}</span>
-                    {isOverridden && (
-                      <span className="text-xs bg-blue-600/30 text-blue-300 px-2 py-0.5 rounded">overridden</span>
-                    )}
-                  </div>
+                <div key={app.id}>
+                  <div
+                    className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                      isExpanded ? 'bg-blue-600/10 border-blue-500' : 'bg-gray-700/30 border-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full ${
+                        level === 'private' ? 'bg-red-400' : level === 'restricted' ? 'bg-yellow-400' : 'bg-green-400'
+                      }`} />
+                      <span className="font-medium">{app.name}</span>
+                      {isOverridden && (
+                        <span className="text-xs bg-blue-600/30 text-blue-300 px-2 py-0.5 rounded">overridden</span>
+                      )}
+                    </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 capitalize">{level}</span>
-                    <button
-                      onClick={() => setSelectedApp(selectedApp === app.id ? null : app.id)}
-                      className="text-gray-400 hover:text-white"
-                    >
-                      <ChevronDown className={`w-4 h-4 transition-transform ${selectedApp === app.id ? 'rotate-180' : ''}`} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500 capitalize">{level}</span>
+                      <button
+                        onClick={() => setSelectedApp(isExpanded ? null : app.id)}
+                        className="text-gray-400 hover:text-white"
+                      >
+                        <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                      </button>
+                    </div>
                   </div>
+                  {isExpanded && (
+                    <div className="ml-6 mt-1 mb-2 p-2 bg-gray-700/20 rounded-lg border border-gray-600/50 space-y-1">
+                      {PRIVACY_LEVELS.map((pl) => (
+                        <button
+                          key={pl.level}
+                          onClick={() => handleSetPrivacy(app.id, pl.level)}
+                          className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors ${
+                            level === pl.level
+                              ? 'bg-blue-600/20 text-blue-400'
+                              : 'hover:bg-gray-700/50 text-gray-300'
+                          }`}
+                        >
+                          {pl.icon}
+                          <div className="flex-1">
+                            <div className="text-xs font-medium">{pl.label}</div>
+                            <div className="text-[10px] text-gray-500">{pl.description}</div>
+                          </div>
+                          {level === pl.level && <Check className="w-3 h-3" />}
+                        </button>
+                      ))}
+                      {isOverridden && (
+                        <button
+                          onClick={() => handleRemoveOverride(app.id)}
+                          className="w-full flex items-center gap-2 p-2 text-xs text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                        >
+                          <X className="w-3 h-3" /> Remove override (use workspace default)
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

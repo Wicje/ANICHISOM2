@@ -185,6 +185,11 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   }, []);
 
   const handleFileOpen = (file: LocalFile) => {
+    // If it's a folder, navigate into it
+    if (file.isFolder) {
+      setCurrentPath(file.id);
+      return;
+    }
     const mime = file.mimeType || '';
     const name = file.name;
     const appId = useFileStore.getState().resolveSmartRoute(mime, name);
@@ -484,11 +489,23 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
             >
               OS
             </button>
-            <ChevronRight className="w-3 h-3 text-[var(--os-text-muted)]" />
-            {isViewingLocal ? (
-              <span className="text-[var(--os-text)]">{currentPath}</span>
-            ) : (
+            {isViewingLocal && currentPath !== 'Root' && currentPath.split('/').filter(Boolean).map((segment, idx, arr) => {
+              const pathUpTo = arr.slice(0, idx + 1).join('/');
+              return (
+                <React.Fragment key={idx}>
+                  <ChevronRight className="w-3 h-3 text-[var(--os-text-muted)]" />
+                  <button
+                    onClick={() => setCurrentPath(pathUpTo)}
+                    className="hover:text-[var(--os-primary)] transition-colors"
+                  >
+                    {segment}
+                  </button>
+                </React.Fragment>
+              );
+            })}
+            {!isViewingLocal && (
               <>
+                <ChevronRight className="w-3 h-3 text-[var(--os-text-muted)]" />
                 <span className="text-[var(--os-primary)]">{selectedSource}</span>
                 <ChevronRight className="w-3 h-3 text-[var(--os-text-muted)]" />
                 <span className="text-[var(--os-text)]">{cloudPath === 'root' ? 'Root' : cloudPath}</span>
@@ -529,7 +546,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                   const name = prompt("Enter new folder name:");
                   if (!name) return;
                   const path = currentPath === 'Root' ? name : `${currentPath}/${name}`;
-                  await FS.write(`${path}/.keep`, "");
+                  await FS.mkdir(path);
                   fetchFiles();
                 }} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--os-hover)] hover:bg-[var(--os-active)] rounded-md text-sm font-medium transition-colors">
                    <Folder className="w-4 h-4" /> New Folder
@@ -632,28 +649,33 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
             // Local files grid
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 pb-12">
               {filteredFiles.map((file, i) => {
-                const isMedia = file.mimeType?.startsWith('video/') || file.mimeType?.startsWith('audio/');
-                const isImage = file.mimeType?.startsWith('image/');
-                const isPdf = file.name.toLowerCase().endsWith('.pdf');
+                const isFolder = file.isFolder === true || file.mimeType === 'inode/directory';
+                const isMedia = !isFolder && (file.mimeType?.startsWith('video/') || file.mimeType?.startsWith('audio/'));
+                const isImage = !isFolder && file.mimeType?.startsWith('image/');
+                const isPdf = !isFolder && file.name.toLowerCase().endsWith('.pdf');
 
                 return (
                   <div
                     key={i}
                     onDoubleClick={() => handleFileOpen(file)}
-                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, file }); }}
+                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); if (!isFolder) setContextMenu({ x: e.clientX, y: e.clientY, file }); }}
                     className="group flex flex-col items-center p-4 rounded-xl border border-transparent hover:bg-[var(--os-hover)] hover:border-[var(--os-border)] hover:shadow-xl transition-all cursor-pointer relative"
                   >
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1 z-10">
-                      <button onClick={(e) => downloadFile(file, e)} className="p-1.5 hover:bg-[var(--os-primary)] rounded-md bg-[var(--os-surface-elevated)] backdrop-blur border border-[var(--os-border)]" title="Download">
-                        <Download className="w-3.5 h-3.5 text-[var(--os-text)]" />
-                      </button>
-                      <button onClick={(e) => deleteFile(file.id, e)} className="p-1.5 hover:bg-[var(--os-error)] rounded-md bg-[var(--os-surface-elevated)] backdrop-blur border border-[var(--os-border)]" title="Delete">
-                        <Trash2 className="w-3.5 h-3.5 text-[var(--os-text)]" />
-                      </button>
-                    </div>
+                    {!isFolder && (
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1 z-10">
+                        <button onClick={(e) => downloadFile(file, e)} className="p-1.5 hover:bg-[var(--os-primary)] rounded-md bg-[var(--os-surface-elevated)] backdrop-blur border border-[var(--os-border)]" title="Download">
+                          <Download className="w-3.5 h-3.5 text-[var(--os-text)]" />
+                        </button>
+                        <button onClick={(e) => deleteFile(file.id, e)} className="p-1.5 hover:bg-[var(--os-error)] rounded-md bg-[var(--os-surface-elevated)] backdrop-blur border border-[var(--os-border)]" title="Delete">
+                          <Trash2 className="w-3.5 h-3.5 text-[var(--os-text)]" />
+                        </button>
+                      </div>
+                    )}
 
                     <div className="w-16 h-16 mb-4 flex items-center justify-center relative">
-                      {isImage && file.content ? (
+                      {isFolder ? (
+                        <Folder className="w-12 h-12 text-emerald-400 drop-shadow-md" fill="currentColor" />
+                      ) : isImage && file.content ? (
                         <img src={file.content} alt={file.name} className="w-16 h-16 object-cover rounded-lg shadow-md" />
                       ) : isMedia ? (
                         <Video className="w-12 h-12 text-rose-400 drop-shadow-md" />
@@ -667,7 +689,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                       {file.name}
                     </span>
                     <span className="text-[10px] text-[var(--os-text-muted)] mt-1 uppercase tracking-wider">
-                      {isImage ? 'Image' : isMedia ? 'Media' : isPdf ? 'PDF' : 'Document'}
+                      {isFolder ? 'Folder' : isImage ? 'Image' : isMedia ? 'Media' : isPdf ? 'PDF' : 'Document'}
                     </span>
                   </div>
                 )

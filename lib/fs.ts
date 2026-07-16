@@ -84,6 +84,7 @@ export interface LocalFile {
   content?: string;
   size?: number;
   mimeType?: string;
+  isFolder?: boolean;
 }
 
 export const FS = {
@@ -200,18 +201,37 @@ export const FS = {
     });
   },
 
-  // List directory contents recursively
+  // Create a directory in OPFS
+  mkdir: async (path: string): Promise<void> => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
+        await FS._resolvePath(path, true);
+        // Write a .keep sentinel so the directory persists even if empty
+        try { await FS.write(`${path}/.keep`, ''); } catch { /* best-effort */ }
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path } }));
+        }
+        return;
+      }
+    } catch (e) {
+      console.warn(`OPFS mkdir failed for ${path}`, e);
+    }
+  },
+
+  // List directory contents (non-recursive for top-level display)
   readDir: async (dirPath: string = ''): Promise<LocalFile[]> => {
     const files: LocalFile[] = [];
     try {
       if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
         
-        const traverse = async (currentDir: any, currentPath: string) => {
+        const traverse = async (currentDir: any, currentPath: string, depth: number) => {
            for await (const [name, handle] of currentDir.entries()) {
               const fullPath = currentPath ? `${currentPath}/${name}` : name;
               if (handle.kind === 'file') {
                  // Skip .meta companion files — they're read alongside their parent
                  if (name.endsWith('.meta')) continue;
+                 // Skip .keep sentinel files — they mark empty directories
+                 if (name === '.keep') continue;
                  try {
                     const file = await handle.getFile();
                     // Read mimeType from .meta companion, or infer from file.type, or infer from extension
@@ -236,13 +256,24 @@ export const FS = {
                       name: name,
                       size: file.size,
                       mimeType,
-                      content: contentUrl
+                      content: contentUrl,
+                      isFolder: false,
                     });
                  } catch (err) {
                     // Ignore unreadable files
                  }
               } else if (handle.kind === 'directory') {
-                 await traverse(handle, fullPath);
+                 // Track subdirectories so they appear in listing
+                 files.push({
+                   id: fullPath,
+                   name: name,
+                   mimeType: 'inode/directory',
+                   isFolder: true,
+                 });
+                 // Only traverse deeper if depth > 0 (1 = immediate children only, 0 = recursive)
+                 if (depth > 0) {
+                   await traverse(handle, fullPath, depth - 1);
+                 }
               }
            }
         };
@@ -252,7 +283,8 @@ export const FS = {
            const { dir, name } = await FS._resolvePath(dirPath);
            rootDir = await dir.getDirectoryHandle(name);
         }
-        await traverse(rootDir, dirPath);
+        // depth=1 means immediate children only (non-recursive listing)
+        await traverse(rootDir, dirPath, 1);
         
         if (files.length > 0) return files;
       }

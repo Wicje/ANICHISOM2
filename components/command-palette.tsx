@@ -5,14 +5,15 @@ import { useOS } from '@/lib/os-context';
 import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Search, Archive, Clipboard, AppWindow, File, Music, Layout } from 'lucide-react';
 import { APP_MANIFEST as APPS } from '@/lib/app-manifest';
 import { AppIconInline } from '@/components/ui/app-icon';
-import { FS } from '@/lib/fs';
+import { FS, LocalFile } from '@/lib/fs';
+import { useFileStore } from '@/lib/stores/file.store';
 
 export function CommandPalette() {
   const { openWindow, windows, focusWindow, installedApps, currentUser } = useOS();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [clipboardText, setClipboardText] = useState('');
-  const [localFiles, setLocalFiles] = useState<{name: string, id: string}[]>([]);
+  const [localFiles, setLocalFiles] = useState<LocalFile[]>([]);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -47,8 +48,6 @@ export function CommandPalette() {
      }
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const allowedApps = useMemo(() => APPS.filter((entry) => 
     entry.roles.includes(currentUser?.role || 'user')
   ), [currentUser?.role]);
@@ -78,12 +77,13 @@ export function CommandPalette() {
     });
 
     localFiles.forEach(file => {
+       const appId = useFileStore.getState().resolveSmartRoute(file.mimeType || '', file.name) || 'code';
        cmds.push({
           id: `file-${file.id}`,
           name: file.name,
           type: 'Local File',
           icon: File,
-          action: () => openWindow('code', `Editing: ${file.name}`, { filename: file.name })
+          action: () => openWindow(appId, file.name, { fileId: file.id, content: file.content })
        });
     });
 
@@ -130,6 +130,8 @@ export function CommandPalette() {
     if (c.id === 'search' && query) return true;
     return c.name.toLowerCase().includes(query.toLowerCase());
   }), [commands, query]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-auto backdrop-blur-sm"

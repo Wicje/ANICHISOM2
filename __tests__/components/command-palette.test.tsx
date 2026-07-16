@@ -17,10 +17,18 @@ vi.mock('@/lib/os-context', () => ({
 }));
 
 vi.mock('@/lib/app-manifest', () => ({
-  APP_MANIFEST: {
-    terminal: { title: 'Terminal', icon: () => <svg />, category: 'utility', isCore: true, roles: ['admin', 'user'] },
-    browser: { title: 'Browser', icon: () => <svg />, category: 'utility', isCore: true, roles: ['admin', 'user'] },
-    files: { title: 'Files', icon: () => <svg />, category: 'utility', isCore: false, roles: ['admin'] },
+  APP_MANIFEST: [
+    { id: 'terminal', title: 'Terminal', icon: () => <svg />, category: 'utility', isCore: true, roles: ['admin', 'user'] },
+    { id: 'browser', title: 'Browser', icon: () => <svg />, category: 'utility', isCore: true, roles: ['admin', 'user'] },
+    { id: 'files', title: 'Files', icon: () => <svg />, category: 'utility', isCore: false, roles: ['admin'] },
+  ],
+}));
+
+vi.mock('@/lib/stores/file.store', () => ({
+  useFileStore: {
+    getState: () => ({
+      resolveSmartRoute: () => null,
+    }),
   },
 }));
 
@@ -35,7 +43,7 @@ vi.mock('lucide-react', () => {
   return {
     Terminal: icon, Folder: icon, Globe: icon, Sparkles: icon,
     Image: icon, Search: icon, Archive: icon, Clipboard: icon,
-    AppWindow: icon, File: icon,
+    AppWindow: icon, File: icon, Music: icon, Layout: icon,
   };
 });
 
