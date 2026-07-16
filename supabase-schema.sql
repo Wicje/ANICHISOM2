@@ -164,42 +164,6 @@ create table if not exists public.plugins (
 );
 
 -- ============================================================================
--- 10. TERMINALS  (shared terminal sessions)
--- ============================================================================
-create table if not exists public.terminals (
-  id      text primary key,
-  history jsonb not null default '[]'
-);
-
--- ============================================================================
--- 11. CALLS  (WebRTC signaling)
--- ============================================================================
-create table if not exists public.calls (
-  id         text primary key,
-  callerId   text not null default '',
-  callerName text not null default '',
-  calleeId   text,
-  calleeName text,
-  status     text not null default 'waiting',   -- waiting|ringing|connected|ended
-  offerSDP   text not null default '',
-  answerSDP  text not null default '',
-  createdAt  timestamptz not null default now()
-);
-
--- ============================================================================
--- 12. CALL CANDIDATES  (ICE candidates for WebRTC)
--- ============================================================================
-create table if not exists public.call_candidates (
-  id         text primary key default gen_random_uuid()::text,
-  call_id    text not null references public.calls(id) on delete cascade,
-  role       text not null,    -- caller | callee
-  candidate  text not null,
-  created_at timestamptz not null default now()
-);
-
-create index if not exists idx_call_candidates_call on public.call_candidates (call_id);
-
--- ============================================================================
 -- ROW LEVEL SECURITY  (RLS)
 -- ============================================================================
 -- Enable RLS on every table. Policies below allow anon + authenticated access.
@@ -214,9 +178,29 @@ alter table public.presence          enable row level security;
 alter table public.snapshots         enable row level security;
 alter table public.apps              enable row level security;
 alter table public.plugins           enable row level security;
-alter table public.terminals         enable row level security;
-alter table public.calls             enable row level security;
-alter table public.call_candidates   enable row level security;
+
+-- ============================================================================
+-- 10. INVITES  (beta invite codes)
+-- ============================================================================
+create table if not exists public.invites (
+  id         text primary key default gen_random_uuid()::text,
+  code       text not null unique,
+  email      text,              -- optional: restrict to specific email
+  role       text not null default 'filmmaker',
+  createdBy  text not null,
+  usedBy     text,              -- null = unused
+  usedAt     timestamptz,
+  expiresAt  timestamptz,
+  maxUses    int not null default 1,
+  useCount   int not null default 0,
+  createdAt  timestamptz not null default now()
+);
+
+create index if not exists idx_invites_code on public.invites (code);
+
+alter table public.invites           enable row level security;
+create policy "Invites: allow all" on public.invites
+  for all using (true) with check (true);
 
 -- Permissive policies: allow all operations for anon + authenticated.
 -- Replace these with tighter policies for production.
@@ -257,18 +241,6 @@ create policy "Apps: allow all" on public.apps
 create policy "Plugins: allow all" on public.plugins
   for all using (true) with check (true);
 
--- TERMINALS
-create policy "Terminals: allow all" on public.terminals
-  for all using (true) with check (true);
-
--- CALLS
-create policy "Calls: allow all" on public.calls
-  for all using (true) with check (true);
-
--- CALL CANDIDATES
-create policy "Call candidates: allow all" on public.call_candidates
-  for all using (true) with check (true);
-
 -- ============================================================================
 -- REALTIME  (enable for tables that need live subscriptions)
 -- ============================================================================
@@ -276,7 +248,7 @@ create policy "Call candidates: allow all" on public.call_candidates
 --   Database > Replication > Enable replication for these tables
 
 -- The app subscribes to realtime on these tables:
---   workspaces, projects, events, presence, terminals, plugins, calls, call_candidates, files, apps
+--   workspaces, projects, events, presence, plugins, files, apps
 -- Enable replication for all of them in the Supabase Dashboard.
 
 -- ============================================================================

@@ -56,6 +56,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
     addPinnedApp, removePinnedApp, updatePinnedAppLastUrl,
     addTab, closeTab, setActiveTab, navigateTab,
     toggleSidebar, toggleFocusMode, toggleSplitView,
+    addBookmark, removeBookmark, isBookmarked: checkIsBookmarked,
     loadPersisted, persist,
   } = useBrowserStore();
 
@@ -83,7 +84,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
     persist();
   }, [tabs, pinnedApps]);
 
-  const isBookmarked = false; // TODO: integrate with bookmark system
+  const isBookmarked = activeTab ? checkIsBookmarked(activeTab.url) : false;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -398,6 +399,21 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                 </form>
 
                 <div className="flex items-center gap-2 text-slate-500">
+                  <button
+                    onClick={() => {
+                      if (!activeTab) return;
+                      if (isBookmarked) {
+                        const bm = useBrowserStore.getState().bookmarks.find(b => b.url === activeTab.url);
+                        if (bm) removeBookmark(bm.id);
+                      } else {
+                        addBookmark(activeTab.url, activeTab.title);
+                      }
+                    }}
+                    className={cn("hover:text-black hover:bg-black/5 rounded p-1.5 transition-colors", isBookmarked && "text-amber-500")}
+                    title={isBookmarked ? "Remove bookmark" : "Bookmark this page"}
+                  >
+                    <Star className={cn("w-4 h-4", isBookmarked && "fill-current")} />
+                  </button>
                   <button
                     onClick={() => {
                       if (activeTab) {

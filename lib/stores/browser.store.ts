@@ -17,7 +17,16 @@ type BrowserTab = {
   title: string;
   history: string[];
   historyIndex: number;
-  pinnedAppId?: string; // Which pinned app this tab belongs to
+  pinnedAppId?: string;
+};
+
+export type Bookmark = {
+  id: string;
+  url: string;
+  title: string;
+  favicon?: string;
+  createdAt: number;
+  folder?: string;
 };
 
 type BrowserState = {
@@ -27,7 +36,8 @@ type BrowserState = {
   sidebarVisible: boolean;
   focusMode: boolean;
   splitView: boolean;
-  splitViewTarget: string | null; // App ID to show alongside browser
+  splitViewTarget: string | null;
+  bookmarks: Bookmark[];
 
   // Pinned apps
   addPinnedApp: (url: string, title: string, icon?: string) => void;
@@ -42,6 +52,11 @@ type BrowserState = {
   updateTabUrl: (id: string, url: string, title: string) => void;
   navigateTab: (id: string, url: string, title: string) => void;
 
+  // Bookmarks
+  addBookmark: (url: string, title: string, favicon?: string) => void;
+  removeBookmark: (id: string) => void;
+  isBookmarked: (url: string) => boolean;
+
   // UI
   toggleSidebar: () => void;
   toggleFocusMode: () => void;
@@ -54,6 +69,7 @@ type BrowserState = {
 
 const PINNED_APPS_KEY = 'anichisom_browser_pinned_apps';
 const TABS_KEY = 'anichisom_browser_tabs';
+const BOOKMARKS_KEY = 'anichisom_browser_bookmarks';
 
 function getDomainTitle(urlStr: string): string {
   try {
@@ -80,6 +96,7 @@ export const useBrowserStore = create<BrowserState>((set, get) => ({
   focusMode: false,
   splitView: false,
   splitViewTarget: null,
+  bookmarks: [],
 
   addPinnedApp: (url, title, icon) => {
     const pinned: PinnedApp = {
@@ -204,13 +221,45 @@ export const useBrowserStore = create<BrowserState>((set, get) => ({
     });
   },
 
+  // Bookmarks
+  addBookmark: (url, title, favicon) => {
+    const { bookmarks } = get();
+    if (bookmarks.some(b => b.url === url)) return;
+    const bookmark: Bookmark = {
+      id: `bm-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      url,
+      title,
+      favicon: favicon || `https://www.google.com/s2/favicons?domain=${getDomainTitle(url)}&sz=64`,
+      createdAt: Date.now(),
+    };
+    set((s) => {
+      const next = [...s.bookmarks, bookmark];
+      idbSet(BOOKMARKS_KEY, next);
+      return { bookmarks: next };
+    });
+  },
+
+  removeBookmark: (id) => {
+    set((s) => {
+      const next = s.bookmarks.filter(b => b.id !== id);
+      idbSet(BOOKMARKS_KEY, next);
+      return { bookmarks: next };
+    });
+  },
+
+  isBookmarked: (url) => {
+    return get().bookmarks.some(b => b.url === url);
+  },
+
   loadPersisted: async () => {
-    const [pinnedApps, tabs] = await Promise.all([
+    const [pinnedApps, tabs, bookmarks] = await Promise.all([
       idbGet<PinnedApp[]>(PINNED_APPS_KEY),
       idbGet<Partial<BrowserTab>[]>(TABS_KEY),
+      idbGet<Bookmark[]>(BOOKMARKS_KEY),
     ]);
     const updates: Partial<BrowserState> = {};
     if (pinnedApps && pinnedApps.length > 0) updates.pinnedApps = pinnedApps;
+    if (bookmarks && bookmarks.length > 0) updates.bookmarks = bookmarks;
     if (tabs && tabs.length > 0) {
       updates.tabs = tabs.map((t) => ({
         id: t.id || `tab-${Date.now()}`,
@@ -226,8 +275,9 @@ export const useBrowserStore = create<BrowserState>((set, get) => ({
   },
 
   persist: () => {
-    const { pinnedApps, tabs } = get();
+    const { pinnedApps, tabs, bookmarks } = get();
     idbSet(PINNED_APPS_KEY, pinnedApps);
     idbSet(TABS_KEY, tabs.map((t) => ({ id: t.id, url: t.url, title: t.title, pinnedAppId: t.pinnedAppId })));
+    idbSet(BOOKMARKS_KEY, bookmarks);
   },
 }));

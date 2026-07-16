@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore, OSRole } from '@/lib/stores/auth.store';
 import { createClient } from '@/utils/supabase/client';
-import { Key, Loader2, AlertCircle, Mail, Lock, UserPlus, LogIn } from 'lucide-react';
+import { Key, Loader2, AlertCircle, Mail, Lock, UserPlus, LogIn, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type AuthMode = 'login' | 'signup';
@@ -16,6 +16,8 @@ export function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
+  const [inviteValid, setInviteValid] = useState<boolean | null>(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
@@ -41,11 +43,34 @@ export function LoginScreen() {
 
     try {
       if (mode === 'signup') {
+        // Validate invite code
+        if (!inviteCode.trim()) {
+          setError('Invite code is required');
+          setIsLoading(false);
+          return;
+        }
+
+        const inviteRes = await fetch('/api/auth/invite/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: inviteCode.trim() }),
+        });
+        const inviteData = await inviteRes.json();
+
+        if (!inviteData.ok) {
+          setError(inviteData.error || 'Invalid invite code');
+          setIsLoading(false);
+          return;
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { name: displayName || email.split('@')[0], role: 'user' },
+            data: {
+              name: displayName || email.split('@')[0],
+              role: inviteData.data?.role || 'user',
+            },
           },
         });
 
@@ -58,6 +83,13 @@ export function LoginScreen() {
         }
 
         if (data.session?.user) {
+          // Redeem invite code
+          await fetch('/api/auth/invite/redeem', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: inviteCode.trim(), userId: data.session.user.id }),
+          });
+
           setCurrentUser({
             id: data.session.user.id,
             name: data.session.user.user_metadata?.name || email.split('@')[0],
@@ -136,6 +168,26 @@ export function LoginScreen() {
             </div>
           )}
 
+          {mode === 'signup' && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-mono">Invite Code</label>
+              <div className="flex items-center border-b border-white/20 focus-within:border-white transition-colors">
+                <Ticket className="w-4 h-4 text-white/30 shrink-0" />
+                <input
+                  type="text"
+                  value={inviteCode}
+                  onChange={(e) => {
+                    setInviteCode(e.target.value.toUpperCase());
+                    setInviteValid(null);
+                  }}
+                  placeholder="Enter your invite code"
+                  required
+                  className="w-full bg-transparent px-3 py-3 text-white placeholder-white/20 focus:outline-none text-sm tracking-wide uppercase"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-1.5">
             <label className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-mono">Email</label>
             <div className="flex items-center border-b border-white/20 focus-within:border-white transition-colors">
@@ -185,7 +237,7 @@ export function LoginScreen() {
 
         <div className="mt-6 text-center">
           <button
-            onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setSuccessMsg(''); }}
+            onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setSuccessMsg(''); setInviteCode(''); setInviteValid(null); }}
             className="text-white/30 hover:text-white text-xs uppercase tracking-widest transition-colors font-mono"
           >
             {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}

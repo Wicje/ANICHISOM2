@@ -52,6 +52,7 @@ export const RATE_LIMITS = {
   STORAGE: { max: 30, windowMs: 60 * 1000 },
   PASSKEY: { max: 10, windowMs: 5 * 60 * 1000 },
   PROXY: { max: 20, windowMs: 60 * 1000 },
+  ADMIN_INVITES: { max: 30, windowMs: 5 * 60 * 1000 },
 } as const;
 
 // ─── Timeouts ─────────────────────────────────────────────────────────────

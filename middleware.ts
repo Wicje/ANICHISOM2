@@ -1,9 +1,29 @@
-import { type NextRequest } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/utils/supabase/middleware';
 import crypto from 'crypto';
 
 export async function middleware(request: NextRequest) {
   const response = await updateSession(request);
+
+  // Page-level auth guard: redirect unauthenticated users to login
+  // API routes are excluded (handled by requireAuth/requireSession).
+  // Static assets, login-adjacent routes, and auth callbacks are excluded.
+  const pathname = request.nextUrl.pathname;
+  const isPublicRoute = pathname === '/' || pathname.startsWith('/auth') || pathname.startsWith('/login');
+  const isStaticAsset = pathname.startsWith('/_next') || pathname.startsWith('/favicon') ||
+    pathname.endsWith('.js') || pathname.endsWith('.css') || pathname.endsWith('.png') ||
+    pathname.endsWith('.ico') || pathname.endsWith('.svg') || pathname.endsWith('.woff2');
+
+  if (!isPublicRoute && !isStaticAsset) {
+    // Check for Supabase session cookie
+    const supabaseCookie = request.cookies.getAll().find(c => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
+    if (!supabaseCookie) {
+      // No session — redirect to root (which shows login/onboarding)
+      const url = request.nextUrl.clone();
+      url.pathname = '/';
+      return NextResponse.redirect(url);
+    }
+  }
 
   // Generate per-request nonce for CSP
   const nonce = crypto.randomBytes(16).toString('base64');
