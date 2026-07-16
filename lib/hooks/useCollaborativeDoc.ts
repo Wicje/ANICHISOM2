@@ -112,6 +112,7 @@ export function useCollaborativeDoc(config: CollaborativeDocConfig): Collaborati
     let WebsocketProvider: any;
 
     const setup = async () => {
+      try {
       Y = await import('yjs');
       const ydb = await import('y-indexeddb');
       IndexeddbPersistence = ydb.IndexeddbPersistence;
@@ -239,8 +240,11 @@ export function useCollaborativeDoc(config: CollaborativeDocConfig): Collaborati
             }
           });
           setPeerCount(count);
-          setRemoteCursors(peers);
-        });
+           setRemoteCursors(peers);
+         });
+       }
+      } catch (err) {
+        console.error('[useCollaborativeDoc] Setup failed:', err);
       }
     };
 

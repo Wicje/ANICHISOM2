@@ -49,21 +49,21 @@ export function CommandPalette() {
 
   if (!isOpen) return null;
 
-  const allowedApps = useMemo(() => Object.entries(APPS).filter(([appId, config]) => 
-    config.roles.includes(currentUser?.role || 'user')
+  const allowedApps = useMemo(() => APPS.filter((entry) => 
+    entry.roles.includes(currentUser?.role || 'user')
   ), [currentUser?.role]);
 
   const commands: { id: string; name: string; type: string; icon: any; iconImage?: string; action: () => void; hideOnEmpty?: boolean }[] = useMemo(() => {
     const cmds: { id: string; name: string; type: string; icon: any; iconImage?: string; action: () => void; hideOnEmpty?: boolean }[] = [];
 
-    allowedApps.forEach(([appId, config]) => {
+    allowedApps.forEach((entry) => {
        cmds.push({
-          id: `app-${appId}`,
-          name: `Open ${config.title}`,
+          id: `app-${entry.id}`,
+          name: `Open ${entry.title}`,
           type: 'Application',
-          icon: config.icon,
-          iconImage: config.iconImage,
-          action: () => openWindow(appId)
+          icon: entry.icon,
+          iconImage: entry.iconImage,
+          action: () => openWindow(entry.id)
        });
     });
 

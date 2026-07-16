@@ -15,10 +15,9 @@ import FontFamily from '@tiptap/extension-font-family';
 import Collaboration from '@tiptap/extension-collaboration';
 // @ts-ignore
 let Parser: any;
-try {
-  Parser = require('hot-formula-parser').Parser;
-} catch {
-  // graceful fallback if not installed
+if (typeof window !== 'undefined') {
+  // @ts-ignore
+  import('hot-formula-parser').then(mod => { Parser = mod.Parser; }).catch(() => {});
 }
 import { useCollaborativeDoc, CollaborativeDocState } from '@/lib/hooks/useCollaborativeDoc';
 
