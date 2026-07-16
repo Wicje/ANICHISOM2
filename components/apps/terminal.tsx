@@ -10,10 +10,21 @@ export function TerminalBox({ window }: { window: OSWindow }) {
   const xtermRef = useRef<any>(null);
   const fitAddonRef = useRef<any>(null);
   const vfsRef = useRef(new VirtualFS());
-  const historyRef = useRef<string[]>([]);
+  const [history, setHistory] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('anichisom:terminal-history') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const historyRef = useRef(history);
   const historyIdxRef = useRef(-1);
   const currentLineRef = useRef('');
   const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
 
   useEffect(() => {
     if (!termRef.current || xtermRef.current) return;
@@ -103,8 +114,11 @@ export function TerminalBox({ window }: { window: OSWindow }) {
           term.writeln('');
 
           if (line) {
-            historyRef.current.push(line);
-            if (historyRef.current.length > 200) historyRef.current.shift();
+            const next = [...historyRef.current, line];
+            if (next.length > 200) next.shift();
+            historyRef.current = next;
+            setHistory(next);
+            localStorage.setItem('anichisom:terminal-history', JSON.stringify(next));
           }
           historyIdxRef.current = -1;
           inputBuffer = '';

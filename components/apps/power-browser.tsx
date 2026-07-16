@@ -104,22 +104,6 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
     navigateTab(activeTabId, finalUrl, '');
   };
 
-  const navigateBack = () => {
-    if (activeTab.historyIndex > 0) {
-      const newIndex = activeTab.historyIndex - 1;
-      const newUrl = activeTab.history[newIndex]!;
-      navigateTab(activeTabId, newUrl, '');
-      // Actually, navigateTab adds to history — we need a different method for back/forward
-    }
-  };
-
-  const navigateForward = () => {
-    if (activeTab && activeTab.historyIndex < activeTab.history.length - 1) {
-      const newIndex = activeTab.historyIndex + 1;
-      const newUrl = activeTab.history[newIndex]!;
-      navigateTab(activeTabId, newUrl, '');
-    }
-  };
 
   // Fix: back/forward shouldn't add to history
   const goBack = () => {
@@ -494,13 +478,11 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                 )}
               >
                 {!tab.url ? (
-                  <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white h-full">
-                    <h1 className="text-4xl font-medium tracking-tight mb-4 text-slate-800">Power Browser</h1>
-                    <p className="text-slate-500 text-center max-w-md">
-                      Pin your favorite workspace apps in the sidebar for quick access.
-                      Your browsing context is preserved across sessions.
-                    </p>
-                  </div>
+                  <NewTabPage
+                    tabId={tab.id}
+                    searchEngine={searchEngine}
+                    onNavigate={(url) => { setLoading(true); navigateTab(activeTabId, url, ''); }}
+                  />
                 ) : isKnownBlocked(tab.url) && blockedTabs.has(tab.id) ? (
                   <BlockedSiteFallback
                     url={tab.url}
@@ -610,7 +592,81 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   );
 }
 
-// Globe already imported at top
+const QUICK_LINKS = [
+  { label: 'ANICHISOM Docs', url: 'https://docs.anichisom.com', icon: 'A', color: 'bg-indigo-100 text-indigo-600' },
+  { label: 'GitHub', url: 'https://github.com', icon: 'G', color: 'bg-slate-100 text-slate-700' },
+  { label: 'Supabase', url: 'https://supabase.com', icon: 'S', color: 'bg-emerald-100 text-emerald-600' },
+  { label: 'Vercel', url: 'https://vercel.com', icon: 'V', color: 'bg-black text-white' },
+  { label: 'Stack Overflow', url: 'https://stackoverflow.com', icon: 'O', color: 'bg-orange-100 text-orange-600' },
+  { label: 'MDN Web Docs', url: 'https://developer.mozilla.org', icon: 'M', color: 'bg-sky-100 text-sky-600' },
+];
+
+function NewTabPage({
+  tabId,
+  searchEngine,
+  onNavigate,
+}: {
+  tabId: string;
+  searchEngine: 'google' | 'duckduckgo' | 'bing';
+  onNavigate: (url: string) => void;
+}) {
+  const [query, setQuery] = useState('');
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query) return;
+    let finalUrl = query;
+    const isDomain = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/.test(query) || query.startsWith('http');
+    if (isDomain) {
+      if (!query.startsWith('http')) finalUrl = `https://${query}`;
+    } else {
+      const q = encodeURIComponent(query);
+      if (searchEngine === 'google') finalUrl = `https://www.google.com/search?q=${q}`;
+      else if (searchEngine === 'duckduckgo') finalUrl = `https://html.duckduckgo.com/html/?q=${q}`;
+      else finalUrl = `https://www.bing.com/search?q=${q}`;
+    }
+    onNavigate(finalUrl);
+  };
+
+  return (
+    <div className="h-full flex flex-col items-center justify-center bg-white px-8">
+      <h1 className="text-3xl font-semibold tracking-tight text-slate-800 mb-8">
+        Power Browser
+      </h1>
+
+      <form onSubmit={handleSearch} className="w-full max-w-lg mb-10">
+        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 focus-within:border-slate-300 focus-within:shadow-md transition-all">
+          <Search className="w-5 h-5 text-slate-400 shrink-0" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search the web or enter a URL"
+            className="flex-1 bg-transparent border-none outline-none text-base text-slate-700 placeholder:text-slate-400"
+            autoFocus
+          />
+        </div>
+      </form>
+
+      <div className="grid grid-cols-3 gap-4 w-full max-w-lg">
+        {QUICK_LINKS.map((link) => (
+          <button
+            key={link.url}
+            onClick={() => onNavigate(link.url)}
+            className="group flex flex-col items-center gap-2.5 p-4 rounded-xl hover:bg-slate-50 transition-colors"
+          >
+            <div className={cn("w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold transition-transform group-hover:scale-105", link.color)}>
+              {link.icon}
+            </div>
+            <span className="text-xs font-medium text-slate-600 group-hover:text-slate-800 transition-colors text-center leading-tight">
+              {link.label}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function BlockedSiteFallback({
   url,

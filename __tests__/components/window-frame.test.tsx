@@ -113,14 +113,18 @@ describe('WindowFrame', () => {
     expect(mockCloseWindow).toHaveBeenCalledWith('win-close');
   });
 
-  it('calls minimizeWindow when minimize button is clicked', () => {
+  it('calls minimizeWindow when minimize button is clicked', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     render(
       <WindowFrame osWindow={makeWindow({ id: 'win-min' })}>
         <span>content</span>
       </WindowFrame>
     );
     fireEvent.click(screen.getByLabelText('Minimize window'));
+    expect(mockMinimizeWindow).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(250);
     expect(mockMinimizeWindow).toHaveBeenCalledWith('win-min');
+    vi.useRealTimers();
   });
 
   it('calls maximizeWindow when maximize button is clicked', () => {

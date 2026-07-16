@@ -92,6 +92,14 @@ export function MenuBar({
   const isConnected = useCollabStatusStore((s) => s.isConnected());
   const totalPeers = useCollabStatusStore((s) => s.totalPeers());
   const unreadCount = useNotificationStore((s) => s.notifications.filter(n => !n.read).length);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!openMenu) return;
+    const close = () => setOpenMenu(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [openMenu]);
 
   if (!currentUser) return null;
 
@@ -113,29 +121,29 @@ export function MenuBar({
         </div>
         <div className="hidden sm:flex gap-4">
           <div className="group relative">
-            <button role="menuitem" className="px-2 py-0.5 rounded transition-colors cursor-default" style={{ color: 'var(--os-text)' }}>File</button>
-            <div role="menu" className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left glass-panel text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]" style={{ color: 'var(--os-text)' }}>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Saved State', description: 'OS State saved.', type: 'success' } }))}>Save Desktop State</button>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={() => window.dispatchEvent(new CustomEvent('os:open-spotlight'))}>New File (Spotlight)</button>
+            <button role="menuitem" className="px-2 py-0.5 rounded transition-colors cursor-default" style={{ color: 'var(--os-text)' }} aria-expanded={openMenu === 'file'} aria-haspopup="true" onClick={() => setOpenMenu(openMenu === 'file' ? null : 'file')} onKeyDown={(e) => { if (e.key === 'Escape') setOpenMenu(null); if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenMenu(openMenu === 'file' ? null : 'file'); } }}>File</button>
+            <div role="menu" className={cn("absolute top-full left-0 mt-1 transition-transform origin-top-left glass-panel text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]", openMenu === 'file' ? "scale-100" : "scale-0 group-hover:scale-100")} style={{ color: 'var(--os-text)' }} onMouseLeave={() => setOpenMenu(null)}>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Saved State', description: 'OS State saved.', type: 'success' } })); }}>Save Desktop State</button>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); window.dispatchEvent(new CustomEvent('os:open-spotlight')); }}>New File (Spotlight)</button>
               <div className="h-px my-1" style={{ background: 'var(--os-border)' }}></div>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" onClick={() => wipeSession()}>Wipe Local Data</button>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" onClick={(e) => { e.stopPropagation(); setOpenMenu(null); wipeSession(); }}>Wipe Local Data</button>
             </div>
           </div>
           <div className="group relative">
-            <button role="menuitem" className="px-2 py-0.5 rounded transition-colors cursor-default" style={{ color: 'var(--os-text)' }}>Edit</button>
-            <div role="menu" className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left glass-panel text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]" style={{ color: 'var(--os-text)' }}>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }}>Undo (Cmd+Z)</button>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }}>Redo (Cmd+Shift+Z)</button>
+            <button role="menuitem" className="px-2 py-0.5 rounded transition-colors cursor-default" style={{ color: 'var(--os-text)' }} aria-expanded={openMenu === 'edit'} aria-haspopup="true" onClick={() => setOpenMenu(openMenu === 'edit' ? null : 'edit')} onKeyDown={(e) => { if (e.key === 'Escape') setOpenMenu(null); if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenMenu(openMenu === 'edit' ? null : 'edit'); } }}>Edit</button>
+            <div role="menu" className={cn("absolute top-full left-0 mt-1 transition-transform origin-top-left glass-panel text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]", openMenu === 'edit' ? "scale-100" : "scale-0 group-hover:scale-100")} style={{ color: 'var(--os-text)' }} onMouseLeave={() => setOpenMenu(null)}>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); }}>Undo (Cmd+Z)</button>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); }}>Redo (Cmd+Shift+Z)</button>
               <div className="h-px my-1" style={{ background: 'var(--os-border)' }}></div>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={() => setShowLaunchpad(true)}>Edit OS Apps</button>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); setShowLaunchpad(true); }}>Edit OS Apps</button>
             </div>
           </div>
           <div className="group relative">
-            <button role="menuitem" className="px-2 py-0.5 rounded transition-colors cursor-default" style={{ color: 'var(--os-text)' }}>View</button>
-            <div role="menu" className="absolute top-full left-0 mt-1 scale-0 group-hover:scale-100 transition-transform origin-top-left glass-panel text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]" style={{ color: 'var(--os-text)' }}>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={() => applyWorkspaceLayout('creative-split')}>Multi-View Workspace</button>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={() => setShowMissionControl(true)}>Mission Control</button>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={() => setShowSnapshots(!showSnapshots)}>Time Machine</button>
+            <button role="menuitem" className="px-2 py-0.5 rounded transition-colors cursor-default" style={{ color: 'var(--os-text)' }} aria-expanded={openMenu === 'view'} aria-haspopup="true" onClick={() => setOpenMenu(openMenu === 'view' ? null : 'view')} onKeyDown={(e) => { if (e.key === 'Escape') setOpenMenu(null); if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenMenu(openMenu === 'view' ? null : 'view'); } }}>View</button>
+            <div role="menu" className={cn("absolute top-full left-0 mt-1 transition-transform origin-top-left glass-panel text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]", openMenu === 'view' ? "scale-100" : "scale-0 group-hover:scale-100")} style={{ color: 'var(--os-text)' }} onMouseLeave={() => setOpenMenu(null)}>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); applyWorkspaceLayout('creative-split'); }}>Multi-View Workspace</button>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); setShowMissionControl(true); }}>Mission Control</button>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); setShowSnapshots(!showSnapshots); }}>Time Machine</button>
             </div>
           </div>
 

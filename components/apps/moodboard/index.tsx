@@ -572,6 +572,31 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     );
   }
 
+  if (collab.synced && nodes.length === 0) {
+    return (
+      <div className="w-full h-full bg-[#eee] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-center max-w-sm">
+          <div className="w-16 h-16 rounded-2xl bg-white border border-black/10 shadow-sm flex items-center justify-center">
+            <LayoutGrid className="w-8 h-8 text-black/30" />
+          </div>
+          <h3 className="text-lg font-semibold text-black/70">Start your moodboard</h3>
+          <p className="text-sm text-black/40">Add images, text, links, or embeds. Drag to arrange. Connect ideas visually.</p>
+          <div className="flex gap-2 mt-2">
+            <button onClick={addText} className="px-4 py-2 bg-white border border-black/10 rounded-lg text-sm font-medium hover:bg-black/5 transition-colors flex items-center gap-2">
+              <Type className="w-4 h-4" /> Add Text
+            </button>
+            <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-white border border-black/10 rounded-lg text-sm font-medium hover:bg-black/5 transition-colors flex items-center gap-2">
+              <Upload className="w-4 h-4" /> Upload Media
+            </button>
+            <button onClick={handleAddLink} className="px-4 py-2 bg-white border border-black/10 rounded-lg text-sm font-medium hover:bg-black/5 transition-colors flex items-center gap-2">
+              <LinkIcon className="w-4 h-4" /> Add Link
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (presentMode) {
     const node = presentableNodes[presentIndex];
     return (

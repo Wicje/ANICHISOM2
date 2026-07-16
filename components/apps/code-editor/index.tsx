@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
 import { Layout, Search, Users, RefreshCcw, Server, File as FileIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 import '@/lib/monaco-config';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import { MonacoBinding } from 'y-monaco';
@@ -48,6 +49,7 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
   const [agentOpen, setAgentOpen] = useState(false);
   const [activityTab, setActivityTab] = useState<ActivityTab>('explorer');
   const [isDeploying, setIsDeploying] = useState(false);
+  const [editorReady, setEditorReady] = useState(false);
 
   const editorRef = useRef<any>(null);
   const bindingRef = useRef<any>(null);
@@ -70,6 +72,7 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
        const binding = new MonacoBinding(yText, editor.getModel(), new Set([editor]), wsProvider.awareness);
        bindingRef.current = binding;
     }
+    setEditorReady(true);
   };
 
   // Cleanup: destroy MonacoBinding (Y.Doc + WS provider owned by useCollaborativeDoc)
@@ -185,6 +188,17 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
              </div>
            </div>
            
+            {!editorReady && (
+            <div className="flex-1 flex flex-col gap-2 p-4 pt-8 min-h-0" style={{ height: terminalOpen ? "calc(100% - 200px)" : "100%" }}>
+              {Array.from({ length: 9 }).map((_, i) => (
+                <Skeleton
+                  key={i}
+                  className="h-4 bg-[#2a2a2a]"
+                  width={`${55 + (i % 3) * 15}%`}
+                />
+              ))}
+            </div>
+          )}
            <Editor
             height={terminalOpen ? "calc(100% - 200px)" : "100%"}
             defaultLanguage={fileName.endsWith('.tsx') || fileName.endsWith('.ts') ? 'typescript' : 'javascript'}
@@ -205,7 +219,7 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
               folding: true,
               lineNumbersMinChars: 3,
             }}
-            className="flex-1 min-h-0"
+            className={cn("flex-1 min-h-0", !editorReady && "invisible absolute")}
          />
 
            <TerminalPanel terminalOpen={terminalOpen} setTerminalOpen={setTerminalOpen} projectId={projectId} />

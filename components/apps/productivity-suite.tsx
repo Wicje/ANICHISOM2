@@ -77,6 +77,7 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
   const [docTitle, setDocTitle] = useState('Untitled Document');
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
 
   const collab = useCollaborativeDoc({
     appPrefix: 'office',
@@ -326,7 +327,7 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
         {/* Toolbar */}
         <div className="flex items-center gap-4 px-4 py-2 bg-white border-t border-slate-200">
            <div className="flex items-center gap-1 border-r border-slate-200 pr-4">
-             <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Save to local-first DB" onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Document Saved', description: 'Your work has been securely saved.' }}))}><Save className="w-4 h-4" /></button>
+             <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Save to local-first DB" onClick={() => { setSaveStatus('saving'); setTimeout(() => setSaveStatus('saved'), 500); window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Document Saved', description: 'Your work has been securely saved.' }})); }}><Save className="w-4 h-4" /></button>
              <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Print" onClick={() => window.print()}><Printer className="w-4 h-4" /></button>
              <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Share via Self-Host" onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Share Link Created', description: 'Link copied to clipboard.' }}))}><Share2 className="w-4 h-4" /></button>
              <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Export" onClick={handleExport}><Download className="w-4 h-4" /></button>
@@ -418,9 +419,9 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
           transition={{ duration: 0.2 }}
           className="flex-1 relative z-10 overflow-hidden bg-slate-100"
         >
-          {activeTab === 'word' && <WordEditor performanceMode={performanceMode} workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} onEditorReady={setWordEditor} collab={collab} />}
-          {activeTab === 'sheets' && <SheetsEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} dataRef={sheetsDataRef} collab={collab} />}
-          {activeTab === 'slides' && <SlidesEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} canvasRef={fabricCanvasRef} collab={collab} />}
+          {activeTab === 'word' && <WordEditor performanceMode={performanceMode} workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} onEditorReady={setWordEditor} collab={collab} onDirty={() => setSaveStatus('unsaved')} />}
+          {activeTab === 'sheets' && <SheetsEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} dataRef={sheetsDataRef} collab={collab} onDirty={() => setSaveStatus('unsaved')} />}
+          {activeTab === 'slides' && <SlidesEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} canvasRef={fabricCanvasRef} collab={collab} onDirty={() => setSaveStatus('unsaved')} />}
           {activeTab === 'pdf' && <PdfEditor initialUrl={osWindow.data?.url} />}
         </motion.div>
       </AnimatePresence>
@@ -428,7 +429,11 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
       {/* Status Bar */}
       <div className="h-6 shrink-0 bg-blue-600 text-white flex items-center justify-between px-3 text-[10px] uppercase tracking-wider relative z-10 w-full overflow-hidden">
         <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Saved locally (IndexedDB)</span>
+          <span className="flex items-center gap-1">
+            {saveStatus === 'saved' && <><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Saved locally (IndexedDB)</>}
+            {saveStatus === 'saving' && <><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Saving...</>}
+            {saveStatus === 'unsaved' && <><span className="w-1.5 h-1.5 rounded-full bg-red-400" /> Unsaved changes</>}
+          </span>
         </div>
         <div className="flex items-center gap-4">
            {activeTab === 'word' && <span>Word Processor Active</span>}
@@ -441,7 +446,7 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
   );
 }
 
-function WordEditor({ performanceMode, workspaceMode, projectId, currentUser, onEditorReady, collab }: { performanceMode: 'light' | 'heavy', workspaceMode: 'private' | 'agency', projectId: string, currentUser: any, onEditorReady: (editor: Editor | null) => void, collab: CollaborativeDocState }) {
+function WordEditor({ performanceMode, workspaceMode, projectId, currentUser, onEditorReady, collab, onDirty }: { performanceMode: 'light' | 'heavy', workspaceMode: 'private' | 'agency', projectId: string, currentUser: any, onEditorReady: (editor: Editor | null) => void, collab: CollaborativeDocState, onDirty?: () => void }) {
   const defaultContent = '<h1>Manifesto for the Edge</h1><p>The future of software is not centralized. It is distributed, local-first, and owned by the user.</p><h2>Self-Hostable Infrastructure</h2><p>Users who prefer data independence can pull the open-source code via Docker.</p>';
 
   // Wait for Yjs sync — only create the editor once the Collaboration fragment is available
@@ -465,6 +470,7 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser, on
     immediatelyRender: !!fragment, // Create immediately once collab is ready
     onUpdate: ({ editor }) => {
        onEditorReady(editor);
+       onDirty?.();
     },
     onSelectionUpdate: ({ editor }) => {
        onEditorReady(editor);
@@ -501,7 +507,7 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser, on
   );
 }
 
-function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab }: { workspaceMode: 'private' | 'agency', projectId: string, currentUser: any, dataRef: React.MutableRefObject<Record<string, string>>, collab: CollaborativeDocState }) {
+function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab, onDirty }: { workspaceMode: 'private' | 'agency', projectId: string, currentUser: any, dataRef: React.MutableRefObject<Record<string, string>>, collab: CollaborativeDocState, onDirty?: () => void }) {
   const [data, setData] = useState<Record<string, string>>({});
   const [activeCell, setActiveCell] = useState<string | null>(null);
   const observeListenerRef = useRef<any>(null);
@@ -585,8 +591,8 @@ function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab }
     const cellsMap = collab.sharedTypesRef.current.cells;
     if (!cellsMap || !YRef.current) return;
 
-    // Write to Y.Map — this triggers the observer above to update React state
     cellsMap.set(cell, value);
+    onDirty?.();
   };
 
   const cols = Array.from({ length: 15 }, (_, i) => String.fromCharCode(65 + i));
@@ -662,7 +668,7 @@ function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab }
   );
 }
 
-function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab }: { workspaceMode: 'private' | 'agency', projectId: string, currentUser: any, canvasRef: React.MutableRefObject<any>, collab: CollaborativeDocState }) {
+function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab, onDirty }: { workspaceMode: 'private' | 'agency', projectId: string, currentUser: any, canvasRef: React.MutableRefObject<any>, collab: CollaborativeDocState, onDirty?: () => void }) {
   const localCanvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<any>(null);
   const [loaded, setLoaded] = useState(false);
@@ -809,6 +815,7 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
          }
 
          setTimeout(() => { isSyncingRef.current = false; }, 100);
+         onDirty?.();
       };
 
       canvas.on('object:modified', handleModify);

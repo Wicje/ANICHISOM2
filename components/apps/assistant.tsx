@@ -416,6 +416,18 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
              </div>
           </div>
         ))}
+        {isStreaming && (
+          <div className="flex gap-3">
+            <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+              <Bot className="w-4 h-4" />
+            </div>
+            <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-white/5 border border-white/10 flex items-center gap-1.5">
+              <span className="w-2 h-2 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-2 h-2 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+          </div>
+        )}
         <div ref={endRef} />
       </div>
 

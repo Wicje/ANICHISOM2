@@ -28,6 +28,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
   const [localPosition, setLocalPosition] = useState({ x, y });
   const [isFileLocked, setIsFileLocked] = useState(false);
   const [lockedByUser, setLockedByUser] = useState<string | null>(null);
+  const [isMinimizing, setIsMinimizing] = useState(false);
 
   useEffect(() => {
     if (!osWindow.data?.fileId) return;
@@ -55,7 +56,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
 
   const isActive = zIndex >= highestZIndex;
 
-  if (isMinimized) {
+  if (isMinimized && !isMinimizing) {
     return <div style={{ display: 'none' }}>{children}</div>;
   }
 
@@ -123,20 +124,22 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
       role="dialog"
       aria-label={title}
       initial={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.95 }}
-      animate={{
-        opacity: 1,
-        scale: 1,
-        width: isMaximized ? '100vw' : currentWidth,
-        height: isMaximized ? 'calc(100vh - 32px)' : currentHeight,
-        x: isMaximized ? 0 : currentX,
-        y: isMaximized ? 32 : currentY,
-        transition: isResizing || shouldReduceMotion ? { duration: 0 } : {
-          type: "spring",
-          stiffness: 300,
-          damping: 30,
-          mass: 0.8
-        }
-      }}
+      animate={isMinimizing
+        ? { opacity: 0, scale: 0.8, y: 50, transition: { duration: 0.2 } }
+        : {
+          opacity: 1,
+          scale: 1,
+          width: isMaximized ? '100vw' : currentWidth,
+          height: isMaximized ? 'calc(100vh - 32px)' : currentHeight,
+          x: isMaximized ? 0 : currentX,
+          y: isMaximized ? 32 : currentY,
+          transition: isResizing || shouldReduceMotion ? { duration: 0 } : {
+            type: "spring",
+            stiffness: 300,
+            damping: 30,
+            mass: 0.8
+          }
+        }}
       drag={!isMaximized}
       dragControls={dragControls}
       dragListener={false}
@@ -214,7 +217,14 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
           </button>
           <button
             aria-label="Minimize window"
-            onClick={(e) => { e.stopPropagation(); minimizeWindow(id); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMinimizing(true);
+              setTimeout(() => {
+                minimizeWindow(id);
+                setIsMinimizing(false);
+              }, 200);
+            }}
             className="w-3 h-3 rounded-full transition-colors flex items-center justify-center group"
             style={{ background: '#FEB429' }}
           >
