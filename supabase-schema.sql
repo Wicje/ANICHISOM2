@@ -258,14 +258,20 @@ create policy "Plugins: allow all" on public.plugins
 
 create or replace function public.handle_new_user()
 returns trigger as $$
+declare
+  is_first boolean;
 begin
-  insert into public.users (id, name, email, role, status)
+  -- Check if this is the very first user
+  select not exists(select 1 from public.users limit 1) into is_first;
+
+  insert into public.users (id, name, email, role, status, isAdmin)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
     new.email,
-    coalesce(new.raw_user_meta_data->>'role', 'filmmaker'),
-    'approved'
+    case when is_first then 'admin' else coalesce(new.raw_user_meta_data->>'role', 'filmmaker') end,
+    'approved',
+    is_first
   )
   on conflict (id) do update set
     name = coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),

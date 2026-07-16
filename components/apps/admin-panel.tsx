@@ -3,17 +3,23 @@
 import React, { useState, useEffect } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
 import { getSupabase } from '@/lib/supabase';
-import { ShieldCheck, UserCheck, UserX, Key, RefreshCw, Loader2, AppWindow, Plus, Trash2, Activity, HardDrive, Cpu } from 'lucide-react';
+import { ShieldCheck, UserCheck, UserX, Key, RefreshCw, Loader2, AppWindow, Plus, Trash2, Activity, HardDrive, Cpu, Ticket, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from 'recharts';
 
 export function AdminPanel({ window }: { window: OSWindow }) {
   const { currentUser } = useOS();
-  const [activeTab, setActiveTab] = useState<'dashboard'|'users'|'apps'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard'|'users'|'apps'|'invites'>('dashboard');
   
   const [users, setUsers] = useState<any[]>([]);
   const [apps, setApps] = useState<any[]>([]);
+  const [invites, setInvites] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [inviteCount, setInviteCount] = useState(1);
+  const [inviteRole, setInviteRole] = useState('filmmaker');
+  const [inviteExpiry, setInviteExpiry] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const analyticsData = [
     { time: '00:00', load: 12, users: 4 },
@@ -42,9 +48,55 @@ export function AdminPanel({ window }: { window: OSWindow }) {
     }
   };
 
+  const fetchInvites = async () => {
+    try {
+      const res = await fetch('/api/admin/invites');
+      const json = await res.json();
+      if (json.success && json.data?.invites) {
+        setInvites(json.data.invites);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const generateInvites = async () => {
+    setGenerating(true);
+    try {
+      const res = await fetch('/api/admin/invites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          count: inviteCount,
+          role: inviteRole,
+          expiresInDays: inviteExpiry ? parseInt(inviteExpiry) : undefined,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        fetchInvites();
+        const newCodes = json.data?.codes?.map((c: any) => c.code).join(', ') || '';
+        if (newCodes) alert(`Generated codes:\n${newCodes}`);
+      } else {
+        alert(json.error || 'Failed to generate codes');
+      }
+    } catch (e: any) {
+      alert('Error: ' + e.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const copyCode = async (code: string) => {
+    await navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchUsers();
+    fetchInvites();
     
     // Subscribe to apps collection via Supabase Realtime
     const channel = getSupabase()
@@ -140,17 +192,22 @@ export function AdminPanel({ window }: { window: OSWindow }) {
               <ShieldCheck className="w-5 h-5 text-emerald-400" />
               OS Configuration
            </h2>
-           <div className="flex items-center gap-2 text-sm bg-white/5 p-1 rounded-lg">
-             <button onClick={() => setActiveTab('dashboard')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'dashboard' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>Dashboard</button>
-             <button onClick={() => setActiveTab('users')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'users' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>Users</button>
-             <button onClick={() => setActiveTab('apps')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'apps' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>App Registry</button>
-           </div>
+            <div className="flex items-center gap-2 text-sm bg-white/5 p-1 rounded-lg">
+              <button onClick={() => setActiveTab('dashboard')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'dashboard' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>Dashboard</button>
+              <button onClick={() => setActiveTab('users')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'users' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>Users</button>
+              <button onClick={() => setActiveTab('invites')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'invites' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>Invites</button>
+              <button onClick={() => setActiveTab('apps')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'apps' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>App Registry</button>
+            </div>
          </div>
-         {activeTab === 'users' ?(
-           <button onClick={fetchUsers} className="p-1.5 hover:bg-white/10 rounded transition-colors text-white/50 hover:text-white">
-              <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
-           </button>
-         ) : (
+          {activeTab === 'users' ?(
+            <button onClick={fetchUsers} className="p-1.5 hover:bg-white/10 rounded transition-colors text-white/50 hover:text-white">
+               <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+            </button>
+          ) : activeTab === 'invites' ? (
+            <button onClick={fetchInvites} className="p-1.5 hover:bg-white/10 rounded transition-colors text-white/50 hover:text-white">
+               <RefreshCw className="w-4 h-4" />
+            </button>
+          ) : (
            <button onClick={handleAddApp} className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded transition-colors">
               <Plus className="w-4 h-4" /> Add App
            </button>
@@ -257,7 +314,59 @@ export function AdminPanel({ window }: { window: OSWindow }) {
            </>
          )}
 
-         {activeTab === 'apps' && (
+          {activeTab === 'invites' && (
+            <div className="space-y-4">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Ticket className="w-4 h-4 text-emerald-400" /> Generate Invite Codes</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                  <div>
+                    <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Count</label>
+                    <input type="number" min={1} max={50} value={inviteCount} onChange={e => setInviteCount(parseInt(e.target.value) || 1)} className="w-full bg-black border border-white/20 rounded px-3 py-2 text-xs text-white outline-none focus:border-emerald-400" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Role</label>
+                    <select value={inviteRole} onChange={e => setInviteRole(e.target.value)} className="w-full bg-black border border-white/20 rounded px-3 py-2 text-xs text-white outline-none focus:border-emerald-400">
+                      <option value="filmmaker">Filmmaker</option>
+                      <option value="technician">Technician</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Expires (days, blank=never)</label>
+                    <input type="number" min={1} value={inviteExpiry} onChange={e => setInviteExpiry(e.target.value)} placeholder="Never" className="w-full bg-black border border-white/20 rounded px-3 py-2 text-xs text-white outline-none focus:border-emerald-400 placeholder-white/20" />
+                  </div>
+                  <button onClick={generateInvites} disabled={generating} className="flex items-center justify-center gap-2 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 px-4 py-2 rounded text-xs font-medium transition-colors disabled:opacity-50">
+                    {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                    {generating ? 'Generating...' : 'Generate'}
+                  </button>
+                </div>
+              </div>
+
+              {invites.length === 0 ? (
+                <div className="text-center text-white/50 text-sm py-8">No invite codes yet.</div>
+              ) : (
+                <div className="grid gap-2">
+                  {invites.map(inv => (
+                    <div key={inv.id} className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono text-white bg-white/10 px-2 py-1 rounded">{inv.code}</span>
+                        <button onClick={() => copyCode(inv.code)} className="text-white/40 hover:text-white" title="Copy">
+                          {copiedCode === inv.code ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                        <span className="text-white/50">{inv.role}</span>
+                        {inv.email && <span className="text-white/40">{inv.email}</span>}
+                        {inv.usedBy && <span className="text-emerald-400/60">Used</span>}
+                        {!inv.usedBy && <span className="text-white/30">Unused</span>}
+                        {inv.expiresAt && <span className="text-white/30">Exp: {new Date(inv.expiresAt).toLocaleDateString()}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'apps' && (
            <>
               {apps.length === 0 ? (
                 <div className="bg-white/5 border border-white/10 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center gap-3 w-full">
