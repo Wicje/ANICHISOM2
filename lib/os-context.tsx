@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useCallback, useEffect, useRef, useMemo } from 'react';
-import { get, set, clear, del } from 'idb-keyval';
+import { get, set, clear } from 'idb-keyval';
 import { syncQueue } from '@/lib/sync-queue';
 import { Workspace, Event } from '@/lib/workspace-types';
 import { initSessionKeyRandom, isSessionUnlocked, lockSession } from '@/lib/services/session-encryption.service';
@@ -123,112 +123,40 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     wsLoadPersisted();
 
-    const checkSession = async () => {
-      try {
-        const response = await fetch('/api/auth/session', {
-          method: 'GET',
-          credentials: 'include',
-        });
-
-        if (!response.ok) {
-          authSetCurrentUser(null);
-          del('anichisom_os_user_cache');
-          windowSetWindows([]);
-          return;
-        }
-
-        const data = await response.json();
-        const osUser: OSUser = {
-          id: data.user.id,
-          name: data.user.name,
-          role: (data.user.role as OSRole) || 'user',
-        };
-
-        authSetCurrentUser(osUser);
-        set('anichisom_os_user_cache', osUser);
-
-        // Initialize session encryption
-        if (!isSessionUnlocked()) {
-          try {
-            await initSessionKeyRandom();
-          } catch (e) {
-            console.warn('[OSContext] Failed to init session encryption:', e);
+    // Desktop's useEffect calls useAuthStore.checkSession() which handles
+    // auth state. We only need to hydrate desktop state when user becomes available.
+    const hydrateDesktopState = async () => {
+      if (!isHydratedRef.current) {
+        const localData = await get('anichisom_os_desktop');
+        if (localData && localData.windows) {
+          windowSetWindows(localData.windows);
+          if (localData.workspaceMode) wsSetWorkspaceMode(localData.workspaceMode);
+          if (localData.installedApps) {
+            localData.installedApps.forEach((id: string) => wsInstallApp(id));
           }
+          if (localData.recentApps) {
+            useWorkspaceStore.setState({ recentApps: localData.recentApps });
+          }
+          if (localData.wallpaper) themeSetWallpaper(localData.wallpaper);
+          if (localData.themeColor) themeSetThemeColor(localData.themeColor);
+          if (localData.fontFamily) themeSetFontFamily(localData.fontFamily);
+          if (localData.screenShader) themeSetScreenShader(localData.screenShader);
         }
+        isHydratedRef.current = true;
+      }
 
-        // Hydrate desktop state from IDB
-        if (!isHydratedRef.current) {
-          const localData = await get('anichisom_os_desktop');
-          if (localData && localData.windows) {
-            windowSetWindows(localData.windows);
-            if (localData.workspaceMode) wsSetWorkspaceMode(localData.workspaceMode);
-            if (localData.installedApps) {
-              localData.installedApps.forEach((id: string) => wsInstallApp(id));
-            }
-            if (localData.recentApps) {
-              // Set recent apps directly through workspace store
-              useWorkspaceStore.setState({ recentApps: localData.recentApps });
-            }
-            if (localData.wallpaper) themeSetWallpaper(localData.wallpaper);
-            if (localData.themeColor) themeSetThemeColor(localData.themeColor);
-            if (localData.fontFamily) themeSetFontFamily(localData.fontFamily);
-            if (localData.screenShader) themeSetScreenShader(localData.screenShader);
-          }
-          isHydratedRef.current = true;
-        }
-      } catch (error) {
-        // Fallback to cached user
-        const cachedUser = await get('anichisom_os_user_cache');
-        if (cachedUser) {
-          authSetCurrentUser(cachedUser);
-          if (!isHydratedRef.current) {
-            const localData = await get('anichisom_os_desktop');
-            if (localData && localData.windows) {
-              windowSetWindows(localData.windows);
-              if (localData.workspaceMode) wsSetWorkspaceMode(localData.workspaceMode);
-              if (localData.installedApps) {
-                localData.installedApps.forEach((id: string) => wsInstallApp(id));
-              }
-              if (localData.recentApps) {
-                useWorkspaceStore.setState({ recentApps: localData.recentApps });
-              }
-              if (localData.wallpaper) themeSetWallpaper(localData.wallpaper);
-              if (localData.themeColor) themeSetThemeColor(localData.themeColor);
-              if (localData.fontFamily) themeSetFontFamily(localData.fontFamily);
-              if (localData.screenShader) themeSetScreenShader(localData.screenShader);
-            }
-            isHydratedRef.current = true;
-          }
+      // Initialize session encryption
+      if (currentUser && !isSessionUnlocked()) {
+        try {
+          await initSessionKeyRandom();
+        } catch (e) {
+          console.warn('[OSContext] Failed to init session encryption:', e);
         }
       }
     };
 
-    checkSession();
-
-    // Debounced session check — avoids spam on rapid focus/blur cycles
-    let sessionCheckTimeout: ReturnType<typeof setTimeout> | null = null;
-    const debouncedCheckSession = () => {
-      if (sessionCheckTimeout) clearTimeout(sessionCheckTimeout);
-      sessionCheckTimeout = setTimeout(() => {
-        if (document.visibilityState === 'visible') void checkSession();
-      }, 2000);
-    };
-
-    const checkWhenVisible = () => {
-      if (document.visibilityState === 'visible') void checkSession();
-    };
-
-    window.addEventListener('focus', debouncedCheckSession);
-    window.addEventListener('online', checkSession);
-    document.addEventListener('visibilitychange', checkWhenVisible);
-
-    return () => {
-      window.removeEventListener('focus', debouncedCheckSession);
-      window.removeEventListener('online', checkSession);
-      document.removeEventListener('visibilitychange', checkWhenVisible);
-      if (sessionCheckTimeout) clearTimeout(sessionCheckTimeout);
-    };
-  }, []);
+    hydrateDesktopState();
+  }, [currentUser]);
 
   // ─── Desktop state persistence (throttled) ────────────────────────
 

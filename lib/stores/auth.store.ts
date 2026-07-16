@@ -19,6 +19,13 @@ type AuthState = {
   checkSession: () => Promise<void>;
 };
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+  ]);
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   currentUser: null,
   sessionChecked: false,
@@ -54,10 +61,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   checkSession: async () => {
+    // 1. Instant: serve from IDB cache so UI unblocks immediately
+    const cachedUser = await idbGet<OSUser>('anichisom_os_user_cache');
+    if (cachedUser) {
+      set({ currentUser: cachedUser, sessionChecked: true });
+    }
+
+    // 2. Background: validate with Supabase, update if changed
     try {
       const { createClient } = await import('@/utils/supabase/client');
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await withTimeout(
+        supabase.auth.getUser(),
+        8000
+      );
 
       if (user) {
         const osUser: OSUser = {
@@ -69,15 +86,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ currentUser: osUser, sessionChecked: true });
         idbSet('anichisom_os_user_cache', osUser);
       } else {
-        set({ currentUser: null, sessionChecked: true });
+        // No session — clear cache
+        if (!cachedUser) {
+          set({ currentUser: null, sessionChecked: true });
+        }
         await idbDel('anichisom_os_user_cache');
+        // Only clear if we didn't have a cached user (avoid flash)
+        if (cachedUser) {
+          set({ currentUser: null, sessionChecked: true });
+        }
       }
     } catch {
-      const cachedUser = await idbGet('anichisom_os_user_cache');
-      if (cachedUser) {
-        set({ currentUser: cachedUser, sessionChecked: true });
-      } else {
-        set({ sessionChecked: true });
+      // Supabase timed out or errored — keep whatever cache had
+      if (!cachedUser) {
+        set({ currentUser: null, sessionChecked: true });
       }
     }
   },
