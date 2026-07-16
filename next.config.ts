@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: '/(.*)',
+        source: '/((?!api).*)',
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'DENY' },
@@ -37,7 +37,6 @@ const nextConfig: NextConfig = {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(self), geolocation=(), interest-cohort=()',
           },
-          // CSP is now handled in middleware.ts with per-request nonces
         ],
       },
     ];

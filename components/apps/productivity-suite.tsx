@@ -13,12 +13,6 @@ import Underline from '@tiptap/extension-underline';
 import { TextStyle } from '@tiptap/extension-text-style';
 import FontFamily from '@tiptap/extension-font-family';
 import Collaboration from '@tiptap/extension-collaboration';
-// @ts-ignore
-let Parser: any;
-if (typeof window !== 'undefined') {
-  // @ts-ignore
-  import('hot-formula-parser').then(mod => { Parser = mod.Parser; }).catch(() => {});
-}
 import { useCollaborativeDoc, CollaborativeDocState } from '@/lib/hooks/useCollaborativeDoc';
 
 type AppType = 'word' | 'sheets' | 'slides' | 'pdf';
@@ -514,36 +508,50 @@ function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab, 
   const YRef = useRef<any>(null);
 
   const parser = useRef<any>(null);
+  const [ParserClass, setParserClass] = useState<any>(null);
+  const listenerRef = useRef<any>(null);
 
-  if (!parser.current && Parser) {
-    parser.current = new Parser();
-  }
+  useEffect(() => {
+    // @ts-ignore — no type declarations for hot-formula-parser
+    import('hot-formula-parser').then(mod => setParserClass(() => mod.Parser)).catch(() => {});
+  }, []);
 
-  // Keep parent ref synced for export
+  useEffect(() => {
+    if (!ParserClass && !parser.current) return;
+    if (!parser.current && ParserClass) {
+      parser.current = new ParserClass();
+    }
+    if (!parser.current) return;
+
+    if (listenerRef.current) {
+      parser.current.off('callCellValue', listenerRef.current);
+    }
+    const listener = (cellCoord: any, done: any) => {
+      const col = cellCoord.column.index;
+      const row = cellCoord.row.index + 1;
+      const cellId = `${String.fromCharCode(65 + col)}${row}`;
+      let val = data[cellId];
+      if (val && val.startsWith('=')) {
+        try {
+          const res = parser.current?.parse(val.substring(1));
+          val = res?.error || res?.result;
+        } catch { /* ignore */ }
+      }
+      done(val || '');
+    };
+    listenerRef.current = listener;
+    parser.current.on('callCellValue', listener);
+    return () => {
+      if (parser.current && listenerRef.current) {
+        parser.current.off('callCellValue', listenerRef.current);
+        listenerRef.current = null;
+      }
+    };
+  }, [data, ParserClass]);
+
   useEffect(() => {
     dataRef.current = data;
   }, [data, dataRef]);
-
-  // Configure formula parser to resolve cell coordinates (e.g. A1, B2) to values from data state
-  useEffect(() => {
-    if (!parser.current) return;
-    try {
-      parser.current.on('callCellValue', (cellCoord: any, done: any) => {
-       const col = cellCoord.column.index;
-       const row = cellCoord.row.index + 1;
-       const cellId = `${String.fromCharCode(65 + col)}${row}`;
-
-        let val = data[cellId];
-        if (val && val.startsWith('=')) {
-           try {
-             const res = parser.current?.parse(val.substring(1));
-             val = res?.error || res?.result;
-           } catch { /* ignore */ }
-        }
-        done(val || '');
-     });
-     } catch { /* parser not available */ }
-  }, [data, parser]);
 
   // Sync Y.Map -> React state when synced
   useEffect(() => {
@@ -680,6 +688,8 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const canvasObserverRef = useRef<any>(null);
+  const canvasMapRef = useRef<any>(null);
+  const checkIntervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
 
   useEffect(() => {
     let active = true;
@@ -720,36 +730,25 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
          canvas.renderAll();
       };
 
-      // Wait for collab sync then load canvas state from Y.Map
       const waitForSync = () => {
         if (!collab.synced || !active) return;
 
         const canvasMap = collab.sharedTypesRef.current.canvas;
+        canvasMapRef.current = canvasMap;
         if (!canvasMap) {
           setupDefault();
           previousStateRef.current = JSON.stringify(canvas.toJSON());
-          // Write initial canvas state to Y.Map
-          canvasMap?.set('state', JSON.stringify(canvas.toJSON()));
           setLoaded(true);
           return;
         }
 
         const savedState = canvasMap.get('state');
         if (savedState) {
-           const p = canvas.loadFromJSON(JSON.parse(savedState as string), () => {
-               if (!p || !p.then) {
-                  canvas.renderAll();
-                  previousStateRef.current = JSON.stringify(canvas.toJSON());
-                  setLoaded(true);
-               }
+           canvas.loadFromJSON(JSON.parse(savedState as string)).then(() => {
+              canvas.renderAll();
+              previousStateRef.current = JSON.stringify(canvas.toJSON());
+              setLoaded(true);
            });
-           if (p && p.then) {
-              p.then(() => {
-                 canvas.renderAll();
-                 previousStateRef.current = JSON.stringify(canvas.toJSON());
-                 setLoaded(true);
-              });
-           }
         } else {
            setupDefault();
            previousStateRef.current = JSON.stringify(canvas.toJSON());
@@ -757,29 +756,19 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
            setLoaded(true);
         }
 
-        // Observe Y.Map changes for remote canvas updates
         const observer = () => {
           const remoteState = canvasMap.get('state') as string | undefined;
           if (!remoteState || isSyncingRef.current) return;
-          if (canvas.getActiveObject()) return; // Don't overwrite during active editing
+          if (canvas.getActiveObject()) return;
 
           const currentStateStr = JSON.stringify(canvas.toJSON());
-          const remoteStateStr = remoteState;
-          if (currentStateStr === remoteStateStr) return;
+          if (currentStateStr === remoteState) return;
 
           isSyncingRef.current = true;
-          const p = canvas.loadFromJSON(JSON.parse(remoteState), () => {
-              if (!p || !p.then) {
-                canvas.renderAll();
-                setTimeout(() => { isSyncingRef.current = false; }, 100);
-              }
+          canvas.loadFromJSON(JSON.parse(remoteState)).then(() => {
+            canvas.renderAll();
+            setTimeout(() => { isSyncingRef.current = false; }, 100);
           });
-          if (p && p.then) {
-            p.then(() => {
-              canvas.renderAll();
-              setTimeout(() => { isSyncingRef.current = false; }, 100);
-            });
-          }
         };
         canvasMap.observe(observer);
         canvasObserverRef.current = observer;
@@ -788,10 +777,9 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
       if (collab.synced) {
         waitForSync();
       } else {
-        // Will be triggered by the parent re-rendering when collab.synced flips
-        const checkInterval = setInterval(() => {
+        checkIntervalRef.current = setInterval(() => {
           if (collab.synced && active) {
-            clearInterval(checkInterval);
+            clearInterval(checkIntervalRef.current);
             waitForSync();
           }
         }, 200);
@@ -825,8 +813,9 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
     return () => {
       active = false;
       canvasRef.current = null;
-      if (canvasObserverRef.current && collab.sharedTypesRef.current.canvas) {
-        collab.sharedTypesRef.current.canvas.unobserve(canvasObserverRef.current);
+      if (checkIntervalRef.current) clearInterval(checkIntervalRef.current);
+      if (canvasObserverRef.current && canvasMapRef.current) {
+        canvasMapRef.current.unobserve(canvasObserverRef.current);
         canvasObserverRef.current = null;
       }
       if (fabricCanvasRef.current) {
@@ -847,18 +836,10 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
     setCanRedo(true);
 
     isSyncingRef.current = true;
-    const p = canvas.loadFromJSON(JSON.parse(prevState), () => {
-      if (!p || !p.then) {
-        canvas.renderAll();
-        setTimeout(() => { isSyncingRef.current = false; }, 100);
-      }
+    canvas.loadFromJSON(JSON.parse(prevState)).then(() => {
+      canvas.renderAll();
+      setTimeout(() => { isSyncingRef.current = false; }, 100);
     });
-    if (p && p.then) {
-      p.then(() => {
-        canvas.renderAll();
-        setTimeout(() => { isSyncingRef.current = false; }, 100);
-      });
-    }
   };
 
   const handleSlidesRedo = () => {
@@ -873,18 +854,10 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
     setCanRedo(redoStackRef.current.length > 0);
 
     isSyncingRef.current = true;
-    const p = canvas.loadFromJSON(JSON.parse(nextState), () => {
-      if (!p || !p.then) {
-        canvas.renderAll();
-        setTimeout(() => { isSyncingRef.current = false; }, 100);
-      }
+    canvas.loadFromJSON(JSON.parse(nextState)).then(() => {
+      canvas.renderAll();
+      setTimeout(() => { isSyncingRef.current = false; }, 100);
     });
-    if (p && p.then) {
-      p.then(() => {
-        canvas.renderAll();
-        setTimeout(() => { isSyncingRef.current = false; }, 100);
-      });
-    }
   };
 
   if (!collab.synced) return <div className="p-8 text-slate-500">Loading collaborative slides...</div>;
@@ -950,7 +923,7 @@ function PdfEditor({ initialUrl }: { initialUrl?: string }) {
        const url = URL.createObjectURL(file);
        setPdfUrl(url);
     } else if (file) {
-      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Invalid File', message: 'Please upload a valid PDF file.' } }));
+      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Invalid File', description: 'Please upload a valid PDF file.' } }));
     }
   };
 
