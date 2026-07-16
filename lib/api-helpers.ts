@@ -4,9 +4,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveSession, SessionData } from '@/lib/session-store';
+import { createServerClient } from '@supabase/ssr';
 import { checkRateLimit } from '@/lib/auth-validation';
-import { SESSION, RATE_LIMITS } from '@/lib/config';
+import { RATE_LIMITS } from '@/lib/config';
 
 // ─── Standardized API Responses ───────────────────────────────────────────
 
@@ -50,28 +50,49 @@ export function apiInternal(error = 'Internal server error'): NextResponse {
   return apiError(error, 500);
 }
 
-// ─── Session Validation ───────────────────────────────────────────────────
+// ─── Session Validation (Supabase) ────────────────────────────────────────
 
 export type SessionResult =
-  | { ok: true; session: SessionData }
+  | { ok: true; userId: string; userRole: string }
   | { ok: false; response: NextResponse };
 
 /**
- * Validate session from request cookies. Returns session data or error response.
+ * Create a Supabase server client from request cookies.
+ */
+function createSupabaseFromRequest(request: NextRequest) {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll() {
+          // Read-only in API routes — session refresh handled by middleware
+        },
+      },
+    },
+  );
+}
+
+/**
+ * Validate session from Supabase cookies. Returns user info or error response.
  * Use in API routes: `const result = await requireSession(request); if (!result.ok) return result.response;`
  */
-export function requireSession(request: NextRequest): SessionResult {
-  const cookie = request.cookies.get(SESSION.COOKIE_NAME);
-  if (!cookie?.value) {
-    return { ok: false, response: apiUnauthorized() };
+export async function requireSession(request: NextRequest): Promise<SessionResult> {
+  const supabase = createSupabaseFromRequest(request);
+  const { data: { user }, error } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    return { ok: false, response: apiUnauthorized('Session expired or invalid') };
   }
 
-  const session = resolveSession(cookie.value);
-  if (!session) {
-    return { ok: false, response: apiUnauthorized('Session expired') };
-  }
-
-  return { ok: true, session };
+  return {
+    ok: true,
+    userId: user.id,
+    userRole: (user.user_metadata as any)?.role || 'filmmaker',
+  };
 }
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────
@@ -110,15 +131,15 @@ export function checkRouteRateLimit(
  * Combined auth + rate limit check. Returns session or error response.
  * Use in API routes: `const result = await requireAuth(request, 'AI_CHAT'); if (!result.ok) return result.response;`
  */
-export function requireAuth(
+export async function requireAuth(
   request: NextRequest,
   limitKey?: keyof typeof RATE_LIMITS
-): SessionResult {
-  const sessionResult = requireSession(request);
+): Promise<SessionResult> {
+  const sessionResult = await requireSession(request);
   if (!sessionResult.ok) return sessionResult;
 
   if (limitKey) {
-    const rl = checkRouteRateLimit(request, limitKey, sessionResult.session.userId);
+    const rl = checkRouteRateLimit(request, limitKey, sessionResult.userId);
     if (rl) return { ok: false, response: rl };
   }
 

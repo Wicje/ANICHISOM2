@@ -24,10 +24,10 @@ export async function GET(
   try {
     const { provider } = await params;
 
-    const authResult = requireSession(request);
+    const authResult = await requireSession(request);
     if (!authResult.ok) return authResult.response;
 
-    const sessionData = authResult.session;
+    const userId = authResult.userId;
 
     // Get connector
     let connector;
@@ -46,7 +46,7 @@ export async function GET(
     const redirectUrl = `${appUrl}/api/storage/callback/${provider}`;
 
     // Generate OAuth authorization URL
-    const connectResult = await connector.connect(sessionData.userId, redirectUrl);
+    const connectResult = await connector.connect(userId, redirectUrl);
 
     return apiOk({
       authUrl: connectResult.authUrl,

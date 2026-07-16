@@ -23,10 +23,10 @@ export async function GET(
   try {
     const { provider, fileId } = await params;
 
-    const authResult = requireSession(request);
+    const authResult = await requireSession(request);
     if (!authResult.ok) return authResult.response;
 
-    const sessionData = authResult.session;
+    const userId = authResult.userId;
 
     // Get connector
     let connector;
@@ -36,12 +36,12 @@ export async function GET(
       return apiNotFound(`Unknown provider: ${provider}`);
     }
 
-    if (!(await connector.isConnected(sessionData.userId))) {
+    if (!(await connector.isConnected(userId))) {
       return apiForbidden(`Provider "${provider}" not connected.`);
     }
 
     // Read file content from cloud storage
-    const content = await connector.readFile(sessionData.userId, fileId);
+    const content = await connector.readFile(userId, fileId);
 
     // Determine content type
     const contentType = content.mimeType || 'application/octet-stream';

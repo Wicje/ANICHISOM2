@@ -140,7 +140,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
         const data = await response.json();
         const osUser: OSUser = {
           id: data.user.id,
-          name: data.user.uniqueId,
+          name: data.user.name,
           role: (data.user.role as OSRole) || 'user',
         };
 

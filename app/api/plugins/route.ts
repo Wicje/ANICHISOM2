@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = requireAuth(request, 'PLUGINS');
+    const auth = await requireAuth(request, 'PLUGINS');
     if (!auth.ok) return auth.response;
 
     const body = await request.json();
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       rating: 0,
       installCount: 0,
       publishedAt: Date.now(),
-      publisherId: auth.session.uniqueId,
+      publisherId: auth.userId,
     };
 
     store.set(listing.id, listing);

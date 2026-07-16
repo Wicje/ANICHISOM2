@@ -19,10 +19,10 @@ import { TokenStore } from '@/lib/storage-connectors/token-store';
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = requireAuth(request, 'STORAGE');
+    const authResult = await requireAuth(request, 'STORAGE');
     if (!authResult.ok) return authResult.response;
 
-    const sessionData = authResult.session;
+    const userId = authResult.userId;
 
     const providerId = request.nextUrl.searchParams.get('provider');
     const path = request.nextUrl.searchParams.get('path') || 'root';
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     // If no specific provider, return status of all configured connectors
     if (!providerId) {
       const configured = getConfiguredConnectors();
-      const connected = getConnectedConnectors(sessionData.userId);
+      const connected = getConnectedConnectors(userId);
 
       const connectors = configured.map(c => ({
         id: c.id,
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
         icon: c.icon,
         configured: true,
         connected: connected.some(cc => cc.id === c.id),
-        accountName: TokenStore.getAccountName(sessionData.userId, c.id),
+        accountName: TokenStore.getAccountName(userId, c.id),
         capabilities: c.getCapabilities(),
       }));
 
@@ -54,11 +54,11 @@ export async function GET(request: NextRequest) {
       return apiNotFound(`Unknown provider: ${providerId}`);
     }
 
-    if (!(await connector.isConnected(sessionData.userId))) {
+    if (!(await connector.isConnected(userId))) {
       return apiForbidden(`Provider "${providerId}" is not connected for your account.`);
     }
 
-    const result = await connector.listFiles(sessionData.userId, path, pageToken);
+    const result = await connector.listFiles(userId, path, pageToken);
 
     return apiOk({
       provider: providerId,

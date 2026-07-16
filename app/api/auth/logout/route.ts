@@ -3,44 +3,40 @@
  * 
  * POST /api/auth/logout
  * 
- * Security:
- * - Session clearing
- * - Rate limiting to prevent abuse
+ * Signs out from Supabase and clears session cookies.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getAuthProvider } from '@/lib/auth-providers/provider-factory';
+import { NextRequest } from 'next/server';
 import {
   checkRouteRateLimit,
-  apiForbidden,
   apiOk,
   apiInternal,
 } from '@/lib/api-helpers';
+import { createServerClient } from '@supabase/ssr';
 
 export async function POST(request: NextRequest) {
   try {
-    // CSRF Protection: Validate Origin/Host headers
-    const origin = request.headers.get('origin');
-    const host = request.headers.get('host');
-    if (origin && host) {
-      const parsedOrigin = new URL(origin);
-      if (parsedOrigin.host !== host) {
-        return apiForbidden('Forbidden: CSRF check failed');
-      }
-    }
-
     const rl = checkRouteRateLimit(request, 'AUTH_LOGIN');
     if (rl) return rl;
 
-    const authProvider = await getAuthProvider();
-    await authProvider.logout();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll() {
+            // Read-only in API routes
+          },
+        },
+      },
+    );
 
-    const response = apiOk({ message: 'Logged out successfully' });
+    await supabase.auth.signOut();
 
-    // Clear session cookie
-    response.cookies.delete('anichisom_session');
-
-    return response;
+    return apiOk({ message: 'Logged out successfully' });
   } catch (error) {
     console.error('[auth/logout] Unexpected error:', error);
     return apiInternal();

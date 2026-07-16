@@ -37,31 +37,33 @@ const nextConfig: NextConfig = {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(self), geolocation=(), interest-cohort=()',
           },
-          {
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https:",
-              "font-src 'self' data:",
-              "connect-src 'self' ws: wss: http: https:",
-              "frame-src 'self' https:",
-              "media-src 'self' blob:",
-            ].join('; '),
-          },
+          // CSP is now handled in middleware.ts with per-request nonces
         ],
       },
     ];
   },
   webpack: (config, {dev}) => {
     // HMR is disabled in AI Studio via DISABLE_HMR env var.
-    // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+    // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
     if (dev && process.env.DISABLE_HMR === 'true') {
       config.watchOptions = {
         ignored: /.*/,
       };
     }
+
+    // Monaco Editor: handle web workers properly
+    // Monaco uses workers for syntax highlighting, linting, etc.
+    // We need to configure webpack to handle these workers.
+    config.resolve.alias = {
+      ...config.resolve.alias,
+    };
+
+    // Handle Monaco worker files
+    config.module.rules.push({
+      test: /\.worker\.js$/,
+      use: { loader: 'worker-loader' },
+    });
+
     return config;
   },
 };

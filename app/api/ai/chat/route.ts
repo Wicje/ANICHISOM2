@@ -12,7 +12,7 @@ import { getAiProvider, chatWithFallback } from '@/lib/ai-providers/ai-provider-
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = requireAuth(request, 'AI_CHAT');
+    const auth = await requireAuth(request, 'AI_CHAT');
     if (!auth.ok) return auth.response;
 
     let body: unknown;

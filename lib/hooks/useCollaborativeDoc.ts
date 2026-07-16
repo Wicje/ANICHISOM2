@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useOS } from '@/lib/os-context';
+import { useCollabStatusStore } from '@/lib/stores/collab-status.store';
 
 export interface CollaborativeDocConfig {
   /** App-specific room prefix, e.g. 'campaign', 'moodboard', 'word' */
@@ -83,6 +84,19 @@ export function useCollaborativeDoc(config: CollaborativeDocConfig): Collaborati
   const providerRef = useRef<any>(null);
   const wsProviderRef = useRef<any>(null);
   const activeRef = useRef(true);
+
+  const updateRoom = useCollabStatusStore((s) => s.updateRoom);
+  const removeRoom = useCollabStatusStore((s) => s.removeRoom);
+
+  // Sync local connected/peerCount to global status store
+  useEffect(() => {
+    if (workspaceMode === 'agency') {
+      updateRoom(roomId, connected, peerCount);
+    }
+    return () => {
+      removeRoom(roomId);
+    };
+  }, [roomId, connected, peerCount, workspaceMode, updateRoom, removeRoom]);
 
   const undo = useCallback(() => {
     if (undoManagerRef.current) {
@@ -193,56 +207,155 @@ export function useCollaborativeDoc(config: CollaborativeDocConfig): Collaborati
         });
       }
 
-      // 5. Agency-mode WebsocketProvider
+      // 5. Agency-mode collaboration
       if (workspaceMode === 'agency') {
-        const yws = await import('y-websocket');
-        WebsocketProvider = yws.WebsocketProvider;
-        if (!activeRef.current) return;
-
-        const wsUrl = window.location.protocol === 'https:'
-          ? `wss://${window.location.hostname}:1234`
-          : 'ws://localhost:1234';
-
-        const wsProvider = new WebsocketProvider(wsUrl, roomId, ydoc);
-        wsProviderRef.current = wsProvider;
-        setConnected(true);
-
-        const userHue = Array.from(currentUserId).reduce(
-          (hash, char) => (hash * 31 + char.charCodeAt(0)) % 360,
-          0,
-        );
-
-        wsProvider.awareness.setLocalStateField('user', {
-          name: currentUser?.name || 'Anonymous',
-          color: `hsl(${userHue}, 100%, 50%)`,
-          avatar: currentUser?.avatarUrl
-        });
-
-        wsProvider.awareness.on('change', () => {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        
+        if (isLocal) {
+          // Local dev: use Yjs WebSocket server on port 1234
+          const yws = await import('y-websocket');
+          WebsocketProvider = yws.WebsocketProvider;
           if (!activeRef.current) return;
-          const states = wsProvider.awareness.getStates();
-          const peers: CollaborativeDocState['remoteCursors'] = [];
-          let count = 0;
-          states.forEach((state: any, clientId: number) => {
-            if (clientId !== wsProvider.awareness.clientID) {
-              count++;
-              const cursor = state.cursor;
-              const user = state.user;
-              if (cursor && user) {
-                peers.push({
-                  userId: String(clientId),
-                  name: user.name || 'Unknown',
-                  color: user.color || '#888',
-                  x: cursor.x,
-                  y: cursor.y
-                });
-              }
+
+          const wsUrl = `ws://localhost:1234`;
+          const wsProvider = new WebsocketProvider(wsUrl, roomId, ydoc, {
+            connect: true,
+          });
+          wsProviderRef.current = wsProvider;
+
+          wsProvider.on('status', ({ status }: { status: string }) => {
+            if (!activeRef.current) return;
+            setConnected(status === 'connected');
+            if (status === 'disconnected' || status === 'connection-error') {
+              setPeerCount(0);
+              setRemoteCursors([]);
             }
           });
-          setPeerCount(count);
-           setRemoteCursors(peers);
-         });
-       }
+
+          wsProvider.on('connection-error', (err: any) => {
+            if (!activeRef.current) return;
+            console.warn('[useCollaborativeDoc] WS connection error:', err);
+            setConnected(false);
+          });
+
+          const userHue = Array.from(currentUserId).reduce(
+            (hash, char) => (hash * 31 + char.charCodeAt(0)) % 360,
+            0,
+          );
+
+          wsProvider.awareness.setLocalStateField('user', {
+            name: currentUser?.name || 'Anonymous',
+            color: `hsl(${userHue}, 100%, 50%)`,
+            avatar: currentUser?.avatarUrl
+          });
+
+          wsProvider.awareness.on('change', () => {
+            if (!activeRef.current) return;
+            const states = wsProvider.awareness.getStates();
+            const peers: CollaborativeDocState['remoteCursors'] = [];
+            let count = 0;
+            states.forEach((state: any, clientId: number) => {
+              if (clientId !== wsProvider.awareness.clientID) {
+                count++;
+                const cursor = state.cursor;
+                const user = state.user;
+                if (cursor && user) {
+                  peers.push({
+                    userId: String(clientId),
+                    name: user.name || 'Unknown',
+                    color: user.color || '#888',
+                    x: cursor.x,
+                    y: cursor.y
+                  });
+                }
+              }
+            });
+            setPeerCount(count);
+            setRemoteCursors(peers);
+          });
+        } else {
+          // Production: use Supabase Realtime for cursor sharing
+          const { getSupabase } = await import('@/lib/supabase');
+          if (!activeRef.current) return;
+
+          const supabase = getSupabase();
+          const channelName = `collab:${roomId}`;
+          const channel = supabase.channel(channelName);
+
+          const userHue = Array.from(currentUserId).reduce(
+            (hash, char) => (hash * 31 + char.charCodeAt(0)) % 360,
+            0,
+          );
+          const userColor = `hsl(${userHue}, 100%, 50%)`;
+          const userName = currentUser?.name || 'Anonymous';
+
+          // Track peers via presence
+          const peersMap = new Map<string, { name: string; color: string; x: number; y: number }>();
+
+          channel
+            .on('presence', { event: 'sync' }, () => {
+              if (!activeRef.current) return;
+              const state = channel.presenceState();
+              peersMap.clear();
+              let count = 0;
+              Object.values(state).forEach((presences: any) => {
+                presences.forEach((p: any) => {
+                  if (p.user_id !== currentUserId) {
+                    count++;
+                    peersMap.set(p.user_id, {
+                      name: p.name || 'Unknown',
+                      color: p.color || '#888',
+                      x: p.cursor_x || 0,
+                      y: p.cursor_y || 0,
+                    });
+                  }
+                });
+              });
+              setPeerCount(count);
+              setRemoteCursors(
+                Array.from(peersMap.entries()).map(([id, data]) => ({
+                  userId: id,
+                  ...data,
+                }))
+              );
+            })
+            .on('presence', { event: 'join' }, () => {})
+            .on('presence', { event: 'leave' }, () => {})
+            .subscribe(async (status) => {
+              if (!activeRef.current) return;
+              if (status === 'SUBSCRIBED') {
+                setConnected(true);
+                await channel.track({
+                  user_id: currentUserId,
+                  name: userName,
+                  color: userColor,
+                  online_at: new Date().toISOString(),
+                });
+              } else {
+                setConnected(false);
+              }
+            });
+
+          // Store channel ref for cleanup
+          wsProviderRef.current = { destroy: () => { supabase.removeChannel(channel); }, awareness: null };
+
+          // Expose setLocalCursor for cursor broadcasting
+          (wsProviderRef.current as any).awareness = {
+            setLocalStateField: (field: string, value: any) => {
+              if (field === 'cursor') {
+                channel.track({
+                  user_id: currentUserId,
+                  name: userName,
+                  color: userColor,
+                  cursor_x: value.x,
+                  cursor_y: value.y,
+                  online_at: new Date().toISOString(),
+                });
+              }
+            },
+          };
+        }
+      }
       } catch (err) {
         console.error('[useCollaborativeDoc] Setup failed:', err);
       }

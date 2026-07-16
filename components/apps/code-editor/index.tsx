@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
 import { Layout, Search, Users, RefreshCcw, Server, File as FileIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import '@/lib/monaco-config';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import { MonacoBinding } from 'y-monaco';
 

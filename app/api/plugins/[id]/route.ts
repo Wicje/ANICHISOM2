@@ -70,10 +70,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authResult = requireSession(request);
+    const authResult = await requireSession(request);
     if (!authResult.ok) return authResult.response;
 
-    const sessionData = authResult.session;
+    const userId = authResult.userId;
+    const userRole = authResult.userRole;
 
     const { id } = await params;
     const store = getPluginStore();
@@ -84,7 +85,7 @@ export async function DELETE(
     }
 
     // Only the publisher or an admin can delete
-    if (plugin.publisherId !== sessionData.uniqueId && sessionData.role !== 'admin') {
+    if (plugin.publisherId !== userId && userRole !== 'admin') {
       return apiForbidden('Forbidden — you are not the publisher of this plugin');
     }
 

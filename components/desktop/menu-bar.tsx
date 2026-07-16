@@ -8,6 +8,7 @@ import { useWorkspaceStore } from '@/lib/stores/workspace.store';
 import { Search, Zap, ZapOff, Cloud, ShieldCheck, Power, Users, RefreshCw } from 'lucide-react';
 import { PresenceIndicator } from '@/components/presence-indicator';
 import { WorkspaceSelector } from '@/components/workspace-selector';
+import { useCollabStatusStore } from '@/lib/stores/collab-status.store';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -87,6 +88,8 @@ export function MenuBar({
   const setWorkspaceMode = useWorkspaceStore((s) => s.setWorkspaceMode);
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
   const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace);
+  const isConnected = useCollabStatusStore((s) => s.isConnected());
+  const totalPeers = useCollabStatusStore((s) => s.totalPeers());
 
   if (!currentUser) return null;
 
@@ -189,6 +192,20 @@ export function MenuBar({
             >
               <Users className="w-3.5 h-3.5" />
               Agency
+              {workspaceMode === 'agency' && (
+                <span className="flex items-center gap-1 ml-1">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{
+                      background: isConnected ? '#10b981' : '#ef4444',
+                      boxShadow: isConnected ? '0 0 4px #10b981' : '0 0 4px #ef4444',
+                    }}
+                  />
+                  {totalPeers > 0 && (
+                    <span className="text-[10px] opacity-80">{totalPeers}</span>
+                  )}
+                </span>
+              )}
             </button>
           </div>
         </div>

@@ -280,5 +280,37 @@ create policy "Call candidates: allow all" on public.call_candidates
 -- Enable replication for all of them in the Supabase Dashboard.
 
 -- ============================================================================
+-- AUTH TRIGGER — auto-create public.users row on Supabase Auth signup
+-- ============================================================================
+-- Run this AFTER supabase-schema.sql to sync auth.users → public.users
+
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.users (id, name, email, role, status)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
+    new.email,
+    coalesce(new.raw_user_meta_data->>'role', 'filmmaker'),
+    'approved'
+  )
+  on conflict (id) do update set
+    name = coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
+    email = new.email,
+    lastLogin = now();
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Drop existing trigger if it exists
+drop trigger if exists on_auth_user_created on auth.users;
+
+-- Create trigger on auth.users
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- ============================================================================
 -- DONE
 -- ============================================================================

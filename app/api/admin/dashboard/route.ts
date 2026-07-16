@@ -20,23 +20,20 @@ import {
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = requireAuth(request, 'ADMIN_DASHBOARD');
+    const authResult = await requireAuth(request, 'ADMIN_DASHBOARD');
     if (!authResult.ok) return authResult.response;
-
-    const sessionData = authResult.session;
 
     // Enforce role check: only 'admin' and 'owner' roles
     const allowedRoles = ['admin', 'owner', 'superadmin'];
-    if (!allowedRoles.includes(sessionData.role)) {
+    if (!allowedRoles.includes(authResult.userRole)) {
       return apiForbidden('Forbidden: Admin role required');
     }
 
     // Return admin dashboard data (stub for now)
     return apiOk({
       admin: {
-        userId: sessionData.userId,
-        uniqueId: sessionData.uniqueId,
-        role: sessionData.role,
+        userId: authResult.userId,
+        role: authResult.userRole,
       },
       dashboard: {
         totalUsers: 0,

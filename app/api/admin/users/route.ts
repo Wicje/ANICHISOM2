@@ -20,12 +20,12 @@ import {
 } from '@/lib/api-helpers';
 
 // Helper: verify admin role
-function verifyAdminAccess(request: NextRequest) {
-  const authResult = requireAuth(request, 'ADMIN_USERS');
+async function verifyAdminAccess(request: NextRequest) {
+  const authResult = await requireAuth(request, 'ADMIN_USERS');
   if (!authResult.ok) return authResult;
 
   const allowedRoles = ['admin', 'owner', 'superadmin'];
-  if (!allowedRoles.includes(authResult.session.role)) {
+  if (!allowedRoles.includes(authResult.userRole)) {
     return { ok: false as const, response: apiForbidden('Forbidden: Admin role required') };
   }
 
@@ -34,7 +34,7 @@ function verifyAdminAccess(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = verifyAdminAccess(request);
+    const authResult = await verifyAdminAccess(request);
     if (!authResult.ok) return authResult.response;
 
     // TODO: Query users from database

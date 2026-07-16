@@ -13,7 +13,7 @@ import { listAllModels, getEnabledProviders, getRegisteredProviders, getFallback
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = requireSession(request);
+    const authResult = await requireSession(request);
     if (!authResult.ok) return authResult.response;
 
     const models = await listAllModels();
