@@ -5,7 +5,7 @@ import { useNotificationStore } from '@/lib/stores/notification.store';
 
 export function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
-  const { notifications, removeNotification, clearAll } = useNotificationStore();
+  const { notifications, dismiss: removeNotification, clearAll } = useNotificationStore();
 
   useEffect(() => {
     const handleToggle = () => setIsOpen(prev => !prev);
@@ -78,8 +78,8 @@ export function NotificationCenter() {
                         <X className="w-3 h-3" />
                       </button>
                       <div className="font-medium text-sm text-white">{notif.title}</div>
-                      {notif.message && (
-                        <div className="text-xs text-white/70 mt-1 line-clamp-2">{notif.message}</div>
+                      {notif.description && (
+                        <div className="text-xs text-white/70 mt-1 line-clamp-2">{notif.description}</div>
                       )}
                       <div className="text-[10px] text-white/40 mt-2">
                         {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

@@ -5,7 +5,7 @@ import { useAuthStore } from '@/lib/stores/auth.store';
 import { useWindowStore } from '@/lib/stores/window.store';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useWorkspaceStore } from '@/lib/stores/workspace.store';
-import { Search, Zap, ZapOff, Cloud, ShieldCheck, Power, Users, RefreshCw, Bell } from 'lucide-react';
+import { Search, Zap, ZapOff, Cloud, ShieldCheck, Power, Users, RefreshCw, Bell, Wifi } from 'lucide-react';
 import { PresenceIndicator } from '@/components/presence-indicator';
 import { WorkspaceSelector } from '@/components/workspace-selector';
 import { useCollabStatusStore } from '@/lib/stores/collab-status.store';
@@ -248,7 +248,6 @@ export function MenuBar({
             <div className="absolute top-full right-0 mt-2 scale-0 group-hover:scale-100 transition-transform px-3 py-2 glass-panel text-xs font-medium rounded shadow-xl whitespace-nowrap z-[100]" style={{ color: 'var(--os-text)' }}>
               <div className="font-bold mb-1" style={{ color: '#10b981' }}>Sandboxed Environment</div>
               <div style={{ color: 'var(--os-text-muted)' }}>Apps are isolated & secure.</div>
-            </div>
             </div>
           </div>
         </div>

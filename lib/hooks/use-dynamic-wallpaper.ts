@@ -25,7 +25,7 @@ export function useDynamicWallpaper(enabled: boolean) {
       else if (hour >= 17 && hour < 20) timeOfDay = 'evening';
       else timeOfDay = 'night';
 
-      setWallpaper(DYNAMIC_WALLPAPERS[timeOfDay]);
+      setWallpaper(DYNAMIC_WALLPAPERS[timeOfDay]!);
     };
 
     updateWallpaper();

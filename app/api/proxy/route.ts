@@ -22,10 +22,10 @@ function normalizeHostname(hostname: string): string {
   let h = hostname.replace(/^\[|\]$/g, '');
   // Extract IPv4 from IPv6 mapped addresses: ::ffff:127.0.0.1 → 127.0.0.1
   const mappedMatch = h.match(/::ffff:(\d+\.\d+\.\d+\.\d+)/);
-  if (mappedMatch) return mappedMatch[1];
+  if (mappedMatch) return mappedMatch[1]!;
   // Extract embedded IPv4 from IPv6: 0:0:0:0:0:ffff:x.x.x.x or ::x.x.x.x
   const embedded = h.match(/(?:^|:)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
-  if (embedded) return embedded[1];
+  if (embedded) return embedded[1]!;
   return h;
 }
 

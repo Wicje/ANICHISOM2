@@ -866,7 +866,7 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
       canvas.loadFromJSON(JSON.parse(prevState)).then(() => {
         canvas.renderAll();
         setTimeout(() => { isSyncingRef.current = false; }, 100);
-      }).catch((err) => {
+      }).catch((err: unknown) => {
         console.warn('loadFromJSON undo failed', err);
         isSyncingRef.current = false;
       });
@@ -891,7 +891,7 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
       canvas.loadFromJSON(JSON.parse(nextState)).then(() => {
         canvas.renderAll();
         setTimeout(() => { isSyncingRef.current = false; }, 100);
-      }).catch((err) => {
+      }).catch((err: unknown) => {
         console.warn('loadFromJSON redo failed', err);
         isSyncingRef.current = false;
       });
