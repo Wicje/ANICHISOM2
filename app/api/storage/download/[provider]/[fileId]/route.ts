@@ -16,6 +16,17 @@ import {
 } from '@/lib/api-helpers';
 import { getStorageConnector } from '@/lib/storage-connectors/connector-registry';
 
+/** Sanitize filename for Content-Disposition header — prevents header injection */
+function sanitizeFilename(name: string): string {
+  return name
+    .replace(/[\r\n]/g, '')     // strip newlines
+    .replace(/["\\]/g, '')      // strip double quotes and backslashes
+    .replace(/[^\w\s.\-()]/g, '') // keep only safe chars
+    .trim()
+    .slice(0, 200)              // cap length
+    || 'download';
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ provider: string; fileId: string }> },
@@ -51,7 +62,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Content-Disposition': `inline; filename="${content.name}"`,
+        'Content-Disposition': `inline; filename="${sanitizeFilename(content.name)}"`,
         'Content-Length': String(content.size),
         'Cache-Control': 'private, max-age=3600',
         'X-Provider': provider,

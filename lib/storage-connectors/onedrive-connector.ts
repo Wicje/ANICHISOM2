@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import {
   IStorageConnector,
   CloudFile,
@@ -6,7 +7,7 @@ import {
   CallbackResult,
   StorageCapabilities,
 } from './storage-connector';
-import { TokenStore } from './token-store';
+import { TokenStore, storeOAuthState } from './token-store';
 
 const GRAPH_API_BASE = 'https://graph.microsoft.com/v1.0';
 
@@ -16,7 +17,7 @@ export class OneDriveConnector implements IStorageConnector {
   readonly icon = '☁️';
 
   isConfigured(): boolean {
-    return !!process.env.NEXT_PUBLIC_ONEDRIVE_CLIENT_ID;
+    return !!process.env.NEXT_PUBLIC_ONEDRIVE_CLIENT_ID && !!process.env.ONEDRIVE_CLIENT_SECRET;
   }
 
   getCapabilities(): StorageCapabilities {
@@ -36,7 +37,7 @@ export class OneDriveConnector implements IStorageConnector {
   async connect(userId: string, redirectUrl: string): Promise<ConnectResult> {
     const clientId = process.env.NEXT_PUBLIC_ONEDRIVE_CLIENT_ID || '';
     const scopes = 'Files.ReadWrite.All User.Read offline_access';
-    const state = Buffer.from(JSON.stringify({ userId, provider: 'onedrive' })).toString('base64url');
+    const state = crypto.randomUUID();
     const params = new URLSearchParams({
       client_id: clientId,
       response_type: 'code',
@@ -51,7 +52,7 @@ export class OneDriveConnector implements IStorageConnector {
   async handleCallback(userId: string, code: string, state?: string): Promise<CallbackResult> {
     const clientId = process.env.NEXT_PUBLIC_ONEDRIVE_CLIENT_ID || '';
     const clientSecret = process.env.ONEDRIVE_CLIENT_SECRET || '';
-    const redirectUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/storage/callback/onedrive`;
+    const redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/storage/callback/onedrive`;
 
     const resp = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
       method: 'POST',

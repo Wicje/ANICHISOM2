@@ -18,6 +18,8 @@ import {
 } from '@/lib/api-helpers';
 import { getStorageConnector } from '@/lib/storage-connectors/connector-registry';
 
+const MAX_UPLOAD_SIZE = 100 * 1024 * 1024; // 100 MB server-side limit
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ provider: string }> },
@@ -49,6 +51,11 @@ export async function POST(
 
     if (!file) {
       return apiError('No file provided');
+    }
+
+    // Enforce server-side file size limit
+    if (file.size > MAX_UPLOAD_SIZE) {
+      return apiError(`File too large. Maximum upload size is ${Math.round(MAX_UPLOAD_SIZE / 1024 / 1024)}MB.`, 413);
     }
 
     // Convert File to Buffer

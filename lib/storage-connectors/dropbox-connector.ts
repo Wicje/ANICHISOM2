@@ -108,7 +108,7 @@ export class DropboxConnector implements IStorageConnector {
   }
 
   async listFiles(userId: string, path?: string, pageToken?: string): Promise<{ files: CloudFile[]; nextPageToken?: string }> {
-    const accessToken = this.getValidToken(userId);
+    const accessToken = await this.getValidToken(userId);
     const folderPath = path || '';
 
     const response = await fetch('https://api.dropboxapi.com/2/files/list_folder', {
@@ -148,7 +148,7 @@ export class DropboxConnector implements IStorageConnector {
   }
 
   async readFile(userId: string, fileId: string): Promise<CloudFileContent> {
-    const accessToken = this.getValidToken(userId);
+    const accessToken = await this.getValidToken(userId);
 
     // Get file metadata
     const metaRes = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
@@ -189,7 +189,7 @@ export class DropboxConnector implements IStorageConnector {
   }
 
   async uploadFile(userId: string, path: string, content: Buffer, mimeType?: string): Promise<CloudFile> {
-    const accessToken = this.getValidToken(userId);
+    const accessToken = await this.getValidToken(userId);
     const remotePath = path || '/';
 
     const response = await fetch('https://content.dropboxapi.com/2/files/upload', {
@@ -225,7 +225,7 @@ export class DropboxConnector implements IStorageConnector {
   }
 
   async createFolder(userId: string, path: string): Promise<CloudFile> {
-    const accessToken = this.getValidToken(userId);
+    const accessToken = await this.getValidToken(userId);
 
     const response = await fetch('https://api.dropboxapi.com/2/files/create_folder_v2', {
       method: 'POST',
@@ -256,7 +256,7 @@ export class DropboxConnector implements IStorageConnector {
   }
 
   async deleteFile(userId: string, fileId: string): Promise<void> {
-    const accessToken = this.getValidToken(userId);
+    const accessToken = await this.getValidToken(userId);
     const response = await fetch('https://api.dropboxapi.com/2/files/delete_v2', {
       method: 'POST',
       headers: {
@@ -269,7 +269,7 @@ export class DropboxConnector implements IStorageConnector {
   }
 
   async searchFiles(userId: string, query: string): Promise<CloudFile[]> {
-    const accessToken = this.getValidToken(userId);
+    const accessToken = await this.getValidToken(userId);
     const response = await fetch('https://api.dropboxapi.com/2/files/search_v2', {
       method: 'POST',
       headers: {
@@ -296,13 +296,46 @@ export class DropboxConnector implements IStorageConnector {
     }));
   }
 
-  private getValidToken(userId: string): string {
+  private async getValidToken(userId: string): Promise<string> {
     const token = TokenStore.getAccessToken(userId, this.id);
-    if (!token) throw new Error(`Dropbox not connected for user ${userId}. Please connect first.`);
-    if (TokenStore.isTokenExpired(userId, this.id)) {
-      throw new Error('Dropbox token expired. Please reconnect.');
+    if (token && !TokenStore.isTokenExpired(userId, this.id)) {
+      return token;
     }
-    return token;
+    return this.refreshAccessToken(userId);
+  }
+
+  private async refreshAccessToken(userId: string): Promise<string> {
+    const refreshToken = TokenStore.getRefreshToken(userId, this.id);
+    if (!refreshToken) {
+      throw new Error('Dropbox not connected. Please connect first.');
+    }
+
+    const response = await fetch('https://api.dropboxapi.com/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: this.clientId,
+        client_secret: this.clientSecret,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Dropbox token refresh failed: ${response.status} — ${errorText}`);
+    }
+
+    const data = await response.json();
+    TokenStore.store(userId, this.id, {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token || refreshToken,
+      expiresIn: data.expires_in,
+      scope: data.scope || '',
+      accountName: TokenStore.getAccountName(userId, this.id) || 'Dropbox',
+    });
+
+    return data.access_token;
   }
 
   private inferMimeType(filename: string, tag: string): string {
