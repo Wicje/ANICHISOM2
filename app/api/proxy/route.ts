@@ -138,6 +138,13 @@ function rewriteUrls(html: string, baseUrl: string): string {
   html = html.replace(/top\.location/g, 'self.location');
   html = html.replace(/parent\.location/g, 'self.location');
   html = html.replace(/if\s*\(\s*window\.self\s*!==\s*window\.top\s*\)/gi, 'if(false)');
+  html = html.replace(/if\s*\(\s*self\s*!==\s*top\s*\)/gi, 'if(false)');
+  html = html.replace(/document\.domain\s*=\s*['"][^'"]*['"]/g, '/* frame-bust removed */');
+  html = html.replace(/top\s*!==\s*self/gi, 'false');
+  html = html.replace(/self\s*!==\s*top/gi, 'false');
+  // Remove meta frame-ancestors and X-Frame-Options in HTML
+  html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?X-Frame-Options["']?[^>]*>/gi, '');
+  html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?Content-Security-Policy["']?[^>]*content\s*=\s*["'][^"']*frame-ancestors[^"']*["'][^>]*>/gi, '');
 
   return html;
 }
@@ -202,12 +209,16 @@ function validateProxyRequest(request: NextRequest): { targetUrl: string; error?
 // Build CSP header for proxied content — restrict to the proxied domain, not wildcard
 function buildProxyCSP(proxiedOrigin: string): string {
   return [
-    `default-src ${proxiedOrigin} 'unsafe-inline' data: blob:`,
-    `frame-src ${proxiedOrigin}`,
+    `default-src ${proxiedOrigin} 'unsafe-inline' 'unsafe-eval' data: blob:`,
+    `frame-src *`,
+    `frame-ancestors *`,
     `img-src ${proxiedOrigin} data: blob: http: https:`,
     `style-src ${proxiedOrigin} 'unsafe-inline'`,
-    `script-src ${proxiedOrigin} 'unsafe-inline'`,
-    `connect-src ${proxiedOrigin} ws: wss:`,
+    `script-src ${proxiedOrigin} 'unsafe-inline' 'unsafe-eval'`,
+    `connect-src ${proxiedOrigin} ws: wss: http: https:`,
+    `media-src ${proxiedOrigin} data: blob:`,
+    `font-src ${proxiedOrigin} data:`,
+    `object-src ${proxiedOrigin}`,
   ].join('; ');
 }
 
@@ -305,6 +316,7 @@ export async function GET(request: NextRequest) {
         'Content-Security-Policy': buildProxyCSP(proxiedOrigin),
         'Access-Control-Allow-Origin': proxiedOrigin,
         'X-Proxy-Final-Url': finalUrl,
+        'X-Frame-Options': 'SAMEORIGIN',
       };
 
       return new NextResponse(html, { headers });
