@@ -2,6 +2,26 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useOS, OSWindow } from '@/lib/os-context';
 import { Monitor, Square, Circle, Download, X, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { FS } from '@/lib/fs';
+
+const CODEC_CHAIN = [
+  'video/webm;codecs=vp9,opus',
+  'video/webm;codecs=vp8,opus',
+  'video/webm;codecs=h264,opus',
+  'video/webm;codecs=vp9',
+  'video/webm;codecs=vp8',
+  'video/webm',
+  'video/mp4',
+];
+
+function getSupportedMimeType(): string | null {
+  for (const mime of CODEC_CHAIN) {
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(mime)) {
+      return mime;
+    }
+  }
+  return null;
+}
 
 export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
   const { notify } = useOS();
@@ -62,10 +82,15 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
     if (!stream) return;
     
     chunksRef.current = [];
-    const options = { mimeType: 'video/webm; codecs=vp9' };
+    const mimeType = getSupportedMimeType();
     
+    if (!mimeType) {
+      setError('No supported video codec found. Your browser does not support screen recording.');
+      return;
+    }
+
     try {
-      const recorder = new MediaRecorder(stream, options);
+      const recorder = new MediaRecorder(stream, { mimeType });
       
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
@@ -73,17 +98,32 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
         }
       };
       
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+      recorder.onstop = async () => {
+        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+        const blob = new Blob(chunksRef.current, { type: mimeType });
         const url = URL.createObjectURL(blob);
         setRecordedUrl(url);
-        notify('Screen Recording Saved', { body: 'Your video is ready to preview and download.' });
+
+        // Save to VirtualFS
+        try {
+          await FS.mkdir('Recordings');
+          const filename = `Recordings/Screen_Recording_${new Date().toISOString().replace(/[:.]/g, '-')}.${ext}`;
+          await FS.write(filename, blob, mimeType);
+          window.dispatchEvent(new CustomEvent('os:notify', {
+            detail: { title: 'Recording Saved', description: `Saved to ${filename}`, type: 'success' },
+          }));
+          window.dispatchEvent(new CustomEvent('os:activity', {
+            detail: { type: 'file-save', title: 'Screen recording saved', detail: filename },
+          }));
+        } catch (fsErr) {
+          console.warn('Failed to save recording to FS:', fsErr);
+        }
       };
       
       mediaRecorderRef.current = recorder;
       recorder.start();
       setIsRecording(true);
-      notify('Recording Started', { body: 'Screen recording is now active.' });
+      notify('Recording Started', { body: `Recording with ${mimeType.split(';')[0]}` });
     } catch (err: any) {
       setError('MediaRecorder failed: ' + err.message);
     }
@@ -98,9 +138,11 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
 
   const downloadRecording = () => {
     if (recordedUrl) {
+      const mimeType = mediaRecorderRef.current?.mimeType || 'video/webm';
+      const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
       const a = document.createElement('a');
       a.href = recordedUrl;
-      a.download = `Screen_Recording_${new Date().getTime()}.webm`;
+      a.download = `Screen_Recording_${new Date().getTime()}.${ext}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

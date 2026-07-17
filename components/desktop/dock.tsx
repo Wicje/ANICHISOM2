@@ -13,6 +13,8 @@ import { APP_MANIFEST } from '@/lib/app-manifest';
 import { AppIcon } from '@/components/ui/app-icon';
 import { getAllPlugins, isPluginActive } from '@/lib/plugin-registry';
 
+const PINNED_APPS = ['terminal', 'files', 'browser', 'code', 'settings', 'store'];
+
 interface DockProps {
   showLaunchpad: boolean;
   setShowLaunchpad: (v: boolean | ((p: boolean) => boolean)) => void;
@@ -26,20 +28,22 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
   const windows = useWindowStore((s) => s.windows);
   const highestZIndex = useWindowStore((s) => s.highestZIndex);
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
-  const installedApps = useWorkspaceStore((s) => s.installedApps);
   const unreadCount = useNotificationStore((s) => s.notifications.filter(n => !n.read).length);
-
-  const allowedApps = useMemo(() => {
-    if (!currentUser) return [];
-    return APP_MANIFEST.filter(app =>
-      app.roles.includes(currentUser.role)
-    );
-  }, [currentUser]);
 
   const activeWindows = useMemo(
     () => windows.filter(w => w.workspace === activeWorkspace || w.workspace === undefined),
     [windows, activeWorkspace]
   );
+
+  // Dock shows: pinned apps + currently open apps (deduplicated)
+  const dockApps = useMemo(() => {
+    const openAppIds = new Set(activeWindows.map(w => w.appId));
+    const pinned = PINNED_APPS
+      .map(id => APP_MANIFEST.find(app => app.id === id))
+      .filter(Boolean) as typeof APP_MANIFEST;
+    const openNotPinned = APP_MANIFEST.filter(app => openAppIds.has(app.id) && !PINNED_APPS.includes(app.id));
+    return [...pinned, ...openNotPinned];
+  }, [activeWindows]);
 
   if (!currentUser) return null;
 
@@ -79,7 +83,7 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
         </div>
         <div className="w-px h-10 mx-1" style={{ background: 'var(--os-border)' }}></div>
 
-        {allowedApps.map(app => {
+        {dockApps.map(app => {
           const isOpen = activeWindows.some(w => w.appId === app.id);
           const isFocused = activeWindows.some(w => w.appId === app.id && !w.isMinimized && w.zIndex >= highestZIndex);
 
