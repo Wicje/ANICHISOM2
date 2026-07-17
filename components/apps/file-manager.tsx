@@ -53,7 +53,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   const [connectLoading, setConnectLoading] = useState<string | null>(null);
 
   // Sync prompt state
-  const [syncPromptFile, setSyncPromptFile] = useState<{ name: string; size: number; type: string } | null>(null);
+  const [syncPromptFile, setSyncPromptFile] = useState<{ name: string; size: number; type: string; file?: File } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -156,9 +156,8 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   // Disconnect a cloud storage provider
   const handleDisconnect = async (providerId: string) => {
     try {
-      // For disconnect, we need a separate endpoint or we handle it client-side
-      // For now, we'll just refresh the status
-      await fetchCloudSources();
+      await fetch(`/api/storage/disconnect/${providerId}`, { method: 'DELETE' });
+      fetchCloudSources();
       setCloudFiles([]);
       setSelectedSource('local');
     } catch { /* ignore */ }
@@ -187,7 +186,23 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
     }
   }, [selectedSource, cloudPath]);
 
-  // Check for OAuth callback status in URL params
+  // Check for OAuth callback via postMessage from OS browser iframe
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      const data = e.data;
+      if (data && data.type === 'storage-oauth-callback' && data.success && data.provider) {
+        fetchCloudSources();
+        setSelectedSource(data.provider);
+        window.dispatchEvent(new CustomEvent('os:notify', {
+          detail: { title: 'Cloud Connected', description: `${data.accountName || data.provider} connected successfully!`, type: 'success' },
+        }));
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  // Also check URL params as fallback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const connectedProvider = params.get('storage_connected');
@@ -195,7 +210,6 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
     if (connectedProvider) {
       fetchCloudSources();
       setSelectedSource(connectedProvider);
-      // Clean URL params
       window.history.replaceState({}, '', window.location.pathname);
     }
     if (error) {
@@ -251,6 +265,57 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
     }
   };
 
+  const [cloudContextMenu, setCloudContextMenu] = useState<{ x: number; y: number; file: CloudFileItem } | null>(null);
+  const [savingCloudFile, setSavingCloudFile] = useState<string | null>(null);
+
+  const handleSaveCloudToLocal = async (file: CloudFileItem) => {
+    if (file.isFolder) return;
+    setSavingCloudFile(file.id);
+    try {
+      const downloadUrl = `/api/storage/download/${selectedSource}/${encodeURIComponent(file.id)}`;
+      const res = await fetch(downloadUrl);
+      if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+      const blob = await res.blob();
+      const contentType = res.headers.get('content-type') || blob.type || 'application/octet-stream';
+      const filePath = currentPath === 'Root' ? file.name : `${currentPath}/${file.name}`;
+      await FS.write(filePath, blob, contentType);
+      fetchFiles();
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'File Imported', description: `${file.name} saved to ${currentPath}`, type: 'success' },
+      }));
+    } catch (err) {
+      console.error('Save to local failed:', err);
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Import Failed', description: err instanceof Error ? err.message : 'Unknown error', type: 'error' },
+      }));
+    }
+    setSavingCloudFile(null);
+  };
+
+  const handleImportAllCloudFiles = async () => {
+    const filesToImport = cloudFiles.filter(f => !f.isFolder);
+    if (filesToImport.length === 0) return;
+    setCloudLoading(true);
+    let imported = 0;
+    for (const file of filesToImport) {
+      try {
+        const downloadUrl = `/api/storage/download/${selectedSource}/${encodeURIComponent(file.id)}`;
+        const res = await fetch(downloadUrl);
+        if (!res.ok) continue;
+        const blob = await res.blob();
+        const contentType = res.headers.get('content-type') || blob.type || 'application/octet-stream';
+        const filePath = currentPath === 'Root' ? file.name : `${currentPath}/${file.name}`;
+        await FS.write(filePath, blob, contentType);
+        imported++;
+      } catch { /* skip failed files */ }
+    }
+    fetchFiles();
+    setCloudLoading(false);
+    window.dispatchEvent(new CustomEvent('os:notify', {
+      detail: { title: 'Import Complete', description: `${imported} of ${filesToImport.length} files imported to ${currentPath}`, type: 'success' },
+    }));
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFiles = e.target.files;
     if (!uploadedFiles) return;
@@ -262,7 +327,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
 
       // Prompt sync for large files (>5MB)
       if (file.size > 5 * 1024 * 1024) {
-        setSyncPromptFile({ name: file.name, size: file.size, type: file.type });
+        setSyncPromptFile({ name: file.name, size: file.size, type: file.type, file });
       }
     }
     fetchFiles();
@@ -306,7 +371,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
       const filePath = currentPath === 'Root' ? file.name : `${currentPath}/${file.name}`;
       await FS.write(filePath, file, file.type);
       if (file.size > 5 * 1024 * 1024) {
-        setSyncPromptFile({ name: file.name, size: file.size, type: file.type });
+        setSyncPromptFile({ name: file.name, size: file.size, type: file.type, file });
       }
     }
     fetchFiles();
@@ -421,7 +486,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
           </div>
 
           {/* Cloud storage */}
-          {cloudSources.length > 0 && (
+          {cloudSources.length > 0 ? (
             <>
               <div className="px-3 mt-6 mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--os-text-muted)]">Cloud Storage</div>
               <div className="flex flex-col gap-1 px-2">
@@ -452,7 +517,13 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                       {connectLoading === source.id ? (
                         <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
                       ) : source.connected ? (
-                        <Link className="w-3.5 h-3.5 text-emerald-400" />
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDisconnect(source.id); }}
+                          className="p-1 rounded hover:bg-[var(--os-error)]/20 transition-colors"
+                          title="Disconnect"
+                        >
+                          <Unlink className="w-3.5 h-3.5 text-[var(--os-text-muted)] hover:text-[var(--os-error)]" />
+                        </button>
                       ) : (
                         <Unlink className="w-3.5 h-3.5 text-white/30" />
                       )}
@@ -472,6 +543,18 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                 ))}
               </div>
             </>
+          ) : (
+            <div className="px-4 mt-6">
+              <div className="p-3 rounded-lg border border-dashed border-[var(--os-border)] text-center">
+                <Cloud className="w-6 h-6 mx-auto mb-2 text-[var(--os-text-muted)] opacity-40" />
+                <p className="text-[10px] text-[var(--os-text-muted)]">
+                  No cloud providers configured.
+                </p>
+                <p className="text-[9px] text-[var(--os-text-muted)] opacity-60 mt-1">
+                  Ask admin to set up Google Drive, Dropbox, or OneDrive env vars.
+                </p>
+              </div>
+            </div>
           )}
 
           {/* Refresh cloud sources */}
@@ -578,9 +661,17 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
             )}
 
             {!isViewingLocal && cloudFiles.length > 0 && (
-              <div className="text-[10px] text-white/40">
-                {cloudFiles.length} items from {selectedSource}
-              </div>
+              <>
+                <button
+                  onClick={handleImportAllCloudFiles}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--os-primary)] hover:bg-[var(--os-primary-container)] rounded-md text-white text-sm font-medium transition-colors shadow-lg shadow-[var(--os-primary)]/20"
+                >
+                  <Download className="w-4 h-4" /> Import All to {currentPath}
+                </button>
+                <div className="text-[10px] text-white/40">
+                  {cloudFiles.length} items from {selectedSource}
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -759,7 +850,10 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
             </div>
           ) : (
             // Cloud files grid
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 pb-12">
+            <div
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 pb-12"
+              onClick={(e) => { if (e.target === e.currentTarget) setCloudContextMenu(null); }}
+            >
               {filteredCloudFiles.map((file) => {
                 const isMedia = file.mimeType?.startsWith('video/') || file.mimeType?.startsWith('audio/');
                 const isImage = file.mimeType?.startsWith('image/');
@@ -769,8 +863,30 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                   <div
                     key={file.id}
                     onDoubleClick={() => handleCloudFileOpen(file)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (!file.isFolder) setCloudContextMenu({ x: e.clientX, y: e.clientY, file });
+                    }}
                     className="group flex flex-col items-center p-4 rounded-xl border border-transparent hover:bg-[var(--os-hover)] hover:border-[var(--os-border)] hover:shadow-xl transition-all cursor-pointer relative"
                   >
+                    {!file.isFolder && (
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1 z-10">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleSaveCloudToLocal(file); }}
+                          disabled={savingCloudFile === file.id}
+                          className="p-1.5 hover:bg-emerald-500 rounded-md bg-[var(--os-surface-elevated)] backdrop-blur border border-[var(--os-border)] disabled:opacity-40"
+                          title="Save to Local"
+                        >
+                          {savingCloudFile === file.id ? (
+                            <Loader2 className="w-3.5 h-3.5 text-[var(--os-text)] animate-spin" />
+                          ) : (
+                            <Download className="w-3.5 h-3.5 text-[var(--os-text)]" />
+                          )}
+                        </button>
+                      </div>
+                    )}
+
                     <div className="w-16 h-16 mb-4 flex items-center justify-center relative">
                       {file.isFolder ? (
                         <Folder className="w-12 h-12 text-emerald-400 drop-shadow-md" fill="currentColor" />
@@ -864,12 +980,48 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
         </div>
       )}
 
+      {/* Cloud Context Menu */}
+      {cloudContextMenu && (
+        <div
+          className="fixed z-[9999] bg-[var(--os-glass-bg)] backdrop-blur-xl border border-[var(--os-glass-border)] rounded-xl shadow-2xl py-1 w-56"
+          style={{ left: cloudContextMenu.x, top: cloudContextMenu.y }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => setCloudContextMenu(null)}
+        >
+          <button
+            onClick={() => handleCloudFileOpen(cloudContextMenu.file)}
+            className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Open
+          </button>
+          <div className="border-t border-[var(--os-border)] my-1" />
+          <button
+            onClick={() => handleSaveCloudToLocal(cloudContextMenu.file)}
+            disabled={savingCloudFile === cloudContextMenu.file.id}
+            className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)] disabled:opacity-40"
+          >
+            <Download className="w-3.5 h-3.5" /> {savingCloudFile === cloudContextMenu.file.id ? 'Saving...' : 'Save to Local'}
+          </button>
+          {cloudContextMenu.file.webUrl && (
+            <a
+              href={cloudContextMenu.file.webUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
+            >
+              <Cloud className="w-3.5 h-3.5" /> Open in {selectedSource}
+            </a>
+          )}
+        </div>
+      )}
+
       {/* Sync Prompt Banner for large files */}
       {syncPromptFile && (
         <SyncPromptBanner
           fileName={syncPromptFile.name}
           fileSize={syncPromptFile.size}
           fileType={syncPromptFile.type}
+          file={syncPromptFile.file}
           onDismiss={() => setSyncPromptFile(null)}
           onKeepLocal={() => setSyncPromptFile(null)}
         />

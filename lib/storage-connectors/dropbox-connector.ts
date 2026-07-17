@@ -189,11 +189,70 @@ export class DropboxConnector implements IStorageConnector {
   }
 
   async uploadFile(userId: string, path: string, content: Buffer, mimeType?: string): Promise<CloudFile> {
-    throw new Error('Upload not yet implemented for Dropbox connector');
+    const accessToken = this.getValidToken(userId);
+    const remotePath = path || '/';
+
+    const response = await fetch('https://content.dropboxapi.com/2/files/upload', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/octet-stream',
+        'Dropbox-API-Arg': JSON.stringify({
+          path: remotePath,
+          mode: 'add',
+          autorename: true,
+          mute: false,
+        }),
+      },
+      body: new Uint8Array(content),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Dropbox upload error: ${response.status} — ${errText}`);
+    }
+
+    const data = await response.json();
+    return {
+      id: data.id,
+      name: data.name,
+      path: data.path_lower || data.path_display || remotePath,
+      size: data.size,
+      mimeType: this.inferMimeType(data.name, data['.tag']),
+      modifiedTime: data.server_modified,
+      isFolder: false,
+    };
   }
 
   async createFolder(userId: string, path: string): Promise<CloudFile> {
-    throw new Error('Create folder not yet implemented for Dropbox connector');
+    const accessToken = this.getValidToken(userId);
+
+    const response = await fetch('https://api.dropboxapi.com/2/files/create_folder_v2', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        path,
+        autorename: false,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Dropbox create folder error: ${response.status} — ${errText}`);
+    }
+
+    const data = await response.json();
+    const entry = data.metadata;
+    return {
+      id: entry.id,
+      name: entry.name,
+      path: entry.path_lower || entry.path_display || path,
+      mimeType: 'application/vnd.google-apps.folder',
+      isFolder: true,
+    };
   }
 
   async deleteFile(userId: string, fileId: string): Promise<void> {

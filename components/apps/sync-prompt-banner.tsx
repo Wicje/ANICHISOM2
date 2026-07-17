@@ -9,6 +9,7 @@ type SyncPromptBannerProps = {
   fileName: string;
   fileSize: number;
   fileType: string;
+  file?: File;
   onSync?: () => void;
   onDismiss?: () => void;
   onKeepLocal?: () => void;
@@ -26,7 +27,7 @@ const STORAGE_LABELS: Record<string, string> = {
   'onedrive': 'OneDrive',
 };
 
-export function SyncPromptBanner({ fileName, fileSize, fileType, onSync, onDismiss, onKeepLocal }: SyncPromptBannerProps) {
+export function SyncPromptBanner({ fileName, fileSize, fileType, file, onSync, onDismiss, onKeepLocal }: SyncPromptBannerProps) {
   const [syncing, setSyncing] = useState(false);
   const [synced, setSynced] = useState(false);
   const [visible, setVisible] = useState(true);
@@ -57,11 +58,32 @@ export function SyncPromptBanner({ fileName, fileSize, fileType, onSync, onDismi
   const handleSync = async () => {
     if (!primaryProvider) return;
     setSyncing(true);
-    // In real implementation, this would trigger upload via /api/storage/upload/[provider]
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      const formData = new FormData();
+      if (file) {
+        formData.append('file', file);
+      } else {
+        // Fallback: create empty blob with correct name/type
+        formData.append('file', new Blob([], { type: fileType }), fileName);
+      }
+      formData.append('path', `/${fileName}`);
+      const res = await fetch(`/api/storage/upload/${primaryProvider.id}`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `Upload failed: ${res.status}`);
+      }
+      setSynced(true);
+      onSync?.();
+    } catch (err) {
+      console.error('Sync failed:', err);
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Sync Failed', description: err instanceof Error ? err.message : 'Upload failed', type: 'error' },
+      }));
+    }
     setSyncing(false);
-    setSynced(true);
-    onSync?.();
   };
 
   const handleDismiss = () => {

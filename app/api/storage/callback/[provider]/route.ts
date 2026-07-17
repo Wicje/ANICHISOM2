@@ -4,55 +4,70 @@
  * GET /api/storage/callback/[provider]?code=...&state=...
  *
  * Exchanges the OAuth code for tokens and stores them server-side.
- * Redirects user back to the Files app with connection status.
+ * Returns an HTML page that sends a postMessage to the parent frame
+ * (the OS browser window) so the FileManager can refresh, then closes itself.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveSession } from '@/lib/session-store';
+import { createServerClient } from '@supabase/ssr';
 import { getStorageConnector } from '@/lib/storage-connectors/connector-registry';
+
+function makeResultPage(provider: string, success: boolean, accountName?: string, error?: string) {
+  const payload = JSON.stringify({ provider, success, accountName, error });
+  const escapedPayload = payload.replace(/</g, '\\u003c');
+  return new NextResponse(
+    `<!DOCTYPE html><html><head><title>Cloud Connected</title></head><body>
+<script>
+try {
+  window.parent.postMessage(${escapedPayload}, '*');
+  window.parent.postMessage({ type: 'storage-oauth-callback', provider: '${provider}', success: ${success}${accountName ? `, accountName: '${accountName.replace(/'/g, "\\'")}'` : ''}${error ? `, error: '${error}'` : ''} }, '*');
+} catch(e) {}
+document.body.innerHTML = '<div style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;color:#666"><div style="text-align:center"><h2 style="color:${success ? '#22c55e' : '#ef4444'}">${success ? 'Connected!' : 'Failed'}</h2><p>${success ? accountName || provider + ' connected successfully.' : error || 'Connection failed.'}</p><p style="font-size:12px;color:#999">You can close this tab.</p></div></div>';
+</script>
+</body></html>`,
+    {
+      status: 200,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    }
+  );
+}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ provider: string }> },
 ) {
+  const { provider } = await params;
   try {
-    const { provider } = await params;
     const code = request.nextUrl.searchParams.get('code');
     const state = request.nextUrl.searchParams.get('state');
     const error = request.nextUrl.searchParams.get('error');
 
     if (error) {
-      return NextResponse.redirect(
-        new URL(`/files?storage_error=${error}`, process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
-      );
+      return makeResultPage(provider, false, undefined, `OAuth error: ${error}`);
     }
 
     if (!code) {
-      return NextResponse.redirect(
-        new URL(`/files?storage_error=no_code`, process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
-      );
+      return makeResultPage(provider, false, undefined, 'No authorization code received');
     }
 
-    // We need userId — for the callback, we use the state parameter to identify the user
-    // In a production system, the state would be a signed JWT or encrypted userId
-    // For dev, we use a simpler approach: the session cookie is still valid during redirect
-    // So we re-validate the session
-    const sessionCookie = request.cookies.get('anichisom_session');
-    let userId: string;
+    // Validate session via Supabase
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll() { /* read-only */ },
+        },
+      },
+    );
 
-    if (sessionCookie && sessionCookie.value) {
-      const sessionData = resolveSession(sessionCookie.value);
-      if (sessionData) {
-        userId = sessionData.userId;
-      } else {
-        return NextResponse.redirect(
-          new URL(`/files?storage_error=session_expired`, process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
-        );
-      }
-    } else {
-      return NextResponse.redirect(
-        new URL(`/files?storage_error=not_authenticated`, process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
-      );
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return makeResultPage(provider, false, undefined, 'Session expired — please log in again');
     }
 
     // Get connector and handle callback
@@ -60,21 +75,14 @@ export async function GET(
     try {
       connector = getStorageConnector(provider);
     } catch {
-      return NextResponse.redirect(
-        new URL(`/files?storage_error=unknown_provider`, process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
-      );
+      return makeResultPage(provider, false, undefined, `Unknown provider: ${provider}`);
     }
 
-    const result = await connector.handleCallback(userId, code, state ?? undefined);
+    const result = await connector.handleCallback(user.id, code, state ?? undefined);
 
-    // Redirect back to Files app with success
-    return NextResponse.redirect(
-      new URL(`/files?storage_connected=${provider}&account=${encodeURIComponent(result.accountName || provider)}`, process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
-    );
+    return makeResultPage(provider, true, result.accountName);
   } catch (error) {
     console.error('[storage/callback] Error:', error);
-    return NextResponse.redirect(
-      new URL(`/files?storage_error=callback_failed`, process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
-    );
+    return makeResultPage(provider, false, undefined, 'Callback failed — please try again');
   }
 }
