@@ -77,6 +77,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (activeTab) setInputUrl(activeTab.url);
   }, [activeTab?.url, activeTabId]);
 
@@ -505,7 +506,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                       src={tab.url.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(tab.url)}` : tab.url}
                       className="w-full h-full border-none bg-white absolute inset-0"
                       title={`Tab ${tab.id}`}
-                      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+                      sandbox="allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox"
                       onLoad={() => handleIframeLoad(tab.id)}
                       onError={() => handleIframeError(tab.id)}
                     />

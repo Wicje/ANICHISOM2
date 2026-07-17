@@ -29,15 +29,9 @@ export async function middleware(request: NextRequest) {
 }
 
 function applyHeaders(response: NextResponse) {
-  const nonceArray = new Uint8Array(16);
-  globalThis.crypto.getRandomValues(nonceArray);
-  const nonce = btoa(String.fromCharCode(...nonceArray));
-
-  response.headers.set('X-Nonce', nonce);
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Content-Security-Policy', [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline'",

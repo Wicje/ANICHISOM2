@@ -386,7 +386,16 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Images, fonts, media — proxy binary content
+    // Images, fonts, media — stream binary content
+    if (response.body) {
+      return new NextResponse(response.body, {
+        headers: {
+          'Content-Type': contentType,
+          'Access-Control-Allow-Origin': proxiedOrigin,
+          'Cache-Control': 'public, max-age=3600',
+        },
+      });
+    }
     const body = await response.arrayBuffer();
     return new NextResponse(body, {
       headers: {
@@ -413,15 +422,42 @@ export async function POST(request: NextRequest) {
     const contentType = request.headers.get('content-type') || '';
     const body = await request.text();
 
-    const response = await fetch(targetUrl, {
-      method: 'POST',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Content-Type': contentType,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      },
-      body,
-    });
+    // Follow redirects with SSRF validation (same as GET)
+    let currentUrl = targetUrl;
+    let response: Response | null = null;
+    const MAX_REDIRECTS = 5;
+
+    for (let i = 0; i <= MAX_REDIRECTS; i++) {
+      if (isPrivateUrl(currentUrl)) {
+        return proxyErrorHtml('Redirect Blocked', `SSRF protection: ${currentUrl} is a private/internal URL`, currentUrl);
+      }
+
+      response = await fetch(currentUrl, {
+        method: i === 0 ? 'POST' : 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Content-Type': contentType,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+        body: i === 0 ? body : undefined,
+        redirect: 'manual',
+      });
+
+      if (response.status < 300 || response.status >= 400) break;
+
+      const location = response.headers.get('location');
+      if (!location) break;
+
+      try {
+        currentUrl = new URL(location, currentUrl).href;
+      } catch {
+        break;
+      }
+    }
+
+    if (!response) {
+      return proxyErrorHtml('Fetch Failed', 'The server did not respond.', targetUrl);
+    }
 
     const respContentType = response.headers.get('content-type') || '';
 
@@ -434,6 +470,17 @@ export async function POST(request: NextRequest) {
           'Content-Type': 'text/html; charset=utf-8',
           'Content-Security-Policy': buildProxyCSP(proxiedOrigin),
           'Access-Control-Allow-Origin': proxiedOrigin,
+        },
+      });
+    }
+
+    // Stream binary responses instead of buffering entire payload
+    if (response.body) {
+      return new NextResponse(response.body, {
+        headers: {
+          'Content-Type': respContentType,
+          'Access-Control-Allow-Origin': proxiedOrigin,
+          'Cache-Control': 'public, max-age=3600',
         },
       });
     }
