@@ -30,7 +30,7 @@ ANICHISOM OS runs in your browser and gives you a persistent desktop environment
 
 ```
 1. Open your-domain.com in any browser (or install the PWA)
-2. Sign up with email or Google SSO
+2. Sign up with email/password
 3. Pick your role → pick your apps → workspace loads
 4. Close on any machine → reopen on any other → everything restores
 ```
@@ -87,11 +87,12 @@ The OS starts at `http://localhost:3000`.
 ### Setup Supabase (required)
 
 1. Create a free project at [supabase.com](https://supabase.com)
-2. Go to **Settings → API** → copy Project URL and Anon Key
+2. Go to **Settings → API** → copy Project URL, Publishable Key, and Secret Key
 3. Paste into `.env.local`:
    ```bash
    NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY_HERE
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY_HERE
+   SUPABASE_SECRET_KEY=YOUR_SECRET_KEY_HERE
    ```
 4. Go to **SQL Editor** → paste contents of `supabase-schema.sql` → Run
 5. Go to **Database → Replication** → enable for all tables
@@ -143,7 +144,7 @@ The OS starts at `http://localhost:3000`.
 |---|---|---|
 | **Supabase** (your instance) | You (the founder) | Accounts, workspaces, events, presence, app registry, terminal history, plugins |
 | **IndexedDB** (browser) | Each user | Private files, offline data, local preferences — stays on THEIR machine |
-| **Cloud connectors** | Per-user OAuth | Google Drive / Dropbox — user authenticates, tokens stored encrypted in Supabase |
+| **Cloud connectors** | Per-user OAuth | Google Drive / Dropbox / OneDrive — user authenticates, tokens stored encrypted in Supabase |
 
 **Users never touch `.env`.** They visit your URL, sign up, and use the OS. The `.env` is configured once on your deployment.
 
@@ -159,7 +160,7 @@ The OS starts at `http://localhost:3000`.
 | Backend | Supabase (Postgres + Auth + Realtime) |
 | Editors | TipTap (rich text), Monaco (code), Fabric.js (canvas) |
 | AI | Gemini, OpenAI, Claude, Qwen, Local (Ollama) |
-| Storage | Google Drive, Dropbox, Local (OPFS) |
+| Storage | Google Drive, Dropbox, OneDrive, Local (OPFS) |
 | WebSocket | Express + Socket.IO |
 | Deployment | Vercel (frontend) + Supabase (backend) |
 
@@ -174,17 +175,19 @@ The OS starts at `http://localhost:3000`.
 
 ## 4. Built-in Apps
 
+ANICHISOM OS ships with **46 apps**. Each app has a unique brand-inspired SVG icon.
+
 ### Core Apps
 
 | App | What It Does | Replaces |
 |---|---|---|
-| **Browser** | Pin any website as a "native" app. Persistent sessions, split view. | Chrome + bookmarks |
+| **Browser** | Pin any website as a "native" app. Persistent sessions, search engine selector. | Chrome + bookmarks |
 | **Campaign Lab** | Project hierarchy, multiple views (kanban, timeline, table), templates. | Notion, Asana, Trello |
 | **Moodboard** | Visual canvas for design references. Browser clipping, voting, export. | Milanote, Pinterest |
-| **Files** | Unified file explorer across Drive, Dropbox, and local storage. | Finder + cloud apps |
+| **Files** | Unified file explorer with multi-select, drag-to-move, batch ops. Cloud sync (Drive, Dropbox, OneDrive). | Finder + cloud apps |
 | **Calls** | Video calling with campaign context, auto meeting notes. | Google Meet |
-| **Terminal** | Full terminal with AI integration, session sync. | iTerm |
-| **Code Editor** | Monaco-based IDE. Multi-file, AI copilot, Yjs collaboration. | VS Code (browser) |
+| **Terminal** | Full terminal with AI integration, session sync, persistent history. | iTerm |
+| **Code Editor** | Monaco-based IDE. Multi-file, AI copilot, Yjs collaboration, live preview. | VS Code (browser) |
 | **Notes** | Rich text editor with markdown, PDF annotation. | Notion Notes, Obsidian |
 
 ### Productivity Apps
@@ -197,17 +200,28 @@ The OS starts at `http://localhost:3000`.
 | **Proposal Generator** | AI-powered client proposal creation |
 | **Brand Guides** | Brand style guide editor |
 | **Client Portal** | Read-only client view with approval UI |
+| **Bookmarks** | Visual bookmark manager with folders and tags |
+| **Assistant** | AI copilot with app context awareness |
 
 ### System Apps
 
 | App | What It Does |
 |---|---|
-| **Settings** | Wallpaper, theme, fonts, shaders, performance mode |
+| **Settings** | Wallpaper (dynamic time-of-day), theme, fonts, shaders, performance mode |
 | **Control Center** | Quick settings panel (macOS-style) |
 | **Command Palette** | Spotlight search — launch apps, run commands (`Cmd+K`) |
 | **App Store** | Install/manage venture packs and plugins |
 | **Admin Panel** | User and role management |
 | **History** | Event history viewer with undo/redo |
+| **Notifications** | Notification center with real-time alerts |
+| **Task Manager** | System resource monitoring |
+
+### Widget System
+
+| Widget | What It Does |
+|---|---|
+| **Notch Nook** | System overlay with quick actions (toggle with `Alt+N`) |
+| **Widget Stack** | Customizable widget panel (toggle with `Alt+W`) |
 
 ---
 
@@ -243,7 +257,8 @@ cp .env.example .env.local
 |---|---|
 | `NEXT_PUBLIC_AUTH_PROVIDER` | Set to `supabase` |
 | `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your Supabase anon key |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Your Supabase publishable (anon) key |
+| `SUPABASE_SECRET_KEY` | Your Supabase service role key (server-side only) |
 
 #### Optional — AI (at least one recommended)
 
@@ -261,7 +276,14 @@ cp .env.example .env.local
 |---|---|
 | `GOOGLE_DRIVE_CLIENT_ID` / `SECRET` | Google Drive integration |
 | `DROPBOX_CLIENT_ID` / `SECRET` | Dropbox integration |
+| `ONEDRIVE_CLIENT_ID` / `SECRET` | OneDrive integration |
 | `TOKEN_ENCRYPTION_KEY` | 64-char hex for encrypting OAuth tokens |
+
+#### Optional — Power Browser
+
+| Variable | Purpose |
+|---|---|
+| `NEXT_PUBLIC_APP_URL` | Your deployed URL for proxy redirects (defaults to `http://localhost:3000`) |
 
 ---
 
@@ -269,7 +291,7 @@ cp .env.example .env.local
 
 ### Recommended: Vercel + Supabase
 
-For 200 users: **$0 infrastructure cost.**
+For 70 beta users: **$0 infrastructure cost.**
 
 ```bash
 # 1. Create Supabase project (free tier: 50k MAU)
@@ -307,8 +329,9 @@ For 200 users: **$0 infrastructure cost.**
 ### Adding a New App
 
 1. Create component: `components/apps/my-app.tsx`
-2. Register in: `lib/app-manifest.ts`
-3. Done.
+2. Add icon SVG to `ICO` object in `lib/app-manifest.ts`
+3. Register in both `APP_MANIFEST` and `appRegistry`
+4. Add role-app mappings in `lib/roles.ts`
 
 ### Adding a New Zustand Store
 
@@ -319,9 +342,11 @@ For 200 users: **$0 infrastructure cost.**
 ### Key Patterns
 
 - **Zustand stores** — All state in `lib/stores/`. Components subscribe via selectors.
-- **App manifest** — Declarative app registration. Adding an app = one entry.
-- **Supabase adapters** — All DB ops in `lib/supabase-adapter.ts`. CRUD + Realtime.
+- **App manifest** — Declarative app registration. Every app needs entries in both `APP_MANIFEST` and `appRegistry`.
+- **Supabase adapters** — All DB ops via Supabase client. Server-side uses `@supabase/ssr`.
 - **Event sourcing** — Every action is an immutable event. Full audit trail.
+- **Cloud storage connectors** — OAuth2 flow in `lib/storage-connectors/`, API routes in `app/api/storage/`.
+- **Power Browser proxy** — SSRF-protected, frame-busting neutralized, JWT-authenticated.
 
 ---
 
@@ -330,29 +355,33 @@ For 200 users: **$0 infrastructure cost.**
 ```
 ANICHISOM2/
 ├── app/                          # Next.js App Router
-│   ├── api/                      # API routes
+│   ├── api/                      # API routes (auth, proxy, cloud storage)
 │   ├── layout.tsx                # Root layout
 │   └── page.tsx                  # Entry point
 │
 ├── components/
-│   ├── desktop/                  # Desktop shell (11 files)
-│   └── apps/                     # App components (46+ files)
+│   ├── desktop/                  # Desktop shell (menu bar, taskbar, overlays)
+│   ├── apps/                     # 46 app components
+│   ├── notifications/            # Notification center
+│   └── ui/                       # Shared UI (OSModal, Skeleton, AppIcon, etc.)
 │
 ├── lib/
-│   ├── stores/                   # Zustand stores (21 files)
-│   ├── services/                 # Business logic (28 files)
-│   ├── supabase.ts               # Supabase client singleton
-│   ├── supabase-adapter.ts       # All DB operations
-│   ├── supabase-types.ts         # Database type definitions
-│   ├── storage.ts                # Dual-mode storage (Supabase + IndexedDB)
-│   ├── os-context.tsx            # OS context provider
-│   ├── app-manifest.ts           # App registry + dynamic loader
+│   ├── stores/                   # Zustand stores (auth, windows, files, etc.)
+│   ├── services/                 # Business logic (plugin, campaign, etc.)
+│   ├── hooks/                    # Custom React hooks
+│   ├── storage-connectors/       # Google Drive, Dropbox, OneDrive connectors
+│   ├── supabase.ts               # Supabase client
+│   ├── app-manifest.ts           # App registry + SVG icons
+│   ├── fs.ts                     # Virtual filesystem (OPFS + IDB)
+│   ├── campaign-types.ts         # Campaign Lab types
 │   └── ...                       # 70+ lib files
 │
-├── __tests__/                    # Test suite (37 files, 609 tests)
-├── supabase-schema.sql           # Database schema (run in Supabase SQL Editor)
-├── server.ts                     # Express + Socket.IO + Yjs server
+├── __tests__/                    # Test suite (38 files, 606 tests)
+├── supabase-schema.sql           # Database schema (12 tables + RLS + triggers)
+├── server.ts                     # Express + Socket.IO + Yjs WebSocket server
+├── middleware.ts                  # Auth guard, CSP, security headers
 ├── .env.local                    # Environment config
+├── .npmrc                        # legacy-peer-deps=true
 ├── VISION.md                     # Product vision (authoritative)
 ├── ARCHITECTURE.md               # Architecture documentation
 ├── BUILD_LOG.md                  # Development session log
@@ -375,8 +404,8 @@ npx tsc --noEmit --incremental false
 |---|---|---|
 | Zustand stores | 18 | ~350 |
 | Services | 12 | ~150 |
-| Core libs | 7 | ~109 |
-| **Total** | **37** | **609** |
+| Core libs | 8 | ~106 |
+| **Total** | **38** | **606** |
 
 ---
 
@@ -384,7 +413,7 @@ npx tsc --noEmit --incremental false
 
 ### Code Style
 
-- TypeScript strict mode
+- TypeScript strict mode (`noUncheckedIndexedAccess`)
 - No `any` types
 - No comments unless requested
 - Follow existing patterns
