@@ -314,5 +314,83 @@ export const FS = {
       console.warn(`OPFS delete failed for ${path}, falling back to IndexedDB`, e);
     }
     await del(`file_${path}`);
-  }
+  },
+
+  // Move a file or directory from one path to another (handles binary blobs)
+  move: async (srcPath: string, destPath: string): Promise<void> => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
+        const srcFile = await FS.read(srcPath);
+        if (!srcFile) throw new Error(`Source not found: ${srcPath}`);
+
+        let mimeType = srcFile.mimeType || '';
+        if (!mimeType) {
+          try {
+            const { dir: srcDir, name: srcName } = await FS._resolvePath(srcPath);
+            const metaHandle = await srcDir.getFileHandle(`${srcName}.meta`);
+            const metaFile = await metaHandle.getFile();
+            const meta = JSON.parse(await metaFile.text());
+            mimeType = meta.mimeType || '';
+          } catch { /* no meta */ }
+        }
+
+        // For binary files, content is a blob: URL — fetch the blob
+        let writeContent: string | Blob = srcFile.content || '';
+        if (srcFile.content && srcFile.content.startsWith('blob:')) {
+          try {
+            const res = await fetch(srcFile.content);
+            writeContent = await res.blob();
+          } catch { /* fall back to URL string */ }
+        }
+
+        await FS.write(destPath, writeContent, mimeType);
+        await FS.delete(srcPath);
+        return;
+      }
+    } catch (e) {
+      console.warn(`OPFS move failed for ${srcPath} -> ${destPath}`, e);
+    }
+    const file = await get(`file_${srcPath}`);
+    if (file) {
+      await set(`file_${destPath}`, file);
+      await del(`file_${srcPath}`);
+    }
+  },
+
+  copy: async (srcPath: string, destPath: string): Promise<void> => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
+        const srcFile = await FS.read(srcPath);
+        if (!srcFile) throw new Error(`Source not found: ${srcPath}`);
+
+        let mimeType = srcFile.mimeType || '';
+        if (!mimeType) {
+          try {
+            const { dir: srcDir, name: srcName } = await FS._resolvePath(srcPath);
+            const metaHandle = await srcDir.getFileHandle(`${srcName}.meta`);
+            const metaFile = await metaHandle.getFile();
+            const meta = JSON.parse(await metaFile.text());
+            mimeType = meta.mimeType || '';
+          } catch { /* no meta */ }
+        }
+
+        let writeContent: string | Blob = srcFile.content || '';
+        if (srcFile.content && srcFile.content.startsWith('blob:')) {
+          try {
+            const res = await fetch(srcFile.content);
+            writeContent = await res.blob();
+          } catch { /* fall back to URL string */ }
+        }
+
+        await FS.write(destPath, writeContent, mimeType);
+        return;
+      }
+    } catch (e) {
+      console.warn(`OPFS copy failed for ${srcPath} -> ${destPath}`, e);
+    }
+    const file = await get(`file_${srcPath}`);
+    if (file) {
+      await set(`file_${destPath}`, { ...file, id: destPath });
+    }
+  },
 };

@@ -5,7 +5,7 @@ import { useOS, OSWindow } from '@/lib/os-context';
 import {
   Folder, File as FileIcon, FileText, Image as ImageIcon, Video, Box, Search,
   Plus, Trash2, HardDrive, RefreshCw, ChevronRight, Download, Upload,
-  Cloud, Link, Unlink, Loader2, ExternalLink, Lock, Eye, Pencil
+  Cloud, Link, Unlink, Loader2, ExternalLink, Lock, Eye, Pencil, Copy, CheckCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FS, LocalFile } from '@/lib/fs';
@@ -60,8 +60,16 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: LocalFile } | null>(null);
 
-  // Selection state
-  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  // Selection state (multi-select)
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
+  const lastClickedIdRef = useRef<string | null>(null);
+
+  // Batch operation state
+  const [clipboard, setClipboard] = useState<{ paths: string[]; mode: 'copy' | 'cut' } | null>(null);
+
+  // Drag-to-move state (internal file DnD)
+  const [draggingFileId, setDraggingFileId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
   // Rename state
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -90,6 +98,120 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
       URL.revokeObjectURL(url);
     }
     objectUrlsRef.current.clear();
+  };
+
+  // Multi-select helpers
+  const toggleFileSelection = (fileId: string, ctrlKey: boolean, shiftKey: boolean) => {
+    if (shiftKey && lastClickedIdRef.current) {
+      // Range select: select all files between last clicked and current
+      const allIds = filteredFiles.map(f => f.id);
+      const lastIdx = allIds.indexOf(lastClickedIdRef.current);
+      const currentIdx = allIds.indexOf(fileId);
+      if (lastIdx !== -1 && currentIdx !== -1) {
+        const start = Math.min(lastIdx, currentIdx);
+        const end = Math.max(lastIdx, currentIdx);
+        const rangeIds = allIds.slice(start, end + 1);
+        setSelectedFileIds(prev => {
+          const next = new Set(prev);
+          for (const id of rangeIds) next.add(id);
+          return next;
+        });
+      }
+    } else if (ctrlKey) {
+      // Toggle individual file
+      setSelectedFileIds(prev => {
+        const next = new Set(prev);
+        if (next.has(fileId)) next.delete(fileId);
+        else next.add(fileId);
+        return next;
+      });
+    } else {
+      // Plain click: select only this file
+      setSelectedFileIds(new Set([fileId]));
+    }
+    lastClickedIdRef.current = fileId;
+  };
+
+  const selectAllFiles = () => {
+    setSelectedFileIds(new Set(filteredFiles.map(f => f.id)));
+  };
+
+  const clearSelection = () => {
+    setSelectedFileIds(new Set());
+    lastClickedIdRef.current = null;
+  };
+
+  // Get the directory path for a given folder file
+  const getFolderPath = (folder: LocalFile) => {
+    return currentPath === 'Root' ? folder.name : `${currentPath}/${folder.name}`;
+  };
+
+  // Move files to a destination folder
+  const handleMoveFiles = async (fileIds: string[], destFolderId: string) => {
+    const destPath = destFolderId === 'Root' ? '' : destFolderId;
+    for (const fileId of fileIds) {
+      const fileName = fileId.split('/').pop() || fileId;
+      const destFilePath = destPath ? `${destPath}/${fileName}` : fileName;
+      try {
+        await FS.move(fileId, destFilePath);
+      } catch (err) {
+        console.error(`Failed to move ${fileId}:`, err);
+      }
+    }
+    clearSelection();
+    fetchFiles();
+    window.dispatchEvent(new CustomEvent('os:notify', {
+      detail: { title: 'Files Moved', description: `${fileIds.length} file(s) moved`, type: 'success' },
+    }));
+  };
+
+  // Copy files to a destination folder
+  const handleCopyFiles = async (fileIds: string[], destFolderId: string) => {
+    const destPath = destFolderId === 'Root' ? '' : destFolderId;
+    for (const fileId of fileIds) {
+      const fileName = fileId.split('/').pop() || fileId;
+      const destFilePath = destPath ? `${destPath}/${fileName}` : fileName;
+      try {
+        await FS.copy(fileId, destFilePath);
+      } catch (err) {
+        console.error(`Failed to copy ${fileId}:`, err);
+      }
+    }
+    fetchFiles();
+    window.dispatchEvent(new CustomEvent('os:notify', {
+      detail: { title: 'Files Copied', description: `${fileIds.length} file(s) copied`, type: 'success' },
+    }));
+  };
+
+  // Delete multiple files
+  const handleDeleteSelected = async () => {
+    for (const fileId of selectedFileIds) {
+      try { await FS.delete(fileId); } catch { /* skip */ }
+    }
+    clearSelection();
+    fetchFiles();
+  };
+
+  // Cut/Copy to clipboard
+  const handleCut = () => {
+    setClipboard({ paths: Array.from(selectedFileIds), mode: 'cut' });
+  };
+  const handleCopy = () => {
+    setClipboard({ paths: Array.from(selectedFileIds), mode: 'copy' });
+  };
+  const handlePaste = async () => {
+    if (!clipboard) return;
+    for (const srcPath of clipboard.paths) {
+      const fileName = srcPath.split('/').pop() || srcPath;
+      const destPath = currentPath === 'Root' ? fileName : `${currentPath}/${fileName}`;
+      if (clipboard.mode === 'cut') {
+        await FS.move(srcPath, destPath);
+      } else {
+        await FS.copy(srcPath, destPath);
+      }
+    }
+    setClipboard(null);
+    fetchFiles();
   };
 
   const fetchFiles = async () => {
@@ -164,7 +286,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   };
 
   useEffect(() => {
-    setSelectedFileId(null);
+    clearSelection();
     setRenamingId(null);
     fetchFiles();
     fetchCloudSources();
@@ -676,6 +798,33 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
           </div>
         </div>
 
+        {/* Batch Operations Bar — shown when files are selected */}
+        {isViewingLocal && selectedFileIds.size > 0 && (
+          <div className="h-12 border-b border-[var(--os-border)] flex items-center justify-between px-6 bg-[var(--os-primary)]/5 backdrop-blur-xl shrink-0">
+            <div className="flex items-center gap-3 text-sm">
+              <span className="font-medium text-[var(--os-primary)]">{selectedFileIds.size} selected</span>
+              <div className="h-4 w-px bg-[var(--os-border)]" />
+              <button onClick={handleCut} className="flex items-center gap-1 px-2 py-1 rounded text-xs text-[var(--os-text-muted)] hover:text-[var(--os-text)] hover:bg-[var(--os-hover)] transition-colors">
+                <Pencil className="w-3 h-3" /> Cut
+              </button>
+              <button onClick={handleCopy} className="flex items-center gap-1 px-2 py-1 rounded text-xs text-[var(--os-text-muted)] hover:text-[var(--os-text)] hover:bg-[var(--os-hover)] transition-colors">
+                <Copy className="w-3 h-3" /> Copy
+              </button>
+              {clipboard && (
+                <button onClick={handlePaste} className="flex items-center gap-1 px-2 py-1 rounded text-xs text-[var(--os-primary)] hover:bg-[var(--os-primary)]/10 transition-colors">
+                  <Upload className="w-3 h-3" /> Paste ({clipboard.paths.length})
+                </button>
+              )}
+              <button onClick={() => { handleDeleteSelected(); }} className="flex items-center gap-1 px-2 py-1 rounded text-xs text-[var(--os-error)] hover:bg-[var(--os-error)]/10 transition-colors">
+                <Trash2 className="w-3 h-3" /> Delete
+              </button>
+            </div>
+            <button onClick={clearSelection} className="text-xs text-[var(--os-text-muted)] hover:text-[var(--os-text)] transition-colors">
+              Clear
+            </button>
+          </div>
+        )}
+
         {/* File Grid */}
         <div
           className="flex-1 overflow-y-auto p-6 relative"
@@ -759,14 +908,29 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
             // Local files grid
             <div
               className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 pb-12"
-              onClick={(e) => { if (e.target === e.currentTarget) { setSelectedFileId(null); setRenamingId(null); } }}
+              onClick={(e) => { if (e.target === e.currentTarget) clearSelection(); }}
               onKeyDown={(e) => {
-                if (e.key === 'F2' && selectedFileId) {
-                  const file = files.find(f => f.id === selectedFileId);
-                  if (file) {
-                    setRenamingId(file.id);
-                    setRenameValue(file.name);
-                  }
+                if (e.key === 'F2' && selectedFileIds.size === 1) {
+                  const id = Array.from(selectedFileIds)[0];
+                  const file = files.find(f => f.id === id);
+                  if (file) { setRenamingId(file.id); setRenameValue(file.name); }
+                }
+                if ((e.key === 'Delete' || e.key === 'Backspace') && selectedFileIds.size > 0) {
+                  e.preventDefault();
+                  handleDeleteSelected();
+                }
+                if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  selectAllFiles();
+                }
+                if (e.key === 'c' && (e.ctrlKey || e.metaKey) && selectedFileIds.size > 0) {
+                  handleCopy();
+                }
+                if (e.key === 'x' && (e.ctrlKey || e.metaKey) && selectedFileIds.size > 0) {
+                  handleCut();
+                }
+                if (e.key === 'v' && (e.ctrlKey || e.metaKey) && clipboard) {
+                  handlePaste();
                 }
               }}
               tabIndex={0}
@@ -776,20 +940,55 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                 const isMedia = !isFolder && (file.mimeType?.startsWith('video/') || file.mimeType?.startsWith('audio/'));
                 const isImage = !isFolder && file.mimeType?.startsWith('image/');
                 const isPdf = !isFolder && file.name.toLowerCase().endsWith('.pdf');
+                const isSelected = selectedFileIds.has(file.id);
+                const isDropTarget = isFolder && dropTargetId === file.id;
 
                 return (
                   <div
                     key={i}
-                    onClick={() => setSelectedFileId(file.id)}
+                    onClick={(e) => toggleFileSelection(file.id, e.ctrlKey || e.metaKey, e.shiftKey)}
                     onDoubleClick={() => handleFileOpen(file)}
-                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); if (!isFolder) setContextMenu({ x: e.clientX, y: e.clientY, file }); }}
+                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, file }); }}
+                    draggable={!isFolder}
+                    onDragStart={(e) => {
+                      e.stopPropagation();
+                      setDraggingFileId(file.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                      e.dataTransfer.setData('text/plain', file.id);
+                    }}
+                    onDragEnd={() => { setDraggingFileId(null); setDropTargetId(null); }}
+                    onDragOver={(e) => {
+                      if (isFolder) { e.preventDefault(); e.stopPropagation(); setDropTargetId(file.id); }
+                    }}
+                    onDragLeave={() => { if (isFolder && dropTargetId === file.id) setDropTargetId(null); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (isFolder && draggingFileId) {
+                        const destPath = getFolderPath(file);
+                        handleMoveFiles([draggingFileId], destPath);
+                      }
+                      setDropTargetId(null);
+                      setDraggingFileId(null);
+                    }}
                     className={cn(
                       "group flex flex-col items-center p-4 rounded-xl border transition-all cursor-pointer relative",
-                      selectedFileId === file.id
+                      isSelected
                         ? "ring-2 ring-[var(--os-primary)] bg-[var(--os-hover)] border-[var(--os-primary)]"
-                        : "border-transparent hover:bg-[var(--os-hover)] hover:border-[var(--os-border)] hover:shadow-xl"
+                        : isDropTarget
+                          ? "border-emerald-400 bg-emerald-400/10 ring-2 ring-emerald-400"
+                          : "border-transparent hover:bg-[var(--os-hover)] hover:border-[var(--os-border)] hover:shadow-xl",
+                      draggingFileId === file.id && "opacity-40"
                     )}
                   >
+                    {!isFolder && isSelected && (
+                      <div className="absolute top-2 left-2 z-10">
+                        <div className="w-5 h-5 rounded-full bg-[var(--os-primary)] flex items-center justify-center">
+                          <CheckCircle className="w-3.5 h-3.5 text-white" />
+                        </div>
+                      </div>
+                    )}
+
                     {!isFolder && (
                       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1 z-10">
                         <button onClick={(e) => downloadFile(file, e)} className="p-1.5 hover:bg-[var(--os-primary)] rounded-md bg-[var(--os-surface-elevated)] backdrop-blur border border-[var(--os-border)]" title="Download">
@@ -803,7 +1002,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
 
                     <div className="w-16 h-16 mb-4 flex items-center justify-center relative">
                       {isFolder ? (
-                        <Folder className="w-12 h-12 text-emerald-400 drop-shadow-md" fill="currentColor" />
+                        <Folder className={cn("w-12 h-12 drop-shadow-md transition-colors", isDropTarget ? "text-emerald-300" : "text-emerald-400")} fill="currentColor" />
                       ) : isImage && file.content ? (
                         <img src={file.content} alt={file.name} className="w-16 h-16 object-cover rounded-lg shadow-md" />
                       ) : isMedia ? (
@@ -819,12 +1018,13 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                         type="text"
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
-                        onBlur={() => {
+                        onBlur={async () => {
                           if (renameValue.trim() && renameValue !== file.name) {
                             const oldPath = file.id;
                             const dir = oldPath.includes('/') ? oldPath.substring(0, oldPath.lastIndexOf('/')) : '';
                             const newPath = dir ? `${dir}/${renameValue}` : renameValue;
-                            FS.write(newPath, file.content || '').then(() => FS.delete(oldPath)).then(() => fetchFiles());
+                            await FS.move(oldPath, newPath);
+                            fetchFiles();
                           }
                           setRenamingId(null);
                         }}
@@ -931,29 +1131,40 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => setContextMenu(null)}
         >
-          <button
-            onClick={() => handleFileOpen(contextMenu.file)}
-            className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
-          >
-            <ExternalLink className="w-3.5 h-3.5" /> Open
-          </button>
-          <button
-            onClick={() => {
-              const compatible = useFileStore.getState().getCompatibleApps(contextMenu.file.mimeType || '', contextMenu.file.name);
-              if (compatible.length > 1) {
-                setOpenWithApps(compatible);
-                setOpenWithFile(contextMenu.file);
-                setShowOpenWith(true);
-              } else if (compatible.length === 1) {
-                handleFileOpen(contextMenu.file);
-              } else {
-                openWindow('code', contextMenu.file.name, { fileId: contextMenu.file.id, content: contextMenu.file.content });
-              }
-            }}
-            className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
-          >
-            <Eye className="w-3.5 h-3.5" /> Open With...
-          </button>
+          {contextMenu.file.isFolder ? (
+            <button
+              onClick={() => handleFileOpen(contextMenu.file)}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
+            >
+              <ExternalLink className="w-3.5 h-3.5" /> Open
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => handleFileOpen(contextMenu.file)}
+                className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Open
+              </button>
+              <button
+                onClick={() => {
+                  const compatible = useFileStore.getState().getCompatibleApps(contextMenu.file.mimeType || '', contextMenu.file.name);
+                  if (compatible.length > 1) {
+                    setOpenWithApps(compatible);
+                    setOpenWithFile(contextMenu.file);
+                    setShowOpenWith(true);
+                  } else if (compatible.length === 1) {
+                    handleFileOpen(contextMenu.file);
+                  } else {
+                    openWindow('code', contextMenu.file.name, { fileId: contextMenu.file.id, content: contextMenu.file.content });
+                  }
+                }}
+                className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
+              >
+                <Eye className="w-3.5 h-3.5" /> Open With...
+              </button>
+            </>
+          )}
           <button
             onClick={() => {
               setRenamingId(contextMenu.file.id);
@@ -966,11 +1177,25 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
           </button>
           <div className="border-t border-[var(--os-border)] my-1" />
           <button
-            onClick={() => downloadFile(contextMenu.file, { stopPropagation: () => {} } as any)}
+            onClick={() => { setClipboard({ paths: [contextMenu.file.id], mode: 'cut' }); setContextMenu(null); }}
             className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
           >
-            <Download className="w-3.5 h-3.5" /> Download
+            <Pencil className="w-3.5 h-3.5" /> Cut
           </button>
+          <button
+            onClick={() => { setClipboard({ paths: [contextMenu.file.id], mode: 'copy' }); setContextMenu(null); }}
+            className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
+          >
+            <Copy className="w-3.5 h-3.5" /> Copy
+          </button>
+          {!contextMenu.file.isFolder && (
+            <button
+              onClick={() => downloadFile(contextMenu.file, { stopPropagation: () => {} } as any)}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
+            >
+              <Download className="w-3.5 h-3.5" /> Download
+            </button>
+          )}
           <button
             onClick={() => deleteFile(contextMenu.file.id, { stopPropagation: () => {} } as any)}
             className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-error)]/20 text-[var(--os-error)] flex items-center gap-2"
