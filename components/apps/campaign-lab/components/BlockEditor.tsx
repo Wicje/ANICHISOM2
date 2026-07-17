@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Block, BlockType, DatabaseSchema, DatabaseStore } from '@/lib/campaign-types';
 import { SLASH_COMMANDS, TEAM_MEMBERS } from '@/lib/campaign-data';
 import { DatabaseView } from './DatabaseView';
@@ -408,7 +409,7 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
           </div>
         )
       })}
-      {slashMenu && filteredSlashCommands.length > 0 && typeof document !== 'undefined' && import('react-dom').then(ReactDOM => ReactDOM.createPortal(
+      {slashMenu && filteredSlashCommands.length > 0 && typeof document !== 'undefined' && createPortal(
         <div ref={menuRef} className="fixed z-[9999] bg-white border border-black/10 rounded-xl shadow-2xl w-72 flex flex-col py-2" style={{ top: Math.min(slashMenu.y + 4, window.innerHeight - 300), left: Math.min(slashMenu.x, window.innerWidth - 300) }}>
            <div className="px-3 pb-2 text-[10px] font-bold tracking-widest text-[#37352f]/50 uppercase">Basic Blocks</div>
            <div className="flex-1 overflow-y-auto max-h-[300px] custom-scrollbar">
@@ -422,9 +423,9 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
              ))}
            </div>
         </div>, document.body
-      ))}
+      )}
 
-      {mentionMenu && filteredMembers.length > 0 && typeof document !== 'undefined' && import('react-dom').then(ReactDOM => ReactDOM.createPortal(
+      {mentionMenu && filteredMembers.length > 0 && typeof document !== 'undefined' && createPortal(
         <div ref={menuRef} className="fixed z-[9999] bg-white border border-black/10 rounded-xl shadow-2xl w-56 flex flex-col py-2" style={{ top: Math.min(mentionMenu.y + 4, window.innerHeight - 200), left: Math.min(mentionMenu.x, window.innerWidth - 200) }}>
            <div className="px-3 pb-2 text-[10px] font-bold tracking-widest text-[#37352f]/50 uppercase">Team Members</div>
            <div className="flex-1 overflow-y-auto max-h-[200px] custom-scrollbar">
@@ -436,7 +437,7 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
              ))}
            </div>
         </div>, document.body
-      ))}
+      )}
     </div>
   )
 }
@@ -570,7 +571,7 @@ function CodeBlock({ block, index, updateBlock, handleChange, handleKeyDown }: {
       </div>
       <textarea
         id={`block-${block.id}`}
-        className="w-full resize-none border-none outline-none bg-[#f7f7f5] border border-black/5 border-t-0 rounded-b-lg p-4 text-sm font-mono text-[#37352f] min-h-[80px] overflow-hidden leading-relaxed"
+        className="w-full resize-none outline-none bg-[#f7f7f5] border border-black/5 border-t-0 rounded-b-lg p-4 text-sm font-mono text-[#37352f] min-h-[80px] overflow-hidden leading-relaxed"
         value={block.content}
         placeholder="Write code..."
         onChange={(e) => handleChange(e, index)}

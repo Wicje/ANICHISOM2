@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
-import { FileText, Grid, Presentation, FileCode, Printer, Share2, Save, X, Type, Image as ImageIcon, Search, Download, Plus, Trash2, Pencil, Copy, PanelLeft, Undo2, Redo2 } from 'lucide-react';
+import { FileText, Grid, Presentation, FileCode, Printer, Share2, Save, X, Type, Image as ImageIcon, Download, Plus, Trash2, Pencil, Copy, PanelLeft, Undo2, Redo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import DOMPurify from 'isomorphic-dompurify';
@@ -85,7 +85,9 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
   });
 
   useEffect(() => {
+    let cancelled = false;
     Storage.getDoc('meta', `doc_index_${workspaceMode}`, workspaceMode).then((saved: any) => {
+      if (cancelled) return;
       if (saved && saved.documents) {
         setDocList(saved.documents);
         const current = saved.documents.find((d: DocMeta) => d.id === projectId);
@@ -96,7 +98,8 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
         Storage.setDoc('meta', `doc_index_${workspaceMode}`, { documents: [initial] }, workspaceMode);
       }
     });
-  }, [workspaceMode]);
+    return () => { cancelled = true; };
+  }, [workspaceMode, projectId]);
 
   const saveDocIndex = (docs: DocMeta[]) => {
     setDocList(docs);
@@ -744,11 +747,18 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
 
         const savedState = canvasMap.get('state');
         if (savedState) {
-           canvas.loadFromJSON(JSON.parse(savedState as string)).then(() => {
-              canvas.renderAll();
-              previousStateRef.current = JSON.stringify(canvas.toJSON());
-              setLoaded(true);
-           });
+           try {
+             canvas.loadFromJSON(JSON.parse(savedState as string)).then(() => {
+                canvas.renderAll();
+                previousStateRef.current = JSON.stringify(canvas.toJSON());
+                setLoaded(true);
+             });
+           } catch {
+             console.warn('Corrupt slide state, loading defaults');
+             setupDefault();
+             previousStateRef.current = JSON.stringify(canvas.toJSON());
+             setLoaded(true);
+           }
         } else {
            setupDefault();
            previousStateRef.current = JSON.stringify(canvas.toJSON());
@@ -765,10 +775,14 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
           if (currentStateStr === remoteState) return;
 
           isSyncingRef.current = true;
-          canvas.loadFromJSON(JSON.parse(remoteState)).then(() => {
-            canvas.renderAll();
-            setTimeout(() => { isSyncingRef.current = false; }, 100);
-          });
+          try {
+            canvas.loadFromJSON(JSON.parse(remoteState)).then(() => {
+              canvas.renderAll();
+              setTimeout(() => { isSyncingRef.current = false; }, 100);
+            });
+          } catch {
+            isSyncingRef.current = false;
+          }
         };
         canvasMap.observe(observer);
         canvasObserverRef.current = observer;
@@ -836,10 +850,14 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
     setCanRedo(true);
 
     isSyncingRef.current = true;
-    canvas.loadFromJSON(JSON.parse(prevState)).then(() => {
-      canvas.renderAll();
-      setTimeout(() => { isSyncingRef.current = false; }, 100);
-    });
+    try {
+      canvas.loadFromJSON(JSON.parse(prevState)).then(() => {
+        canvas.renderAll();
+        setTimeout(() => { isSyncingRef.current = false; }, 100);
+      });
+    } catch {
+      isSyncingRef.current = false;
+    }
   };
 
   const handleSlidesRedo = () => {
@@ -854,10 +872,14 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
     setCanRedo(redoStackRef.current.length > 0);
 
     isSyncingRef.current = true;
-    canvas.loadFromJSON(JSON.parse(nextState)).then(() => {
-      canvas.renderAll();
-      setTimeout(() => { isSyncingRef.current = false; }, 100);
-    });
+    try {
+      canvas.loadFromJSON(JSON.parse(nextState)).then(() => {
+        canvas.renderAll();
+        setTimeout(() => { isSyncingRef.current = false; }, 100);
+      });
+    } catch {
+      isSyncingRef.current = false;
+    }
   };
 
   if (!collab.synced) return <div className="p-8 text-slate-500">Loading collaborative slides...</div>;

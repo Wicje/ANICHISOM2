@@ -46,16 +46,19 @@ export function useCodeEditorState(projectId: string, initialContent: string | u
   const isSyncingRef = useRef(false);
 
   useEffect(() => {
+    let cancelled = false;
     setLoaded(false);
     
     // First try OPFS natively
     FS.read(activeFileId).then(localFile => {
+       if (cancelled) return;
        if (localFile && typeof localFile.content === 'string') {
           setCode(localFile.content);
           setLoaded(true);
        } else {
           // Fallback to legacy cloud storage or templates
           Storage.getDoc('codes', roomId, workspaceMode).then((saved: any) => {
+             if (cancelled) return;
              if (workspaceMode === 'private' && saved && typeof saved === 'string') {
                 setCode(saved);
              } else if (saved && saved.code !== undefined) {
@@ -68,17 +71,7 @@ export function useCodeEditorState(projectId: string, initialContent: string | u
        }
     });
 
-    const unsub = Storage.subscribe('codes', roomId, workspaceMode, (state: any) => {
-       if (state) {
-         const remoteCode = workspaceMode === 'private' ? state : state.code;
-         if (remoteCode !== undefined && remoteCode !== code) {
-             isSyncingRef.current = true;
-             setCode(remoteCode);
-         }
-       }
-    });
-
-    return () => unsub();
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, workspaceMode, currentUser, activeFileId, projectId, initialContent]);
 

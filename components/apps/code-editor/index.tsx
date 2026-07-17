@@ -15,7 +15,7 @@ import { Sidebar } from './components/Sidebar';
 import { TerminalPanel } from './components/Terminal';
 import { CopilotPanel } from './components/Copilot';
 import { StatusBar } from './components/StatusBar';
-import { useCollaborativeDoc, CollaborativeDocState } from '@/lib/hooks/useCollaborativeDoc';
+import { useCollaborativeDoc } from '@/lib/hooks/useCollaborativeDoc';
 
 export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
   const { openWindow, currentUser, workspaceMode } = useOS();
@@ -87,9 +87,11 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
     setTimeout(() => {
        setIsDeploying(false);
        
-       let executableCode = code;
-       executableCode = executableCode.replace(/export default function (\w+)/, 'function $1');
-       executableCode = executableCode.replace(/import .* from .*/g, '');
+        let executableCode = code;
+        executableCode = executableCode.replace(/export default function (\w+)/, 'function $1');
+        executableCode = executableCode.replace(/import .* from .*/g, '');
+        // Escape </script> to prevent HTML injection breaking the template
+        executableCode = executableCode.replace(/<\/script>/gi, '<\\/script>');
        
        const htmlContent = `
          <!DOCTYPE html>

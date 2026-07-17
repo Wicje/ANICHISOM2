@@ -27,6 +27,36 @@ export function Sidebar({ activityTab, setActivityTab, files, activeFileId, setA
   const [expandedFolders, setExpandedFolders] = useState<string[]>(['src', 'root', 'Desktop', 'Documents', 'Downloads', 'Media']);
   const [commitMsg, setCommitMsg] = useState('');
 
+  // Inline modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalPlaceholder, setModalPlaceholder] = useState('');
+  const [modalValue, setModalValue] = useState('');
+  const [modalMode, setModalMode] = useState<'input' | 'confirm'>('input');
+  const [modalOnSubmit, setModalOnSubmit] = useState<(val: string) => void>(() => {});
+
+  const openInputModal = (title: string, placeholder: string, onSubmit: (val: string) => void) => {
+    setModalTitle(title);
+    setModalPlaceholder(placeholder);
+    setModalValue('');
+    setModalMode('input');
+    setModalOnSubmit(() => onSubmit);
+    setModalOpen(true);
+  };
+
+  const openConfirmModal = (title: string, onSubmit: (val: string) => void) => {
+    setModalTitle(title);
+    setModalValue('');
+    setModalMode('confirm');
+    setModalOnSubmit(() => onSubmit);
+    setModalOpen(true);
+  };
+
+  const handleModalSubmit = () => {
+    modalOnSubmit(modalValue);
+    setModalOpen(false);
+  };
+
   // Build a hierarchical tree of files from flat paths
   const buildTree = (filesList: FileNode[]): TreeNode => {
     const root: TreeNode = { name: 'root', path: '', type: 'directory', children: {} };
@@ -58,17 +88,19 @@ export function Sidebar({ activityTab, setActivityTab, files, activeFileId, setA
   const fileTree = buildTree(files);
 
   const handleCreateRootFile = async () => {
-    const name = prompt("Enter file name (e.g. package.json):");
-    if (!name) return;
-    await FS.write(name, '// new file\n');
-    await refreshFiles();
+    openInputModal('New File', 'package.json', async (name) => {
+      if (!name) return;
+      await FS.write(name, '// new file\n');
+      await refreshFiles();
+    });
   };
 
   const handleCreateRootFolder = async () => {
-    const name = prompt("Enter folder name (e.g. src):");
-    if (!name) return;
-    await FS.write(`${name}/.keep`, '');
-    await refreshFiles();
+    openInputModal('New Folder', 'src', async (name) => {
+      if (!name) return;
+      await FS.write(`${name}/.keep`, '');
+      await refreshFiles();
+    });
   };
 
   const renderNode = (node: TreeNode, depth: number): React.ReactNode => {
@@ -94,30 +126,32 @@ export function Sidebar({ activityTab, setActivityTab, files, activeFileId, setA
 
     const handleCreateFile = async (e: React.MouseEvent) => {
       e.stopPropagation();
-      const name = prompt(`Enter new file path inside ${node.name}:`);
-      if (!name) return;
-      const filePath = `${node.path}/${name}`;
-      await FS.write(filePath, '// new file\n');
-      await refreshFiles();
-      setExpandedFolders(prev => prev.includes(node.path) ? prev : [...prev, node.path]);
+      openInputModal(`New file in ${node.name}`, 'filename.ts', async (name) => {
+        if (!name) return;
+        const filePath = `${node.path}/${name}`;
+        await FS.write(filePath, '// new file\n');
+        await refreshFiles();
+        setExpandedFolders(prev => prev.includes(node.path) ? prev : [...prev, node.path]);
+      });
     };
 
     const handleCreateFolder = async (e: React.MouseEvent) => {
       e.stopPropagation();
-      const name = prompt(`Enter new folder name inside ${node.name}:`);
-      if (!name) return;
-      const folderPath = `${node.path}/${name}`;
-      await FS.write(`${folderPath}/.keep`, '');
-      await refreshFiles();
-      setExpandedFolders(prev => prev.includes(node.path) ? prev : [...prev, node.path]);
+      openInputModal(`New folder in ${node.name}`, 'folder-name', async (name) => {
+        if (!name) return;
+        const folderPath = `${node.path}/${name}`;
+        await FS.write(`${folderPath}/.keep`, '');
+        await refreshFiles();
+        setExpandedFolders(prev => prev.includes(node.path) ? prev : [...prev, node.path]);
+      });
     };
 
     const handleDelete = async (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (window.confirm(`Delete ${node.name} and all its contents?`)) {
+      openConfirmModal(`Delete ${node.name} and all its contents?`, async () => {
         await FS.delete(node.path);
         await refreshFiles();
-      }
+      });
     };
 
     const handleFileClick = async () => {
@@ -302,6 +336,34 @@ export function Sidebar({ activityTab, setActivityTab, files, activeFileId, setA
            </div>
          )}
       </div>
+
+      {/* Inline Modal */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50" onClick={() => setModalOpen(false)}>
+          <div className="bg-[#252526] border border-[#3c3c3c] rounded-lg shadow-2xl p-5 w-80" onClick={e => e.stopPropagation()}>
+            <div className="text-sm font-medium text-white mb-3">{modalTitle}</div>
+            {modalMode === 'input' ? (
+              <input
+                type="text"
+                value={modalValue}
+                onChange={e => setModalValue(e.target.value)}
+                placeholder={modalPlaceholder}
+                className="w-full bg-[#3c3c3c] border border-[#555] rounded px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:border-blue-500 mb-4"
+                autoFocus
+                onKeyDown={e => { if (e.key === 'Enter') handleModalSubmit(); if (e.key === 'Escape') setModalOpen(false); }}
+              />
+            ) : (
+              <p className="text-xs text-[#cccccc] mb-4">{modalTitle}</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setModalOpen(false)} className="px-3 py-1.5 text-xs text-[#cccccc] hover:bg-[#3c3c3c] rounded">Cancel</button>
+              <button onClick={handleModalSubmit} className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded">
+                {modalMode === 'confirm' ? 'Delete' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

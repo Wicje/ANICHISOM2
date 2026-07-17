@@ -19,7 +19,6 @@ import { useCampaignStore } from '@/lib/stores/campaign.store';
 import { CursorOverlay } from './components/CursorOverlay';
 import { SidebarSections } from './components/PageTree';
 import { BlockEditor } from './components/BlockEditor';
-import { DatabaseView } from './components/DatabaseView';
 
 const LEVEL_ICONS: Record<PageLevel, React.ComponentType<{ className?: string }>> = {
   campaign: Target,
@@ -32,6 +31,19 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
   const { currentUser, workspaceMode, openWindow } = useOS();
   const store = useCampaignStore();
   const [moreMenuOpen, setMoreMenuOpen] = React.useState(false);
+  const moreMenuRef = React.useRef<HTMLDivElement>(null);
+
+  // Close three-dot menu on outside click
+  React.useEffect(() => {
+    if (!moreMenuOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setMoreMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [moreMenuOpen]);
 
   // ─── Collab ────────────────────────────────────────────────
   const projectId = osWindow.data?.projectId || 'global';
@@ -423,7 +435,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
               </button>
             )}
             {/* More */}
-            <div className="relative">
+            <div className="relative" ref={moreMenuRef}>
               <button 
                 onClick={() => setMoreMenuOpen(!moreMenuOpen)} 
                 className="p-1 hover:bg-black/5 rounded relative"
@@ -434,7 +446,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                 <div className="absolute right-0 top-full mt-1 bg-white border border-black/10 rounded-xl shadow-2xl w-56 py-2 z-50">
                   {activePage && (
                     <>
-                      <button onClick={() => { updatePage(activePage.id, { trash: true, trashedAt: Date.now() }); setMoreMenuOpen(false); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                      <button onClick={() => { deletePage(activePage.id); setMoreMenuOpen(false); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
                         <Trash className="w-4 h-4" /> Move to Trash
                       </button>
                       <button onClick={() => { navigator.clipboard.writeText(activePage.title); setMoreMenuOpen(false); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-[#37352f]/70 hover:bg-black/5 transition-colors">
