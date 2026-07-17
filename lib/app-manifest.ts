@@ -9,7 +9,7 @@ import {
   Smartphone, MonitorSpeaker, Tv, Gamepad2, Joystick,
   HardDrive, Database, Server, Cloud, CloudOff, Box, Table,
   Calculator, Play, Circle, Headphones, Film, Mic, Briefcase, Phone, BookOpen,
-  Layout, Sparkles
+  Layout, Sparkles, Activity
 } from 'lucide-react';
 
 export type AppManifestEntry = {
@@ -160,37 +160,37 @@ export const APP_MANIFEST: AppManifestEntry[] = [
   { id: 'settings', component: null as any, icon: Settings, iconImage: ICO.settings, title: 'Settings', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: true, category: 'system', description: 'System preferences and configuration' },
   { id: 'store', component: null as any, icon: Store, iconImage: ICO.store, title: 'App Store', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: true, category: 'system', description: 'Install new apps and extensions' },
   { id: 'admin', component: null as any, icon: Shield, iconImage: ICO.admin, title: 'Admin Panel', roles: ['admin'], isCore: true, category: 'admin', description: 'User and system administration' },
-  { id: 'config-manager', component: null as any, icon: Wrench, iconImage: ICO.wrench, title: 'Config Manager', roles: ['admin', 'filmmaker', 'technician'], isCore: false, category: 'system', description: 'System configuration management' },
-  { id: 'plugin-sandbox', component: null as any, icon: Puzzle, iconImage: ICO.puzzle, title: 'Plugin Sandbox', roles: ['admin', 'filmmaker', 'technician'], isCore: false, category: 'system', description: 'Run third-party plugins safely' },
+  { id: 'config-manager', component: null as any, icon: Wrench, iconImage: ICO.wrench, title: 'Config Manager', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'system', description: 'System configuration management' },
+  { id: 'plugin-sandbox', component: null as any, icon: Puzzle, iconImage: ICO.puzzle, title: 'Plugin Sandbox', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'system', description: 'Run third-party plugins safely' },
   { id: 'privacy-settings', component: null as any, icon: Shield, iconImage: ICO.shield, title: 'Privacy Settings', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'system', description: 'Per-app privacy controls and encryption settings' },
   { id: 'history', component: null as any, icon: Clock, iconImage: ICO.clock, title: 'History', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'system', description: 'Activity history' },
 
   // Creative
-  { id: 'moodboard', component: null as any, icon: Palette, iconImage: ICO.moodboard, title: 'Moodboard', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'Visual inspiration board' },
-  { id: 'brand-guides', component: null as any, icon: Palette, iconImage: ICO.moodboard, title: 'Brand Guides', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'Brand style guide editor' },
+  { id: 'moodboard', component: null as any, icon: Palette, iconImage: ICO.moodboard, title: 'Moodboard', roles: ['admin', 'filmmaker', 'designer', 'user'], isCore: false, category: 'creative', description: 'Visual inspiration board' },
+  { id: 'brand-guides', component: null as any, icon: Palette, iconImage: ICO.moodboard, title: 'Brand Guides', roles: ['admin', 'filmmaker', 'designer', 'user'], isCore: false, category: 'creative', description: 'Brand style guide editor' },
   { id: 'client-portal', component: null as any, icon: Eye, iconImage: ICO.eye, title: 'Client Portal', roles: ['admin', 'filmmaker', 'client'], isCore: false, category: 'creative', description: 'Client-facing project portal' },
-  { id: 'color-picker', component: null as any, icon: Palette, iconImage: ICO.moodboard, title: 'Color Picker', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'Pick and manage colors' },
-  { id: 'photography-pack', component: null as any, icon: Camera, iconImage: ICO.camera, title: 'Photography Pack', roles: ['admin', 'filmmaker', 'technician'], isCore: false, category: 'creative', description: 'Photography tools suite' },
+  { id: 'color-picker', component: null as any, icon: Palette, iconImage: ICO.moodboard, title: 'Color Picker', roles: ['admin', 'filmmaker', 'designer', 'user'], isCore: false, category: 'creative', description: 'Pick and manage colors' },
+  { id: 'photography-pack', component: null as any, icon: Camera, iconImage: ICO.camera, title: 'Photography Pack', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'creative', description: 'Photography tools suite' },
 
   // Dev
-  { id: 'code', component: null as any, icon: Code, iconImage: ICO.code, title: 'Code Editor', roles: ['admin', 'filmmaker', 'technician'], isCore: false, category: 'dev', description: 'Full-featured code editor' },
+  { id: 'code', component: null as any, icon: Code, iconImage: ICO.code, title: 'Code Editor', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'dev', description: 'Full-featured code editor' },
   { id: 'browser', component: null as any, icon: Globe, iconImage: ICO.browser, title: 'Power Browser', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'dev', description: 'Browser with pinned apps, persistent sessions, and context memory' },
-  { id: 'developer-pack', component: null as any, icon: Code, iconImage: ICO.code, title: 'Developer Pack', roles: ['admin', 'filmmaker', 'technician'], isCore: false, category: 'dev', description: 'Developer tools bundle' },
-  { id: 'hardware-manager', component: null as any, icon: HardDrive, iconImage: ICO.harddrive, title: 'Hardware Manager', roles: ['admin', 'filmmaker', 'technician'], isCore: false, category: 'dev', description: 'Hardware device management' },
-  { id: 'asset-pipeline', component: null as any, icon: Layers, iconImage: ICO.layers, title: 'Asset Pipeline', roles: ['admin', 'filmmaker', 'technician'], isCore: false, category: 'dev', description: 'Asset processing pipeline' },
+  { id: 'developer-pack', component: null as any, icon: Code, iconImage: ICO.code, title: 'Developer Pack', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'dev', description: 'Developer tools bundle' },
+  { id: 'hardware-manager', component: null as any, icon: HardDrive, iconImage: ICO.harddrive, title: 'Hardware Manager', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'dev', description: 'Hardware device management' },
+  { id: 'asset-pipeline', component: null as any, icon: Layers, iconImage: ICO.layers, title: 'Asset Pipeline', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'dev', description: 'Asset processing pipeline' },
   { id: 'assistant', component: null as any, icon: MessageSquare, iconImage: ICO.gemini, title: 'Assistant', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'dev', description: 'AI-powered assistant' },
 
   // Productivity
   { id: 'campaign', component: null as any, icon: Zap, iconImage: ICO.campaign, title: 'Campaign Lab', roles: ['admin', 'filmmaker', 'user', 'technician', 'photographer', 'developer', 'designer', 'marketer', 'business', 'student', 'other'], isCore: false, category: 'productivity', description: 'Campaign management and analytics' },
   { id: 'productivity', component: null as any, icon: Grid, iconImage: ICO.productivity, title: 'Productivity Suite', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'All-in-one productivity tools' },
-  { id: 'proposal-generator', component: null as any, icon: FileText, iconImage: ICO.proposal, title: 'Proposal Generator', roles: ['admin', 'filmmaker'], isCore: false, category: 'productivity', description: 'Generate proposals and estimates' },
+  { id: 'proposal-generator', component: null as any, icon: FileText, iconImage: ICO.proposal, title: 'Proposal Generator', roles: ['admin', 'filmmaker', 'user'], isCore: false, category: 'productivity', description: 'Generate proposals and estimates' },
   { id: 'side-gigs', component: null as any, icon: Briefcase, iconImage: ICO.briefcase, title: 'Side Gigs', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'Manage side projects and gigs' },
   { id: 'calls', component: null as any, icon: Phone, iconImage: ICO.phone, title: 'Calls', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'Video and voice calls' },
 
   // Media
   { id: 'media-player', component: null as any, icon: Play, iconImage: ICO.play, title: 'Media Player', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'media', description: 'Media player for video and audio' },
   { id: 'pdf-reader', component: null as any, icon: FileText, iconImage: ICO.pdf, title: 'PDF Reader', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'media', description: 'PDF viewer' },
-  { id: 'screen-recorder', component: null as any, icon: Circle, iconImage: ICO.recorder, title: 'Screen Recorder', roles: ['admin', 'filmmaker', 'technician'], isCore: false, category: 'media', description: 'Screen recording tool' },
+  { id: 'screen-recorder', component: null as any, icon: Circle, iconImage: ICO.recorder, title: 'Screen Recorder', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'media', description: 'Screen recording tool' },
   { id: 'movie-browser', component: null as any, icon: Film, iconImage: ICO.film, title: 'Movie Browser', roles: ['admin', 'filmmaker', 'user'], isCore: false, category: 'media', description: 'Browse popular movies and TV shows' },
   { id: 'books-collection', component: null as any, icon: BookOpen, iconImage: ICO.book, title: 'Books Collection', roles: ['admin', 'filmmaker', 'user'], isCore: false, category: 'media', description: 'A curated collection of books and reading materials' },
   { id: 'bookmarks-sidebar', component: null as any, icon: Bookmark, iconImage: ICO.mail, title: 'Bookmarks', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'Save and organize your favorite bookmarks' },
@@ -199,21 +199,21 @@ export const APP_MANIFEST: AppManifestEntry[] = [
   { id: 'campaign-dashboard', component: null as any, icon: Layout, iconImage: ICO.layout, title: 'Campaign Dashboard', roles: ['admin', 'filmmaker', 'marketer'], isCore: false, category: 'productivity', description: 'Campaign project dashboard and overview' },
   { id: 'campaign-timeline', component: null as any, icon: Clock, iconImage: ICO.clock, title: 'Campaign Timeline', roles: ['admin', 'filmmaker', 'marketer'], isCore: false, category: 'productivity', description: 'Campaign timeline and scheduling view' },
   { id: 'campaign-community', component: null as any, icon: Users, iconImage: ICO.users, title: 'Campaign Community', roles: ['admin', 'filmmaker', 'marketer'], isCore: false, category: 'social', description: 'Campaign community and collaboration page' },
-  { id: 'digital-journal', component: null as any, icon: FileText, iconImage: ICO.book, title: 'Digital Journal', roles: ['admin', 'filmmaker', 'user'], isCore: false, category: 'productivity', description: 'Digital journal and notes' },
+  { id: 'digital-journal', component: null as any, icon: FileText, iconImage: ICO.book, title: 'Digital Journal', roles: ['admin', 'filmmaker', 'user', 'technician'], isCore: false, category: 'productivity', description: 'Digital journal and notes' },
   { id: 'campaign-files', component: null as any, icon: FolderOpen, iconImage: ICO.files, title: 'Campaign Files', roles: ['admin', 'filmmaker', 'marketer'], isCore: false, category: 'productivity', description: 'Campaign file management' },
 
   // Moodboard Views
-  { id: 'canvas-board', component: null as any, icon: Palette, iconImage: ICO.moodboard, title: 'Canvas Board', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'Visual canvas board for notes and images' },
+  { id: 'canvas-board', component: null as any, icon: Palette, iconImage: ICO.moodboard, title: 'Canvas Board', roles: ['admin', 'filmmaker', 'designer', 'user'], isCore: false, category: 'creative', description: 'Visual canvas board for notes and images' },
   { id: 'digital-library', component: null as any, icon: BookOpen, iconImage: ICO.book, title: 'Digital Library', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'Digital asset library and collection' },
   { id: 'nothing-product', component: null as any, icon: Eye, iconImage: ICO.eye, title: 'Nothing Product', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'Product visualization board' },
   { id: 'samur-ai-board', component: null as any, icon: Sparkles, iconImage: ICO.sparkles, title: 'SamurAI Board', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'AI-powered creative board' },
 
   // Dock & Widgets
-  { id: 'notification-settings', component: null as any, icon: Bell, iconImage: ICO.notification, title: 'Notification Settings', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'system', description: 'Configure notification preferences' },
+  { id: 'notification-settings', component: null as any, icon: Activity, iconImage: ICO.notification, title: 'Activity Monitor', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'system', description: 'Real-time system event timeline and activity log' },
 
   // Packs
-  { id: 'clothing-brand-pack', component: null as any, icon: Grid, iconImage: ICO.grid, title: 'Clothing Brand Pack', roles: ['admin', 'filmmaker'], isCore: false, category: 'creative', description: 'Clothing brand management tools' },
-  { id: 'hardware-pack', component: null as any, icon: HardDrive, iconImage: ICO.harddrive, title: 'Hardware Pack', roles: ['admin', 'filmmaker', 'technician'], isCore: false, category: 'dev', description: 'Hardware integration tools' },
+  { id: 'clothing-brand-pack', component: null as any, icon: Grid, iconImage: ICO.grid, title: 'Clothing Brand Pack', roles: ['admin', 'filmmaker', 'user'], isCore: false, category: 'creative', description: 'Clothing brand management tools' },
+  { id: 'hardware-pack', component: null as any, icon: HardDrive, iconImage: ICO.harddrive, title: 'Hardware Pack', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'dev', description: 'Hardware integration tools' },
   { id: 'ziklag-tools', component: null as any, icon: Wrench, iconImage: ICO.wrench, title: 'Ziklag Tools', roles: ['admin', 'filmmaker'], isCore: false, category: 'system', description: 'Ziklag platform tools' },
   { id: 'ziklag-forensics-pack', component: null as any, icon: Shield, iconImage: ICO.ziklag, title: 'Ziklag Forensics', roles: ['admin', 'technician'], isCore: false, category: 'dev', description: 'Forensic case management, evidence tracking, and chain of custody' },
 ];

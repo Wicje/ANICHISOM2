@@ -5,6 +5,7 @@ import { motion, useDragControls, useReducedMotion } from 'motion/react';
 import { OSWindow } from '@/lib/os-context';
 import { useWindowActions } from '@/lib/hooks/use-window-actions';
 import { useThemeStore } from '@/lib/stores/theme.store';
+import { useFocusStore } from '@/lib/stores/focus.store';
 import { X, Minus, Maximize2, Square, Lock } from 'lucide-react';
 import { getFileLockManager } from '@/lib/file-lock-manager';
 import { audioSystem } from '@/lib/services/audio-engine';
@@ -21,6 +22,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
   const aeroSnap = useThemeStore((s) => s.aeroSnap);
   const animationsEnabled = useThemeStore((s) => s.animationsEnabled);
   const glassmorphism = useThemeStore((s) => s.glassmorphism);
+  const focusEnabled = useFocusStore((s) => s.enabled);
   const dragControls = useDragControls();
   const shouldReduceMotion = useReducedMotion();
 
@@ -35,6 +37,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
   const [isFileLocked, setIsFileLocked] = useState(false);
   const [lockedByUser, setLockedByUser] = useState<string | null>(null);
   const [isMinimizing, setIsMinimizing] = useState(false);
+  const [snapPreview, setSnapPreview] = useState<'left' | 'right' | 'top' | null>(null);
 
   useEffect(() => {
     if (!osWindow.data?.fileId) return;
@@ -61,6 +64,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
   const currentY = isResizing ? localPosition.y : y;
 
   const isActive = zIndex >= highestZIndex;
+  const dimmed = focusEnabled && !isActive;
 
   if (isMinimized && !isMinimizing) {
     return <div style={{ display: 'none' }}>{children}</div>;
@@ -134,12 +138,12 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
       initial={animationsEnabled ? { opacity: 0, scale: 0.95 } : { opacity: 1, scale: 1 }}
       animate={isMinimizing
         ? animationsEnabled
-          ? { opacity: 0, scale: 0.2, y: window.innerHeight, x: window.innerWidth / 2 - currentWidth / 2, filter: 'blur(10px)', transition: { duration: 0.3, ease: 'easeIn' } }
+          ? { opacity: 0, scale: 0.1, y: window.innerHeight - 40, x: window.innerWidth / 2 - 40, borderRadius: '50%', filter: 'blur(8px)', transition: { duration: 0.35, ease: [0.4, 0, 0.2, 1] } }
           : { opacity: 0, scale: 1, transition: { duration: 0 } }
         : {
-          opacity: 1,
+          opacity: dimmed ? 0.3 : 1,
           scale: 1,
-          filter: 'blur(0px)',
+          filter: dimmed ? 'blur(1px)' : 'blur(0px)',
           width: isMaximized ? '100vw' : currentWidth,
           height: isMaximized ? 'calc(100vh - 32px)' : currentHeight,
           x: isMaximized ? 0 : currentX,
@@ -155,6 +159,17 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
       dragControls={dragControls}
       dragListener={false}
       dragMomentum={false}
+      onDrag={(e, info) => {
+        if (!aeroSnap) { setSnapPreview(null); return; }
+        const pointerX = info.point.x;
+        const pointerY = info.point.y;
+        const screenW = window.innerWidth;
+        const pointerMargin = 20;
+        if (pointerY < pointerMargin) setSnapPreview('top');
+        else if (pointerX < pointerMargin) setSnapPreview('left');
+        else if (pointerX > screenW - pointerMargin) setSnapPreview('right');
+        else setSnapPreview(null);
+      }}
       onDragEnd={(e, info) => {
         let newX = currentX + info.offset.x;
         let newY = currentY + info.offset.y;
@@ -187,6 +202,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
 
         setLocalPosition({ x: newX, y: newY });
         updateWindowDimensions(id, newX, newY, newWidth, newHeight);
+        setSnapPreview(null);
       }}
       style={{ zIndex }}
       onPointerDown={() => focusWindow(id)}
@@ -311,6 +327,18 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
             </svg>
           </div>
         </>
+      )}
+
+      {/* Snap Preview Overlay */}
+      {snapPreview && (
+        <div
+          className="absolute z-[200] rounded-xl border-2 border-blue-400/60 bg-blue-400/10 pointer-events-none transition-all duration-150"
+          style={{
+            ...(snapPreview === 'left' ? { left: 0, top: 0, width: '50%', height: '100%' } : {}),
+            ...(snapPreview === 'right' ? { right: 0, top: 0, width: '50%', height: '100%' } : {}),
+            ...(snapPreview === 'top' ? { left: 0, top: 0, width: '100%', height: '100%' } : {}),
+          }}
+        />
       )}
     </motion.div>
   );

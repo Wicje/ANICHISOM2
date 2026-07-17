@@ -46,7 +46,7 @@ vi.mock('lucide-react', () => {
     AppWindow: icon, File: icon, Music: icon, Layout: icon,
     Sun: icon, Moon: icon, Maximize2: icon, Minimize2: icon,
     Trash2: icon, Settings: icon, Volume2: icon, VolumeX: icon,
-    Bell: icon,
+    Bell: icon, Eye: icon, Camera: icon,
   };
 });
 
@@ -77,6 +77,36 @@ vi.mock('@/lib/stores/notification.store', () => ({
       return selector ? selector(state) : state;
     }),
     { getState: vi.fn(() => ({ notifications: [], clearAll: vi.fn() })) }
+  ),
+}));
+
+vi.mock('@/lib/stores/focus.store', () => ({
+  useFocusStore: Object.assign(
+    vi.fn((selector?: any) => {
+      const state = { enabled: false, toggle: vi.fn() };
+      return selector ? selector(state) : state;
+    }),
+    { getState: vi.fn(() => ({ enabled: false, toggle: vi.fn() })) }
+  ),
+}));
+
+vi.mock('@/lib/stores/screenshot.store', () => ({
+  useScreenshotStore: Object.assign(
+    vi.fn((selector?: any) => {
+      const state = { active: false, start: vi.fn() };
+      return selector ? selector(state) : state;
+    }),
+    { getState: vi.fn(() => ({ active: false, start: vi.fn() })) }
+  ),
+}));
+
+vi.mock('@/lib/stores/clipboard.store', () => ({
+  useClipboardUIStore: Object.assign(
+    vi.fn((selector?: any) => {
+      const state = { isOpen: false, toggle: vi.fn() };
+      return selector ? selector(state) : state;
+    }),
+    { getState: vi.fn(() => ({ isOpen: false, toggle: vi.fn() })) }
   ),
 }));
 

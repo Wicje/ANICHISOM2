@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useOS, OSWindow } from '@/lib/os-context';
-import { Image as ImageIcon, Palette, Save, Type, Eye, Settings2, Monitor, User, Volume2, VolumeX, Shield, Keyboard } from 'lucide-react';
+import { Image as ImageIcon, Palette, Save, Type, Eye, Settings2, Monitor, User, Volume2, VolumeX, Shield, Keyboard, CloudRain, Coffee, Trees, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { audioSystem } from '@/lib/services/audio-engine';
+import { ambientSounds, type AmbientPreset } from '@/lib/services/ambient-sounds';
 
 const PRESET_WALLPAPERS = [
   { name: 'Default Dark', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop' },
@@ -331,6 +332,42 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                     />
                   </div>
                   <p className="text-xs text-white/40">Controls clicks, swooshes, notifications, and startup sounds.</p>
+                </div>
+
+                <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-3">
+                  <div className="flex justify-between items-center text-sm font-medium">
+                    <span>Ambient Sounds</span>
+                    <span className="text-blue-400 capitalize">{useThemeStore.getState().ambientSound === 'off' ? 'Off' : useThemeStore.getState().ambientSound}</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {([
+                      { preset: 'off' as AmbientPreset, icon: VolumeX, label: 'Off' },
+                      { preset: 'rain' as AmbientPreset, icon: CloudRain, label: 'Rain' },
+                      { preset: 'cafe' as AmbientPreset, icon: Coffee, label: 'Cafe' },
+                      { preset: 'forest' as AmbientPreset, icon: Trees, label: 'Forest' },
+                    ]).map((item) => {
+                      const currentAmbient = useThemeStore((s) => s.ambientSound);
+                      const isActive = currentAmbient === item.preset;
+                      return (
+                        <button
+                          key={item.preset}
+                          onClick={() => {
+                            useThemeStore.getState().setAmbientSound(item.preset);
+                            if (item.preset === 'off') ambientSounds.stop();
+                            else ambientSounds.play(item.preset);
+                          }}
+                          className={cn(
+                            "flex flex-col items-center gap-1.5 py-3 rounded-lg text-xs font-medium transition-all",
+                            isActive ? "bg-blue-500/20 border border-blue-500/50 text-blue-400" : "bg-white/5 border border-white/10 text-white/50 hover:text-white/70"
+                          )}
+                        >
+                          <item.icon className="w-5 h-5" />
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-white/40">Subtle background ambience. Plays through your audio output.</p>
                 </div>
               </section>
             </div>

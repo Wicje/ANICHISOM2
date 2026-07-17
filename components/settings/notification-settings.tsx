@@ -1,228 +1,188 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import {
-  Home, LayoutDashboard, Folder, CheckSquare, BarChart3, Users,
-  LifeBuoy, Settings, Search, ChevronDown, ChevronLeft
-} from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Activity, Zap, Folder, Bell, Settings, Search, Monitor, Package, Cog, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useActivityStore, type ActivityType } from '@/lib/stores/activity.store';
+import { format } from 'date-fns';
 
-interface NotificationCategory {
-  name: string;
-  description: string;
-  channels: { push: boolean; email: boolean; sms: boolean };
-}
+const TYPE_CONFIG: Record<ActivityType, { icon: React.ComponentType<any>; color: string; bg: string }> = {
+  'app-open': { icon: Zap, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+  'app-close': { icon: X, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
+  'file-save': { icon: Folder, color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+  'file-open': { icon: Folder, color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
+  'notification': { icon: Bell, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+  'system': { icon: Monitor, color: '#6366f1', bg: 'rgba(99,102,241,0.1)' },
+  'install': { icon: Package, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+  'setting-change': { icon: Cog, color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
+  'search': { icon: Search, color: '#06b6d4', bg: 'rgba(6,182,212,0.1)' },
+};
 
-const STORAGE_KEY = 'anichisom-notification-prefs';
-
-const defaultCategories: NotificationCategory[] = [
-  {
-    name: 'Comments',
-    description: 'These are notifications for comments on your posts and replies to your comments.',
-    channels: { push: true, email: true, sms: false },
-  },
-  {
-    name: 'Tags',
-    description: 'These are notifications for when someone tags you in a comment, post or story.',
-    channels: { push: true, email: false, sms: false },
-  },
-  {
-    name: 'Reminders',
-    description: 'These are notifications to remind you of updates you might have missed.',
-    channels: { push: false, email: false, sms: false },
-  },
-  {
-    name: 'More activity about you',
-    description: 'These are notifications for posts on your profile, likes and other reactions to your...',
-    channels: { push: false, email: false, sms: false },
-  },
+const FILTER_OPTIONS: { value: ActivityType | 'all'; label: string }[] = [
+  { value: 'all', label: 'All Activity' },
+  { value: 'app-open', label: 'App Launches' },
+  { value: 'file-save', label: 'File Saves' },
+  { value: 'system', label: 'System Events' },
+  { value: 'notification', label: 'Notifications' },
+  { value: 'install', label: 'Installs' },
 ];
 
-function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void }) {
+export function NotificationSettings({ window: osWindow }: { window?: any }) {
+  const events = useActivityStore((s) => s.events);
+  const clear = useActivityStore((s) => s.clear);
+  const [filter, setFilter] = useState<ActivityType | 'all'>('all');
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    let result = events;
+    if (filter !== 'all') result = result.filter((e) => e.type === filter);
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((e) => e.title.toLowerCase().includes(q) || e.detail?.toLowerCase().includes(q));
+    }
+    return result;
+  }, [events, filter, search]);
+
+  const stats = useMemo(() => {
+    const total = events.length;
+    const byType = Object.keys(TYPE_CONFIG).map((t) => ({
+      type: t as ActivityType,
+      count: events.filter((e) => e.type === t).length,
+    }));
+    const lastHour = events.filter((e) => e.timestamp > Date.now() - 3600000).length;
+    return { total, byType, lastHour };
+  }, [events]);
+
+  const formatTime = (ts: number) => {
+    const diff = Date.now() - ts;
+    if (diff < 60000) return 'just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    return format(new Date(ts), 'MMM d, h:mm a');
+  };
+
   return (
-    <button
-      onClick={onChange}
-      className={cn(
-        "w-9 h-5 rounded-full transition-colors relative",
-        enabled ? "bg-blue-600" : "bg-gray-200"
-      )}
-    >
-      <div className={cn(
-        "w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform shadow-sm",
-        enabled ? "translate-x-4" : "translate-x-0.5"
-      )} />
-    </button>
+    <div className="w-full h-full flex flex-col overflow-hidden" style={{ background: 'var(--os-surface)' }}>
+      {/* Header */}
+      <div className="px-6 pt-6 pb-4 shrink-0">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--os-text)' }}>Activity Monitor</h1>
+            <p className="text-xs mt-1" style={{ color: 'var(--os-text-muted)' }}>Real-time system event timeline</p>
+          </div>
+          <button
+            onClick={clear}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
+            style={{ background: 'var(--os-hover)', color: 'var(--os-text-muted)' }}
+          >
+            Clear All
+          </button>
+        </div>
+
+        {/* Stats Row */}
+        <div className="grid grid-cols-4 gap-3 mb-4">
+          <StatCard label="Total Events" value={stats.total} color="var(--os-primary)" />
+          <StatCard label="Last Hour" value={stats.lastHour} color="#10b981" />
+          <StatCard label="App Actions" value={stats.byType.find(b => b.type === 'app-open')?.count || 0} color="#8b5cf6" />
+          <StatCard label="File Ops" value={(stats.byType.find(b => b.type === 'file-save')?.count || 0) + (stats.byType.find(b => b.type === 'file-open')?.count || 0)} color="#f59e0b" />
+        </div>
+
+        {/* Search + Filter */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--os-text-muted)' }} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search events..."
+              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border outline-none"
+              style={{ background: 'var(--os-hover)', borderColor: 'var(--os-border)', color: 'var(--os-text)' }}
+            />
+          </div>
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as any)}
+            className="px-3 py-1.5 text-xs rounded-lg border outline-none cursor-pointer"
+            style={{ background: 'var(--os-hover)', borderColor: 'var(--os-border)', color: 'var(--os-text)' }}
+          >
+            {FILTER_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Type breakdown bar */}
+      <div className="px-6 pb-2 flex gap-1 shrink-0">
+        {stats.byType.filter(b => b.count > 0).map((b) => {
+          const cfg = TYPE_CONFIG[b.type];
+          const Icon = cfg.icon;
+          return (
+            <button
+              key={b.type}
+              onClick={() => setFilter(filter === b.type ? 'all' : b.type)}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium transition-all",
+                filter === b.type ? "ring-1" : ""
+              )}
+              style={{ background: cfg.bg, color: cfg.color, outline: filter === b.type ? `1px solid ${cfg.color}` : undefined }}
+            >
+              <Icon className="w-3 h-3" />
+              {b.count}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Timeline */}
+      <div className="flex-1 overflow-y-auto px-6 pb-6">
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-48" style={{ color: 'var(--os-text-muted)' }}>
+            <Activity className="w-10 h-10 mb-3 opacity-30" />
+            <p className="text-sm font-medium">No activity yet</p>
+            <p className="text-xs mt-1 opacity-60">Events will appear as you use the OS</p>
+          </div>
+        ) : (
+          <div className="relative">
+            {/* Timeline line */}
+            <div className="absolute left-4 top-0 bottom-0 w-px" style={{ background: 'var(--os-border)' }} />
+            <div className="space-y-1">
+              {filtered.map((event) => {
+                const cfg = TYPE_CONFIG[event.type];
+                const Icon = cfg.icon;
+                return (
+                  <div key={event.id} className="flex items-start gap-3 py-2 relative group">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10 border-2"
+                      style={{ background: cfg.bg, borderColor: 'var(--os-surface)' }}
+                    >
+                      <Icon className="w-3.5 h-3.5" style={{ color: cfg.color }} />
+                    </div>
+                    <div className="flex-1 min-w-0 pt-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-xs font-semibold" style={{ color: 'var(--os-text)' }}>{event.title}</span>
+                        <span className="text-[10px] shrink-0" style={{ color: 'var(--os-text-muted)' }}>{formatTime(event.timestamp)}</span>
+                      </div>
+                      {event.detail && (
+                        <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--os-text-muted)' }}>{event.detail}</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
-export function NotificationSettings({ window: osWindow }: { window?: any }) {
-  const [notifs, setNotifs] = useState<NotificationCategory[]>(defaultCategories);
-  const [activeSidebar, setActiveSidebar] = useState('Projects');
-  const [activeTab, setActiveTab] = useState(7);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setNotifs(JSON.parse(saved));
-    } catch { /* ignore */ }
-  }, []);
-
-  const toggleChannel = (catIndex: number, channel: 'push' | 'email' | 'sms') => {
-    setNotifs(prev => {
-      const next = prev.map((cat, i) =>
-        i === catIndex
-          ? { ...cat, channels: { ...cat.channels, [channel]: !cat.channels[channel] } }
-          : cat
-      );
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-      return next;
-    });
-  };
-
-  const sidebarItems = [
-    { icon: Home, label: 'Home' },
-    { icon: LayoutDashboard, label: 'Dashboard' },
-    { icon: Folder, label: 'Projects' },
-    { icon: CheckSquare, label: 'Tasks' },
-    { icon: BarChart3, label: 'Reporting' },
-    { icon: Users, label: 'Users' },
-  ];
-
-  const tabs = ['My details', 'Profile', 'Password', 'Team', 'Plan', 'Billing', 'Email', 'Notifications', 'Integrations'];
-
+function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="w-full h-full flex bg-white font-sans overflow-hidden rounded-xl">
-      {/* Sidebar */}
-      <div className="w-56 bg-[#f8f9fc] border-r border-gray-100 flex flex-col shrink-0">
-        {/* Logo */}
-        <div className="px-4 py-4 flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
-            <span className="text-white text-xs font-bold">U</span>
-          </div>
-          <span className="text-sm font-semibold text-gray-900">Untitled UI</span>
-        </div>
-
-        {/* Search */}
-        <div className="px-3 mb-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search"
-              className="w-full bg-white border border-gray-200 rounded-lg py-1.5 pl-9 pr-3 text-xs text-gray-700 outline-none focus:ring-2 focus:ring-blue-100"
-            />
-          </div>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex flex-col gap-0.5 px-2 flex-1">
-          {sidebarItems.map((item, i) => (
-            <button
-              key={i}
-              onClick={() => setActiveSidebar(item.label)}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-colors",
-                activeSidebar === item.label
-                  ? "bg-blue-50 text-blue-700 font-medium"
-                  : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-              )}
-            >
-              <item.icon className="w-4 h-4" />
-              <span className="flex-1 text-left">{item.label}</span>
-              {i < 5 && <ChevronDown className="w-3 h-3 text-gray-400" />}
-            </button>
-          ))}
-        </nav>
-
-        {/* Bottom */}
-        <div className="p-3 border-t border-gray-100 space-y-2">
-          <button className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-gray-500 hover:bg-gray-100 w-full">
-            <LifeBuoy className="w-4 h-4" />
-            Support
-          </button>
-          <button className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-gray-500 hover:bg-gray-100 w-full">
-            <Settings className="w-4 h-4" />
-            Settings
-          </button>
-        </div>
-
-        {/* Usage */}
-        <div className="p-4 border-t border-gray-100">
-          <div className="relative w-16 h-16 mx-auto mb-2">
-            <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-              <circle cx="18" cy="18" r="16" fill="none" stroke="#e5e7eb" strokeWidth="3" />
-              <circle cx="18" cy="18" r="16" fill="none" stroke="#2563eb" strokeWidth="3" strokeDasharray="80 100" strokeLinecap="round" />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-gray-900">80%</div>
-          </div>
-          <div className="text-[10px] text-gray-500 text-center">
-            <span className="font-semibold text-gray-700">Used credits this month</span>
-            <br />
-            Your team has used 80% of your...
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        {/* Header */}
-        <div className="px-8 pt-8 pb-4 shrink-0">
-          <button className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 mb-4">
-            <ChevronLeft className="w-4 h-4" />
-            Back to dashboard
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">Settings</h1>
-
-          {/* Tabs */}
-          <div className="flex items-center gap-1 border-b border-gray-200 overflow-x-auto">
-            {tabs.map((tab, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveTab(i)}
-                className={cn(
-                  "px-4 py-2.5 text-sm whitespace-nowrap border-b-2 transition-colors -mb-px",
-                  activeTab === i
-                    ? "border-blue-600 text-blue-600 font-medium"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
-                )}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Settings content */}
-        <div className="px-8 pb-8">
-          <div className="max-w-2xl">
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Notification settings</h2>
-            <p className="text-sm text-gray-500 mb-8">
-              We may still send you important notifications about your account outside of your notification settings.
-            </p>
-
-            <div className="space-y-8">
-              {notifs.map((cat, ci) => (
-                <div key={ci} className="border-b border-gray-100 pb-8 last:border-0">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-1">{cat.name}</h3>
-                  <p className="text-xs text-gray-500 mb-4">{cat.description}</p>
-
-                  <div className="space-y-3">
-                    {(['push', 'email', 'sms'] as const).map(ch => (
-                      <div key={ch} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-700 capitalize">{ch}</span>
-                        <Toggle
-                          enabled={cat.channels[ch]}
-                          onChange={() => toggleChannel(ci, ch)}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="px-3 py-2 rounded-lg" style={{ background: 'var(--os-hover)' }}>
+      <div className="text-lg font-bold" style={{ color }}>{value}</div>
+      <div className="text-[10px] font-medium" style={{ color: 'var(--os-text-muted)' }}>{label}</div>
     </div>
   );
 }

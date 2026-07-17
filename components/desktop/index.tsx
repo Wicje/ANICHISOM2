@@ -26,6 +26,12 @@ import { useOnboardingStore } from '@/lib/stores/onboarding.store';
 import { useNotificationStore } from '@/lib/stores/notification.store';
 import { useDynamicWallpaper } from '@/lib/hooks/use-dynamic-wallpaper';
 import { audioSystem } from '@/lib/services/audio-engine';
+import { useActivityStore } from '@/lib/stores/activity.store';
+import { useFocusStore } from '@/lib/stores/focus.store';
+import { useScreenshotStore } from '@/lib/stores/screenshot.store';
+import { useClipboardUIStore } from '@/lib/stores/clipboard.store';
+import { ambientSounds, type AmbientPreset } from '@/lib/services/ambient-sounds';
+import { clipboardHistory } from '@/lib/services/clipboard-history';
 
 const Launchpad = React.lazy(() => import('./launchpad').then(m => ({ default: m.Launchpad })));
 const MissionControl = React.lazy(() => import('./mission-control').then(m => ({ default: m.MissionControl })));
@@ -37,6 +43,9 @@ const NotchNook = React.lazy(() => import('@/components/dock/notch-nook').then(m
 const WidgetStack = React.lazy(() => import('@/components/notifications/widget-stack').then(m => ({ default: m.WidgetStack })));
 const NotificationCenter = React.lazy(() => import('@/components/notifications/notification-center').then(m => ({ default: m.NotificationCenter })));
 const OnboardingWizard = React.lazy(() => import('@/components/apps/onboarding-wizard'));
+const FocusOverlay = React.lazy(() => import('@/components/overlays/focus-overlay').then(m => ({ default: m.FocusOverlay })));
+const ScreenshotOverlay = React.lazy(() => import('@/components/overlays/screenshot-overlay').then(m => ({ default: m.ScreenshotOverlay })));
+const ClipboardHistoryPanel = React.lazy(() => import('@/components/overlays/clipboard-history-panel').then(m => ({ default: m.ClipboardHistoryPanel })));
 type ContextMenuItem = import('./context-menu').ContextMenuItem;
 
 function AppLoadingSkeleton() {
@@ -194,6 +203,64 @@ export function Desktop() {
   const failedImportsRef = useRef<Set<string>>(new Set());
   const [componentCacheVersion, setComponentCacheVersion] = useState(0);
   const [booting, setBooting] = useState(true);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const logActivity = useActivityStore((s) => s.log);
+  const focusEnabled = useFocusStore((s) => s.enabled);
+  const toggleFocus = useFocusStore((s) => s.toggle);
+  const startScreenshot = useScreenshotStore((s) => s.start);
+  const toggleClipboard = useClipboardUIStore((s) => s.toggle);
+
+  // Parallax mouse tracking
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePos({
+        x: (e.clientX / window.innerWidth - 0.5) * 2,
+        y: (e.clientY / window.innerHeight - 0.5) * 2,
+      });
+    };
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  // Clipboard monitoring — auto-capture copies
+  useEffect(() => {
+    const handleCopy = () => {
+      setTimeout(async () => {
+        try {
+          const text = await navigator.clipboard.readText();
+          if (text) clipboardHistory.add(text, 'copy');
+        } catch {}
+      }, 100);
+    };
+    document.addEventListener('copy', handleCopy);
+    return () => document.removeEventListener('copy', handleCopy);
+  }, []);
+
+  // Activity logging — wire os:activity events
+  useEffect(() => {
+    const handleActivity = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.type && detail?.title) {
+        logActivity(detail.type, detail.title, detail.detail, detail.appId);
+      }
+    };
+    window.addEventListener('os:activity', handleActivity);
+    return () => window.removeEventListener('os:activity', handleActivity);
+  }, [logActivity]);
+
+  // Ambient sounds — sync with theme store
+  useEffect(() => {
+    let prev = useThemeStore.getState().ambientSound;
+    const check = setInterval(() => {
+      const curr = useThemeStore.getState().ambientSound;
+      if (curr !== prev) {
+        prev = curr;
+        if (curr === 'off') ambientSounds.stop();
+        else ambientSounds.play(curr);
+      }
+    }, 1000);
+    return () => clearInterval(check);
+  }, []);
 
   // Initialize plugin registry + check Supabase session
   useEffect(() => {
@@ -210,6 +277,11 @@ export function Desktop() {
       setBooting(false);
       audioSystem.init();
       audioSystem.playStartup();
+      // Init ambient sounds from stored preference
+      const ambientSound = useThemeStore.getState().ambientSound;
+      if (ambientSound && ambientSound !== 'off') ambientSounds.play(ambientSound);
+      // Init clipboard history
+      clipboardHistory.load();
     }, 2000);
     return () => clearTimeout(timer);
   }, []);
@@ -359,6 +431,12 @@ export function Desktop() {
       'ctrl+m': 'action:minimize-active-window',
       'alt+n': 'action:notch-nook',
       'alt+w': 'action:widget-stack',
+      'meta+shift+f': 'action:focus-mode',
+      'ctrl+shift+f': 'action:focus-mode',
+      'meta+shift+4': 'action:screenshot',
+      'ctrl+shift+4': 'action:screenshot',
+      'meta+shift+v': 'action:clipboard-history',
+      'ctrl+shift+v': 'action:clipboard-history',
     };
 
     import('@/lib/fs').then(({ FS }) => {
@@ -425,6 +503,12 @@ export function Desktop() {
           setShowNotchNook(prev => !prev);
         } else if (action === 'action:widget-stack') {
           setShowWidgetStack(prev => !prev);
+        } else if (action === 'action:focus-mode') {
+          useFocusStore.getState().toggle();
+        } else if (action === 'action:screenshot') {
+          useScreenshotStore.getState().start();
+        } else if (action === 'action:clipboard-history') {
+          useClipboardUIStore.getState().toggle();
         }
       }
     };
@@ -539,17 +623,22 @@ export function Desktop() {
             try {
               await FS.mkdir(`Desktop/${name}`);
               window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Folder Created', description: `Created "${name}" on Desktop`, type: 'success' } }));
+              logActivity('file-save', 'Folder created', `Desktop/${name}`);
             } catch (err) {
               window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Error', description: 'Failed to create folder', type: 'error' } }));
             }
           }
         }},
         { label: 'Change Wallpaper', onClick: () => openWindow('settings') },
+        { label: 'Open Terminal', onClick: () => openWindow('terminal') },
+        { label: 'Open File Manager', onClick: () => openWindow('files') },
+        { label: 'Screenshot', icon: Activity, onClick: () => startScreenshot() },
+        { label: 'Toggle Focus Mode', onClick: () => toggleFocus() },
         { label: 'Add Sticky Note', icon: StickyNote, onClick: () => setWidgets(prev => [...prev, { id: Date.now().toString(), type: 'notes', x: e.clientX, y: e.clientY, content: '' }]) },
         { label: 'Add CPU Monitor', icon: Activity, onClick: () => setWidgets(prev => [...prev, { id: Date.now().toString(), type: 'cpu', x: e.clientX, y: e.clientY }]) },
       ]
     });
-  }, [openWindow]);
+  }, [openWindow, logActivity, startScreenshot, toggleFocus]);
 
   // Drag-drop
   const handleDrop = useCallback(async (e: React.DragEvent) => {
@@ -560,6 +649,7 @@ export function Desktop() {
       try {
         await FS.write(`Desktop/${file.name}`, file, file.type);
         window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'File Saved', description: `${file.name} saved to Desktop`, type: 'success' } }));
+        logActivity('file-save', 'File saved to Desktop', file.name);
       } catch (err) {
         console.error('File drop failed', err);
         window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Save Failed', description: `Could not save ${file.name}`, type: 'error' } }));
@@ -643,7 +733,10 @@ export function Desktop() {
 
       <div
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat transition-all duration-1000"
-        style={{ backgroundImage: `url("${wallpaper}")` }}
+        style={{
+          backgroundImage: `url("${wallpaper}")`,
+          transform: `translate(${mousePos.x * -8}px, ${mousePos.y * -8}px) scale(1.05)`,
+        }}
       />
 
       <MenuBar
@@ -748,6 +841,12 @@ export function Desktop() {
 
       {!onboarding.completed && <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--os-text-muted)' }} /></div>}><OnboardingWizard /></Suspense>}
       {onboarding.completed && <FeedbackWidget />}
+
+      <Suspense fallback={null}>
+        <FocusOverlay />
+        <ScreenshotOverlay />
+        <ClipboardHistoryPanel />
+      </Suspense>
 
       <Toaster
         position="bottom-right"

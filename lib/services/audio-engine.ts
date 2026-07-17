@@ -131,6 +131,11 @@ class OAudioEngine {
     this.playTone(200, 'sawtooth', 0.15, 0.1);
     setTimeout(() => this.playTone(150, 'sawtooth', 0.2, 0.08), 100);
   }
+
+  playScreenshot() {
+    this.playTone(1200, 'sine', 0.05, 0.2);
+    setTimeout(() => this.playTone(800, 'sine', 0.08, 0.15), 50);
+  }
 }
 
 export const audioSystem = new OAudioEngine();

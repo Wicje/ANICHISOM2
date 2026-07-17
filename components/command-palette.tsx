@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useTransition, useMemo, useRef, useCallback } from 'react';
 import { useOS } from '@/lib/os-context';
-import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Search, Archive, Clipboard, AppWindow, File, Music, Layout, Sun, Moon, Maximize2, Minimize2, Trash2, Settings, Volume2, VolumeX } from 'lucide-react';
+import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Search, Archive, Clipboard, AppWindow, File, Music, Layout, Sun, Moon, Maximize2, Minimize2, Trash2, Settings, Volume2, VolumeX, Eye, Camera } from 'lucide-react';
 import { APP_MANIFEST as APPS } from '@/lib/app-manifest';
 import { AppIconInline } from '@/components/ui/app-icon';
 import { FS, LocalFile } from '@/lib/fs';
@@ -10,6 +10,9 @@ import { useFileStore } from '@/lib/stores/file.store';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useWindowStore } from '@/lib/stores/window.store';
 import { useNotificationStore } from '@/lib/stores/notification.store';
+import { useFocusStore } from '@/lib/stores/focus.store';
+import { useScreenshotStore } from '@/lib/stores/screenshot.store';
+import { useClipboardUIStore } from '@/lib/stores/clipboard.store';
 
 export function CommandPalette() {
   const { openWindow, windows, focusWindow, installedApps, currentUser } = useOS();
@@ -56,9 +59,16 @@ export function CommandPalette() {
      }
   }, [isOpen]);
 
-  const allowedApps = useMemo(() => APPS.filter((entry) => 
-    entry.roles.includes(currentUser?.role || 'user')
-  ), [currentUser?.role]);
+  const allowedApps = useMemo(() => {
+    const roleFiltered = APPS.filter((entry) => 
+      entry.roles.includes(currentUser?.role || 'user')
+    );
+    const installedIds = new Set(installedApps);
+    const installedOnly = APPS.filter((entry) => 
+      installedIds.has(entry.id) && !roleFiltered.some(r => r.id === entry.id)
+    );
+    return [...roleFiltered, ...installedOnly];
+  }, [currentUser?.role, installedApps]);
 
   const commands: { id: string; name: string; type: string; icon: any; iconImage?: string; action: () => void; hideOnEmpty?: boolean }[] = useMemo(() => {
     const cmds: { id: string; name: string; type: string; icon: any; iconImage?: string; action: () => void; hideOnEmpty?: boolean }[] = [];
@@ -127,6 +137,30 @@ export function CommandPalette() {
       type: 'System',
       icon: Trash2,
       action: () => useNotificationStore.getState().clearAll(),
+    });
+
+    cmds.push({
+      id: 'toggle-focus',
+      name: useFocusStore.getState().enabled ? 'Exit Focus Mode' : 'Enter Focus Mode',
+      type: 'System',
+      icon: Eye,
+      action: () => useFocusStore.getState().toggle(),
+    });
+
+    cmds.push({
+      id: 'screenshot',
+      name: 'Take Screenshot',
+      type: 'System',
+      icon: Camera,
+      action: () => useScreenshotStore.getState().start(),
+    });
+
+    cmds.push({
+      id: 'clipboard-history',
+      name: 'Open Clipboard History',
+      type: 'System',
+      icon: Clipboard,
+      action: () => useClipboardUIStore.getState().toggle(),
     });
 
     // Applications

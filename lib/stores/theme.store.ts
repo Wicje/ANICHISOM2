@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { get as idbGet, set as idbSet } from 'idb-keyval';
+import type { AmbientPreset } from '@/lib/services/ambient-sounds';
 
 export type PerformanceMode = 'light' | 'heavy';
 export type ColorMode = 'light' | 'dark';
@@ -19,6 +20,7 @@ type ThemeState = {
   animationsEnabled: boolean;
   glassmorphism: boolean;
   aeroSnap: boolean;
+  ambientSound: AmbientPreset;
   setWallpaper: (url: string) => void;
   setThemeColor: (color: string) => void;
   setFontFamily: (font: string) => void;
@@ -30,6 +32,7 @@ type ThemeState = {
   setAnimationsEnabled: (enabled: boolean) => void;
   setGlassmorphism: (enabled: boolean) => void;
   setAeroSnap: (enabled: boolean) => void;
+  setAmbientSound: (preset: AmbientPreset) => void;
   hydrateAll: () => Promise<void>;
 };
 
@@ -45,11 +48,12 @@ const DEFAULTS = {
   animationsEnabled: true,
   glassmorphism: true,
   aeroSnap: true,
+  ambientSound: 'off' as AmbientPreset,
 };
 
 function persistTheme(settings: Partial<ThemeState>) {
   if (typeof window === 'undefined') return;
-  const { setWallpaper, setThemeColor, setFontFamily, setScreenShader, setPerformanceMode, setColorMode, setVolume, setMuted, setAnimationsEnabled, setGlassmorphism, setAeroSnap, hydrateAll, ...rest } = settings as any;
+    const { setWallpaper, setThemeColor, setFontFamily, setScreenShader, setPerformanceMode, setColorMode, setVolume, setMuted, setAnimationsEnabled, setGlassmorphism, setAeroSnap, setAmbientSound, hydrateAll, ...rest } = settings as any;
   idbSet(THEME_KEY, rest).catch(() => {});
 }
 
@@ -121,6 +125,11 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     persistTheme({ ...get(), aeroSnap });
   },
 
+  setAmbientSound: (ambientSound) => {
+    set({ ambientSound });
+    persistTheme({ ...get(), ambientSound });
+  },
+
   hydrateAll: async () => {
     try {
       const [savedColorMode, savedTheme] = await Promise.all([
@@ -145,6 +154,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
         if (typeof savedTheme.animationsEnabled === 'boolean') patch.animationsEnabled = savedTheme.animationsEnabled;
         if (typeof savedTheme.glassmorphism === 'boolean') patch.glassmorphism = savedTheme.glassmorphism;
         if (typeof savedTheme.aeroSnap === 'boolean') patch.aeroSnap = savedTheme.aeroSnap;
+        if (savedTheme.ambientSound) patch.ambientSound = savedTheme.ambientSound;
       }
 
       if (Object.keys(patch).length > 0) {
