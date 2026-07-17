@@ -166,20 +166,33 @@ export const FS = {
         
         // @ts-ignore
         const writable = await handle.createWritable();
-        await writable.write(content);
-        await writable.close();
+        try {
+          await writable.write(content);
+          await writable.close();
+        } catch (e) {
+          try { await writable.close(); } catch { /* ignore close error */ }
+          throw e;
+        }
 
         // Write .meta companion file to persist mimeType
         try {
           const metaHandle = await dir.getFileHandle(`${name}.meta`, { create: true });
           // @ts-ignore
           const metaWritable = await metaHandle.createWritable();
-          await metaWritable.write(JSON.stringify({ mimeType: resolvedMime }));
-          await metaWritable.close();
+          try {
+            await metaWritable.write(JSON.stringify({ mimeType: resolvedMime }));
+            await metaWritable.close();
+          } catch {
+            try { await metaWritable.close(); } catch { /* ignore */ }
+          }
         } catch { /* meta write is best-effort */ }
 
         revokeObjectUrlForKey(`read:${path}`);
         revokeObjectUrlForKey(`dir:${path}`);
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path } }));
+        }
         return;
       }
     } catch (e) {
@@ -308,12 +321,18 @@ export const FS = {
         await dir.removeEntry(name, { recursive: true });
         // Also remove .meta companion if it exists
         try { await dir.removeEntry(`${name}.meta`); } catch { /* no meta file */ }
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path } }));
+        }
         return;
       }
     } catch (e) {
       console.warn(`OPFS delete failed for ${path}, falling back to IndexedDB`, e);
     }
     await del(`file_${path}`);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path } }));
+    }
   },
 
   _isDirectory: async (path: string): Promise<boolean> => {

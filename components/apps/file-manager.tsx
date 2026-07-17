@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useOS, OSWindow } from '@/lib/os-context';
 import {
   Folder, File as FileIcon, FileText, Image as ImageIcon, Video, Box, Search,
@@ -66,10 +66,12 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
 
   // Batch operation state
   const [clipboard, setClipboard] = useState<{ paths: string[]; mode: 'copy' | 'cut' } | null>(null);
+  const [pendingBatchDelete, setPendingBatchDelete] = useState(false);
 
   // Drag-to-move state (internal file DnD)
   const [draggingFileId, setDraggingFileId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const dropTargetCounterRef = useRef<Map<string, number>>(new Map());
 
   // Rename state
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -185,10 +187,15 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
 
   // Delete multiple files
   const handleDeleteSelected = async () => {
+    setPendingBatchDelete(true);
+  };
+
+  const confirmBatchDelete = async () => {
     for (const fileId of selectedFileIds) {
       try { await FS.delete(fileId); } catch { /* skip */ }
     }
     clearSelection();
+    setPendingBatchDelete(false);
     fetchFiles();
   };
 
@@ -571,8 +578,8 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
     fetchFiles();
   };
 
-  const filteredFiles = files.filter(f => f.name.toLowerCase().includes(search.toLowerCase()));
-  const filteredCloudFiles = cloudFiles.filter(f => f.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredFiles = useMemo(() => files.filter(f => f.name.toLowerCase().includes(search.toLowerCase())), [files, search]);
+  const filteredCloudFiles = useMemo(() => cloudFiles.filter(f => f.name.toLowerCase().includes(search.toLowerCase())), [cloudFiles, search]);
 
   const isViewingLocal = selectedSource === 'local';
   const displayFiles = isViewingLocal ? filteredFiles : filteredCloudFiles;
@@ -910,11 +917,14 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
               className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 pb-12"
               onClick={(e) => { if (e.target === e.currentTarget) clearSelection(); }}
               onKeyDown={(e) => {
+                const target = e.target as HTMLElement;
+                const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
                 if (e.key === 'F2' && selectedFileIds.size === 1) {
                   const id = Array.from(selectedFileIds)[0];
                   const file = files.find(f => f.id === id);
                   if (file) { setRenamingId(file.id); setRenameValue(file.name); }
                 }
+                if (isInputFocused) return;
                 if ((e.key === 'Delete' || e.key === 'Backspace') && selectedFileIds.size > 0) {
                   e.preventDefault();
                   handleDeleteSelected();
@@ -952,19 +962,36 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                     draggable={!isFolder}
                     onDragStart={(e) => {
                       e.stopPropagation();
+                      if (isFolder) { e.preventDefault(); return; }
                       setDraggingFileId(file.id);
                       e.dataTransfer.effectAllowed = 'move';
                       e.dataTransfer.setData('text/plain', file.id);
                     }}
-                    onDragEnd={() => { setDraggingFileId(null); setDropTargetId(null); }}
+                    onDragEnd={() => { setDraggingFileId(null); setDropTargetId(null); dropTargetCounterRef.current.clear(); }}
                     onDragOver={(e) => {
-                      if (isFolder) { e.preventDefault(); e.stopPropagation(); setDropTargetId(file.id); }
+                      if (isFolder && draggingFileId && draggingFileId !== file.id) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const count = (dropTargetCounterRef.current.get(file.id) || 0) + 1;
+                        dropTargetCounterRef.current.set(file.id, count);
+                        setDropTargetId(file.id);
+                      }
                     }}
-                    onDragLeave={() => { if (isFolder && dropTargetId === file.id) setDropTargetId(null); }}
+                    onDragLeave={() => {
+                      if (isFolder) {
+                        const count = (dropTargetCounterRef.current.get(file.id) || 1) - 1;
+                        dropTargetCounterRef.current.set(file.id, count);
+                        if (count <= 0) {
+                          dropTargetCounterRef.current.delete(file.id);
+                          if (dropTargetId === file.id) setDropTargetId(null);
+                        }
+                      }
+                    }}
                     onDrop={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      if (isFolder && draggingFileId) {
+                      dropTargetCounterRef.current.delete(file.id);
+                      if (isFolder && draggingFileId && draggingFileId !== file.id) {
                         const destPath = getFolderPath(file);
                         handleMoveFiles([draggingFileId], destPath);
                       }
@@ -1032,7 +1059,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                           if (e.key === 'Escape') setRenamingId(null);
                         }}
-                        className="w-full text-xs text-center bg-white border border-[var(--os-primary)] rounded px-1 py-0.5 outline-none"
+                        className="w-full text-xs text-center bg-[var(--os-surface-elevated)] border border-[var(--os-primary)] rounded px-1 py-0.5 outline-none text-[var(--os-text)]"
                         autoFocus
                         onClick={(e) => e.stopPropagation()}
                       />
@@ -1282,6 +1309,17 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
         onConfirm={confirmDelete}
         title="Delete File"
         message="Are you sure you want to delete this file?"
+        confirmLabel="Delete"
+        danger
+      />
+
+      {/* Batch Delete Confirmation */}
+      <OSConfirm
+        open={pendingBatchDelete}
+        onClose={() => setPendingBatchDelete(false)}
+        onConfirm={confirmBatchDelete}
+        title="Delete Files"
+        message={`Are you sure you want to delete ${selectedFileIds.size} file(s)?`}
         confirmLabel="Delete"
         danger
       />
