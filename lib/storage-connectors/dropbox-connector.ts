@@ -268,7 +268,7 @@ export class DropboxConnector implements IStorageConnector {
     if (!response.ok) throw new Error(`Dropbox delete error: ${response.status}`);
   }
 
-  async searchFiles(userId: string, query: string): Promise<CloudFile[]> {
+  async searchFiles(userId: string, query: string): Promise<{ files: CloudFile[]; nextPageToken?: string }> {
     const accessToken = await this.getValidToken(userId);
     const response = await fetch('https://api.dropboxapi.com/2/files/search_v2', {
       method: 'POST',
@@ -285,15 +285,17 @@ export class DropboxConnector implements IStorageConnector {
     if (!response.ok) throw new Error(`Dropbox search error: ${response.status}`);
     const data = await response.json();
 
-    return (data.matches || []).map((match: any) => ({
-      id: match.metadata?.metadata?.id || '',
-      name: match.metadata?.metadata?.name || '',
-      path: match.metadata?.metadata?.path_lower || '',
-      size: match.metadata?.metadata?.size,
-      mimeType: this.inferMimeType(match.metadata?.metadata?.name || '', match.metadata?.metadata?.['.tag']),
-      modifiedTime: match.metadata?.metadata?.server_modified,
-      isFolder: match.metadata?.metadata?.['.tag'] === 'folder',
-    }));
+    return {
+      files: (data.matches || []).map((match: any) => ({
+        id: match.metadata?.metadata?.id || '',
+        name: match.metadata?.metadata?.name || '',
+        path: match.metadata?.metadata?.path_lower || '',
+        size: match.metadata?.metadata?.size,
+        mimeType: this.inferMimeType(match.metadata?.metadata?.name || '', match.metadata?.metadata?.['.tag']),
+        modifiedTime: match.metadata?.metadata?.server_modified,
+        isFolder: match.metadata?.metadata?.['.tag'] === 'folder',
+      })),
+    };
   }
 
   private async getValidToken(userId: string): Promise<string> {

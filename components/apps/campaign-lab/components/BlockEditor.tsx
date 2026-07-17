@@ -25,7 +25,8 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
   const [mentionMenu, setMentionMenu] = useState<{ index: number, x: number, y: number, query: string, selectedIndex: number } | null>(null);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const [toggleOpen, setToggleOpen] = useState<Record<string, boolean>>({});
-  const menuRef = useRef<HTMLDivElement>(null);
+  const slashMenuRef = useRef<HTMLDivElement>(null);
+  const mentionMenuRef = useRef<HTMLDivElement>(null);
 
   const updateBlock = (index: number, updates: Partial<Block>) => {
     const newBlocks = [...blocks];
@@ -240,8 +241,9 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
   
   // Scroll selected menu item into view
   useEffect(() => {
-    if (menuRef.current) {
-      const selectedEl = menuRef.current.querySelector('.bg-black\\/5') as HTMLElement;
+    const activeRef = slashMenu ? slashMenuRef : mentionMenu ? mentionMenuRef : null;
+    if (activeRef?.current) {
+      const selectedEl = activeRef.current.querySelector('.bg-black\\/5') as HTMLElement;
       if (selectedEl) {
          selectedEl.scrollIntoView({ block: 'nearest' });
       }
@@ -410,7 +412,7 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
         )
       })}
       {slashMenu && filteredSlashCommands.length > 0 && typeof document !== 'undefined' && createPortal(
-        <div ref={menuRef} className="fixed z-[9999] bg-white border border-black/10 rounded-xl shadow-2xl w-72 flex flex-col py-2" style={{ top: Math.min(slashMenu.y + 4, window.innerHeight - 300), left: Math.min(slashMenu.x, window.innerWidth - 300) }}>
+        <div ref={slashMenuRef} className="fixed z-[9999] bg-white border border-black/10 rounded-xl shadow-2xl w-72 flex flex-col py-2" style={{ top: Math.min(slashMenu.y + 4, window.innerHeight - 300), left: Math.min(slashMenu.x, window.innerWidth - 300) }}>
            <div className="px-3 pb-2 text-[10px] font-bold tracking-widest text-[#37352f]/50 uppercase">Basic Blocks</div>
            <div className="flex-1 overflow-y-auto max-h-[300px] custom-scrollbar">
              {filteredSlashCommands.map((cmd, i) => (
@@ -426,7 +428,7 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
       )}
 
       {mentionMenu && filteredMembers.length > 0 && typeof document !== 'undefined' && createPortal(
-        <div ref={menuRef} className="fixed z-[9999] bg-white border border-black/10 rounded-xl shadow-2xl w-56 flex flex-col py-2" style={{ top: Math.min(mentionMenu.y + 4, window.innerHeight - 200), left: Math.min(mentionMenu.x, window.innerWidth - 200) }}>
+        <div ref={mentionMenuRef} className="fixed z-[9999] bg-white border border-black/10 rounded-xl shadow-2xl w-56 flex flex-col py-2" style={{ top: Math.min(mentionMenu.y + 4, window.innerHeight - 200), left: Math.min(mentionMenu.x, window.innerWidth - 200) }}>
            <div className="px-3 pb-2 text-[10px] font-bold tracking-widest text-[#37352f]/50 uppercase">Team Members</div>
            <div className="flex-1 overflow-y-auto max-h-[200px] custom-scrollbar">
              {filteredMembers.map((member, i) => (

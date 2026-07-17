@@ -144,6 +144,7 @@ const defaultWindow = {
 
 const defaultTheme = {
   wallpaper: 'test-wallpaper.jpg',
+  setWallpaper: vi.fn(),
   themeColor: '#000',
   fontFamily: '"ABeeZee", system-ui, sans-serif',
   screenShader: 'none',

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { get as idbGet, set as idbSet, del as idbDel, clear } from 'idb-keyval';
+import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
 
 export type OSRole = 'admin' | 'filmmaker' | 'technician' | 'user';
 
@@ -55,8 +55,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const supabase = createClient();
       await supabase.auth.signOut();
     } catch { /* ignore */ }
-    await clear();
-    localStorage.clear();
+    await idbDel('anichisom_os_user_cache');
+    localStorage.removeItem('anichisom_terminal_history');
+    localStorage.removeItem('anichisom_fs_current_path');
     window.location.reload();
   },
 

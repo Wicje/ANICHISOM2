@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ActivityTab, FileNode } from '../types';
 import { FS } from '@/lib/fs';
 import { Settings, File as FileIcon, Search, Plus, RefreshCcw, GitBranch, Bug, ChevronDown, ChevronRight, Folder, Check, Trash2 } from 'lucide-react';
@@ -27,34 +27,26 @@ export function Sidebar({ activityTab, setActivityTab, files, activeFileId, setA
   const [expandedFolders, setExpandedFolders] = useState<string[]>(['src', 'root', 'Desktop', 'Documents', 'Downloads', 'Media']);
   const [commitMsg, setCommitMsg] = useState('');
 
-  // Inline modal state
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalTitle, setModalTitle] = useState('');
-  const [modalPlaceholder, setModalPlaceholder] = useState('');
-  const [modalValue, setModalValue] = useState('');
-  const [modalMode, setModalMode] = useState<'input' | 'confirm'>('input');
-  const [modalOnSubmit, setModalOnSubmit] = useState<(val: string) => void>(() => {});
+  const [modal, setModal] = useState<{
+    type: 'rename' | 'delete' | 'newFile' | 'newFolder' | 'newProject' | null;
+    title?: string;
+    placeholder?: string;
+    value?: string;
+    mode?: 'input' | 'confirm';
+    onSubmit?: (val: string) => void;
+  }>({ type: null });
 
   const openInputModal = (title: string, placeholder: string, onSubmit: (val: string) => void) => {
-    setModalTitle(title);
-    setModalPlaceholder(placeholder);
-    setModalValue('');
-    setModalMode('input');
-    setModalOnSubmit(() => onSubmit);
-    setModalOpen(true);
+    setModal({ type: 'newFile', title, placeholder, value: '', mode: 'input', onSubmit });
   };
 
   const openConfirmModal = (title: string, onSubmit: (val: string) => void) => {
-    setModalTitle(title);
-    setModalValue('');
-    setModalMode('confirm');
-    setModalOnSubmit(() => onSubmit);
-    setModalOpen(true);
+    setModal({ type: 'delete', title, value: '', mode: 'confirm', onSubmit });
   };
 
   const handleModalSubmit = () => {
-    modalOnSubmit(modalValue);
-    setModalOpen(false);
+    modal.onSubmit?.(modal.value || '');
+    setModal({ type: null });
   };
 
   // Build a hierarchical tree of files from flat paths
@@ -338,27 +330,27 @@ export function Sidebar({ activityTab, setActivityTab, files, activeFileId, setA
       </div>
 
       {/* Inline Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50" onClick={() => setModalOpen(false)}>
+      {modal.type && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50" onClick={() => setModal({ type: null })}>
           <div className="bg-[#252526] border border-[#3c3c3c] rounded-lg shadow-2xl p-5 w-80" onClick={e => e.stopPropagation()}>
-            <div className="text-sm font-medium text-white mb-3">{modalTitle}</div>
-            {modalMode === 'input' ? (
+            <div className="text-sm font-medium text-white mb-3">{modal.title}</div>
+            {modal.mode === 'input' ? (
               <input
                 type="text"
-                value={modalValue}
-                onChange={e => setModalValue(e.target.value)}
-                placeholder={modalPlaceholder}
+                value={modal.value || ''}
+                onChange={e => setModal(prev => ({ ...prev, value: e.target.value }))}
+                placeholder={modal.placeholder}
                 className="w-full bg-[#3c3c3c] border border-[#555] rounded px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:border-blue-500 mb-4"
                 autoFocus
-                onKeyDown={e => { if (e.key === 'Enter') handleModalSubmit(); if (e.key === 'Escape') setModalOpen(false); }}
+                onKeyDown={e => { if (e.key === 'Enter') handleModalSubmit(); if (e.key === 'Escape') setModal({ type: null }); }}
               />
             ) : (
-              <p className="text-xs text-[#cccccc] mb-4">{modalTitle}</p>
+              <p className="text-xs text-[#cccccc] mb-4">{modal.title}</p>
             )}
             <div className="flex justify-end gap-2">
-              <button onClick={() => setModalOpen(false)} className="px-3 py-1.5 text-xs text-[#cccccc] hover:bg-[#3c3c3c] rounded">Cancel</button>
+              <button onClick={() => setModal({ type: null })} className="px-3 py-1.5 text-xs text-[#cccccc] hover:bg-[#3c3c3c] rounded">Cancel</button>
               <button onClick={handleModalSubmit} className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded">
-                {modalMode === 'confirm' ? 'Delete' : 'Create'}
+                {modal.mode === 'confirm' ? 'Delete' : 'Create'}
               </button>
             </div>
           </div>

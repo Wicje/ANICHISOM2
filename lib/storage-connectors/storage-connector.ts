@@ -102,7 +102,7 @@ export interface IStorageConnector {
   deleteFile(userId: string, fileId: string): Promise<void>;
 
   /** Search files by name */
-  searchFiles(userId: string, query: string): Promise<CloudFile[]>;
+  searchFiles(userId: string, query: string): Promise<{ files: CloudFile[]; nextPageToken?: string }>;
 
   /** Get storage quota (total and used bytes) for a user */
   getQuota?(userId: string): Promise<{ total: number; used: number }>;

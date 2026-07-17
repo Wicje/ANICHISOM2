@@ -94,11 +94,16 @@ export class OneDriveConnector implements IStorageConnector {
     await TokenStore.remove(userId, 'onedrive');
   }
 
-  async listFiles(userId: string, path?: string): Promise<{ files: CloudFile[] }> {
+  async listFiles(userId: string, path?: string, pageToken?: string): Promise<{ files: CloudFile[]; nextPageToken?: string }> {
     const token = await this.getToken(userId);
-    const endpoint = !path || path === '/'
-      ? '/drive/root/children'
-      : `/drive/root:/${encodeURIComponent(path)}:/children`;
+    let endpoint: string;
+    if (pageToken) {
+      endpoint = pageToken; // pageToken is the full @odata.nextLink URL
+    } else {
+      endpoint = !path || path === '/'
+        ? '/drive/root/children'
+        : `/drive/root:/${encodeURIComponent(path)}:/children`;
+    }
 
     const resp = await this.graphFetch(endpoint, token);
     if (!resp.ok) throw new Error(`Failed to list: ${resp.statusText}`);
@@ -115,7 +120,10 @@ export class OneDriveConnector implements IStorageConnector {
       webUrl: item.webUrl as string,
     }));
 
-    return { files };
+    return {
+      files,
+      nextPageToken: data['@odata.nextLink'] || undefined,
+    };
   }
 
   async readFile(userId: string, fileId: string): Promise<CloudFileContent> {
@@ -205,7 +213,7 @@ export class OneDriveConnector implements IStorageConnector {
     if (!resp.ok) throw new Error(`Failed to delete: ${resp.statusText}`);
   }
 
-  async searchFiles(userId: string, query: string): Promise<CloudFile[]> {
+  async searchFiles(userId: string, query: string): Promise<{ files: CloudFile[]; nextPageToken?: string }> {
     const token = await this.getToken(userId);
     const resp = await this.graphFetch(
       `/drive/root/search(q='${encodeURIComponent(query)}')`,
@@ -214,15 +222,18 @@ export class OneDriveConnector implements IStorageConnector {
     if (!resp.ok) throw new Error(`Failed to search: ${resp.statusText}`);
     const data = await resp.json();
 
-    return (data.value || []).map((item: Record<string, unknown>) => ({
-      id: item.id as string,
-      name: item.name as string,
-      path: (item.parentReference as Record<string, unknown>)?.path as string || '',
-      mimeType: (item.file as Record<string, unknown>)?.mimeType as string || 'inode/directory',
-      size: item.size as number,
-      isFolder: !!item.folder,
-      modifiedTime: item.lastModifiedDateTime as string,
-    }));
+    return {
+      files: (data.value || []).map((item: Record<string, unknown>) => ({
+        id: item.id as string,
+        name: item.name as string,
+        path: (item.parentReference as Record<string, unknown>)?.path as string || '',
+        mimeType: (item.file as Record<string, unknown>)?.mimeType as string || 'inode/directory',
+        size: item.size as number,
+        isFolder: !!item.folder,
+        modifiedTime: item.lastModifiedDateTime as string,
+      })),
+      nextPageToken: data['@odata.nextLink'] || undefined,
+    };
   }
 
   private async getToken(userId: string): Promise<string> {
@@ -261,7 +272,8 @@ export class OneDriveConnector implements IStorageConnector {
   }
 
   private async graphFetch(endpoint: string, token: string, init?: RequestInit): Promise<Response> {
-    return fetch(`${GRAPH_API_BASE}${endpoint}`, {
+    const url = endpoint.startsWith('http') ? endpoint : `${GRAPH_API_BASE}${endpoint}`;
+    return fetch(url, {
       ...init,
       headers: {
         ...init?.headers,

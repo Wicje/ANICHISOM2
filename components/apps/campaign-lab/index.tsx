@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useCallback } from 'react';
+import React, { useEffect, useMemo, useCallback, useRef } from 'react';
 import { OSWindow } from '@/lib/os-context';
 import { useOS } from '@/lib/os-context';
 import {
@@ -99,6 +99,9 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
     addCommentWithMentions,
   } = store;
 
+  const pagesRef = useRef(pages);
+  useEffect(() => { pagesRef.current = pages; }, [pages]);
+
   const activePage = useMemo(() => pages.find(p => p.id === activePageId && !p.trash), [pages, activePageId]);
   const breadcrumbs = useMemo(() => activePageId ? getBreadcrumbs(activePageId) : [], [activePageId, pages]);
   const currentUserNotifications = useMemo(
@@ -168,25 +171,26 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
 
   const deletePage = useCallback((id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    // Find all Yjs page IDs to delete
+    const currentPages = pagesRef.current;
     const collectDescendants = (pageId: string): string[] => {
-      const children = pages.filter(p => p.parentId === pageId);
+      const children = currentPages.filter(p => p.parentId === pageId);
       return [pageId, ...children.flatMap(c => collectDescendants(c.id))];
     };
     const idsToTrash = collectDescendants(id);
     idsToTrash.forEach(trashId => updateYPage({ id: trashId, trash: true, trashedAt: Date.now() }));
     storeDeletePage(id);
-  }, [pages, updateYPage, storeDeletePage]);
+  }, [updateYPage, storeDeletePage]);
 
   const restorePage = useCallback((id: string) => {
+    const currentPages = pagesRef.current;
     const collectDescendants = (pageId: string): string[] => {
-      const children = pages.filter(p => p.parentId === pageId && p.trash);
+      const children = currentPages.filter(p => p.parentId === pageId && p.trash);
       return [pageId, ...children.flatMap(c => collectDescendants(c.id))];
     };
     const idsToRestore = collectDescendants(id);
     idsToRestore.forEach(restoreId => updateYPage({ id: restoreId, trash: false, trashedAt: undefined }));
     storeRestorePage(id);
-  }, [pages, updateYPage, storeRestorePage]);
+  }, [updateYPage, storeRestorePage]);
 
   const updatePage = useCallback((id: string, updates: Partial<Page>) => {
     updateYPage({ id, ...updates });

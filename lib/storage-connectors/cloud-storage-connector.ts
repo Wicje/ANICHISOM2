@@ -1,4 +1,7 @@
 /**
+ * @deprecated This file is dead code. The canonical CloudFile interface is in
+ * storage-connector.ts. Kept only in case external plugins import it.
+ *
  * Cloud Storage Connector Interface
  *
  * Unified interface for different cloud storage providers

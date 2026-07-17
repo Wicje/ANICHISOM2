@@ -45,6 +45,9 @@ export function useCodeEditorState(projectId: string, initialContent: string | u
   const [loaded, setLoaded] = useState(false);
   const isSyncingRef = useRef(false);
 
+  const codeRef = useRef(code);
+  useEffect(() => { codeRef.current = code; }, [code]);
+
   useEffect(() => {
     let cancelled = false;
     setLoaded(false);
@@ -74,6 +77,23 @@ export function useCodeEditorState(projectId: string, initialContent: string | u
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, workspaceMode, currentUser, activeFileId, projectId, initialContent]);
+
+  useEffect(() => {
+    const handleFsChanged = async (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!detail?.path || detail.path !== activeFileId) return;
+      if (isSyncingRef.current) return;
+      try {
+        const localFile = await FS.read(activeFileId);
+        if (localFile && typeof localFile.content === 'string' && localFile.content !== codeRef.current) {
+          isSyncingRef.current = true;
+          setCode(localFile.content);
+        }
+      } catch { /* ignore */ }
+    };
+    window.addEventListener('os:fs-changed', handleFsChanged);
+    return () => window.removeEventListener('os:fs-changed', handleFsChanged);
+  }, [activeFileId]);
 
   const saveCodeRef = useRef<NodeJS.Timeout | null>(null);
   

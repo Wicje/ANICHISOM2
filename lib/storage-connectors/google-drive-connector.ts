@@ -306,7 +306,7 @@ export class GoogleDriveConnector implements IStorageConnector {
     if (!response.ok) throw new Error(`Google Drive delete error: ${response.status}`);
   }
 
-  async searchFiles(userId: string, query: string): Promise<CloudFile[]> {
+  async searchFiles(userId: string, query: string): Promise<{ files: CloudFile[]; nextPageToken?: string }> {
     const accessToken = await this.getValidToken(userId);
     const params = new URLSearchParams({
       q: `name contains '${query}' and trashed = false`,
@@ -320,17 +320,19 @@ export class GoogleDriveConnector implements IStorageConnector {
     if (!response.ok) throw new Error(`Google Drive search error: ${response.status}`);
 
     const data = await response.json();
-    return (data.files || []).map((f: any) => ({
-      id: f.id,
-      name: f.name,
-      path: f.parents?.[0] || 'root',
-      size: f.size ? parseInt(f.size) : undefined,
-      mimeType: f.mimeType,
-      modifiedTime: f.modifiedTime,
-      isFolder: f.mimeType === 'application/vnd.google-apps.folder',
-      parentId: f.parents?.[0],
-      webUrl: f.webViewLink,
-    }));
+    return {
+      files: (data.files || []).map((f: any) => ({
+        id: f.id,
+        name: f.name,
+        path: f.parents?.[0] || 'root',
+        size: f.size ? parseInt(f.size) : undefined,
+        mimeType: f.mimeType,
+        modifiedTime: f.modifiedTime,
+        isFolder: f.mimeType === 'application/vnd.google-apps.folder',
+        parentId: f.parents?.[0],
+        webUrl: f.webViewLink,
+      })),
+    };
   }
 
   private async refreshAccessToken(userId: string): Promise<string> {

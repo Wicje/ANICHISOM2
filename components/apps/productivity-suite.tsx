@@ -568,6 +568,7 @@ function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab, 
     cellsMap.forEach((value: any, key: string) => {
       initial[key] = value;
     });
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setData(initial);
     dataRef.current = initial;
 
@@ -639,6 +640,7 @@ function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab, 
       
       {/* Body */}
       <div className="flex flex-col w-max">
+        {/* eslint-disable-next-line react-hooks/refs */}
         {rows.map(r => (
           <div key={r} className="flex border-b border-slate-100 group">
             <div className="w-10 h-6 shrink-0 border-r border-slate-200 bg-slate-50 flex items-center justify-center text-[10px] text-slate-400 group-hover:bg-slate-200 group-hover:text-slate-600 sticky left-0 z-10">
@@ -684,6 +686,8 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
   const fabricCanvasRef = useRef<any>(null);
   const [loaded, setLoaded] = useState(false);
   const isSyncingRef = useRef(false);
+  const onDirtyRef = useRef(onDirty);
+  useEffect(() => { onDirtyRef.current = onDirty; }, [onDirty]);
   // Fabric canvas state is too complex for Yjs UndoManager to track granularly — keep snapshot undo/redo
   const undoStackRef = useRef<string[]>([]);
   const redoStackRef = useRef<string[]>([]);
@@ -752,6 +756,11 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
                 canvas.renderAll();
                 previousStateRef.current = JSON.stringify(canvas.toJSON());
                 setLoaded(true);
+             }).catch((err) => {
+                console.warn('loadFromJSON failed', err);
+                setupDefault();
+                previousStateRef.current = JSON.stringify(canvas.toJSON());
+                setLoaded(true);
              });
            } catch {
              console.warn('Corrupt slide state, loading defaults');
@@ -779,6 +788,9 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
             canvas.loadFromJSON(JSON.parse(remoteState)).then(() => {
               canvas.renderAll();
               setTimeout(() => { isSyncingRef.current = false; }, 100);
+            }).catch((err) => {
+              console.warn('loadFromJSON sync failed', err);
+              isSyncingRef.current = false;
             });
           } catch {
             isSyncingRef.current = false;
@@ -816,8 +828,8 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
            canvasMap.set('state', stateStr);
          }
 
-         setTimeout(() => { isSyncingRef.current = false; }, 100);
-         onDirty?.();
+          setTimeout(() => { isSyncingRef.current = false; }, 100);
+          onDirtyRef.current?.();
       };
 
       canvas.on('object:modified', handleModify);
@@ -854,6 +866,9 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
       canvas.loadFromJSON(JSON.parse(prevState)).then(() => {
         canvas.renderAll();
         setTimeout(() => { isSyncingRef.current = false; }, 100);
+      }).catch((err) => {
+        console.warn('loadFromJSON undo failed', err);
+        isSyncingRef.current = false;
       });
     } catch {
       isSyncingRef.current = false;
@@ -876,6 +891,9 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
       canvas.loadFromJSON(JSON.parse(nextState)).then(() => {
         canvas.renderAll();
         setTimeout(() => { isSyncingRef.current = false; }, 100);
+      }).catch((err) => {
+        console.warn('loadFromJSON redo failed', err);
+        isSyncingRef.current = false;
       });
     } catch {
       isSyncingRef.current = false;
