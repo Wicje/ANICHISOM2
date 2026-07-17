@@ -164,22 +164,6 @@ create table if not exists public.plugins (
 );
 
 -- ============================================================================
--- ROW LEVEL SECURITY  (RLS)
--- ============================================================================
--- Enable RLS on every table. Policies below allow anon + authenticated access.
--- For production, tighten these policies to match your auth model.
-
-alter table public.users             enable row level security;
-alter table public.workspaces        enable row level security;
-alter table public.projects          enable row level security;
-alter table public.files             enable row level security;
-alter table public.events            enable row level security;
-alter table public.presence          enable row level security;
-alter table public.snapshots         enable row level security;
-alter table public.apps              enable row level security;
-alter table public.plugins           enable row level security;
-
--- ============================================================================
 -- 10. INVITES  (beta invite codes)
 -- ============================================================================
 create table if not exists public.invites (
@@ -198,48 +182,228 @@ create table if not exists public.invites (
 
 create index if not exists idx_invites_code on public.invites (code);
 
+-- ============================================================================
+-- ROW LEVEL SECURITY (RLS) — User-scoped policies
+-- ============================================================================
+-- Security model:
+--   • Users authenticate via Supabase Auth. auth.uid() returns their UUID.
+--   • public.users maps auth.uid() → id column (set by handle_new_user trigger).
+--   • isAdmin flag on the user row grants admin-level access.
+--   • Most tables reference an ownerId / userId / workspaceId that ties rows to
+--     a specific user or workspace membership (members jsonb array on workspaces).
+--   • Policies are restrictive: every table requires auth.uid() to match a
+--     relevant ownership or membership column. No row is accessible without
+--     passing the policy check.
+
+alter table public.users             enable row level security;
+alter table public.workspaces        enable row level security;
+alter table public.projects          enable row level security;
+alter table public.files             enable row level security;
+alter table public.events            enable row level security;
+alter table public.presence          enable row level security;
+alter table public.snapshots         enable row level security;
+alter table public.apps              enable row level security;
+alter table public.plugins           enable row level security;
 alter table public.invites           enable row level security;
-create policy "Invites: allow all" on public.invites
-  for all using (true) with check (true);
 
--- Permissive policies: allow all operations for anon + authenticated.
--- Replace these with tighter policies for production.
+-- Drop old permissive policies
+drop policy if exists "Users: allow all" on public.users;
+drop policy if exists "Workspaces: allow all" on public.workspaces;
+drop policy if exists "Projects: allow all" on public.projects;
+drop policy if exists "Files: allow all" on public.files;
+drop policy if exists "Events: allow all" on public.events;
+drop policy if exists "Presence: allow all" on public.presence;
+drop policy if exists "Snapshots: allow all" on public.snapshots;
+drop policy if exists "Apps: allow all" on public.apps;
+drop policy if exists "Plugins: allow all" on public.plugins;
+drop policy if exists "Invites: allow all" on public.invites;
 
--- USERS
-create policy "Users: allow all" on public.users
-  for all using (true) with check (true);
+-- USERS: anyone authenticated can read; users can only update their own row; admins can do everything
+create policy "Users: read own or admin" on public.users
+  for select using (auth.uid()::text = id or exists (select 1 from public.users where id = auth.uid()::text and "isAdmin" = true));
 
--- WORKSPACES
-create policy "Workspaces: allow all" on public.workspaces
-  for all using (true) with check (true);
+create policy "Users: update own" on public.users
+  for update using (auth.uid()::text = id);
 
--- PROJECTS
-create policy "Projects: allow all" on public.projects
-  for all using (true) with check (true);
+-- WORKSPACES: owner or member can read; owner can modify
+create policy "Workspaces: read owner or member" on public.workspaces
+  for select using (
+    "ownerId" = auth.uid()::text
+    or auth.uid()::text = any(select jsonb_array_elements_text("members"))
+  );
 
--- FILES
-create policy "Files: allow all" on public.files
-  for all using (true) with check (true);
+create policy "Workspaces: insert owner" on public.workspaces
+  for insert with check ("ownerId" = auth.uid()::text);
 
--- EVENTS
-create policy "Events: allow all" on public.events
-  for all using (true) with check (true);
+create policy "Workspaces: update owner" on public.workspaces
+  for update using ("ownerId" = auth.uid()::text);
 
--- PRESENCE
-create policy "Presence: allow all" on public.presence
-  for all using (true) with check (true);
+create policy "Workspaces: delete owner" on public.workspaces
+  for delete using ("ownerId" = auth.uid()::text);
 
--- SNAPSHOTS
-create policy "Snapshots: allow all" on public.snapshots
-  for all using (true) with check (true);
+-- PROJECTS: workspace owner or member can read/write
+create policy "Projects: read workspace member" on public.projects
+  for select using (
+    exists (
+      select 1 from public.workspaces
+      where id = "workspaceId"
+      and ("ownerId" = auth.uid()::text or auth.uid()::text = any(select jsonb_array_elements_text("members")))
+    )
+  );
 
--- APPS
-create policy "Apps: allow all" on public.apps
-  for all using (true) with check (true);
+create policy "Projects: insert workspace member" on public.projects
+  for insert with check (
+    exists (
+      select 1 from public.workspaces
+      where id = "workspaceId"
+      and ("ownerId" = auth.uid()::text or auth.uid()::text = any(select jsonb_array_elements_text("members")))
+    )
+  );
 
--- PLUGINS
-create policy "Plugins: allow all" on public.plugins
-  for all using (true) with check (true);
+create policy "Projects: update workspace member" on public.projects
+  for update using (
+    exists (
+      select 1 from public.workspaces
+      where id = "workspaceId"
+      and ("ownerId" = auth.uid()::text or auth.uid()::text = any(select jsonb_array_elements_text("members")))
+    )
+  );
+
+create policy "Projects: delete workspace member" on public.projects
+  for delete using (
+    exists (
+      select 1 from public.workspaces
+      where id = "workspaceId"
+      and ("ownerId" = auth.uid()::text or auth.uid()::text = any(select jsonb_array_elements_text("members")))
+    )
+  );
+
+-- FILES: project workspace member can read/write
+create policy "Files: read project member" on public.files
+  for select using (
+    exists (
+      select 1 from public.projects p
+      join public.workspaces w on w.id = p."workspaceId"
+      where p.id = "projectId"
+      and (w."ownerId" = auth.uid()::text or auth.uid()::text = any(select jsonb_array_elements_text(w."members")))
+    )
+  );
+
+create policy "Files: insert project member" on public.files
+  for insert with check (
+    exists (
+      select 1 from public.projects p
+      join public.workspaces w on w.id = p."workspaceId"
+      where p.id = "projectId"
+      and (w."ownerId" = auth.uid()::text or auth.uid()::text = any(select jsonb_array_elements_text(w."members")))
+    )
+  );
+
+create policy "Files: update project member" on public.files
+  for update using (
+    exists (
+      select 1 from public.projects p
+      join public.workspaces w on w.id = p."workspaceId"
+      where p.id = "projectId"
+      and (w."ownerId" = auth.uid()::text or auth.uid()::text = any(select jsonb_array_elements_text(w."members")))
+    )
+  );
+
+create policy "Files: delete project member" on public.files
+  for delete using (
+    exists (
+      select 1 from public.projects p
+      join public.workspaces w on w.id = p."workspaceId"
+      where p.id = "projectId"
+      and (w."ownerId" = auth.uid()::text or auth.uid()::text = any(select jsonb_array_elements_text(w."members")))
+    )
+  );
+
+-- EVENTS: workspace member can read; creator can insert
+create policy "Events: read workspace member" on public.events
+  for select using (
+    exists (
+      select 1 from public.workspaces
+      where id = "workspaceId"
+      and ("ownerId" = auth.uid()::text or auth.uid()::text = any(select jsonb_array_elements_text("members")))
+    )
+  );
+
+create policy "Events: insert own" on public.events
+  for insert with check ("userId" = auth.uid()::text);
+
+-- PRESENCE: workspace member can read/write
+create policy "Presence: read workspace member" on public.presence
+  for select using (
+    exists (
+      select 1 from public.workspaces
+      where id = "workspaceId"
+      and ("ownerId" = auth.uid()::text or auth.uid()::text = any(select jsonb_array_elements_text("members")))
+    )
+  );
+
+create policy "Presence: upsert own" on public.presence
+  for all using ("userId" = auth.uid()::text);
+
+-- SNAPSHOTS: project workspace member can read/write
+create policy "Snapshots: read project member" on public.snapshots
+  for select using (
+    exists (
+      select 1 from public.projects p
+      join public.workspaces w on w.id = p."workspaceId"
+      where p.id = "projectId"
+      and (w."ownerId" = auth.uid()::text or auth.uid()::text = any(select jsonb_array_elements_text(w."members")))
+    )
+  );
+
+create policy "Snapshots: insert project member" on public.snapshots
+  for insert with check (
+    exists (
+      select 1 from public.projects p
+      join public.workspaces w on w.id = p."workspaceId"
+      where p.id = "projectId"
+      and (w."ownerId" = auth.uid()::text or auth.uid()::text = any(select jsonb_array_elements_text(w."members")))
+    )
+  );
+
+-- APPS: users can read all apps, write only their own
+create policy "Apps: read all" on public.apps
+  for select using (true);
+
+create policy "Apps: insert own" on public.apps
+  for insert with check ("userId" = auth.uid()::text or "ownerId" = auth.uid()::text);
+
+create policy "Apps: update own" on public.apps
+  for update using ("userId" = auth.uid()::text or "ownerId" = auth.uid()::text);
+
+create policy "Apps: delete own" on public.apps
+  for delete using ("userId" = auth.uid()::text or "ownerId" = auth.uid()::text);
+
+-- PLUGINS: anyone authenticated can read; creator can modify
+create policy "Plugins: read all" on public.plugins
+  for select using (true);
+
+create policy "Plugins: insert authenticated" on public.plugins
+  for insert with check (auth.uid() is not null);
+
+-- INVITES: anyone authenticated can read valid invites (for signup validation); admins can create/modify
+create policy "Invites: read valid" on public.invites
+  for select using (true);
+
+create policy "Invites: insert admin" on public.invites
+  for insert with check (
+    exists (select 1 from public.users where id = auth.uid()::text and "isAdmin" = true)
+  );
+
+create policy "Invites: update admin" on public.invites
+  for update using (
+    exists (select 1 from public.users where id = auth.uid()::text and "isAdmin" = true)
+  );
+
+create policy "Invites: delete admin" on public.invites
+  for delete using (
+    exists (select 1 from public.users where id = auth.uid()::text and "isAdmin" = true)
+  );
 
 -- ============================================================================
 -- REALTIME  (enable for tables that need live subscriptions)

@@ -316,10 +316,102 @@ export const FS = {
     await del(`file_${path}`);
   },
 
+  _isDirectory: async (path: string): Promise<boolean> => {
+    try {
+      const parts = path.split('/').filter(Boolean);
+      let current = await navigator.storage.getDirectory();
+      for (const part of parts) {
+        current = await current.getDirectoryHandle(part);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  _moveDirectory: async (srcPath: string, destPath: string): Promise<void> => {
+    await FS.mkdir(destPath);
+    const children = await FS.readDir(srcPath);
+    for (const child of children) {
+      if (child.name === '.keep') continue;
+      const childSrc = `${srcPath}/${child.name}`;
+      const childDest = `${destPath}/${child.name}`;
+      if (child.isFolder) {
+        await FS._moveDirectory(childSrc, childDest);
+      } else {
+        const file = await FS.read(childSrc);
+        if (file) {
+          let content: string | Blob = file.content || '';
+          if (file.content && file.content.startsWith('blob:')) {
+            try {
+              const res = await fetch(file.content);
+              if (!res.ok) throw new Error(`Failed to fetch blob for ${childSrc}`);
+              content = await res.blob();
+            } catch (e) {
+              console.error(`Failed to read blob for ${childSrc}:`, e);
+              continue;
+            }
+          }
+          await FS.write(childDest, content, file.mimeType);
+        }
+        try {
+          await FS.delete(childSrc);
+          try {
+            const { dir, name } = await FS._resolvePath(childSrc);
+            await dir.removeEntry(`${name}.meta`);
+          } catch { /* no meta */ }
+        } catch (e) {
+          console.warn(`Failed to delete source after move: ${childSrc}`, e);
+        }
+      }
+    }
+    try {
+      await FS.delete(srcPath);
+    } catch (e) {
+      console.warn(`Failed to delete source directory: ${srcPath}`, e);
+    }
+  },
+
+  _copyDirectory: async (srcPath: string, destPath: string): Promise<void> => {
+    await FS.mkdir(destPath);
+    const children = await FS.readDir(srcPath);
+    for (const child of children) {
+      if (child.name === '.keep') continue;
+      const childSrc = `${srcPath}/${child.name}`;
+      const childDest = `${destPath}/${child.name}`;
+      if (child.isFolder) {
+        await FS._copyDirectory(childSrc, childDest);
+      } else {
+        const file = await FS.read(childSrc);
+        if (file) {
+          let content: string | Blob = file.content || '';
+          if (file.content && file.content.startsWith('blob:')) {
+            try {
+              const res = await fetch(file.content);
+              if (!res.ok) throw new Error(`Failed to fetch blob for ${childSrc}`);
+              content = await res.blob();
+            } catch (e) {
+              console.error(`Failed to read blob for ${childSrc}:`, e);
+              continue;
+            }
+          }
+          await FS.write(childDest, content, file.mimeType);
+        }
+      }
+    }
+  },
+
   // Move a file or directory from one path to another (handles binary blobs)
   move: async (srcPath: string, destPath: string): Promise<void> => {
     try {
       if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
+        const isDir = await FS._isDirectory(srcPath);
+
+        if (isDir) {
+          await FS._moveDirectory(srcPath, destPath);
+          return;
+        }
+
         const srcFile = await FS.read(srcPath);
         if (!srcFile) throw new Error(`Source not found: ${srcPath}`);
 
@@ -339,12 +431,20 @@ export const FS = {
         if (srcFile.content && srcFile.content.startsWith('blob:')) {
           try {
             const res = await fetch(srcFile.content);
+            if (!res.ok) throw new Error(`Failed to fetch blob for ${srcPath}`);
             writeContent = await res.blob();
-          } catch { /* fall back to URL string */ }
+          } catch (e) {
+            console.error(`Failed to read blob for ${srcPath}:`, e);
+            return;
+          }
         }
 
         await FS.write(destPath, writeContent, mimeType);
-        await FS.delete(srcPath);
+        try {
+          await FS.delete(srcPath);
+        } catch (e) {
+          console.warn(`Failed to delete source after move: ${srcPath}`, e);
+        }
         return;
       }
     } catch (e) {
@@ -360,6 +460,13 @@ export const FS = {
   copy: async (srcPath: string, destPath: string): Promise<void> => {
     try {
       if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
+        const isDir = await FS._isDirectory(srcPath);
+
+        if (isDir) {
+          await FS._copyDirectory(srcPath, destPath);
+          return;
+        }
+
         const srcFile = await FS.read(srcPath);
         if (!srcFile) throw new Error(`Source not found: ${srcPath}`);
 
@@ -378,8 +485,12 @@ export const FS = {
         if (srcFile.content && srcFile.content.startsWith('blob:')) {
           try {
             const res = await fetch(srcFile.content);
+            if (!res.ok) throw new Error(`Failed to fetch blob for ${srcPath}`);
             writeContent = await res.blob();
-          } catch { /* fall back to URL string */ }
+          } catch (e) {
+            console.error(`Failed to read blob for ${srcPath}:`, e);
+            return;
+          }
         }
 
         await FS.write(destPath, writeContent, mimeType);

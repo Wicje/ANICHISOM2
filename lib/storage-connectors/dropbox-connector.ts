@@ -41,7 +41,7 @@ export class DropboxConnector implements IStorageConnector {
   }
 
   async connect(userId: string, redirectUrl: string): Promise<ConnectResult> {
-    const state = Math.random().toString(36).substring(2);
+    const state = crypto.randomUUID();
     const authUrl = `https://www.dropbox.com/oauth2/authorize?` +
       `client_id=${this.clientId}&` +
       `response_type=code&` +
@@ -250,7 +250,7 @@ export class DropboxConnector implements IStorageConnector {
       id: entry.id,
       name: entry.name,
       path: entry.path_lower || entry.path_display || path,
-      mimeType: 'application/vnd.google-apps.folder',
+      mimeType: 'inode/directory',
       isFolder: true,
     };
   }
@@ -306,7 +306,7 @@ export class DropboxConnector implements IStorageConnector {
   }
 
   private inferMimeType(filename: string, tag: string): string {
-    if (tag === 'folder') return 'application/vnd.google-apps.folder';
+    if (tag === 'folder') return 'inode/directory';
     const ext = filename.split('.').pop()?.toLowerCase() || '';
     const mimeMap: Record<string, string> = {
       pdf: 'application/pdf',

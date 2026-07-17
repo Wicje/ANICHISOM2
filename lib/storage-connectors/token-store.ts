@@ -126,3 +126,24 @@ export const TokenStore = {
     return connected;
   },
 };
+
+// ── OAuth state CSRF protection ──────────────────────────────────────────
+
+const oauthStateStore = new Map<string, { userId: string; providerId: string; createdAt: number }>();
+const OAUTH_STATE_TTL = 10 * 60 * 1000; // 10 minutes
+
+export function storeOAuthState(state: string, userId: string, providerId: string): void {
+  const now = Date.now();
+  for (const [key, val] of oauthStateStore.entries()) {
+    if (now - val.createdAt > OAUTH_STATE_TTL) oauthStateStore.delete(key);
+  }
+  oauthStateStore.set(state, { userId, providerId, createdAt: now });
+}
+
+export function validateOAuthState(state: string): { userId: string; providerId: string } | null {
+  const entry = oauthStateStore.get(state);
+  if (!entry) return null;
+  oauthStateStore.delete(state); // One-time use
+  if (Date.now() - entry.createdAt > OAUTH_STATE_TTL) return null;
+  return { userId: entry.userId, providerId: entry.providerId };
+}

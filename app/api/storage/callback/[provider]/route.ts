@@ -11,18 +11,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { getStorageConnector } from '@/lib/storage-connectors/connector-registry';
+import { validateOAuthState } from '@/lib/storage-connectors/token-store';
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 function makeResultPage(provider: string, success: boolean, accountName?: string, error?: string) {
   const payload = JSON.stringify({ provider, success, accountName, error });
   const escapedPayload = payload.replace(/</g, '\\u003c');
+  const safeProvider = escapeHtml(provider);
+  const safeAccountName = escapeHtml(accountName || '');
+  const safeError = escapeHtml(error || '');
   return new NextResponse(
     `<!DOCTYPE html><html><head><title>Cloud Connected</title></head><body>
 <script>
 try {
-  window.parent.postMessage(${escapedPayload}, '*');
-  window.parent.postMessage({ type: 'storage-oauth-callback', provider: '${provider}', success: ${success}${accountName ? `, accountName: '${accountName.replace(/'/g, "\\'")}'` : ''}${error ? `, error: '${error}'` : ''} }, '*');
+  window.parent.postMessage(${escapedPayload}, window.location.origin);
+  window.parent.postMessage({ type: 'storage-oauth-callback', provider: '${safeProvider}', success: ${success}${accountName ? `, accountName: '${safeAccountName}'` : ''}${error ? `, error: '${safeError}'` : ''} }, window.location.origin);
 } catch(e) {}
-document.body.innerHTML = '<div style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;color:#666"><div style="text-align:center"><h2 style="color:${success ? '#22c55e' : '#ef4444'}">${success ? 'Connected!' : 'Failed'}</h2><p>${success ? accountName || provider + ' connected successfully.' : error || 'Connection failed.'}</p><p style="font-size:12px;color:#999">You can close this tab.</p></div></div>';
+document.body.innerHTML = '<div style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;color:#666"><div style="text-align:center"><h2 style="color:${success ? '#22c55e' : '#ef4444'}">${success ? 'Connected!' : 'Failed'}</h2><p>${success ? safeAccountName ? safeAccountName + ' connected successfully.' : safeProvider + ' connected successfully.' : safeError ? safeError : 'Connection failed.'}</p><p style="font-size:12px;color:#999">You can close this tab.</p></div></div>';
 </script>
 </body></html>`,
     {
@@ -48,6 +61,14 @@ export async function GET(
 
     if (!code) {
       return makeResultPage(provider, false, undefined, 'No authorization code received');
+    }
+
+    // Validate OAuth state (CSRF protection)
+    if (state) {
+      const stateData = validateOAuthState(state);
+      if (!stateData) {
+        return makeResultPage(provider, false, undefined, 'Invalid or expired OAuth state. Please try connecting again.');
+      }
     }
 
     // Validate session via Supabase

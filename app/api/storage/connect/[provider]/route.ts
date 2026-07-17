@@ -16,6 +16,7 @@ import {
   apiInternal,
 } from '@/lib/api-helpers';
 import { getStorageConnector } from '@/lib/storage-connectors/connector-registry';
+import { storeOAuthState } from '@/lib/storage-connectors/token-store';
 
 export async function GET(
   request: NextRequest,
@@ -47,6 +48,10 @@ export async function GET(
 
     // Generate OAuth authorization URL
     const connectResult = await connector.connect(userId, redirectUrl);
+
+    if (connectResult.state) {
+      storeOAuthState(connectResult.state, userId, provider);
+    }
 
     return apiOk({
       authUrl: connectResult.authUrl,

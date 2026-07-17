@@ -113,7 +113,7 @@ app.prepare().then(async () => {
     // Auth check: require valid session cookie
     const cookieHeader = req.headers.cookie || '';
     const sessionMatch = cookieHeader.match(/anichisom_session=([^;]+)/);
-    const supabaseMatch = cookieHeader.match(/sb-[a-z0-9]+-auth-token=([^;]+)/);
+    const supabaseMatch = cookieHeader.match(/sb-[a-z0-9]+-auth-token=(eyJ[^;]+)/);
     const hasSession = (sessionMatch?.[1] && resolveSession(sessionMatch[1])) || supabaseMatch;
     if (!hasSession) {
       ws.close(1008, 'Authentication required');

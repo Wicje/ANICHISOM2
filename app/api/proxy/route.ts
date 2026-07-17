@@ -17,10 +17,22 @@ const PRIVATE_IP_RANGES = [
   /^fe80:/,                         // IPv6 link-local
 ];
 
+function normalizeHostname(hostname: string): string {
+  // Strip IPv6 brackets
+  let h = hostname.replace(/^\[|\]$/g, '');
+  // Extract IPv4 from IPv6 mapped addresses: ::ffff:127.0.0.1 → 127.0.0.1
+  const mappedMatch = h.match(/::ffff:(\d+\.\d+\.\d+\.\d+)/);
+  if (mappedMatch) return mappedMatch[1];
+  // Extract embedded IPv4 from IPv6: 0:0:0:0:0:ffff:x.x.x.x or ::x.x.x.x
+  const embedded = h.match(/(?:^|:)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (embedded) return embedded[1];
+  return h;
+}
+
 function isPrivateUrl(urlStr: string): boolean {
   try {
     const parsed = new URL(urlStr);
-    const hostname = parsed.hostname;
+    const hostname = normalizeHostname(parsed.hostname);
 
     // Block non-HTTP schemes
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return true;
@@ -93,12 +105,22 @@ function hasAuthSession(request: NextRequest): boolean {
   // Allow if session cookie exists (legacy dev auth)
   const sessionCookie = request.cookies.get('anichisom_session');
   if (sessionCookie?.value && resolveSession(sessionCookie.value)) return true;
-  // Allow if any Supabase auth cookie exists (sb-* cookies indicate Supabase session)
+
+  // Allow if any Supabase auth cookie exists WITH a valid JWT prefix (sb-* cookies)
   const cookies = request.cookies.getAll();
-  if (cookies.some(c => (c.name.startsWith('sb-') || c.name.endsWith('-auth-token')) && c.value)) return true;
-  // Allow if Authorization header present
+  const hasSupabaseJwt = cookies.some(c => {
+    if (c.name.startsWith('sb-') && c.name.endsWith('-auth-token') && c.value) {
+      // Real Supabase JWTs start with 'eyJ' (base64url-encoded JSON header)
+      return c.value.startsWith('eyJ');
+    }
+    return false;
+  });
+  if (hasSupabaseJwt) return true;
+
+  // Allow if Authorization header present with Bearer token (JWT format)
   const authHeader = request.headers.get('authorization');
-  if (authHeader?.startsWith('Bearer ')) return true;
+  if (authHeader?.startsWith('Bearer ') && authHeader.slice(7).startsWith('eyJ')) return true;
+
   return false;
 }
 
