@@ -1,11 +1,19 @@
 'use client';
 
-// A lightweight Web Audio API based sound engine for OS interactions
-// No external assets required.
-
 class OAudioEngine {
   private ctx: AudioContext | null = null;
-  private volume: number = 0.5;
+
+  private getVolume(): number {
+    if (typeof window === 'undefined') return 0;
+    try {
+      const { useThemeStore } = require('@/lib/stores/theme.store');
+      const state = useThemeStore.getState();
+      if (state.muted) return 0;
+      return state.volume / 100;
+    } catch {
+      return 0.5;
+    }
+  }
 
   init() {
     if (!this.ctx) {
@@ -13,12 +21,9 @@ class OAudioEngine {
     }
   }
 
-  setVolume(vol: number) {
-    this.volume = vol;
-  }
-
   private playTone(freq: number, type: OscillatorType, duration: number, volMultiplier = 1) {
-    if (!this.ctx) return;
+    const vol = this.getVolume();
+    if (vol === 0 || !this.ctx) return;
     try {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
@@ -26,7 +31,7 @@ class OAudioEngine {
       osc.type = type;
       osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
       
-      gain.gain.setValueAtTime(this.volume * volMultiplier, this.ctx.currentTime);
+      gain.gain.setValueAtTime(vol * volMultiplier, this.ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
       
       osc.connect(gain);
@@ -34,9 +39,7 @@ class OAudioEngine {
       
       osc.start();
       osc.stop(this.ctx.currentTime + duration);
-    } catch (e) {
-      // Ignore audio errors if not allowed
-    }
+    } catch {}
   }
 
   playClick() {
@@ -44,8 +47,8 @@ class OAudioEngine {
   }
 
   playSwoosh() {
-    // A noise-like sound for window minimizing/maximizing
-    if (!this.ctx) return;
+    const vol = this.getVolume();
+    if (vol === 0 || !this.ctx) return;
     try {
       const duration = 0.2;
       const osc = this.ctx.createOscillator();
@@ -55,7 +58,7 @@ class OAudioEngine {
       osc.frequency.setValueAtTime(100, this.ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(20, this.ctx.currentTime + duration);
       
-      gain.gain.setValueAtTime(this.volume * 0.3, this.ctx.currentTime);
+      gain.gain.setValueAtTime(vol * 0.3, this.ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
       
       osc.connect(gain);
@@ -63,11 +66,12 @@ class OAudioEngine {
       
       osc.start();
       osc.stop(this.ctx.currentTime + duration);
-    } catch (e) {}
+    } catch {}
   }
 
-  playNotification(pan: number = 0) { // pan: -1 (left) to 1 (right)
-    if (!this.ctx) return;
+  playNotification(pan: number = 0) {
+    const vol = this.getVolume();
+    if (vol === 0 || !this.ctx) return;
     try {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
@@ -77,7 +81,7 @@ class OAudioEngine {
       osc.frequency.setValueAtTime(600, this.ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(1200, this.ctx.currentTime + 0.1);
       
-      gain.gain.setValueAtTime(this.volume * 0.5, this.ctx.currentTime);
+      gain.gain.setValueAtTime(vol * 0.5, this.ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
       
       panner.pan.value = pan;
@@ -88,7 +92,44 @@ class OAudioEngine {
       
       osc.start();
       osc.stop(this.ctx.currentTime + 0.4);
-    } catch(e) {}
+    } catch {}
+  }
+
+  playWindowOpen() {
+    this.playTone(440, 'sine', 0.1, 0.15);
+    setTimeout(() => this.playTone(660, 'sine', 0.1, 0.1), 50);
+  }
+
+  playWindowClose() {
+    this.playTone(660, 'sine', 0.08, 0.12);
+    setTimeout(() => this.playTone(440, 'sine', 0.08, 0.08), 50);
+  }
+
+  playStartup() {
+    const vol = this.getVolume();
+    if (vol === 0 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const notes = [523, 659, 784, 1047];
+      notes.forEach((freq, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + i * 0.12);
+        gain.gain.setValueAtTime(0, now + i * 0.12);
+        gain.gain.linearRampToValueAtTime(vol * 0.15, now + i * 0.12 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.12 + 0.3);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(now + i * 0.12);
+        osc.stop(now + i * 0.12 + 0.3);
+      });
+    } catch {}
+  }
+
+  playError() {
+    this.playTone(200, 'sawtooth', 0.15, 0.1);
+    setTimeout(() => this.playTone(150, 'sawtooth', 0.2, 0.08), 100);
   }
 }
 

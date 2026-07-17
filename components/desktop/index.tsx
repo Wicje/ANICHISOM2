@@ -166,7 +166,6 @@ export function Desktop() {
   const setPerformanceMode = useThemeStore((s) => s.setPerformanceMode);
   const colorMode = useThemeStore((s) => s.colorMode);
   const setColorMode = useThemeStore((s) => s.setColorMode);
-  const hydrateColorMode = useThemeStore((s) => s.hydrateColorMode);
   // Granular workspace selectors
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
   const installedApps = useWorkspaceStore((s) => s.installedApps);
@@ -202,12 +201,16 @@ export function Desktop() {
     const allAppIds = APP_MANIFEST.map(a => a.id);
     registerBuiltinPlugins(allAppIds);
     (useOnboardingStore as any).hydrate?.();
-    hydrateColorMode();
+    useThemeStore.getState().hydrateAll();
     checkSession();
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => setBooting(false), 2000);
+    const timer = setTimeout(() => {
+      setBooting(false);
+      audioSystem.init();
+      audioSystem.playStartup();
+    }, 2000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -221,7 +224,7 @@ export function Desktop() {
     document.body.classList.toggle('performance-light', performanceMode === 'light');
   }, [performanceMode]);
 
-  // Wire os:notify custom events → in-app toasts
+  // Wire os:notify custom events → in-app toasts + notification sounds
   useEffect(() => {
     const handleNotify = (e: Event) => {
       const detail = (e as CustomEvent).detail;
@@ -231,12 +234,16 @@ export function Desktop() {
       const addNotification = useNotificationStore.getState().addNotification;
       addNotification(title, type, description);
       if (type === 'error') {
+        audioSystem.playError();
         toast.error(title, { description });
       } else if (type === 'success') {
+        audioSystem.playNotification(0.3);
         toast.success(title, { description });
       } else if (type === 'warning') {
+        audioSystem.playNotification(0);
         toast.warning(title, { description });
       } else {
+        audioSystem.playNotification(-0.3);
         toast.info(title, { description });
       }
     };
@@ -526,7 +533,17 @@ export function Desktop() {
       x: e.clientX,
       y: e.clientY,
       items: [
-        { label: 'New Folder', icon: Folder, onClick: () => console.log('New Folder') },
+        { label: 'New Folder', icon: Folder, onClick: async () => {
+          const name = prompt('Folder name:', 'New Folder');
+          if (name) {
+            try {
+              await FS.mkdir(`Desktop/${name}`);
+              window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Folder Created', description: `Created "${name}" on Desktop`, type: 'success' } }));
+            } catch (err) {
+              window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Error', description: 'Failed to create folder', type: 'error' } }));
+            }
+          }
+        }},
         { label: 'Change Wallpaper', onClick: () => openWindow('settings') },
         { label: 'Add Sticky Note', icon: StickyNote, onClick: () => setWidgets(prev => [...prev, { id: Date.now().toString(), type: 'notes', x: e.clientX, y: e.clientY, content: '' }]) },
         { label: 'Add CPU Monitor', icon: Activity, onClick: () => setWidgets(prev => [...prev, { id: Date.now().toString(), type: 'cpu', x: e.clientX, y: e.clientY }]) },
@@ -542,9 +559,10 @@ export function Desktop() {
       const file = e.dataTransfer.files[0]!;
       try {
         await FS.write(`Desktop/${file.name}`, file, file.type);
-        alert(`File ${file.name} saved to Desktop via OS File System.`);
+        window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'File Saved', description: `${file.name} saved to Desktop`, type: 'success' } }));
       } catch (err) {
         console.error('File drop failed', err);
+        window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Save Failed', description: `Could not save ${file.name}`, type: 'error' } }));
       }
     }
   }, []);
@@ -579,7 +597,7 @@ export function Desktop() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <BootSplash />
+          <BootSplash onSkip={() => { setBooting(false); audioSystem.init(); audioSystem.playStartup(); }} />
         </motion.div>
       </AnimatePresence>
     );

@@ -44,8 +44,41 @@ vi.mock('lucide-react', () => {
     Terminal: icon, Folder: icon, Globe: icon, Sparkles: icon,
     Image: icon, Search: icon, Archive: icon, Clipboard: icon,
     AppWindow: icon, File: icon, Music: icon, Layout: icon,
+    Sun: icon, Moon: icon, Maximize2: icon, Minimize2: icon,
+    Trash2: icon, Settings: icon, Volume2: icon, VolumeX: icon,
+    Bell: icon,
   };
 });
+
+vi.mock('@/lib/stores/theme.store', () => ({
+  useThemeStore: Object.assign(
+    vi.fn((selector?: any) => {
+      const state = { colorMode: 'dark', muted: false, volume: 80 };
+      return selector ? selector(state) : state;
+    }),
+    { getState: vi.fn(() => ({ colorMode: 'dark', muted: false, volume: 80 })) }
+  ),
+}));
+
+vi.mock('@/lib/stores/window.store', () => ({
+  useWindowStore: Object.assign(
+    vi.fn((selector?: any) => {
+      const state = { windows: [], minimizeWindow: vi.fn(), closeWindow: vi.fn() };
+      return selector ? selector(state) : state;
+    }),
+    { getState: vi.fn(() => ({ windows: [], minimizeWindow: vi.fn(), closeWindow: vi.fn() })) }
+  ),
+}));
+
+vi.mock('@/lib/stores/notification.store', () => ({
+  useNotificationStore: Object.assign(
+    vi.fn((selector?: any) => {
+      const state = { notifications: [], clearAll: vi.fn() };
+      return selector ? selector(state) : state;
+    }),
+    { getState: vi.fn(() => ({ notifications: [], clearAll: vi.fn() })) }
+  ),
+}));
 
 import { CommandPalette } from '@/components/command-palette';
 

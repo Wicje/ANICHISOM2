@@ -1,11 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Bell, Trash2 } from 'lucide-react';
+import { X, Bell, Trash2, CheckCircle2, AlertTriangle, AlertCircle, Info } from 'lucide-react';
 import { useNotificationStore } from '@/lib/stores/notification.store';
+
+const TYPE_CONFIG = {
+  success: { color: '#10b981', bg: 'rgba(16,185,129,0.1)', icon: CheckCircle2 },
+  error: { color: '#ef4444', bg: 'rgba(239,68,68,0.1)', icon: AlertCircle },
+  warning: { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', icon: AlertTriangle },
+  info: { color: '#3b82f6', bg: 'rgba(59,130,246,0.1)', icon: Info },
+};
 
 export function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
-  const { notifications, dismiss: removeNotification, clearAll } = useNotificationStore();
+  const { notifications, dismiss, markAllRead, clearAll } = useNotificationStore();
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   useEffect(() => {
     const handleToggle = () => setIsOpen(prev => !prev);
@@ -19,6 +27,12 @@ export function NotificationCenter() {
       window.removeEventListener('os:close-notification-center', handleClose);
     };
   }, []);
+
+  useEffect(() => {
+    if (isOpen && unreadCount > 0) {
+      markAllRead();
+    }
+  }, [isOpen, unreadCount, markAllRead]);
 
   return (
     <AnimatePresence>
@@ -42,6 +56,9 @@ export function NotificationCenter() {
               <div className="flex items-center gap-2">
                 <Bell className="w-4 h-4 text-white/70" />
                 <h3 className="font-semibold text-white">Notifications</h3>
+                {unreadCount > 0 && (
+                  <span className="px-1.5 py-0.5 text-[10px] font-bold bg-blue-500 text-white rounded-full">{unreadCount}</span>
+                )}
               </div>
               <div className="flex gap-2">
                 {notifications.length > 0 && (
@@ -63,29 +80,39 @@ export function NotificationCenter() {
                 </div>
               ) : (
                 <AnimatePresence initial={false}>
-                  {notifications.map((notif) => (
-                    <motion.div
-                      key={notif.id}
-                      initial={{ opacity: 0, height: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, height: 'auto', scale: 1 }}
-                      exit={{ opacity: 0, height: 0, scale: 0.9, marginBottom: 0 }}
-                      className="bg-white/5 border border-white/10 rounded-xl p-3 pr-8 relative group"
-                    >
-                      <button
-                        onClick={() => removeNotification(notif.id)}
-                        className="absolute right-2 top-2 p-1 text-white/30 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-white/10"
+                  {notifications.map((notif) => {
+                    const config = TYPE_CONFIG[notif.type] || TYPE_CONFIG.info;
+                    const Icon = config.icon;
+                    return (
+                      <motion.div
+                        key={notif.id}
+                        initial={{ opacity: 0, height: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, height: 'auto', scale: 1 }}
+                        exit={{ opacity: 0, height: 0, scale: 0.9, marginBottom: 0 }}
+                        className="border rounded-xl p-3 pr-8 relative group"
+                        style={{ background: config.bg, borderColor: `${config.color}20` }}
                       >
-                        <X className="w-3 h-3" />
-                      </button>
-                      <div className="font-medium text-sm text-white">{notif.title}</div>
-                      {notif.description && (
-                        <div className="text-xs text-white/70 mt-1 line-clamp-2">{notif.description}</div>
-                      )}
-                      <div className="text-[10px] text-white/40 mt-2">
-                        {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </motion.div>
-                  ))}
+                        <button
+                          onClick={() => dismiss(notif.id)}
+                          className="absolute right-2 top-2 p-1 text-white/30 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-white/10"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                        <div className="flex items-start gap-2">
+                          <Icon className="w-4 h-4 mt-0.5 shrink-0" style={{ color: config.color }} />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm text-white">{notif.title}</div>
+                            {notif.description && (
+                              <div className="text-xs text-white/70 mt-1 line-clamp-2">{notif.description}</div>
+                            )}
+                            <div className="text-[10px] text-white/40 mt-2">
+                              {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </AnimatePresence>
               )}
             </div>

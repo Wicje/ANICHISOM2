@@ -18,6 +18,9 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
   const { id, title, isMaximized, isMinimized, zIndex, x, y, width, height } = osWindow;
   const { closeWindow, minimizeWindow, maximizeWindow, focusWindow, updateWindowDimensions, highestZIndex } = useWindowActions();
   const performanceMode = useThemeStore((s) => s.performanceMode);
+  const aeroSnap = useThemeStore((s) => s.aeroSnap);
+  const animationsEnabled = useThemeStore((s) => s.animationsEnabled);
+  const glassmorphism = useThemeStore((s) => s.glassmorphism);
   const dragControls = useDragControls();
   const shouldReduceMotion = useReducedMotion();
 
@@ -128,9 +131,11 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
       ref={windowRef}
       role="dialog"
       aria-label={title}
-      initial={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.95 }}
+      initial={animationsEnabled ? { opacity: 0, scale: 0.95 } : { opacity: 1, scale: 1 }}
       animate={isMinimizing
-        ? { opacity: 0, scale: 0.2, y: window.innerHeight, x: window.innerWidth / 2 - currentWidth / 2, filter: 'blur(10px)', transition: { duration: 0.3, ease: 'easeIn' } }
+        ? animationsEnabled
+          ? { opacity: 0, scale: 0.2, y: window.innerHeight, x: window.innerWidth / 2 - currentWidth / 2, filter: 'blur(10px)', transition: { duration: 0.3, ease: 'easeIn' } }
+          : { opacity: 0, scale: 1, transition: { duration: 0 } }
         : {
           opacity: 1,
           scale: 1,
@@ -139,7 +144,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
           height: isMaximized ? 'calc(100vh - 32px)' : currentHeight,
           x: isMaximized ? 0 : currentX,
           y: isMaximized ? 32 : currentY,
-          transition: isResizing || shouldReduceMotion ? { duration: 0 } : {
+          transition: isResizing || !animationsEnabled ? { duration: 0 } : {
             type: "spring",
             stiffness: 300,
             damping: 30,
@@ -162,20 +167,22 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
         const pointerY = info.point.y;
         const pointerMargin = 20;
 
-        if (pointerY < pointerMargin) {
-          if (!isMaximized) maximizeWindow(id);
-          return;
-        }
-        if (pointerX < pointerMargin) {
-          newX = 0;
-          newY = headerSpace;
-          newWidth = screenW / 2;
-          newHeight = screenH - headerSpace;
-        } else if (pointerX > screenW - pointerMargin) {
-          newX = screenW / 2;
-          newY = headerSpace;
-          newWidth = screenW / 2;
-          newHeight = screenH - headerSpace;
+        if (aeroSnap) {
+          if (pointerY < pointerMargin) {
+            if (!isMaximized) maximizeWindow(id);
+            return;
+          }
+          if (pointerX < pointerMargin) {
+            newX = 0;
+            newY = headerSpace;
+            newWidth = screenW / 2;
+            newHeight = screenH - headerSpace;
+          } else if (pointerX > screenW - pointerMargin) {
+            newX = screenW / 2;
+            newY = headerSpace;
+            newWidth = screenW / 2;
+            newHeight = screenH - headerSpace;
+          }
         }
 
         setLocalPosition({ x: newX, y: newY });
@@ -209,7 +216,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
         className="absolute inset-0 -z-10"
         style={{
           background: isActive ? 'var(--os-glass-bg)' : 'var(--os-glass-bg)',
-          backdropFilter: performanceMode === 'heavy'
+          backdropFilter: glassmorphism && performanceMode === 'heavy'
             ? (isActive ? 'blur(50px) saturate(200%)' : 'blur(40px) saturate(180%)')
             : 'none',
           borderColor: isActive ? 'var(--os-glass-border)' : 'var(--os-border)',
@@ -234,7 +241,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
           {/* Semantic traffic light colors — always visible */}
           <button
             aria-label="Close window"
-            onClick={(e) => { e.stopPropagation(); closeWindow(id); }}
+            onClick={(e) => { e.stopPropagation(); audioSystem.playWindowClose(); closeWindow(id); }}
             className="w-3 h-3 rounded-full transition-colors flex items-center justify-center group"
             style={{ background: '#FF5F57' }}
           >
@@ -244,12 +251,12 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
             aria-label="Minimize window"
             onClick={(e) => {
               e.stopPropagation();
-              audioSystem.playSwoosh();
+              if (animationsEnabled) audioSystem.playSwoosh();
               setIsMinimizing(true);
               setTimeout(() => {
                 minimizeWindow(id);
                 setIsMinimizing(false);
-              }, 200);
+              }, animationsEnabled ? 200 : 0);
             }}
             className="w-3 h-3 rounded-full transition-colors flex items-center justify-center group"
             style={{ background: '#FEB429' }}
@@ -258,7 +265,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
           </button>
           <button
             aria-label="Maximize window"
-            onClick={(e) => { e.stopPropagation(); maximizeWindow(id); }}
+            onClick={(e) => { e.stopPropagation(); audioSystem.playClick(); maximizeWindow(id); }}
             className="w-3 h-3 rounded-full transition-colors flex items-center justify-center group"
             style={{ background: '#28C840' }}
           >

@@ -1,15 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 export interface SkeletonProps {
   className?: string;
-  /** Width class or style */
   width?: string;
-  /** Height class or style */
   height?: string;
-  /** Shape: rectangular (default), circular, or rounded */
   variant?: 'rect' | 'circle' | 'rounded';
 }
 
@@ -32,7 +29,6 @@ export function Skeleton({ className, width, height, variant = 'rect' }: Skeleto
   );
 }
 
-/** Skeleton preset for a full-page loading state */
 export function PageSkeleton({ lines = 5, className }: { lines?: number; className?: string }) {
   return (
     <div className={cn('p-6 space-y-4', className)}>
@@ -50,7 +46,6 @@ export function PageSkeleton({ lines = 5, className }: { lines?: number; classNa
   );
 }
 
-/** Skeleton preset for a grid of cards (app loading) */
 export function CardSkeleton({ count = 6 }: { count?: number }) {
   return (
     <div className="grid grid-cols-3 gap-4 p-6">
@@ -65,11 +60,37 @@ export function CardSkeleton({ count = 6 }: { count?: number }) {
   );
 }
 
-/** Desktop boot splash skeleton */
-export function BootSplash() {
+const BOOT_MESSAGES = [
+  'Initializing workspace...',
+  'Loading core services...',
+  'Restoring your sessions...',
+  'Preparing your workspace...',
+];
+
+export function BootSplash({ onSkip }: { onSkip?: () => void }) {
+  const [messageIndex, setMessageIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const msgInterval = setInterval(() => {
+      setMessageIndex(prev => Math.min(prev + 1, BOOT_MESSAGES.length - 1));
+    }, 450);
+
+    const progressInterval = setInterval(() => {
+      setProgress(prev => Math.min(prev + 2, 100));
+    }, 40);
+
+    return () => {
+      clearInterval(msgInterval);
+      clearInterval(progressInterval);
+    };
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-[300] flex flex-col items-center justify-center"
+    <div
+      className="fixed inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer"
       style={{ background: 'var(--os-bg, #0a0a0a)' }}
+      onClick={onSkip}
     >
       <style>{`
         @keyframes skeleton-shimmer {
@@ -77,37 +98,40 @@ export function BootSplash() {
           100% { background-position: -200% 0; }
         }
       `}</style>
-      {/* Logo */}
-      <div className="mb-8">
-        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+      
+      {/* Logo with glow */}
+      <div className="mb-8 relative">
+        <div className="absolute inset-0 blur-2xl opacity-30" style={{ background: 'var(--os-primary, #6366f1)' }} />
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none" className="relative">
           <rect width="64" height="64" rx="16" fill="var(--os-primary, #6366f1)" />
           <path d="M20 44V20h8l8 12 8-12h8v24h-7V30l-7 10-7-10v14h-7z" fill="white" />
         </svg>
       </div>
+      
       {/* App name */}
       <h1 className="text-xl font-semibold mb-6" style={{ color: 'var(--os-text, #fff)' }}>
         ANICHISOM OS
       </h1>
+      
       {/* Progress bar */}
       <div className="w-48 h-1 rounded-full overflow-hidden" style={{ background: 'var(--os-border, #333)' }}>
         <div
-          className="h-full rounded-full"
+          className="h-full rounded-full transition-all duration-100"
           style={{
             background: 'var(--os-primary, #6366f1)',
-            animation: 'boot-progress 2s ease-in-out forwards',
+            width: `${progress}%`,
           }}
         />
       </div>
-      <style>{`
-        @keyframes boot-progress {
-          0% { width: 0%; }
-          30% { width: 40%; }
-          60% { width: 70%; }
-          100% { width: 100%; }
-        }
-      `}</style>
-      <p className="text-xs mt-4" style={{ color: 'var(--os-text-muted, #666)' }}>
-        Preparing your workspace...
+      
+      {/* Staged boot message */}
+      <p className="text-xs mt-4 transition-opacity duration-300" style={{ color: 'var(--os-text-muted, #666)' }}>
+        {BOOT_MESSAGES[messageIndex]}
+      </p>
+      
+      {/* Skip hint */}
+      <p className="text-[10px] mt-8 opacity-30" style={{ color: 'var(--os-text-muted, #666)' }}>
+        Click anywhere to skip
       </p>
     </div>
   );

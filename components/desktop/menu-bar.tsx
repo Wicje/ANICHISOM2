@@ -253,23 +253,28 @@ export function MenuBar({
         </div>
         <div className="flex items-center gap-3">
           {network && (
-            <div className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-widest text-white/50" title={`Network: ${network.effectiveType}`}>
+            <div className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-widest" style={{ color: 'var(--os-text-muted)' }} title={`Network: ${network.effectiveType}`}>
               <Wifi className="w-3.5 h-3.5" />
             </div>
           )}
           {battery && (
-            <div className="flex items-center gap-1 text-xs text-white/70" title={`Battery: ${Math.round(battery.level * 100)}%`}>
+            <div className="flex items-center gap-1 text-xs" style={{ color: 'var(--os-text-muted)' }} title={`Battery: ${Math.round(battery.level * 100)}%`}>
               {Math.round(battery.level * 100)}%
               {battery.charging ? <BatteryCharging className="w-4 h-4 text-green-400" /> : <Battery className="w-4 h-4" />}
             </div>
           )}
           <button
-            className="cursor-pointer transition-colors focus:outline-none"
+            className="cursor-pointer transition-colors focus:outline-none relative"
             onClick={() => window.dispatchEvent(new CustomEvent('os:toggle-notification-center'))}
             title="Notification Center"
             style={{ color: 'var(--os-text-muted)' }}
           >
             <Bell className="w-4 h-4" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 flex items-center justify-center bg-red-500 text-white text-[8px] font-bold rounded-full border border-[var(--os-bg)] px-0.5 leading-none">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
           </button>
           <button
             className="cursor-pointer transition-colors focus:outline-none"

@@ -1,17 +1,30 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export function useHardwareState() {
   const [battery, setBattery] = useState<{ level: number, charging: boolean } | null>(null);
   const [network, setNetwork] = useState<{ type: string, effectiveType: string, rtt: number, downlink: number } | null>(null);
+  const lowBatteryNotified = useRef(false);
+  const offlineNotified = useRef(false);
 
   useEffect(() => {
-    // Battery API
     let batteryObj: any = null;
     const updateBattery = () => {
       if (batteryObj) {
-        setBattery({ level: batteryObj.level, charging: batteryObj.charging });
+        const level = batteryObj.level;
+        const charging = batteryObj.charging;
+        setBattery({ level, charging });
+        
+        if (level <= 0.2 && !charging && !lowBatteryNotified.current) {
+          lowBatteryNotified.current = true;
+          window.dispatchEvent(new CustomEvent('os:notify', {
+            detail: { title: 'Low Battery', description: `Battery at ${Math.round(level * 100)}%. Consider plugging in.`, type: 'warning' }
+          }));
+        }
+        if (level > 0.2) {
+          lowBatteryNotified.current = false;
+        }
       }
     };
 
@@ -24,16 +37,42 @@ export function useHardwareState() {
       });
     }
 
-    // Network Information API
     const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
     const updateNetwork = () => {
       if (connection) {
+        const online = navigator.onLine;
         setNetwork({
           type: connection.type || 'unknown',
           effectiveType: connection.effectiveType || '4g',
           rtt: connection.rtt || 0,
           downlink: connection.downlink || 0
         });
+        
+        if (!online && !offlineNotified.current) {
+          offlineNotified.current = true;
+          window.dispatchEvent(new CustomEvent('os:notify', {
+            detail: { title: 'Network Offline', description: 'You are no longer connected to the internet.', type: 'warning' }
+          }));
+        }
+        if (online) {
+          offlineNotified.current = false;
+        }
+      }
+    };
+
+    const handleOnline = () => {
+      offlineNotified.current = false;
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Network Restored', description: 'You are back online.', type: 'success' }
+      }));
+    };
+
+    const handleOffline = () => {
+      if (!offlineNotified.current) {
+        offlineNotified.current = true;
+        window.dispatchEvent(new CustomEvent('os:notify', {
+          detail: { title: 'Network Offline', description: 'You are no longer connected to the internet.', type: 'warning' }
+        }));
       }
     };
 
@@ -41,6 +80,9 @@ export function useHardwareState() {
       updateNetwork();
       connection.addEventListener('change', updateNetwork);
     }
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
     return () => {
       if (batteryObj) {
@@ -50,6 +92,8 @@ export function useHardwareState() {
       if (connection) {
         connection.removeEventListener('change', updateNetwork);
       }
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, []);
 

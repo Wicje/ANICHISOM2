@@ -94,6 +94,19 @@ vi.mock('sonner', () => ({
   toast: { info: vi.fn(), error: vi.fn(), success: vi.fn(), warning: vi.fn() },
 }));
 
+vi.mock('@/lib/services/audio-engine', () => ({
+  audioSystem: {
+    init: vi.fn(),
+    playClick: vi.fn(),
+    playSwoosh: vi.fn(),
+    playNotification: vi.fn(),
+    playWindowOpen: vi.fn(),
+    playWindowClose: vi.fn(),
+    playStartup: vi.fn(),
+    playError: vi.fn(),
+  },
+}));
+
 vi.mock('motion/react', () => ({
   motion: { div: React.forwardRef((p: any, r: any) => <div ref={r} {...p} />) },
   AnimatePresence: ({ children }: any) => <>{children}</>,
@@ -101,7 +114,14 @@ vi.mock('motion/react', () => ({
   useReducedMotion: vi.fn(() => false),
 }));
 
-vi.mock('lucide-react', () => new Proxy({}, { get: () => (p: any) => <svg {...p} /> }));
+vi.mock('@/components/notifications/notification-center', () => ({
+  NotificationCenter: () => <div data-testid="notification-center" />,
+}));
+
+vi.mock('lucide-react', () => {
+  const icon = (p: any) => <svg {...p} />;
+  return new Proxy({}, { get: () => icon });
+});
 
 vi.mock('socket.io-client', () => ({
   io: vi.fn(() => ({
@@ -150,9 +170,22 @@ const defaultTheme = {
   screenShader: 'none',
   performanceMode: 'light' as const,
   colorMode: 'light' as const,
+  volume: 80,
+  muted: false,
+  animationsEnabled: true,
+  glassmorphism: true,
+  aeroSnap: true,
   setPerformanceMode: vi.fn(),
   setColorMode: vi.fn(),
-  hydrateColorMode: vi.fn().mockResolvedValue(undefined),
+  setVolume: vi.fn(),
+  setMuted: vi.fn(),
+  setAnimationsEnabled: vi.fn(),
+  setGlassmorphism: vi.fn(),
+  setAeroSnap: vi.fn(),
+  setThemeColor: vi.fn(),
+  setFontFamily: vi.fn(),
+  setScreenShader: vi.fn(),
+  hydrateAll: vi.fn().mockResolvedValue(undefined),
 };
 
 const defaultWorkspace = {

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useOS, OSWindow } from '@/lib/os-context';
-import { Image as ImageIcon, Palette, Save, Type, Eye, Settings2, Monitor, User, Volume2, Shield, Keyboard } from 'lucide-react';
+import { Image as ImageIcon, Palette, Save, Type, Eye, Settings2, Monitor, User, Volume2, VolumeX, Shield, Keyboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useThemeStore } from '@/lib/stores/theme.store';
+import { audioSystem } from '@/lib/services/audio-engine';
 
 const PRESET_WALLPAPERS = [
   { name: 'Default Dark', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop' },
@@ -39,17 +41,29 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
   const [customUrl, setCustomUrl] = useState('');
   const [activeTab, setActiveTab] = useState<'appearance' | 'system' | 'account' | 'privacy'>('appearance');
 
-  // Mock states for new tabs
-  const [animationsEnabled, setAnimationsEnabled] = useState(true);
-  const [glassmorphism, setGlassmorphism] = useState(true);
-  const [snapping, setSnapping] = useState(true);
-  const [volume, setVolume] = useState(80);
+  const animationsEnabled = useThemeStore((s) => s.animationsEnabled);
+  const setAnimationsEnabled = useThemeStore((s) => s.setAnimationsEnabled);
+  const glassmorphism = useThemeStore((s) => s.glassmorphism);
+  const setGlassmorphism = useThemeStore((s) => s.setGlassmorphism);
+  const aeroSnap = useThemeStore((s) => s.aeroSnap);
+  const setAeroSnap = useThemeStore((s) => s.setAeroSnap);
+  const volume = useThemeStore((s) => s.volume);
+  const setVolume = useThemeStore((s) => s.setVolume);
+  const muted = useThemeStore((s) => s.muted);
+  const setMuted = useThemeStore((s) => s.setMuted);
 
   const handleApplyCustom = () => {
     if (customUrl) {
       setWallpaper(customUrl);
       setCustomUrl('');
     }
+  };
+
+  const handleVolumeChange = (newVol: number) => {
+    setVolume(newVol);
+    if (newVol > 0 && muted) setMuted(false);
+    audioSystem.init();
+    audioSystem.playClick();
   };
 
   const tabs = [
@@ -262,10 +276,10 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                       <p className="text-xs text-white/50 mt-1">Drag windows to the screen edges to quickly split view.</p>
                     </div>
                     <button 
-                      onClick={() => setSnapping(!snapping)}
-                      className={cn("w-12 h-6 rounded-full transition-colors relative", snapping ? "bg-blue-500" : "bg-white/20")}
+                      onClick={() => setAeroSnap(!aeroSnap)}
+                      className={cn("w-12 h-6 rounded-full transition-colors relative", aeroSnap ? "bg-blue-500" : "bg-white/20")}
                     >
-                      <div className={cn("w-4 h-4 bg-white rounded-full absolute top-1 transition-transform", snapping ? "translate-x-7" : "translate-x-1")} />
+                      <div className={cn("w-4 h-4 bg-white rounded-full absolute top-1 transition-transform", aeroSnap ? "translate-x-7" : "translate-x-1")} />
                     </button>
                   </div>
                   
@@ -293,16 +307,30 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                 <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-4">
                   <div className="flex justify-between items-center text-sm font-medium">
                     <span>System Volume</span>
-                    <span className="text-blue-400">{volume}%</span>
+                    <span className="text-blue-400">{muted ? 'Muted' : `${volume}%`}</span>
                   </div>
-                  <input 
-                    type="range" 
-                    min="0" 
-                    max="100" 
-                    value={volume}
-                    onChange={(e) => setVolume(Number(e.target.value))}
-                    className="w-full accent-blue-500"
-                  />
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        setMuted(!muted);
+                        if (!muted) {
+                          audioSystem.playClick();
+                        }
+                      }}
+                      className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                    >
+                      {muted ? <VolumeX className="w-5 h-5 text-white/50" /> : <Volume2 className="w-5 h-5 text-white/70" />}
+                    </button>
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max="100" 
+                      value={muted ? 0 : volume}
+                      onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                      className="flex-1 accent-blue-500"
+                    />
+                  </div>
+                  <p className="text-xs text-white/40">Controls clicks, swooshes, notifications, and startup sounds.</p>
                 </div>
               </section>
             </div>

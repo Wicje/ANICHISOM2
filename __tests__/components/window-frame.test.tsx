@@ -25,8 +25,8 @@ vi.mock('@/lib/hooks/use-window-actions', () => ({
 
 vi.mock('@/lib/stores/theme.store', () => ({
   useThemeStore: Object.assign(
-    vi.fn(() => ({ performanceMode: 'light' })),
-    { getState: vi.fn(() => ({ performanceMode: 'light' })) }
+    vi.fn(() => ({ performanceMode: 'light', aeroSnap: true, animationsEnabled: true, glassmorphism: true })),
+    { getState: vi.fn(() => ({ performanceMode: 'light', aeroSnap: true, animationsEnabled: true, glassmorphism: true })) }
   ),
 }));
 
