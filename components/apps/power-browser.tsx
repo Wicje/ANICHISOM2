@@ -164,20 +164,18 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
     if (!iframe) return;
 
     try {
-      // Try to access iframe content — if blocked by CORS, the site loaded but we can't read it
-      // If we can read it and it contains error indicators, mark as blocked
       const doc = iframe.contentDocument || iframe.contentWindow?.document;
       if (doc) {
-        const body = doc.body;
-        const text = body?.textContent || '';
-        // Detect proxy error responses
-        if (text.includes('Proxy error') || text.includes('Authentication required')) {
+        const text = doc.body?.textContent || '';
+        // Only mark as blocked if the page explicitly cannot be embedded (CORS blocks contentDocument read)
+        // Proxy errors (auth, rate-limit, fetch failure) now render as HTML — don't mark those as blocked
+        const isBlocked = text.includes('refused to connect') || text.includes('net::ERR');
+        if (isBlocked) {
           setBlockedTabs(prev => new Set([...prev, tabId]));
           return;
         }
       }
-      // If we can't access contentDocument (CORS), the page likely loaded fine
-      // Remove from blocked set if it was previously blocked
+      // Page loaded — remove from blocked set
       setBlockedTabs(prev => {
         const next = new Set(prev);
         next.delete(tabId);

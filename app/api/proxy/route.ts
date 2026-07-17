@@ -93,13 +93,27 @@ function hasAuthSession(request: NextRequest): boolean {
   // Allow if session cookie exists (legacy dev auth)
   const sessionCookie = request.cookies.get('anichisom_session');
   if (sessionCookie?.value && resolveSession(sessionCookie.value)) return true;
-  // Allow if Supabase auth cookie exists (sb-* cookies indicate Supabase session)
+  // Allow if any Supabase auth cookie exists (sb-* cookies indicate Supabase session)
   const cookies = request.cookies.getAll();
-  if (cookies.some(c => c.name.startsWith('sb-') && c.value)) return true;
+  if (cookies.some(c => (c.name.startsWith('sb-') || c.name.endsWith('-auth-token')) && c.value)) return true;
   // Allow if Authorization header present
   const authHeader = request.headers.get('authorization');
   if (authHeader?.startsWith('Bearer ')) return true;
   return false;
+}
+
+// Return HTML error page for proxy failures (renders nicely in iframe)
+function proxyErrorHtml(title: string, message: string, url?: string): NextResponse {
+  return new NextResponse(
+    `<!DOCTYPE html><html><head><title>${title}</title></head><body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f0f0f;color:#e0e0e0">
+<div style="text-align:center;max-width:400px;padding:2rem">
+<div style="font-size:2rem;margin-bottom:1rem">⚠️</div>
+<h2 style="color:#f59e0b;margin:0 0 0.5rem">${title}</h2>
+<p style="color:#888;margin:0 0 1rem;font-size:0.9rem">${message}</p>
+${url ? `<p style="color:#555;font-size:0.75rem;word-break:break-all">${url}</p>` : ''}
+</div></body></html>`,
+    { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+  );
 }
 
 // --- URL rewriting ---
@@ -155,7 +169,7 @@ function validateProxyRequest(request: NextRequest): { targetUrl: string; error?
   if (!hasAuthSession(request)) {
     return {
       targetUrl: '',
-      error: NextResponse.json({ error: 'Authentication required' }, { status: 401 }),
+      error: proxyErrorHtml('Not Logged In', 'Please log in to use the browser.'),
     };
   }
 
@@ -168,10 +182,7 @@ function validateProxyRequest(request: NextRequest): { targetUrl: string; error?
   if (!rateCheck.allowed) {
     return {
       targetUrl: '',
-      error: NextResponse.json(
-        { error: 'Rate limit exceeded. Please slow down.' },
-        { status: 429 }
-      ),
+      error: proxyErrorHtml('Rate Limited', 'Too many requests. Please slow down.'),
     };
   }
 
@@ -181,7 +192,7 @@ function validateProxyRequest(request: NextRequest): { targetUrl: string; error?
   if (!targetUrl) {
     return {
       targetUrl: '',
-      error: NextResponse.json({ error: 'Missing url parameter' }, { status: 400 }),
+      error: proxyErrorHtml('No URL', 'Enter a URL in the address bar to browse.'),
     };
   }
 
@@ -189,7 +200,7 @@ function validateProxyRequest(request: NextRequest): { targetUrl: string; error?
   if (isPrivateUrl(targetUrl)) {
     return {
       targetUrl: '',
-      error: NextResponse.json({ error: 'Access to internal networks is blocked' }, { status: 403 }),
+      error: proxyErrorHtml('Blocked', 'Access to internal/private networks is blocked for security.'),
     };
   }
 
@@ -199,7 +210,7 @@ function validateProxyRequest(request: NextRequest): { targetUrl: string; error?
   } catch {
     return {
       targetUrl: '',
-      error: NextResponse.json({ error: 'Invalid URL format' }, { status: 400 }),
+      error: proxyErrorHtml('Invalid URL', 'The URL format is not valid.'),
     };
   }
 
@@ -272,29 +283,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (!response) {
-      return new NextResponse(JSON.stringify({
-        error: true,
-        message: 'Failed to fetch: no response',
-      }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json', 'X-Proxy-Error': 'true' },
-      });
+      return proxyErrorHtml('Fetch Failed', 'The server did not respond. The site may be down.', targetUrl);
     }
 
     if (!response.ok) {
-      return new NextResponse(JSON.stringify({
-        error: true,
-        status: response.status,
-        statusText: response.statusText,
-        message: `Failed to load: ${response.status} ${response.statusText}`,
-      }), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Proxy-Error': 'true',
-          'X-Proxy-Status': String(response.status),
-        },
-      });
+      return proxyErrorHtml('Load Failed', `Upstream returned ${response.status} ${response.statusText}`, targetUrl);
     }
 
     const contentType = response.headers.get('content-type') || '';
@@ -382,16 +375,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown proxy error';
-    return new NextResponse(JSON.stringify({
-      error: true,
-      message: `Proxy error: ${message}`,
-    }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Proxy-Error': 'true',
-      },
-    });
+    return proxyErrorHtml('Proxy Error', message, targetUrl);
   }
 }
 
@@ -441,6 +425,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown proxy error';
-    return new NextResponse(`Proxy error: ${message}`, { status: 500 });
+    return proxyErrorHtml('Proxy Error', message, targetUrl);
   }
 }
