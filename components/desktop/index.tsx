@@ -24,6 +24,8 @@ import { LoginScreen } from '@/components/login-screen';
 import FeedbackWidget from '@/components/apps/feedback-widget';
 import { useOnboardingStore } from '@/lib/stores/onboarding.store';
 import { useNotificationStore } from '@/lib/stores/notification.store';
+import { useDynamicWallpaper } from '@/lib/hooks/use-dynamic-wallpaper';
+import { audioSystem } from '@/lib/services/audio-engine';
 
 const Launchpad = React.lazy(() => import('./launchpad').then(m => ({ default: m.Launchpad })));
 const MissionControl = React.lazy(() => import('./mission-control').then(m => ({ default: m.MissionControl })));
@@ -33,6 +35,7 @@ const ContextMenu = React.lazy(() => import('./context-menu').then(m => ({ defau
 const SnapshotsMenu = React.lazy(() => import('./snapshots-menu').then(m => ({ default: m.SnapshotsMenu })));
 const NotchNook = React.lazy(() => import('@/components/dock/notch-nook').then(m => ({ default: m.NotchNook })));
 const WidgetStack = React.lazy(() => import('@/components/notifications/widget-stack').then(m => ({ default: m.WidgetStack })));
+const NotificationCenter = React.lazy(() => import('@/components/notifications/notification-center').then(m => ({ default: m.NotificationCenter })));
 const OnboardingWizard = React.lazy(() => import('@/components/apps/onboarding-wizard'));
 type ContextMenuItem = import('./context-menu').ContextMenuItem;
 
@@ -170,6 +173,8 @@ export function Desktop() {
   const recentApps = useWorkspaceStore((s) => s.recentApps);
   const getAppPrivacy = usePrivacyStore((s) => s.getAppPrivacy);
   const { onboarding } = useOnboardingStore();
+
+  useDynamicWallpaper(true); // Enables time-of-day wallpaper
 
   const [isLocked, setIsLocked] = useState(false);
   const [showLaunchpad, setShowLaunchpad] = useState(false);
@@ -594,6 +599,12 @@ export function Desktop() {
       className="fixed inset-0 w-full h-full overflow-hidden flex flex-col font-sans select-none"
       style={{ fontFamily }}
       onClick={() => setContextMenu(null)}
+      onPointerDownCapture={(e) => {
+        audioSystem.init();
+        if (e.target instanceof Element && (e.target.tagName === 'BUTTON' || e.target.closest('button'))) {
+          audioSystem.playClick();
+        }
+      }}
       onContextMenu={handleGlobalContextMenu}
       onDragOver={(e) => { e.preventDefault(); setIsDraggingFile(true); }}
       onDragLeave={() => setIsDraggingFile(false)}
@@ -686,6 +697,10 @@ export function Desktop() {
           <Suspense fallback={<div className="flex items-center justify-center p-4"><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--os-text-muted)' }} /></div>}><WidgetStack /></Suspense>
         </div>
       )}
+
+      <Suspense fallback={null}>
+        <NotificationCenter />
+      </Suspense>
 
       <Dock
         showLaunchpad={showLaunchpad}

@@ -7,6 +7,7 @@ import { useWindowActions } from '@/lib/hooks/use-window-actions';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { X, Minus, Maximize2, Square, Lock } from 'lucide-react';
 import { getFileLockManager } from '@/lib/file-lock-manager';
+import { audioSystem } from '@/lib/services/audio-engine';
 
 interface WindowFrameProps {
   osWindow: OSWindow;
@@ -26,6 +27,8 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
   const [isResizing, setIsResizing] = useState(false);
   const [localSize, setLocalSize] = useState({ w: width, h: height });
   const [localPosition, setLocalPosition] = useState({ x, y });
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [isHovered, setIsHovered] = useState(false);
   const [isFileLocked, setIsFileLocked] = useState(false);
   const [lockedByUser, setLockedByUser] = useState<string | null>(null);
   const [isMinimizing, setIsMinimizing] = useState(false);
@@ -110,13 +113,15 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
     document.addEventListener('pointerup', handlePointerUp);
   };
 
+  // Dynamic Depth: Higher z-index = softer, larger shadow
+  const shadowDepth = Math.min(zIndex, 50);
   const activeShadow = performanceMode === 'heavy'
-    ? '0 4px 40px rgba(0,88,188,0.08), 0 0 0 1px rgba(128,128,128,0.08)'
-    : '0 8px 32px rgba(0,0,0,0.12)';
+    ? `0 ${shadowDepth}px ${shadowDepth * 3}px rgba(0,0,0,0.25), 0 0 0 1px rgba(128,128,128,0.1)`
+    : `0 ${shadowDepth}px ${shadowDepth * 2}px rgba(0,0,0,0.15)`;
 
   const inactiveShadow = performanceMode === 'heavy'
-    ? '0 2px 20px rgba(0,0,0,0.08)'
-    : '0 4px 16px rgba(0,0,0,0.08)';
+    ? `0 ${shadowDepth / 2}px ${shadowDepth}px rgba(0,0,0,0.15)`
+    : `0 ${shadowDepth / 2}px ${shadowDepth}px rgba(0,0,0,0.1)`;
 
   return (
     <motion.div
@@ -125,10 +130,11 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
       aria-label={title}
       initial={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.95 }}
       animate={isMinimizing
-        ? { opacity: 0, scale: 0.8, y: 50, transition: { duration: 0.2 } }
+        ? { opacity: 0, scale: 0.2, y: window.innerHeight, x: window.innerWidth / 2 - currentWidth / 2, filter: 'blur(10px)', transition: { duration: 0.3, ease: 'easeIn' } }
         : {
           opacity: 1,
           scale: 1,
+          filter: 'blur(0px)',
           width: isMaximized ? '100vw' : currentWidth,
           height: isMaximized ? 'calc(100vh - 32px)' : currentHeight,
           x: isMaximized ? 0 : currentX,
@@ -177,8 +183,27 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
       }}
       style={{ zIndex }}
       onPointerDown={() => focusWindow(id)}
+      onPointerMove={(e) => {
+        if (windowRef.current) {
+          const rect = windowRef.current.getBoundingClientRect();
+          setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        }
+      }}
+      onPointerEnter={() => setIsHovered(true)}
+      onPointerLeave={() => setIsHovered(false)}
       className="absolute top-0 left-0 rounded-xl flex flex-col pointer-events-auto border transition-colors duration-200 overflow-hidden contain-window"
     >
+      {/* Reveal Light Effect */}
+      {isHovered && performanceMode === 'heavy' && (
+        <div 
+          className="absolute inset-0 pointer-events-none rounded-xl"
+          style={{
+            background: `radial-gradient(600px circle at ${mousePos.x}px ${mousePos.y}px, rgba(255,255,255,0.06), transparent 40%)`,
+            zIndex: -1
+          }}
+        />
+      )}
+      
       {/* Window glass background */}
       <div
         className="absolute inset-0 -z-10"
@@ -219,6 +244,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
             aria-label="Minimize window"
             onClick={(e) => {
               e.stopPropagation();
+              audioSystem.playSwoosh();
               setIsMinimizing(true);
               setTimeout(() => {
                 minimizeWindow(id);

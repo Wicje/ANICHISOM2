@@ -5,13 +5,15 @@ import { useAuthStore } from '@/lib/stores/auth.store';
 import { useWindowStore } from '@/lib/stores/window.store';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useWorkspaceStore } from '@/lib/stores/workspace.store';
-import { Search, Zap, ZapOff, Cloud, ShieldCheck, Power, Users, RefreshCw } from 'lucide-react';
+import { Search, Zap, ZapOff, Cloud, ShieldCheck, Power, Users, RefreshCw, Bell } from 'lucide-react';
 import { PresenceIndicator } from '@/components/presence-indicator';
 import { WorkspaceSelector } from '@/components/workspace-selector';
 import { useCollabStatusStore } from '@/lib/stores/collab-status.store';
 import { useNotificationStore } from '@/lib/stores/notification.store';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useHardwareState } from '@/lib/hooks/use-hardware';
+import { Battery, BatteryCharging } from 'lucide-react';
 
 function OsClock() {
   const [time, setTime] = useState(new Date());
@@ -93,6 +95,7 @@ export function MenuBar({
   const totalPeers = useCollabStatusStore((s) => s.totalPeers());
   const unreadCount = useNotificationStore((s) => s.notifications.filter(n => !n.read).length);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const { battery, network } = useHardwareState();
 
   useEffect(() => {
     if (!openMenu) return;
@@ -246,9 +249,29 @@ export function MenuBar({
               <div className="font-bold mb-1" style={{ color: '#10b981' }}>Sandboxed Environment</div>
               <div style={{ color: 'var(--os-text-muted)' }}>Apps are isolated & secure.</div>
             </div>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {network && (
+            <div className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-widest text-white/50" title={`Network: ${network.effectiveType}`}>
+              <Wifi className="w-3.5 h-3.5" />
+            </div>
+          )}
+          {battery && (
+            <div className="flex items-center gap-1 text-xs text-white/70" title={`Battery: ${Math.round(battery.level * 100)}%`}>
+              {Math.round(battery.level * 100)}%
+              {battery.charging ? <BatteryCharging className="w-4 h-4 text-green-400" /> : <Battery className="w-4 h-4" />}
+            </div>
+          )}
+          <button
+            className="cursor-pointer transition-colors focus:outline-none"
+            onClick={() => window.dispatchEvent(new CustomEvent('os:toggle-notification-center'))}
+            title="Notification Center"
+            style={{ color: 'var(--os-text-muted)' }}
+          >
+            <Bell className="w-4 h-4" />
+          </button>
           <button
             className="cursor-pointer transition-colors focus:outline-none"
             onClick={() => window.dispatchEvent(new CustomEvent('os:open-spotlight'))}
