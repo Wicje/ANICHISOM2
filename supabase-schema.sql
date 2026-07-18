@@ -505,7 +505,33 @@ create policy "Users can delete own context records"
 alter publication supabase_realtime add table public.context_records;
 
 -- ============================================================================
--- 13. MARKETPLACE SUBMISSIONS
+-- 13. VITALS METRICS (Web Vitals / Performance)
+-- ============================================================================
+create table if not exists public.vitals_metrics (
+  id          text primary key,
+  user_id     text,
+  name        text not null,       -- CLS, LCP, INP, TTFB, FCP
+  value       numeric not null,
+  rating      text not null,       -- good, needs-improvement, poor
+  delta       numeric,
+  url         text,
+  user_agent  text,
+  recorded_at timestamptz not null default now()
+);
+
+create index if not exists idx_vitals_metrics_name on public.vitals_metrics(name);
+create index if not exists idx_vitals_metrics_recorded on public.vitals_metrics(recorded_at);
+
+-- RLS: only admins can read vitals; anonymous writes allowed
+alter table public.vitals_metrics enable row level security;
+
+-- Anyone can insert (for anonymous vitals collection)
+create policy "Anyone can insert vitals"
+  on public.vitals_metrics for insert
+  with check (true);
+
+-- ============================================================================
+-- 14. MARKETPLACE SUBMISSIONS
 -- ============================================================================
 create table if not exists public.marketplace_submissions (
   id           text primary key,

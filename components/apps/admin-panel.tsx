@@ -9,11 +9,12 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 
 export function AdminPanel({ window }: { window: OSWindow }) {
   const { currentUser } = useOS();
-  const [activeTab, setActiveTab] = useState<'dashboard'|'users'|'apps'|'invites'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard'|'users'|'apps'|'invites'|'marketplace'>('dashboard');
   
   const [users, setUsers] = useState<any[]>([]);
   const [apps, setApps] = useState<any[]>([]);
   const [invites, setInvites] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [inviteCount, setInviteCount] = useState(1);
   const [inviteRole, setInviteRole] = useState('filmmaker');
@@ -57,6 +58,35 @@ export function AdminPanel({ window }: { window: OSWindow }) {
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const fetchSubmissions = async () => {
+    try {
+      const res = await fetch('/api/marketplace?status=pending');
+      const json = await res.json();
+      if (json.ok) setSubmissions(json.submissions || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleReviewSubmission = async (submissionId: string, action: 'approve' | 'reject') => {
+    const notes = action === 'reject' ? prompt('Rejection reason (optional):') : '';
+    try {
+      const res = await fetch('/api/marketplace/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submissionId, action, reviewNotes: notes || '' }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        fetchSubmissions();
+      } else {
+        alert(json.error || 'Failed to review');
+      }
+    } catch (e: any) {
+      alert('Error: ' + e.message);
     }
   };
 
@@ -196,7 +226,8 @@ export function AdminPanel({ window }: { window: OSWindow }) {
               <button onClick={() => setActiveTab('dashboard')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'dashboard' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>Dashboard</button>
               <button onClick={() => setActiveTab('users')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'users' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>Users</button>
               <button onClick={() => setActiveTab('invites')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'invites' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>Invites</button>
-              <button onClick={() => setActiveTab('apps')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'apps' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>App Registry</button>
+               <button onClick={() => setActiveTab('apps')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'apps' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>App Registry</button>
+               <button onClick={() => setActiveTab('marketplace')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'marketplace' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>Marketplace</button>
             </div>
          </div>
           {activeTab === 'users' ?(
@@ -205,6 +236,10 @@ export function AdminPanel({ window }: { window: OSWindow }) {
             </button>
           ) : activeTab === 'invites' ? (
             <button onClick={fetchInvites} className="p-1.5 hover:bg-white/10 rounded transition-colors text-white/50 hover:text-white">
+               <RefreshCw className="w-4 h-4" />
+            </button>
+          ) : activeTab === 'marketplace' ? (
+            <button onClick={fetchSubmissions} className="p-1.5 hover:bg-white/10 rounded transition-colors text-white/50 hover:text-white">
                <RefreshCw className="w-4 h-4" />
             </button>
           ) : (
@@ -400,7 +435,51 @@ export function AdminPanel({ window }: { window: OSWindow }) {
                 </div>
               )}
            </>
-         )}
+          )}
+
+          {activeTab === 'marketplace' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-white/80">Pending Submissions ({submissions.length})</h3>
+                <button onClick={fetchSubmissions} className="text-xs text-white/50 hover:text-white">Refresh</button>
+              </div>
+              {submissions.length === 0 ? (
+                <div className="text-center text-white/50 text-sm py-8">No pending submissions.</div>
+              ) : (
+                <div className="grid gap-3">
+                  {submissions.map((sub: any) => (
+                    <div key={sub.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="font-semibold text-sm">{sub.name}</div>
+                          <div className="text-xs text-white/50 mt-1">{sub.description}</div>
+                          <div className="flex items-center gap-3 mt-2 text-xs text-white/40">
+                            <span>v{sub.version}</span>
+                            <span className="bg-white/10 px-2 py-0.5 rounded">{sub.category}</span>
+                            <span>{sub.developer_id?.slice(0, 8)}...</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleReviewSubmission(sub.id, 'approve')}
+                            className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded text-xs font-medium transition-colors"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleReviewSubmission(sub.id, 'reject')}
+                            className="px-3 py-1.5 bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 rounded text-xs font-medium transition-colors"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
       </div>
     </div>
   );

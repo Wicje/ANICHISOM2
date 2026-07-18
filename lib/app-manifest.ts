@@ -72,6 +72,7 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
   'nothing-product': () => import('@/components/moodboard/nothing-product'),
   'samur-ai-board': () => import('@/components/moodboard/samur-ai-board'),
   'notification-settings': () => import('@/components/settings/notification-settings'),
+  'analytics': () => import('@/components/apps/analytics/dashboard'),
 };
 
 // SVG data URIs — brand-inspired distinctive app icons
@@ -150,6 +151,8 @@ const ICO = {
   gemini: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cdefs%3E%3ClinearGradient id='a' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%231a73e8'/%3E%3Cstop offset='50%25' stop-color='%23e8453c'/%3E%3Cstop offset='100%25' stop-color='%23fbbc05'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='120' height='120' rx='26' fill='%23000'/%3E%3Cpath d='M40 80c-10-10-10-28 0-40M80 80c10-10 10-28 0-40' stroke='url(%23a)' stroke-width='6' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='60' cy='60' r='6' fill='%23fff'/%3E%3C/svg%3E",
   // Ziklag — forensic/tech style
   ziklag: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='26' fill='%231a1a2e'/%3E%3Crect x='28' y='32' width='64' height='56' rx='4' stroke='%2300ff88' stroke-width='3' fill='none'/%3E%3Cpath d='M48 50l8 8-8 8' stroke='%2300ff88' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cline x1='62' y1='66' x2='78' y2='66' stroke='%2300ff88' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E",
+  // Analytics — chart/performance style
+  analytics: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cdefs%3E%3ClinearGradient id='a' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%2322c55e'/%3E%3Cstop offset='100%25' stop-color='%2316a34a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='120' height='120' rx='26' fill='url(%23a)'/%3E%3Cpath d='M28 80l20-20 16 10 28-34' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='28' cy='80' r='4' fill='%23fff'/%3E%3Ccircle cx='48' cy='60' r='4' fill='%23fff'/%3E%3Ccircle cx='64' cy='70' r='4' fill='%23fff'/%3E%3Ccircle cx='92' cy='36' r='4' fill='%23fff'/%3E%3C/svg%3E",
 };
 
 // Static metadata — loaded eagerly (tiny)
@@ -216,6 +219,9 @@ export const APP_MANIFEST: AppManifestEntry[] = [
   { id: 'hardware-pack', component: null as any, icon: HardDrive, iconImage: ICO.harddrive, title: 'Hardware Pack', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'dev', description: 'Hardware integration tools' },
   { id: 'ziklag-tools', component: null as any, icon: Wrench, iconImage: ICO.wrench, title: 'Ziklag Tools', roles: ['admin', 'filmmaker'], isCore: false, category: 'system', description: 'Ziklag platform tools' },
   { id: 'ziklag-forensics-pack', component: null as any, icon: Shield, iconImage: ICO.ziklag, title: 'Ziklag Forensics', roles: ['admin', 'technician'], isCore: false, category: 'dev', description: 'Forensic case management, evidence tracking, and chain of custody' },
+
+  // Admin Tools
+  { id: 'analytics', component: null as any, icon: BarChart3, iconImage: ICO.analytics, title: 'Analytics', roles: ['admin'], isCore: false, category: 'admin', description: 'Real-time performance and usage analytics dashboard' },
 ];
 
 // Dynamic import resolver — handles both default and named exports
