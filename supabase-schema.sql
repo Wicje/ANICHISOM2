@@ -56,16 +56,9 @@ drop policy if exists "Invites: read valid" on public.invites;
 drop policy if exists "Invites: insert admin" on public.invites;
 drop policy if exists "Invites: update admin" on public.invites;
 drop policy if exists "Invites: delete admin" on public.invites;
-drop policy if exists "Users can read own context records" on public.context_records;
-drop policy if exists "Users can insert own context records" on public.context_records;
-drop policy if exists "Users can update own context records" on public.context_records;
-drop policy if exists "Users can delete own context records" on public.context_records;
-drop policy if exists "Anyone can insert vitals" on public.vitals_metrics;
-drop policy if exists "Developers can read own submissions" on public.marketplace_submissions;
-drop policy if exists "Developers can insert submissions" on public.marketplace_submissions;
-drop policy if exists "Developers can update own submissions" on public.marketplace_submissions;
-drop policy if exists "Anyone can read published apps" on public.marketplace_apps;
-drop policy if exists "Developers can update own apps" on public.marketplace_apps;
+
+-- Note: policies for context_records, vitals_metrics, marketplace_submissions,
+-- and marketplace_apps are cleaned up by DROP TABLE ... CASCADE below.
 
 -- Drop tables in reverse dependency order
 drop table if exists public.marketplace_apps cascade;
