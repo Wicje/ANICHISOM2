@@ -1,13 +1,87 @@
 -- ============================================================================
--- ContinuaOS — Supabase Database Schema (Fixed)
+-- ContinuaOS — Supabase Database Schema (Full Reset)
 -- ============================================================================
 -- Run this in the Supabase SQL Editor (Dashboard > SQL Editor > New query)
 --
--- Fixes applied:
---   1. All columns use snake_case (PostgreSQL convention, no quoting needed)
---   2. auth.uid()::text casts UUID to text for comparison with text columns
---   3. All indexes reference correct lowercase column names
+-- This script DROPS all existing ContinuaOS tables, policies, functions,
+-- and triggers first, then recreates everything fresh with snake_case columns.
+-- Run this ONCE to reset your database.
 -- ============================================================================
+
+-- ============================================================================
+-- CLEANUP — Drop everything first
+-- ============================================================================
+-- Drop triggers on auth.users first (they depend on our function)
+drop trigger if exists on_auth_user_created on auth.users;
+drop function if exists public.handle_new_user() cascade;
+
+-- Drop policies (safe to run even if they don't exist)
+drop policy if exists "Users: allow all" on public.users;
+drop policy if exists "Workspaces: allow all" on public.workspaces;
+drop policy if exists "Projects: allow all" on public.projects;
+drop policy if exists "Files: allow all" on public.files;
+drop policy if exists "Events: allow all" on public.events;
+drop policy if exists "Presence: allow all" on public.presence;
+drop policy if exists "Snapshots: allow all" on public.snapshots;
+drop policy if exists "Apps: allow all" on public.apps;
+drop policy if exists "Plugins: allow all" on public.plugins;
+drop policy if exists "Invites: allow all" on public.invites;
+drop policy if exists "Users: read own or admin" on public.users;
+drop policy if exists "Users: update own" on public.users;
+drop policy if exists "Workspaces: read owner or member" on public.workspaces;
+drop policy if exists "Workspaces: insert owner" on public.workspaces;
+drop policy if exists "Workspaces: update owner" on public.workspaces;
+drop policy if exists "Workspaces: delete owner" on public.workspaces;
+drop policy if exists "Projects: read workspace member" on public.projects;
+drop policy if exists "Projects: insert workspace member" on public.projects;
+drop policy if exists "Projects: update workspace member" on public.projects;
+drop policy if exists "Projects: delete workspace member" on public.projects;
+drop policy if exists "Files: read project member" on public.files;
+drop policy if exists "Files: insert project member" on public.files;
+drop policy if exists "Files: update project member" on public.files;
+drop policy if exists "Files: delete project member" on public.files;
+drop policy if exists "Events: read workspace member" on public.events;
+drop policy if exists "Events: insert own" on public.events;
+drop policy if exists "Presence: read workspace member" on public.presence;
+drop policy if exists "Presence: upsert own" on public.presence;
+drop policy if exists "Snapshots: read project member" on public.snapshots;
+drop policy if exists "Snapshots: insert project member" on public.snapshots;
+drop policy if exists "Apps: read all" on public.apps;
+drop policy if exists "Apps: insert own" on public.apps;
+drop policy if exists "Apps: update own" on public.apps;
+drop policy if exists "Apps: delete own" on public.apps;
+drop policy if exists "Plugins: read all" on public.plugins;
+drop policy if exists "Plugins: insert authenticated" on public.plugins;
+drop policy if exists "Invites: read valid" on public.invites;
+drop policy if exists "Invites: insert admin" on public.invites;
+drop policy if exists "Invites: update admin" on public.invites;
+drop policy if exists "Invites: delete admin" on public.invites;
+drop policy if exists "Users can read own context records" on public.context_records;
+drop policy if exists "Users can insert own context records" on public.context_records;
+drop policy if exists "Users can update own context records" on public.context_records;
+drop policy if exists "Users can delete own context records" on public.context_records;
+drop policy if exists "Anyone can insert vitals" on public.vitals_metrics;
+drop policy if exists "Developers can read own submissions" on public.marketplace_submissions;
+drop policy if exists "Developers can insert submissions" on public.marketplace_submissions;
+drop policy if exists "Developers can update own submissions" on public.marketplace_submissions;
+drop policy if exists "Anyone can read published apps" on public.marketplace_apps;
+drop policy if exists "Developers can update own apps" on public.marketplace_apps;
+
+-- Drop tables in reverse dependency order
+drop table if exists public.marketplace_apps cascade;
+drop table if exists public.marketplace_submissions cascade;
+drop table if exists public.vitals_metrics cascade;
+drop table if exists public.context_records cascade;
+drop table if exists public.snapshots cascade;
+drop table if exists public.files cascade;
+drop table if exists public.projects cascade;
+drop table if exists public.events cascade;
+drop table if exists public.presence cascade;
+drop table if exists public.apps cascade;
+drop table if exists public.plugins cascade;
+drop table if exists public.invites cascade;
+drop table if exists public.workspaces cascade;
+drop table if exists public.users cascade;
 
 -- ============================================================================
 -- 1. USERS
@@ -202,18 +276,6 @@ alter table public.snapshots         enable row level security;
 alter table public.apps              enable row level security;
 alter table public.plugins           enable row level security;
 alter table public.invites           enable row level security;
-
--- Drop old policies if they exist
-drop policy if exists "Users: allow all" on public.users;
-drop policy if exists "Workspaces: allow all" on public.workspaces;
-drop policy if exists "Projects: allow all" on public.projects;
-drop policy if exists "Files: allow all" on public.files;
-drop policy if exists "Events: allow all" on public.events;
-drop policy if exists "Presence: allow all" on public.presence;
-drop policy if exists "Snapshots: allow all" on public.snapshots;
-drop policy if exists "Apps: allow all" on public.apps;
-drop policy if exists "Plugins: allow all" on public.plugins;
-drop policy if exists "Invites: allow all" on public.invites;
 
 -- USERS
 create policy "Users: read own or admin" on public.users

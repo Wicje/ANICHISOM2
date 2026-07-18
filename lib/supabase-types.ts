@@ -199,17 +199,17 @@ export interface Database {
       vitals_metrics: {
         Row: {
           id: string;
+          user_id: string | null;
           name: string;
           value: number;
           rating: string;
-          delta: number;
-          id_key: string;
-          page_url: string;
-          user_agent: string;
-          created_at: string;
+          delta: number | null;
+          url: string | null;
+          user_agent: string | null;
+          recorded_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['vitals_metrics']['Row'], 'created_at'> & {
-          created_at?: string;
+        Insert: Omit<Database['public']['Tables']['vitals_metrics']['Row'], 'recorded_at'> & {
+          recorded_at?: string;
         };
         Update: Partial<Database['public']['Tables']['vitals_metrics']['Insert']>;
       };
@@ -219,11 +219,8 @@ export interface Database {
           name: string;
           description: string;
           developer: string;
-          developer_id: string | null;
-          manifest_url: string | null;
-          source: string;
-          status: string;
-          installed_by: string[];
+          price: string | null;
+          github_url: string | null;
           created_at: string;
         };
         Insert: Omit<Database['public']['Tables']['plugins']['Row'], 'created_at'> & {
@@ -266,38 +263,6 @@ export interface Database {
           published_at?: string;
         };
         Update: Partial<Database['public']['Tables']['marketplace_apps']['Insert']>;
-      };
-      share_links: {
-        Row: {
-          id: string;
-          token: string;
-          file_id: string;
-          created_by: string;
-          created_at: string;
-          expires_at: string | null;
-          max_uses: number | null;
-          use_count: number;
-          used_by: string[];
-        };
-        Insert: Omit<Database['public']['Tables']['share_links']['Row'], 'created_at' | 'use_count'> & {
-          created_at?: string;
-          use_count?: number;
-        };
-        Update: Partial<Database['public']['Tables']['share_links']['Insert']>;
-      };
-      private_registries: {
-        Row: {
-          id: string;
-          name: string;
-          url: string;
-          token: string;
-          created_by: string;
-          created_at: string;
-        };
-        Insert: Omit<Database['public']['Tables']['private_registries']['Row'], 'created_at'> & {
-          created_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['private_registries']['Insert']>;
       };
     };
   };
