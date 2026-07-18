@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useOS, OSWindow } from '@/lib/os-context';
-import { Image as ImageIcon, Palette, Save, Type, Eye, Settings2, Monitor, User, Volume2, VolumeX, Shield, Keyboard, CloudRain, Coffee, Trees, Radio } from 'lucide-react';
+import { Image as ImageIcon, Palette, Save, Type, Eye, Settings2, Monitor, User, Volume2, VolumeX, Shield, Keyboard, CloudRain, Coffee, Trees, Radio, Download, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { audioSystem } from '@/lib/services/audio-engine';
@@ -41,6 +41,9 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
   const { wallpaper, setWallpaper, themeColor, setThemeColor, fontFamily, setFontFamily, screenShader, setScreenShader, currentUser } = useOS();
   const [customUrl, setCustomUrl] = useState('');
   const [activeTab, setActiveTab] = useState<'appearance' | 'system' | 'account' | 'privacy'>('appearance');
+  const [contextExporting, setContextExporting] = useState(false);
+  const [contextImporting, setContextImporting] = useState(false);
+  const [contextMessage, setContextMessage] = useState('');
 
   const animationsEnabled = useThemeStore((s) => s.animationsEnabled);
   const setAnimationsEnabled = useThemeStore((s) => s.setAnimationsEnabled);
@@ -65,6 +68,64 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
     if (newVol > 0 && muted) setMuted(false);
     audioSystem.init();
     audioSystem.playClick();
+  };
+
+  const handleExportContext = async () => {
+    setContextExporting(true);
+    setContextMessage('');
+    try {
+      const res = await fetch('/api/context/export');
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `continuaos-context-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setContextMessage('Context exported successfully');
+    } catch (err) {
+      setContextMessage('Export failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      setContextExporting(false);
+    }
+  };
+
+  const handleImportContext = async () => {
+    setContextImporting(true);
+    setContextMessage('');
+    try {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (!file) { setContextImporting(false); return; }
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        if (!parsed.continuaos_context) {
+          setContextMessage('Invalid context file');
+          setContextImporting(false);
+          return;
+        }
+        const res = await fetch('/api/context/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ context: parsed.context, mode: 'merge' }),
+        });
+        const result = await res.json();
+        if (result.ok) {
+          setContextMessage(`Imported ${result.imported} domains${result.errors > 0 ? ` (${result.errors} errors)` : ''}`);
+        } else {
+          setContextMessage('Import failed: ' + result.error);
+        }
+        setContextImporting(false);
+      };
+      input.click();
+    } catch (err) {
+      setContextMessage('Import failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      setContextImporting(false);
+    }
   };
 
   const tabs = [
@@ -425,6 +486,48 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                     </div>
                     <button className="text-sm px-4 py-1.5 rounded-lg border border-blue-500/50 text-blue-400 hover:bg-blue-500/10 transition-colors">Connect</button>
                   </div>
+                </div>
+              </section>
+
+              <section className="space-y-6">
+                <div className="flex items-center gap-2 pb-2 border-b border-white/10">
+                  <Save className="w-5 h-5 text-white/70" />
+                  <h2 className="text-lg font-medium">Context Sync</h2>
+                </div>
+
+                <p className="text-xs text-white/40">
+                  Export your workspace context (windows, theme, app state) to a JSON file, or import a previously exported context.
+                </p>
+
+                {contextMessage && (
+                  <div className={cn(
+                    "text-xs p-3 rounded-lg border",
+                    contextMessage.includes('success') || contextMessage.includes('Imported')
+                      ? "bg-green-500/10 border-green-500/30 text-green-400"
+                      : "bg-red-500/10 border-red-500/30 text-red-400"
+                  )}>
+                    {contextMessage}
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleExportContext}
+                    disabled={contextExporting}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/20 rounded-lg text-sm hover:bg-white/10 transition-colors disabled:opacity-50"
+                  >
+                    <Download className="w-4 h-4" />
+                    {contextExporting ? 'Exporting...' : 'Export Context'}
+                  </button>
+
+                  <button
+                    onClick={handleImportContext}
+                    disabled={contextImporting}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/20 rounded-lg text-sm hover:bg-white/10 transition-colors disabled:opacity-50"
+                  >
+                    <Upload className="w-4 h-4" />
+                    {contextImporting ? 'Importing...' : 'Import Context'}
+                  </button>
                 </div>
               </section>
             </div>
