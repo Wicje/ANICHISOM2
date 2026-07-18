@@ -1,5 +1,5 @@
 /**
- * ANICHISOM OS: Time Machine
+ * ContinuaOS: Time Machine
  * 
  * Browse and restore workspace states from the past
  * Phase 2C: Event History & Undo

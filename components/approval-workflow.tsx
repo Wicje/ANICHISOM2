@@ -1,5 +1,5 @@
 /**
- * ANICHISOM OS: Approval Workflow
+ * ContinuaOS: Approval Workflow
  * 
  * Client and stakeholder approval management
  * Phase 2B: Campaign Lab App

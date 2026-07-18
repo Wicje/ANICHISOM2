@@ -1,5 +1,5 @@
 /**
- * ANICHISOM OS: Complete TypeScript Type Definitions
+ * ContinuaOS: Complete TypeScript Type Definitions
  * 
  * All types for workspaces, projects, files, events, and collaboration
  * Phase 1: Infrastructure

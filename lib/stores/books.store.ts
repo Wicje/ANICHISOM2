@@ -14,10 +14,10 @@ export interface BookItem {
   addedAt: number;
 }
 
-const STORAGE_KEY = 'anichisom_books';
+const STORAGE_KEY = 'continuaos_books';
 
 const DEFAULT_BOOKS: BookItem[] = [
-  { id: 'b1', title: 'The Edge Manifesto', author: 'ANICHISOM', color: '#4A6FA5', rotation: -5, x: 15, y: 20, progress: 72, addedAt: Date.now() },
+  { id: 'b1', title: 'The Edge Manifesto', author: 'ContinuaOS', color: '#4A6FA5', rotation: -5, x: 15, y: 20, progress: 72, addedAt: Date.now() },
   { id: 'b2', title: 'Local-First Software', author: 'Martin Kleppmann', color: '#2C2C2C', rotation: 3, x: 30, y: 15, progress: 45, addedAt: Date.now() },
   { id: 'b3', title: 'Designing Data Apps', author: 'Katie Cox', color: '#8B4513', rotation: -2, x: 48, y: 22, progress: 88, addedAt: Date.now() },
   { id: 'b4', title: 'Creative Confidence', author: 'Tom & David Kelley', color: '#D4A574', rotation: 4, x: 65, y: 18, progress: 30, addedAt: Date.now() },

@@ -1,5 +1,5 @@
 /**
- * ANICHISOM OS — Service Worker
+ * ContinuaOS OS — Service Worker
  *
  * Strategy:
  * - Static assets (_next/static/*): Cache-first (immutable content)
@@ -12,10 +12,10 @@
  */
 
 const CACHE_VERSION = 'v2';
-const STATIC_CACHE = `anichisom-static-${CACHE_VERSION}`;
-const RUNTIME_CACHE = `anichisom-runtime-${CACHE_VERSION}`;
-const OFFLINE_CACHE = `anichisom-offline-${CACHE_VERSION}`;
-const SYNC_QUEUE_CACHE = `anichisom-sync-queue`;
+const STATIC_CACHE = `continuaos-static-${CACHE_VERSION}`;
+const RUNTIME_CACHE = `continuaos-runtime-${CACHE_VERSION}`;
+const OFFLINE_CACHE = `continuaos-offline-${CACHE_VERSION}`;
+const SYNC_QUEUE_CACHE = `continuaos-sync-queue`;
 
 // Assets to precache on install (app shell)
 const PRECACHE_URLS = [
@@ -102,7 +102,7 @@ self.addEventListener('fetch', (event) => {
 
 // ─── Background Sync ────────────────────────────────────────
 self.addEventListener('sync', (event) => {
-  if (event.tag === 'anichisom-sync') {
+  if (event.tag === 'continuaos-sync') {
     event.waitUntil(replaySyncQueue());
   }
 });
@@ -195,7 +195,7 @@ async function addToSyncQueue(payload) {
 
   // Register background sync if available
   if ('sync' in self.registration) {
-    await self.registration.sync.register('anichisom-sync');
+    await self.registration.sync.register('continuaos-sync');
   }
 }
 

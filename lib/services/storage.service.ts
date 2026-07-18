@@ -3,7 +3,7 @@ import { useWindowStore, OSWindow } from '@/lib/stores/window.store';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useWorkspaceStore } from '@/lib/stores/workspace.store';
 
-const DESKTOP_KEY = 'anichisom_os_desktop';
+const DESKTOP_KEY = 'continuaos_os_desktop';
 
 type PersistedDesktop = {
   windows: OSWindow[];

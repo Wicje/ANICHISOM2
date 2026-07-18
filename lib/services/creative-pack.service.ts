@@ -1,5 +1,5 @@
 /**
- * Creative Pack Service — cross-app orchestration for the ANICHISOM Creative Pack.
+ * Creative Pack Service — cross-app orchestration for the ContinuaOS Creative Pack.
  *
  * Aggregates brand guidelines, moodboard boards, and proposals into
  * unified data structures for the Client Portal and Pack UI.
@@ -88,7 +88,7 @@ Brand Guidelines for this proposal:
     }
 
     const gateway = getAIGateway();
-    const systemPrompt = `You are a senior creative strategist at ANICHISOM. Generate a professional project proposal.
+    const systemPrompt = `You are a senior creative strategist at ContinuaOS. Generate a professional project proposal.
 ${brandContext}
 Return your response as valid JSON:
 {
@@ -97,7 +97,7 @@ Return your response as valid JSON:
   "approach": "Strategic approach paragraph",
   "investment": "Budget breakdown",
   "timeline": "Timeline summary",
-  "whyUs": "Why ANICHISOM"
+  "whyUs": "Why ContinuaOS"
 }
 Be specific, professional, and persuasive.`;
 

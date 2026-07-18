@@ -130,7 +130,7 @@ export function LoginScreen() {
               <Key className="w-6 h-6 text-black" />
             </div>
             <div className="font-mono text-2xl font-bold text-white tracking-[0.2em] uppercase">
-              Anichisom OS
+              ContinuaOS
             </div>
           </div>
           <p className="text-white/40 text-xs max-w-xs font-mono uppercase tracking-widest">

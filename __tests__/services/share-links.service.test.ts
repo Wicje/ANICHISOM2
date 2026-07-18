@@ -188,7 +188,7 @@ describe('share-links.service', () => {
       revoked: false,
       createdBy: 'user-1',
     };
-    await set('anichisom-share-links', [expiredLink]);
+    await set('continuaos-share-links', [expiredLink]);
     const removed = await cleanupExpiredLinks();
     expect(removed).toBe(1);
     const active = await getActiveShareLinks();

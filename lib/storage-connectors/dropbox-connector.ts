@@ -1,7 +1,7 @@
 /**
  * Dropbox Storage Connector
  *
- * Connects user's Dropbox to Anichisom OS via OAuth2.
+ * Connects user's Dropbox to ContinuaOS OS via OAuth2.
  * Privacy-first: tokens stored server-side only, never sent to client.
  */
 

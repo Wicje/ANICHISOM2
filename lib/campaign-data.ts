@@ -247,7 +247,7 @@ export const TEAM_MEMBERS = ['@Founder', '@CreativeDir', '@Designer', '@Develope
 // ─── Templates ──────────────────────────────────────────────
 export const TEMPLATES = [
   {
-    name: 'ANICHISOM Campaign',
+    name: 'ContinuaOS Campaign',
     icon: '✨',
     coverGradient: 'from-blue-500 to-purple-600',
     description: 'Full campaign workflow from brief to delivery',

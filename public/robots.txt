@@ -3,4 +3,4 @@ Disallow: /api/
 Disallow: /_next/
 Allow: /
 
-Sitemap: https://anichisom.cc/sitemap.xml
+Sitemap: https://continuaos.cc/sitemap.xml

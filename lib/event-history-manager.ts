@@ -1,5 +1,5 @@
 /**
- * ANICHISOM OS: Event History Manager
+ * ContinuaOS: Event History Manager
  * 
  * Tracks all workspace changes for undo/redo and audit trail
  * Phase 2C: Event History & Undo

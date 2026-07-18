@@ -127,7 +127,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     // auth state. We only need to hydrate desktop state when user becomes available.
     const hydrateDesktopState = async () => {
       if (!isHydratedRef.current) {
-        const localData = await get('anichisom_os_desktop');
+        const localData = await get('continuaos_os_desktop');
         if (localData && localData.windows) {
           windowSetWindows(localData.windows);
           if (localData.workspaceMode) wsSetWorkspaceMode(localData.workspaceMode);
@@ -165,7 +165,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     
     const t = setTimeout(async () => {
       try {
-        await set('anichisom_os_desktop', {
+        await set('continuaos_os_desktop', {
           windows,
           workspaceMode,
           installedApps,

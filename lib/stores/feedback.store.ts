@@ -33,7 +33,7 @@ export interface BetaMetrics {
 
 // ─── Storage ────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = 'anichisom-feedback-state';
+const STORAGE_KEY = 'continuaos-feedback-state';
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 function schedulePersist(state: FeedbackStoreState) {

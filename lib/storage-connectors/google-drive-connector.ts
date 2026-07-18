@@ -1,7 +1,7 @@
 /**
  * Google Drive Storage Connector
  *
- * Connects user's Google Drive to Anichisom OS via OAuth2.
+ * Connects user's Google Drive to ContinuaOS OS via OAuth2.
  * Files appear in the Files app — browse, read, download.
  * Privacy-first: OAuth tokens stored server-side only.
  */
@@ -214,7 +214,7 @@ export class GoogleDriveConnector implements IStorageConnector {
       metadata.parents = [parentId];
     }
 
-    const boundary = `----AnichisomDriveUpload${Date.now()}`;
+    const boundary = `----ContinuaOSDriveUpload${Date.now()}`;
     const delimiter = `--${boundary}\r\n`;
     const closeDelimiter = `--${boundary}--`;
     const body = Buffer.concat([

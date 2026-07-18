@@ -1,5 +1,5 @@
 /**
- * ANICHISOM OS: AI Proposals Panel
+ * ContinuaOS: AI Proposals Panel
  * 
  * Display and manage AI-generated design recommendations
  * Phase 3B: AI Proposals & Adaptive UI

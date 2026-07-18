@@ -18,7 +18,7 @@ export const DEFAULT_CONFIG = {
   }
 };
 
-const CONFIG_PATH = '.config/anichisom.json';
+const CONFIG_PATH = '.config/continuaos.json';
 
 export function ConfigManagerApp({ window: osWindow }: { window: OSWindow }) {
   const { notify } = useOS();

@@ -1,4 +1,4 @@
--- Supabase Schema Initialization for ANICHISOM OS
+-- Supabase Schema Initialization for ContinuaOS
 
 -- Enable necessary extensions
 create extension if not exists "uuid-ossp";

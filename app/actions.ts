@@ -46,7 +46,7 @@ export async function generateTerminalResponse(
   try {
     const chatOptions = {
       messages: [{ role: 'user' as const, content: prompt }],
-      systemPrompt: 'You are an AI assistant integrated into a web-based operating system terminal (Anichisom OS). Respond concisely and technically as if producing CLI output.',
+      systemPrompt: 'You are an AI assistant integrated into a web-based operating system terminal (ContinuaOS OS). Respond concisely and technically as if producing CLI output.',
       model,
       maxTokens: 2048,
       temperature: 0.4,

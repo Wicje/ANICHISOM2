@@ -1,5 +1,5 @@
 -- ============================================================================
--- ANICHISOM OS — Supabase Database Schema
+-- ContinuaOS — Supabase Database Schema
 -- ============================================================================
 -- Run this in the Supabase SQL Editor (Dashboard > SQL Editor > New query)
 -- or via `supabase db push` / `psql` connection string.
@@ -452,6 +452,52 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- ============================================================================
+-- 13. CONTEXT RECORDS (Cross-Device Sync)
+-- ============================================================================
+-- Stores serialized session context domains for cross-device sync.
+-- Each record = one domain (windows, theme, apps.terminal, etc.) for one user.
+-- Conflict resolution: version vectors + last-write-wins.
+-- ============================================================================
+create table if not exists public.context_records (
+  id          text primary key,               -- `${user_id}:${domain}`
+  user_id     text not null references public.users(id) on delete cascade,
+  domain      text not null,                  -- 'windows', 'theme', 'apps.terminal', etc.
+  data        jsonb not null default '{}',    -- serialized domain data
+  version     integer not null default 1,     -- monotonic version for conflict detection
+  device_id   text not null,                  -- unique per browser/device
+  updated_at  timestamptz not null default now(),
+  unique(user_id, domain)
+);
+
+-- Index for querying all domains for a user
+create index if not exists idx_context_records_user on public.context_records(user_id);
+
+-- Index for sync: find records updated after a timestamp
+create index if not exists idx_context_records_updated on public.context_records(updated_at);
+
+-- RLS: users can only read/write their own context records
+alter table public.context_records enable row level security;
+
+create policy "Users can read own context records"
+  on public.context_records for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own context records"
+  on public.context_records for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update own context records"
+  on public.context_records for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete own context records"
+  on public.context_records for delete
+  using (auth.uid() = user_id);
+
+-- Realtime: enable replication for context_records
+alter publication supabase_realtime add table public.context_records;
 
 -- ============================================================================
 -- DONE

@@ -29,8 +29,8 @@ export interface UpdateRecord {
 
 // ─── Storage ────────────────────────────────────────────────────────────
 
-const HISTORY_KEY = 'anichisom-version-history';
-const AUTO_UPDATE_KEY = 'anichisom-auto-update';
+const HISTORY_KEY = 'continuaos-version-history';
+const AUTO_UPDATE_KEY = 'continuaos-auto-update';
 
 function loadHistory(): UpdateRecord[] {
   if (typeof window === 'undefined') return [];

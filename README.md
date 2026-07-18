@@ -1,4 +1,4 @@
-# ANICHISOM OS
+# ContinuaOS
 
 **The Creative OS Infrastructure** — A browser-based operating system that eliminates machine-switching and context-switching friction for anyone running multiple ventures.
 
@@ -8,7 +8,7 @@
 
 ## Table of Contents
 
-1. [What ANICHISOM OS Is](#1-what-anichisom-os-is)
+1. [What ContinuaOS Is](#1-what-continuaos-os-is)
 2. [Quick Start](#2-quick-start)
 3. [Architecture](#3-architecture)
 4. [Built-in Apps](#4-built-in-apps)
@@ -22,9 +22,9 @@
 
 ---
 
-## 1. What ANICHISOM OS Is
+## 1. What ContinuaOS Is
 
-ANICHISOM OS runs in your browser and gives you a persistent desktop environment — windows, apps, files, and sessions — that syncs across machines. It replaces 5-10 separate tools with one unified workspace.
+ContinuaOS runs in your browser and gives you a persistent desktop environment — windows, apps, files, and sessions — that syncs across machines. It replaces 5-10 separate tools with one unified workspace.
 
 ### The Core Experience
 
@@ -53,7 +53,7 @@ Layer 2:  Vertical Apps (stickiness) → filmmaker, agency, dev, designer packs
 Layer 1:  Core OS (infrastructure)   → runtime, storage, sync, auth, collaboration
 ```
 
-**The pitch:** *"ANICHISOM is the operating system your creative team runs in the browser. We provide the infrastructure — you install the apps you need."*
+**The pitch:** *"ContinuaOS is the operating system your creative team runs in the browser. We provide the infrastructure — you install the apps you need."*
 
 ---
 
@@ -68,8 +68,8 @@ Layer 1:  Core OS (infrastructure)   → runtime, storage, sync, auth, collabora
 
 ```bash
 # Clone the repo
-git clone git@github.com:Wicje/ANICHISOM2.git
-cd ANICHISOM2
+git clone git@github.com:Wicje/ContinuaOS.git
+cd ContinuaOS
 
 # Install dependencies
 npm install --legacy-peer-deps
@@ -122,7 +122,7 @@ The OS starts at `http://localhost:3000`.
 ╔═══════════════════════════════════════════════════════════╗
 ║  LAYER 3 — ECOSYSTEM (Marketplace, install what you need) ║
 ║                                                           ║
-║  [ANICHISOM Pack] [Ziklag Forensics] [Clothing Brand]    ║
+║  [ContinuaOS Pack] [Ziklag Forensics] [Clothing Brand]    ║
 ║  [Hardware Pack] [Developer Pack] [Photography Pack] [+]  ║
 ╠═══════════════════════════════════════════════════════════╣
 ║  LAYER 2 — BUILT-IN APPS (Come with every workspace)      ║
@@ -175,7 +175,7 @@ The OS starts at `http://localhost:3000`.
 
 ## 4. Built-in Apps
 
-ANICHISOM OS ships with **46 apps**. Each app has a unique brand-inspired SVG icon.
+ContinuaOS ships with **46 apps**. Each app has a unique brand-inspired SVG icon.
 
 ### Core Apps
 
@@ -231,7 +231,7 @@ Installable per workspace. Available from the App Store.
 
 | Pack | Price | What You Get |
 |---|---|---|
-| **ANICHISOM Creative Pack** | $15/mo | Moodboard Mill, Proposal Generator, Client Portal, Brand Guides |
+| **ContinuaOS Creative Pack** | $15/mo | Moodboard Mill, Proposal Generator, Client Portal, Brand Guides |
 | **Ziklag Forensics Pack** | $25/mo | Case Manager, Chain of Custody, Evidence Log, Hash Verifier |
 | **Clothing Brand Pack** | $12/mo | Lookbook, Supplier Tracker, Collection Planner, Shopify Sync |
 | **Hardware Pack** | $12/mo | BOM Manager, Firmware Tracker, Supplier Contacts, Component Library |
@@ -353,7 +353,7 @@ For 70 beta users: **$0 infrastructure cost.**
 ## 9. Project Structure
 
 ```
-ANICHISOM2/
+ContinuaOS/
 ├── app/                          # Next.js App Router
 │   ├── api/                      # API routes (auth, proxy, cloud storage)
 │   ├── layout.tsx                # Root layout

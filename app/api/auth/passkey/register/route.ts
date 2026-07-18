@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       challenge,
       rp: {
         id: rpId,
-        name: 'ANICHISOM OS',
+        name: 'ContinuaOS',
       },
       user: {
         id: username,

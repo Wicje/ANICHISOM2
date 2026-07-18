@@ -177,7 +177,7 @@ export function isPluginActive(id: string): boolean {
 
 // ─── Persistence ───────────────────────────────────────────────────────────
 
-const STORAGE_KEY = 'anichisom_plugin_states';
+const STORAGE_KEY = 'continuaos_plugin_states';
 
 /** Save install states to localStorage */
 export function persistInstallStates(): void {
@@ -218,7 +218,7 @@ export function registerBuiltinPlugins(builtinAppIds: string[]): void {
         name: id, // Desktop will override with proper names
         version: '1.0.0',
         description: `Built-in ${id} app`,
-        author: 'ANICHISOM',
+        author: 'ContinuaOS',
         category: 'productivity',
         permissions: [],
         runtime: 'native',

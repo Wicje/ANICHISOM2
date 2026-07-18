@@ -7,11 +7,11 @@ export const getInitialCode = (id: string, content?: string) => {
   if (content) return content;
   switch (id) {
      case 'nike-campaign':
-       return `import { initCampaign } from '@anichisom/core';\n\n// Nike Air Force 1 : 40th Anniversary\nconst campaign = initCampaign({\n  target: 'Global',\n  platforms: ['Instagram', 'TikTok'],\n  mood: 'Energetic, Street, Heritage'\n});\n`;
+       return `import { initCampaign } from '@continuaos/core';\n\n// Nike Air Force 1 : 40th Anniversary\nconst campaign = initCampaign({\n  target: 'Global',\n  platforms: ['Instagram', 'TikTok'],\n  mood: 'Energetic, Street, Heritage'\n});\n`;
      case 'tesla-redesign':
-       return `import { renderUI } from '@anichisom/ui';\n\n// Tesla dashboard concept\nexport default function App() {\n  return (\n    <div className="bg-black text-white p-8">\n       <h1>Tesla UI Staging</h1>\n       <p>Dashboard visualization active.</p>\n    </div>\n  )\n}\n`;
+       return `import { renderUI } from '@continuaos/ui';\n\n// Tesla dashboard concept\nexport default function App() {\n  return (\n    <div className="bg-black text-white p-8">\n       <h1>Tesla UI Staging</h1>\n       <p>Dashboard visualization active.</p>\n    </div>\n  )\n}\n`;
      case 'portfolio-v3':
-       return `// Portfolio OS Core Boot Sequence\nimport { bootOS } from './kernel';\n\nbootOS({\n  user: 'ANICHISOM',\n  desktopTheme: 'macOS Monterey',\n  apps: ['Terminal', 'Moodboard', 'Code']\n});\n`;
+       return `// Portfolio OS Core Boot Sequence\nimport { bootOS } from './kernel';\n\nbootOS({\n  user: 'ContinuaOS',\n  desktopTheme: 'macOS Monterey',\n  apps: ['Terminal', 'Moodboard', 'Code']\n});\n`;
      default:
        return `export default function App() {\n  // Set breakpoints by clicking the gutter on the left\n  const handleAction = () => {\n    const data = { status: 'running' };\n    console.log(data);\n  };\n\n  return (\n    <div className="p-4">\n      <h1 className="text-xl font-bold">Hello World</h1>\n      <button onClick={handleAction}>Run</button>\n    </div>\n  );\n}\n`;
   }

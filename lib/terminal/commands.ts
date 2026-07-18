@@ -17,7 +17,7 @@ export type CommandContext = {
 const commands: Record<string, (args: string[], flags: Record<string, string | boolean>, ctx: CommandContext) => Promise<CommandResult> | CommandResult> = {
   help: () => ({
     output: [
-      'ANICHISOM OS Terminal v2.0 — Real filesystem, real commands',
+      'ContinuaOS Terminal v2.0 — Real filesystem, real commands',
       '',
       'FILESYSTEM:',
       '  ls [path]            List directory contents',
@@ -55,7 +55,7 @@ const commands: Record<string, (args: string[], flags: Record<string, string | b
   },
 
   whoami: (args, flags, ctx) => ({
-    output: ctx.currentUser?.name || 'user@anichisom',
+    output: ctx.currentUser?.name || 'user@continuaos',
   }),
 
   pwd: (args, flags, ctx) => ({

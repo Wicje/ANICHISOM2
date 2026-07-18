@@ -1,5 +1,5 @@
 /**
- * ANICHISOM OS: Workspace Selector
+ * ContinuaOS: Workspace Selector
  * 
  * Dropdown to switch between workspaces
  * Phase 2A: Collaboration

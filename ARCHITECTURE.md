@@ -1,4 +1,4 @@
-# ANICHISOM OS — Architecture
+# ContinuaOS — Architecture
 
 > **Single source of truth for what exists, what's missing, and what comes next.**
 
@@ -6,7 +6,7 @@
 
 ## 1. System Overview
 
-ANICHISOM OS is a browser-based universal workspace platform. Persistent, personalized desktop that syncs across machines.
+ContinuaOS is a browser-based universal workspace platform. Persistent, personalized desktop that syncs across machines.
 
 **Tech Stack:**
 
@@ -41,7 +41,7 @@ ANICHISOM OS is a browser-based universal workspace platform. Persistent, person
 ```
 ╔═══════════════════════════════════════════════════════════╗
 ║  LAYER 3 — ECOSYSTEM (Marketplace)                        ║
-║  [ANICHISOM Pack] [Developer] [Photography] [Clothing]    ║
+║  [ContinuaOS Pack] [Developer] [Photography] [Clothing]    ║
 ╠═══════════════════════════════════════════════════════════╣
 ║  LAYER 2 — BUILT-IN APPS                                  ║
 ║  [Browser] [Campaign Lab] [Moodboard] [Files] [Calls]     ║
@@ -383,7 +383,7 @@ See `supabase-schema.sql` — 12 tables, indexes, RLS policies.
 ## 8. Codebase Structure
 
 ```
-ANICHISOM2/
+ContinuaOS2/
 ├── app/                          # Next.js App Router
 │   ├── api/                      # API routes
 │   │   ├── auth/                 # Login, session, logout

@@ -6,7 +6,7 @@ import { randomUUID } from "crypto";
 
 const server = new Server(
   {
-    name: "anichisom-os",
+    name: "continuaos-os",
     version: "2.0.0",
   },
   {
@@ -17,7 +17,7 @@ const server = new Server(
 );
 
 // Connect to the OS Bridge — pass session token for auth (S-09)
-const MCP_SESSION_TOKEN = process.env.ANICHISOM_SESSION_TOKEN || '';
+const MCP_SESSION_TOKEN = process.env.ContinuaOS_SESSION_TOKEN || '';
 const socket = io("http://localhost:3000", {
   path: "/api/socketio",
   auth: { token: MCP_SESSION_TOKEN },
@@ -128,7 +128,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function run() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Anichisom OS MCP Server running on stdio");
+  console.error("ContinuaOS OS MCP Server running on stdio");
 }
 
 run().catch((error) => {

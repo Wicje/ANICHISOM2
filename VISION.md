@@ -1,12 +1,12 @@
-# ANICHISOM OS
+# ContinuaOS
 ## The Universal Workspace Platform — Vision v2.0
-*June 2026 | Supersedes v1.0 | Owner: Founder / ANICHISOM*
+*June 2026 | Supersedes v1.0 | Owner: Founder / ContinuaOS*
 
 ---
 
 > ### ⚠️ NOTICE TO ALL AI TOOLS (Cursor, Claude, v0, Copilot, and others)
 >
-> This v2.0 **supersedes** ANICHISOM OS Vision v1.0. Do not reference v1.0.
+> This v2.0 **supersedes** ContinuaOS Vision v1.0. Do not reference v1.0.
 > This document is the single authoritative source of truth.
 > Do not introduce tools, patterns, or architecture not explicitly endorsed here.
 > Do not simplify scope to make implementation easier.
@@ -18,7 +18,7 @@
 
 | Aspect | v1 | v2 |
 |---|---|---|
-| **Audience** | ANICHISOM + Ziklag teams | Anyone running multi-venture workflows |
+| **Audience** | ContinuaOS + Ziklag teams | Anyone running multi-venture workflows |
 | **Structure** | 9 apps in a flat list | Three-layer architecture (Core / Built-in / Ecosystem) |
 | **Browser** | One of 9 apps | Most critical built-in — universal integration layer |
 | **Files** | File browser | Universal cloud bridge (Drive, Dropbox, MinIO, local) |
@@ -28,15 +28,15 @@
 | **Plugins** | Not in scope | Marketplace with venture-specific packs |
 | **Native apps** | Not addressed | Defined strategy per tool (DaVinci, Adobe) |
 | **Monetization** | Workspace plans only | Workspace plans + plugin marketplace |
-| **Ventures** | ANICHISOM + Ziklag | + Clothing brand + Hardware company + any future venture |
+| **Ventures** | ContinuaOS + Ziklag | + Clothing brand + Hardware company + any future venture |
 
 ---
 
 ## 1. The North Star (v2)
 
-> **ANICHISOM OS is a universal workspace platform that eliminates machine-switching and context-switching friction for anyone running multiple ventures — giving each user a persistent, personalized environment that connects to every tool they use and grows with every new venture they start.**
+> **ContinuaOS is a universal workspace platform that eliminates machine-switching and context-switching friction for anyone running multiple ventures — giving each user a persistent, personalized environment that connects to every tool they use and grows with every new venture they start.**
 
-The original portability insight is unchanged. What expands is the scope of who benefits and how the platform grows. ANICHISOM's team and the founder's ventures are not the end goal — they are the proof of concept and the first tenants. Every plugin built from real use becomes a product that others can install.
+The original portability insight is unchanged. What expands is the scope of who benefits and how the platform grows. ContinuaOS's team and the founder's ventures are not the end goal — they are the proof of concept and the first tenants. Every plugin built from real use becomes a product that others can install.
 
 ---
 
@@ -48,7 +48,7 @@ This is the fundamental structural reorganization of v2. Everything is organized
 ╔═══════════════════════════════════════════════════════════╗
 ║  LAYER 3 — ECOSYSTEM (Marketplace, install what you need) ║
 ║                                                           ║
-║  [ANICHISOM Pack] [Ziklag Forensics] [Clothing Brand]    ║
+║  [ContinuaOS Pack] [Ziklag Forensics] [Clothing Brand]    ║
 ║  [Hardware Pack] [Developer Pack] [Photography Pack] [+]  ║
 ╠═══════════════════════════════════════════════════════════╣
 ║  LAYER 2 — BUILT-IN APPS (Come with every workspace)      ║
@@ -76,13 +76,13 @@ This is the fundamental structural reorganization of v2. Everything is organized
 
 | Persona | Ventures | Core Need |
 |---|---|---|
-| **Founder** | ANICHISOM + Ziklag + Clothing + Hardware + student | Portability across all machines and all ventures |
-| **Creative Director** | ANICHISOM | Browser sessions (Figma/Framer/Webflow), Campaign Lab, Moodboard |
-| **UI/UX Designer** | ANICHISOM / freelance | Pinned design tools, Moodboard, Files (Design assets) |
-| **Frontend Developer** | ANICHISOM / freelance | Terminal, Code Editor, Campaign Lab, pinned dev tools |
-| **Motion Designer** | ANICHISOM | Files (asset organization), Campaign Lab, Moodboard |
-| **Filmmaker / Photographer** | ANICHISOM / freelance | Files, Moodboard, Campaign Lab, Side-Gigs, native app context bridge |
-| **Copywriter / Writer** | ANICHISOM / personal | Notes, Campaign Lab, PDF reader, pinned research tools |
+| **Founder** | ContinuaOS + Ziklag + Clothing + Hardware + student | Portability across all machines and all ventures |
+| **Creative Director** | ContinuaOS | Browser sessions (Figma/Framer/Webflow), Campaign Lab, Moodboard |
+| **UI/UX Designer** | ContinuaOS / freelance | Pinned design tools, Moodboard, Files (Design assets) |
+| **Frontend Developer** | ContinuaOS / freelance | Terminal, Code Editor, Campaign Lab, pinned dev tools |
+| **Motion Designer** | ContinuaOS | Files (asset organization), Campaign Lab, Moodboard |
+| **Filmmaker / Photographer** | ContinuaOS / freelance | Files, Moodboard, Campaign Lab, Side-Gigs, native app context bridge |
+| **Copywriter / Writer** | ContinuaOS / personal | Notes, Campaign Lab, PDF reader, pinned research tools |
 | **Data Recovery / Forensics** | Ziklag | Ziklag Forensics Pack, Files, event audit trail |
 | **Clothing Brand Operator** | New venture | Clothing Pack (lookbook, inventory, Shopify), Campaign Lab, Moodboard |
 | **Hardware Engineer** | Ziklag / new venture | Hardware Pack (BOM, firmware, supplier), Terminal, Code Editor |
@@ -117,7 +117,7 @@ This experience is the product. If it is broken, nothing else matters.
 
 ### The Core Insight
 
-The founder currently uses: Gemini, Claude.ai, Figma, Framer, Webflow, Notion, CapCut, Adobe Lightroom Web, Google Meet, Shopify — and more. Every single one of these runs in a browser. Instead of switching between separate browser tabs on a local machine, they run as **pinned workspace apps** inside the ANICHISOM OS power browser, with their sessions persisted to the workspace backend.
+The founder currently uses: Gemini, Claude.ai, Figma, Framer, Webflow, Notion, CapCut, Adobe Lightroom Web, Google Meet, Shopify — and more. Every single one of these runs in a browser. Instead of switching between separate browser tabs on a local machine, they run as **pinned workspace apps** inside the ContinuaOS power browser, with their sessions persisted to the workspace backend.
 
 When you switch machines, you are not re-logging into Figma. Your Figma session was pinned and persisted as part of your workspace state. Same for every other pinned tool. This is true tool portability.
 
@@ -247,7 +247,7 @@ Notion's greatest value is organizing content alongside linked databases. Campai
 | Databases with views | Timeline, kanban, list, calendar views per campaign |
 | Linked databases | Campaign links to clients, files, team members, calls |
 | Embeds | Attaches files directly from the OS Files app |
-| Templates | Campaign templates for ANICHISOM, Clothing, Hardware workflows |
+| Templates | Campaign templates for ContinuaOS, Clothing, Hardware workflows |
 | Comments and @mentions | Native to every item in Campaign Lab |
 | Client sharing | Read-only client view per campaign, no OS account needed |
 
@@ -255,7 +255,7 @@ Notion's greatest value is organizing content alongside linked databases. Campai
 - Every change is an immutable event (undo/redo, full audit trail)
 - File locking: two people cannot edit the same campaign simultaneously
 - Native presence: see who is in the campaign right now
-- Generates proposals directly (ANICHISOM Pack feature)
+- Generates proposals directly (ContinuaOS Pack feature)
 - Connects to Calls app: meetings auto-link to their campaign and generate notes
 - Phase-aware UI: Discovery view looks different from Delivery view
 - Works offline with cached state (Notion requires network for almost everything)
@@ -274,7 +274,7 @@ Notion's greatest value is organizing content alongside linked databases. Campai
 | Multiple boards | Unlimited boards per workspace |
 
 ### What Moodboard Does That Milanote Cannot
-- **Moodboard Mill** (ANICHISOM Pack): Shared boards with clients use Tinder-style voting to aggregate preferences and generate taste profiles
+- **Moodboard Mill** (ContinuaOS Pack): Shared boards with clients use Tinder-style voting to aggregate preferences and generate taste profiles
 - Connected to Campaign Lab: moodboards attach directly to campaigns
 - Browser integration: one-click clip from any pinned browser app to a moodboard
 - Privacy mode: private boards are invisible to other workspace members
@@ -320,7 +320,7 @@ That contextual linking is what Meet and Zoom can never do natively. **That is t
 
 ### What a Plugin Is
 
-An ANICHISOM OS plugin is an app that:
+An ContinuaOS plugin is an app that:
 - Runs inside the OS window manager alongside built-in apps
 - Accesses Layer 1 services via a defined API (auth, state, files, events, presence, calls)
 - Is sandboxed in an iframe with postMessage communication (cannot touch other apps' DOM)
@@ -343,13 +343,13 @@ interface OSPluginAPI {
 }
 ```
 
-### First-Party Packs (Built by ANICHISOM)
+### First-Party Packs (Built by ContinuaOS)
 
 These ship with the OS and are the first paid marketplace offerings:
 
 | Pack | Venture | Key Apps | Price |
 |---|---|---|---|
-| **ANICHISOM Creative Pack** | Agency | Moodboard Mill + Proposal Generator + Client Portal + Brand Guides | $15/mo |
+| **ContinuaOS Creative Pack** | Agency | Moodboard Mill + Proposal Generator + Client Portal + Brand Guides | $15/mo |
 | **Ziklag Forensics Pack** | Data recovery / forensics | Case Manager + Chain of Custody + Evidence Log + Hash Verifier | $25/mo |
 | **Clothing Brand Pack** | Fashion venture | Lookbook Manager + Supplier Tracker + Collection Planner + Shopify Sync | $12/mo |
 | **Hardware Pack** | Electronics venture | BOM Manager + Firmware Tracker + Supplier Contacts + Component Library | $12/mo |
@@ -361,7 +361,7 @@ These ship with the OS and are the first paid marketplace offerings:
 | Phase | Status | What Exists |
 |---|---|---|
 | Phase 4A | Private | Plugin SDK + sandbox. First-party plugins installed manually via GitHub |
-| Phase 5+ | Private beta | ANICHISOM and Ziklag packs tested in production |
+| Phase 5+ | Private beta | ContinuaOS and Ziklag packs tested in production |
 | Phase 6 | Public | Public submission open. 25% revenue share. Review process defined |
 
 **Rule**: No public marketplace until the platform is stable, the first 3 first-party plugins are in production use, and there is a designated person managing review and developer relations.
@@ -461,7 +461,7 @@ Plugin System:
 | **P3B** | 9–10 | Installable PWA | Manifest, install prompt, offline mode, tested on Windows + Linux + ArchLinux |
 | **P3C** | 10–11 | Calls App | Daily.co/Whereby embed, screen share, recording-to-Files, auto meeting notes, campaign link |
 | **P4A** | 12–14 | Plugin Marketplace | Plugin SDK, sandbox architecture, private registry, install/uninstall flow, store UI |
-| **P4B** | 14–15 | ANICHISOM Pack | Moodboard Mill + Proposal Generator + adaptive phase-aware UI |
+| **P4B** | 14–15 | ContinuaOS Pack | Moodboard Mill + Proposal Generator + adaptive phase-aware UI |
 | **P4C** | 15–16 | Side-Gigs | Private time tracking, auto-invoicing, client billing — full isolation from team |
 | **P5A** | 17–18 | Self-Hosting | Docker Compose, Supabase + MinIO adapter, Firestore migration tools |
 | **P5B** | 18–19 | Ziklag Pack | Forensics Desk, case management, chain of custody, hash verification |
@@ -524,7 +524,7 @@ Phase 4A ships a private marketplace only. Plugins are installed manually via Gi
 Both the clothing brand and the hardware company are early-stage ventures that haven't generated enough operational history to know what tools they need. Building plugin packs for ventures that don't yet have their first product is speculative engineering. Combined with the OS build and existing agency + Ziklag work, this creates a context-switching trap that prevents anything from reaching quality.
 
 **Solution:**
-ANICHISOM OS is the platform. The clothing brand and hardware company are future tenants. The Clothing Pack and Hardware Pack are Phase 5C at the earliest — built only after the platform has real users and the ventures have enough operational experience to know what the tools actually need to do. Do not build a Clothing Pack for a clothing brand that doesn't have its first collection yet.
+ContinuaOS is the platform. The clothing brand and hardware company are future tenants. The Clothing Pack and Hardware Pack are Phase 5C at the earliest — built only after the platform has real users and the ventures have enough operational experience to know what the tools actually need to do. Do not build a Clothing Pack for a clothing brand that doesn't have its first collection yet.
 
 ### Risk 15 — Video Calling Differentiation Is Easy to Lose
 
@@ -577,11 +577,11 @@ The differentiation is contextual integration, not video quality. A call launche
 
 Each venture the founder runs gets its own workspace context:
 
-### ANICHISOM Creative Agency
+### ContinuaOS Creative Agency
 ```
 Built-in apps: Browser (Figma, Framer, Webflow, Claude.ai pinned)
                Campaign Lab, Moodboard, Files (Drive connected), Calls, Terminal, Code Editor
-Ecosystem:     ANICHISOM Creative Pack (Moodboard Mill + Proposal Generator)
+Ecosystem:     ContinuaOS Creative Pack (Moodboard Mill + Proposal Generator)
 External:      DaVinci Resolve (context bridge via Campaign Lab file links)
                Adobe Premiere (context bridge)
 ```
@@ -625,15 +625,15 @@ Built-in apps: Notes + PDF Reader (reading, annotation, markdown writing)
 - Window state restores in < 3 seconds on any machine
 
 ### 6 Months
-- Phase 2C–2E complete: Campaign Lab replaced Notion for the ANICHISOM team; Moodboard replaced Milanote; Google Drive + Dropbox connected in Files
-- Entire ANICHISOM team (4+ people) daily-active; zero "where's that file?" incidents
+- Phase 2C–2E complete: Campaign Lab replaced Notion for the ContinuaOS team; Moodboard replaced Milanote; Google Drive + Dropbox connected in Files
+- Entire ContinuaOS team (4+ people) daily-active; zero "where's that file?" incidents
 
 ### 12 Months
 - Phase 3A–3C complete: History working, PWA installed on all team machines, Calls app with campaign context
-- First external user using the OS (outside ANICHISOM/Ziklag)
+- First external user using the OS (outside ContinuaOS/Ziklag)
 
 ### 18 Months
-- Phase 4A–4C complete: Plugin SDK in private beta; ANICHISOM Creative Pack shipped and used in real client work
+- Phase 4A–4C complete: Plugin SDK in private beta; ContinuaOS Creative Pack shipped and used in real client work
 - Self-hosting in alpha with at least one external team running their own instance
 
 ### 24 Months
@@ -646,11 +646,11 @@ Built-in apps: Notes + PDF Reader (reading, annotation, markdown writing)
 - Public plugin marketplace open
 - 500+ users across all tiers
 - 10+ third-party plugins in marketplace
-- ANICHISOM OS is the platform that powers every venture the founder runs
+- ContinuaOS is the platform that powers every venture the founder runs
 
 ---
 
-*This document is the authoritative source of truth for ANICHISOM OS v2.0.*
+*This document is the authoritative source of truth for ContinuaOS v2.0.*
 
 *The three-layer architecture (Core / Built-in / Ecosystem) is the organizational framework. All feature decisions should map to one of the three layers.*
 

@@ -1,5 +1,5 @@
 /**
- * ANICHISOM OS: Side-Gigs Marketplace
+ * ContinuaOS: Side-Gigs Marketplace
  * 
  * Freelance opportunity platform for the creative agency
  * Phase 3C: Side-Gigs

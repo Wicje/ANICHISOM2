@@ -1,5 +1,5 @@
 /**
- * ANICHISOM OS: Event History Viewer
+ * ContinuaOS: Event History Viewer
  * 
  * Timeline view of all workspace changes
  * Phase 2C: Event History & Undo

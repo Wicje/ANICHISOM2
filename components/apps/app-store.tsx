@@ -37,7 +37,7 @@ const STORE_APPS: Array<{ id: string; name: string; desc: string; icon: string; 
 ];
 
 const ECOSYSTEM_PACKS: Array<{ id: string; name: string; desc: string; icon: string; category: string; rating: number }> = [
-  { id: 'proposals', name: 'ANICHISOM Creative Pack', desc: 'The ultimate agency toolkit. Moodboard Mill, Proposal Generator, Client Portal, and Brand Guides.', icon: '✨', category: 'Ecosystem Pack', rating: 4.9 },
+  { id: 'proposals', name: 'ContinuaOS Creative Pack', desc: 'The ultimate agency toolkit. Moodboard Mill, Proposal Generator, Client Portal, and Brand Guides.', icon: '✨', category: 'Ecosystem Pack', rating: 4.9 },
   { id: 'ziklag', name: 'Ziklag Forensics Pack', desc: 'Data recovery and forensics toolkit. Case Management, Chain of Custody, and Evidence Logs.', icon: '🗄️', category: 'Ecosystem Pack', rating: 5.0 },
   { id: 'clothing', name: 'Clothing Brand Pack', desc: 'End-to-end fashion venture management. Lookbooks, inventory, and Shopify integration.', icon: '👕', category: 'Ecosystem Pack', rating: 4.7 },
   { id: 'hardware', name: 'Hardware Pack', desc: 'Electronics venture management. BOMs, firmware tracking, and component libraries.', icon: '🔌', category: 'Ecosystem Pack', rating: 4.8 },
@@ -189,7 +189,7 @@ export function AppStoreApp({ window: osWindow }: { window: OSWindow }) {
                 <p className="text-white/60 mb-2">{detailItem.desc}</p>
                 <div className="flex items-center gap-3 text-xs">
                   <span className="flex items-center gap-1 text-yellow-500 font-bold"><Star className="w-3 h-3 fill-yellow-500" /> {detailItem.rating}</span>
-                  <span className="text-white/30">by {detailItem.author || 'ANICHISOM'}</span>
+                  <span className="text-white/30">by {detailItem.author || 'ContinuaOS'}</span>
                   <span className="text-white/30 bg-white/5 px-2 py-0.5 rounded">{detailItem.category}</span>
                   {detailItem.runtime && <span className="text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{detailItem.runtime}</span>}
                 </div>
@@ -551,7 +551,7 @@ export function AppStoreApp({ window: osWindow }: { window: OSWindow }) {
                 <Code2 className="w-5 h-5 text-purple-400" /> Developer Portal
               </h2>
               <p className="text-white/60 text-sm mb-4">
-                Build plugins and apps for the ANICHISOM ecosystem. Use the Plugin SDK to create
+                Build plugins and apps for the ContinuaOS ecosystem. Use the Plugin SDK to create
                 iframe-based or native React plugins that integrate with the OS.
               </p>
               <div className="grid grid-cols-2 gap-3">
@@ -654,7 +654,7 @@ export function AppStoreApp({ window: osWindow }: { window: OSWindow }) {
                 <Upload className="w-5 h-5 text-emerald-400" /> Publish Your Plugin
               </h2>
               <p className="text-white/60 text-sm">
-                Share your plugin with the ANICHISOM community. Fill in the details below and submit for review.
+                Share your plugin with the ContinuaOS community. Fill in the details below and submit for review.
               </p>
             </div>
 

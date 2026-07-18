@@ -309,13 +309,13 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                             <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Client Link</label>
                             <div className="flex items-center gap-2">
                                <div className="px-3 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-mono text-zinc-500 w-full sm:w-64 truncate select-all">
-                                  https://delivery.anichisom.com/g/{gallery.id}
+                                  https://delivery.continuaos.com/g/{gallery.id}
                                </div>
                                <button 
                                  className="p-1.5 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors" 
                                  title="Copy Link"
                                  onClick={() => {
-                                    navigator.clipboard.writeText(`https://delivery.anichisom.com/g/${gallery.id}`);
+                                    navigator.clipboard.writeText(`https://delivery.continuaos.com/g/${gallery.id}`);
                                     alert('Delivery link copied to clipboard!');
                                  }}
                                >
@@ -353,7 +353,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                       </div>
                       <div>
                          <h2 className="font-bold text-lg">{viewedGallery.name}</h2>
-                         <p className="text-xs text-zinc-500 font-medium">Prepared by ANICHISOM Studios</p>
+                         <p className="text-xs text-zinc-500 font-medium">Prepared by ContinuaOS Studios</p>
                       </div>
                    </div>
                    <button onClick={() => setViewedGallery(null)} className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded-full text-sm font-bold transition-colors">Close Portal</button>

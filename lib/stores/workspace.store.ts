@@ -70,7 +70,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     };
     set((s) => {
       const updated = [newSnapshot, ...s.snapshots];
-      idbSet('anichisom_os_snapshots', updated);
+      idbSet('continuaos_os_snapshots', updated);
       return { snapshots: updated };
     });
   },
@@ -101,7 +101,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
 
   loadPersisted: async () => {
-    const snapshots = await idbGet('anichisom_os_snapshots');
+    const snapshots = await idbGet('continuaos_os_snapshots');
     if (snapshots) set({ snapshots });
   },
 }));

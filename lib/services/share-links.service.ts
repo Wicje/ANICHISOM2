@@ -9,7 +9,7 @@
  */
 import { get as idbGet, set as idbSet } from 'idb-keyval';
 
-const SHARE_LINKS_KEY = 'anichisom-share-links';
+const SHARE_LINKS_KEY = 'continuaos-share-links';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 

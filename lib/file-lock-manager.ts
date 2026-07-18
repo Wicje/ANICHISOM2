@@ -1,5 +1,5 @@
 /**
- * ANICHISOM OS: File Lock Manager
+ * ContinuaOS OS: File Lock Manager
  * 
  * Simple file locking to prevent simultaneous edits
  * Phase 2A: Collaboration

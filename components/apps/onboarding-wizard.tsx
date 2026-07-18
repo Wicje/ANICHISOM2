@@ -167,7 +167,7 @@ function WelcomeStep() {
           <Sparkles className="w-8 h-8 text-white" />
         </div>
       </div>
-      <h1 className="text-3xl font-bold mb-3">Welcome to ANICHISOM OS</h1>
+      <h1 className="text-3xl font-bold mb-3">Welcome to ContinuaOS</h1>
       <p className="text-white/50 text-lg max-w-md mx-auto">
         A creative operating system built for filmmakers, developers, and creators.
         Let&apos;s set up your workspace in a few steps.

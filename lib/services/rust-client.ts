@@ -144,7 +144,7 @@ class RustServiceClient {
 
     // Add auth token if available
     const token = typeof document !== 'undefined'
-      ? document.cookie.match(/anichisom_session=([^;]+)/)?.[1]
+      ? document.cookie.match(/continuaos_session=([^;]+)/)?.[1]
       : null;
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;

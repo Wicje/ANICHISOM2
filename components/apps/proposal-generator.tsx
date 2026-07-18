@@ -58,7 +58,7 @@ export function ProposalGenerator({ window: osWindow }: { window: OSWindow }) {
 
     try {
       const gateway = getAIGateway();
-      const systemPrompt = `You are a senior creative strategist at ANICHISOM, a premium creative agency. Generate a professional project proposal document.
+      const systemPrompt = `You are a senior creative strategist at ContinuaOS, a premium creative agency. Generate a professional project proposal document.
 
 Return your response as valid JSON with this exact structure:
 {
@@ -69,7 +69,7 @@ Return your response as valid JSON with this exact structure:
   "approach": "Our strategic approach paragraph",
   "investment": "Breakdown of investment allocation",
   "timeline": "Overall timeline summary",
-  "whyUs": "Why ANICHISOM is the right partner"
+  "whyUs": "Why ContinuaOS is the right partner"
 }
 
 Be specific, professional, and persuasive. Tailor the proposal to the client's needs.`;
@@ -244,7 +244,7 @@ Tailor the phases, deliverables, and approach to this specific project scope and
             <div className="w-full max-w-md bg-white text-black p-8 rounded-xl shadow-2xl h-max animate-in fade-in slide-in-from-bottom-4">
               <div className="flex justify-between items-start mb-10">
                 <div>
-                  <h1 className="text-2xl font-bold tracking-tight mb-1">ANICHISOM</h1>
+                  <h1 className="text-2xl font-bold tracking-tight mb-1">ContinuaOS</h1>
                   <p className="text-black/50 text-xs font-medium uppercase tracking-widest">Creative Agency</p>
                 </div>
                 <div className="text-right text-sm">

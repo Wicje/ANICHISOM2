@@ -1,5 +1,5 @@
 /**
- * Hardware Zustand Store — hardware pack state for ANICHISOM2.
+ * Hardware Zustand Store — hardware pack state for ContinuaOS2.
  *
  * Manages components, schematics, firmware versions, and suppliers.
  * Persists to IndexedDB via debounced writes.

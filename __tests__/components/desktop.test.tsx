@@ -313,7 +313,7 @@ describe('Desktop', () => {
     authStoreState.sessionChecked = true;
     onboardingStoreState.onboarding = { completed: false, selectedRole: null, selectedApps: [], customApps: [] };
     render(<Desktop />);
-    await act(async () => { vi.advanceTimersByTime(2500); });
+    await act(async () => { vi.advanceTimersByTime(5000); });
     await waitFor(() => expect(screen.getByTestId('onboarding-wizard')).toBeTruthy());
   });
 
@@ -322,7 +322,7 @@ describe('Desktop', () => {
     authStoreState.sessionChecked = true;
     onboardingStoreState.onboarding = { completed: true, selectedRole: 'admin', selectedApps: [], customApps: [] };
     render(<Desktop />);
-    await act(async () => { vi.advanceTimersByTime(2500); });
+    await act(async () => { vi.advanceTimersByTime(5000); });
     const innerDiv = document.querySelector('.fixed.inset-0');
     expect(innerDiv).toBeTruthy();
     expect(screen.getByTestId('login-screen')).toBeTruthy();
@@ -331,7 +331,7 @@ describe('Desktop', () => {
 
   it('renders the full desktop shell when a user is logged in', async () => {
     render(<Desktop />);
-    await act(async () => { vi.advanceTimersByTime(2500); });
+    await act(async () => { vi.advanceTimersByTime(5000); });
     expect(screen.getByTestId('menu-bar')).toBeTruthy();
     expect(screen.getByTestId('dock')).toBeTruthy();
     expect(screen.getByTestId('command-palette')).toBeTruthy();
@@ -342,26 +342,26 @@ describe('Desktop', () => {
 
   it('renders the feedback widget when onboarding is completed', async () => {
     render(<Desktop />);
-    await act(async () => { vi.advanceTimersByTime(2500); });
+    await act(async () => { vi.advanceTimersByTime(5000); });
     expect(screen.getByTestId('feedback-widget')).toBeTruthy();
   });
 
   it('does not render launchpad or mission control by default', async () => {
     render(<Desktop />);
-    await act(async () => { vi.advanceTimersByTime(2500); });
+    await act(async () => { vi.advanceTimersByTime(5000); });
     expect(screen.queryByTestId('launchpad')).toBeNull();
     expect(screen.queryByTestId('mission-control')).toBeNull();
   });
 
   it('does not render the lock screen initially', async () => {
     render(<Desktop />);
-    await act(async () => { vi.advanceTimersByTime(2500); });
+    await act(async () => { vi.advanceTimersByTime(5000); });
     expect(screen.queryByTestId('lock-screen')).toBeNull();
   });
 
   it('sets the fontFamily style on the root element', async () => {
     render(<Desktop />);
-    await act(async () => { vi.advanceTimersByTime(2500); });
+    await act(async () => { vi.advanceTimersByTime(5000); });
     const root = document.querySelector('.fixed.inset-0') as HTMLElement;
     expect(root).toBeTruthy();
     expect(root.style.fontFamily).toBe('"ABeeZee", system-ui, sans-serif');
@@ -369,7 +369,7 @@ describe('Desktop', () => {
 
   it('includes the wallpaper in the rendered output', async () => {
     render(<Desktop />);
-    await act(async () => { vi.advanceTimersByTime(2500); });
+    await act(async () => { vi.advanceTimersByTime(5000); });
     const allDivs = document.querySelectorAll('div');
     const bgDiv = Array.from(allDivs).find(
       (d) => d.className.includes('bg-cover') && d.className.includes('bg-center')

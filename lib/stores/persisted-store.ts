@@ -12,8 +12,9 @@
 
 import { create, StateCreator, StoreApi, UseBoundStore } from 'zustand';
 import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { mark, measure } from '@/lib/perf';
 
-const STORAGE_PREFIX = 'anichisom-';
+const STORAGE_PREFIX = 'continuaos-';
 const DEBOUNCE_MS = 2000;
 
 const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -37,7 +38,7 @@ function schedulePersist<T>(key: string, data: T): void {
 /**
  * Create a Zustand store with automatic IndexedDB persistence.
  *
- * @param storageKey - Short key for IDB (e.g. 'brand-state'). Stored as 'anichisom-brand-state'.
+ * @param storageKey - Short key for IDB (e.g. 'brand-state'). Stored as 'continuaos-brand-state'.
  * @param initialState - Initial state values to persist.
  * @param creator - Zustand state creator (set, get, api) => state additions.
  * @returns A Zustand store with an added `hydrate()` method.
@@ -74,6 +75,7 @@ export function createPersistedStore<T extends object>(
     return {
       ...stateWithPersist,
       hydrate: async () => {
+        mark(`store:hydrate:${storageKey}`);
         try {
           const data = await idbGet<Partial<T>>(`${STORAGE_PREFIX}${storageKey}`);
           if (data) {
@@ -82,6 +84,7 @@ export function createPersistedStore<T extends object>(
         } catch (e) {
           console.warn(`[PersistedStore:${storageKey}] Failed to hydrate:`, e);
         }
+        measure(`store:hydrate:${storageKey}`);
       },
     };
   };
@@ -115,6 +118,7 @@ export function withPersistence<T extends object>(
 
   // Hydrate function
   (store as any).hydrate = async () => {
+    mark(`store:hydrate:${storageKey}`);
     try {
       const data = await idbGet<Partial<T>>(fullKey);
       if (data) {
@@ -123,5 +127,6 @@ export function withPersistence<T extends object>(
     } catch (e) {
       console.warn(`[PersistedStore:${storageKey}] Failed to hydrate:`, e);
     }
+    measure(`store:hydrate:${storageKey}`);
   };
 }

@@ -5,8 +5,8 @@ import type { AmbientPreset } from '@/lib/services/ambient-sounds';
 export type PerformanceMode = 'light' | 'heavy';
 export type ColorMode = 'light' | 'dark';
 
-const STORAGE_KEY = 'anichisom-theme';
-const THEME_KEY = 'anichisom-theme-settings';
+const STORAGE_KEY = 'continuaos-theme';
+const THEME_KEY = 'continuaos-theme-settings';
 
 type ThemeState = {
   wallpaper: string;

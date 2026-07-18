@@ -67,7 +67,7 @@ const DUMMY_DISKS: DiskScan[] = [
 ];
 
 const DUMMY_CASES: ForensicCase[] = [
-  { id: 'CASE-001', client: 'Anichisom Studio', status: 'imaging', date: new Date().toISOString(), driveSerial: 'WD-WCC6Y4', investigator: 'Admin' },
+  { id: 'CASE-001', client: 'ContinuaOS Studio', status: 'imaging', date: new Date().toISOString(), driveSerial: 'WD-WCC6Y4', investigator: 'Admin' },
   { id: 'CASE-002', client: 'Nexus Corp', status: 'recovered', date: new Date(Date.now() - 86400000).toISOString(), driveSerial: 'SAMSUNG-S5', investigator: 'Admin' },
   { id: 'CASE-003', client: 'Unknown Drive', status: 'failed', date: new Date(Date.now() - 172800000).toISOString(), driveSerial: 'ST-8000VN', investigator: 'Admin' },
 ];

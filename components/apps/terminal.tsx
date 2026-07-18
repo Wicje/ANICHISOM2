@@ -12,7 +12,7 @@ export function TerminalBox({ window }: { window: OSWindow }) {
   const vfsRef = useRef(new VirtualFS());
   const [history, setHistory] = useState<string[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem('anichisom:terminal-history') || '[]');
+      return JSON.parse(localStorage.getItem('continuaos:terminal-history') || '[]');
     } catch {
       return [];
     }
@@ -89,7 +89,7 @@ export function TerminalBox({ window }: { window: OSWindow }) {
       const PROMPT = () => `\x1b[36m${currentUser?.name || 'user'}\x1b[0m:\x1b[35m~\x1b[0m$ `;
 
       term.writeln('\x1b[1;36m╔══════════════════════════════════════════╗\x1b[0m');
-      term.writeln('\x1b[1;36m║  ANICHISOM OS Terminal v2.0              ║\x1b[0m');
+      term.writeln('\x1b[1;36m║  ContinuaOS Terminal v2.0              ║\x1b[0m');
       term.writeln('\x1b[1;36m║  Real filesystem · Real commands          ║\x1b[0m');
       term.writeln('\x1b[1;36m╚══════════════════════════════════════════╝\x1b[0m');
       term.writeln('');
@@ -118,7 +118,7 @@ export function TerminalBox({ window }: { window: OSWindow }) {
             if (next.length > 200) next.shift();
             historyRef.current = next;
             setHistory(next);
-            localStorage.setItem('anichisom:terminal-history', JSON.stringify(next));
+            localStorage.setItem('continuaos:terminal-history', JSON.stringify(next));
           }
           historyIdxRef.current = -1;
           inputBuffer = '';

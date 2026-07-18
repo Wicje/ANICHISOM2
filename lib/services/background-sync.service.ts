@@ -32,8 +32,8 @@ export type SyncStatus = {
   lastSyncSuccess: number | null;
 };
 
-const QUEUE_KEY = 'anichisom-background-sync-queue';
-const STATUS_KEY = 'anichisom-sync-status';
+const QUEUE_KEY = 'continuaos-background-sync-queue';
+const STATUS_KEY = 'continuaos-sync-status';
 const MAX_RETRIES = 5;
 const RETRY_DELAYS = [1000, 2000, 4000, 8000, 16000]; // ms
 

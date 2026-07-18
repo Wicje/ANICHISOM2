@@ -112,7 +112,7 @@ app.prepare().then(async () => {
   wss.on('connection', (ws, req) => {
     // Auth check: require valid session cookie
     const cookieHeader = req.headers.cookie || '';
-    const sessionMatch = cookieHeader.match(/anichisom_session=([^;]+)/);
+    const sessionMatch = cookieHeader.match(/continuaos_session=([^;]+)/);
     const supabaseMatch = cookieHeader.match(/sb-[a-z0-9]+-auth-token=(eyJ[^;]+)/);
     const hasSession = (sessionMatch?.[1] && resolveSession(sessionMatch[1])) || supabaseMatch;
     if (!hasSession) {

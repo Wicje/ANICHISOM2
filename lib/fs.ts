@@ -37,7 +37,7 @@ if (typeof window !== 'undefined') {
     objectUrlsByKey.clear();
   };
 
-  const previousCleanup = (window as any).__anichisom_fs_url_cleanup;
+  const previousCleanup = (window as any).__continuaos_fs_url_cleanup;
   if (previousCleanup) {
     window.removeEventListener('pagehide', previousCleanup);
     window.removeEventListener('beforeunload', previousCleanup);
@@ -45,7 +45,7 @@ if (typeof window !== 'undefined') {
 
   window.addEventListener('pagehide', cleanup);
   window.addEventListener('beforeunload', cleanup);
-  (window as any).__anichisom_fs_url_cleanup = cleanup;
+  (window as any).__continuaos_fs_url_cleanup = cleanup;
 }
 
 const MIME_BY_EXT: Record<string, string> = {

@@ -67,24 +67,25 @@ const BOOT_MESSAGES = [
   'Preparing your workspace...',
 ];
 
-export function BootSplash({ onSkip }: { onSkip?: () => void }) {
+export function BootSplash({ onSkip, progress: externalProgress, message: externalMessage }: { onSkip?: () => void; progress?: number; message?: string }) {
+  const [internalProgress, setInternalProgress] = useState(0);
   const [messageIndex, setMessageIndex] = useState(0);
-  const [progress, setProgress] = useState(0);
+  const progress = externalProgress ?? internalProgress;
+  const message = externalMessage ?? BOOT_MESSAGES[messageIndex];
 
   useEffect(() => {
+    if (externalProgress !== undefined) return;
     const msgInterval = setInterval(() => {
       setMessageIndex(prev => Math.min(prev + 1, BOOT_MESSAGES.length - 1));
     }, 450);
-
     const progressInterval = setInterval(() => {
-      setProgress(prev => Math.min(prev + 2, 100));
+      setInternalProgress(prev => Math.min(prev + 2, 100));
     }, 40);
-
     return () => {
       clearInterval(msgInterval);
       clearInterval(progressInterval);
     };
-  }, []);
+  }, [externalProgress]);
 
   return (
     <div
@@ -110,7 +111,7 @@ export function BootSplash({ onSkip }: { onSkip?: () => void }) {
       
       {/* App name */}
       <h1 className="text-xl font-semibold mb-6" style={{ color: 'var(--os-text, #fff)' }}>
-        ANICHISOM OS
+        ContinuaOS
       </h1>
       
       {/* Progress bar */}
@@ -126,7 +127,7 @@ export function BootSplash({ onSkip }: { onSkip?: () => void }) {
       
       {/* Staged boot message */}
       <p className="text-xs mt-4 transition-opacity duration-300" style={{ color: 'var(--os-text-muted, #666)' }}>
-        {BOOT_MESSAGES[messageIndex]}
+        {message}
       </p>
       
       {/* Skip hint */}

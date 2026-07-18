@@ -32,7 +32,7 @@ export const WS = {
 // ─── Session ──────────────────────────────────────────────────────────────
 
 export const SESSION = {
-  COOKIE_NAME: 'anichisom_session',
+  COOKIE_NAME: 'continuaos_session',
   TTL_MS: 30 * 24 * 60 * 60 * 1000, // 30 days
   DEV_TTL_MS: 24 * 60 * 60 * 1000,  // 24 hours
   MAX_SESSIONS: 5000,
@@ -71,7 +71,7 @@ export const TIMEOUTS = {
 // ─── File System ──────────────────────────────────────────────────────────
 
 export const FS = {
-  OPFS_ROOT: 'anichisom',
+  OPFS_ROOT: 'continuaos',
   MAX_FILE_SIZE_MB: 50,
   ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'],
   ALLOWED_DOC_TYPES: ['application/pdf', 'text/plain', 'text/markdown'],
@@ -94,19 +94,19 @@ export const UI = {
 // ─── Storage Keys ─────────────────────────────────────────────────────────
 
 export const STORAGE_KEYS = {
-  USER_CACHE: 'anichisom_os_user_cache',
-  DESKTOP_STATE: 'anichisom_os_desktop',
-  FEEDBACK: 'anichisom-feedback-state',
-  BRAND: 'anichisom-brand-state',
-  CLOTHING: 'anichisom-clothing-state',
-  FORENSICS: 'anichisom-forensics-state',
-  HARDWARE: 'anichisom-hardware-state',
-  SIDE_GIGS: 'anichisom-sidegigs-state',
-  PHOTOGRAPHY: 'anichisom-photography-state',
-  DEVOPS: 'anichisom-devops-state',
-  PRIVACY: 'anichisom-privacy-state',
-  ONBOARDING: 'anichisom-onboarding-state',
-  REGISTRY: 'anichisom-registry-state',
+  USER_CACHE: 'continuaos_os_user_cache',
+  DESKTOP_STATE: 'continuaos_os_desktop',
+  FEEDBACK: 'continuaos-feedback-state',
+  BRAND: 'continuaos-brand-state',
+  CLOTHING: 'continuaos-clothing-state',
+  FORENSICS: 'continuaos-forensics-state',
+  HARDWARE: 'continuaos-hardware-state',
+  SIDE_GIGS: 'continuaos-sidegigs-state',
+  PHOTOGRAPHY: 'continuaos-photography-state',
+  DEVOPS: 'continuaos-devops-state',
+  PRIVACY: 'continuaos-privacy-state',
+  ONBOARDING: 'continuaos-onboarding-state',
+  REGISTRY: 'continuaos-registry-state',
 } as const;
 
 // ─── Plugin System ────────────────────────────────────────────────────────

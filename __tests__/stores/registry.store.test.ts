@@ -244,7 +244,7 @@ describe('RegistryStore', () => {
   describe('Hydrate', () => {
     it('should hydrate from IndexedDB', async () => {
       const { set: idbSet } = await import('idb-keyval');
-      await idbSet('anichisom-registry-state', {
+      await idbSet('continuaos-registry-state', {
         registries: { 'reg-hydrated': { id: 'reg-hydrated', name: 'Hydrated', orgName: 'h-org', repoUrl: 'https://github.com/h-org/r', branch: 'main', accessToken: 'tok', isDefault: true, createdAt: 1000 } },
         registryPlugins: {},
         orgMembers: { 'h-org': [{ id: 'm1', email: 'h@ex.com', role: 'owner', addedAt: 1000 }] },

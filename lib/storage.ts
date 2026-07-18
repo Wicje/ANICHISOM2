@@ -8,7 +8,7 @@ export interface IStorageAdapter {
   deleteDoc: (collection: string, id: string) => Promise<void>;
 }
 
-const LOCAL_STORAGE_CHANNEL = 'anichisom-local-storage';
+const LOCAL_STORAGE_CHANNEL = 'continuaos-local-storage';
 type LocalStorageMessage = {
   type: 'set' | 'delete';
   key: string;
@@ -91,11 +91,11 @@ export const SupabaseAdapter: IStorageAdapter = {
 // 2. Local IndexedDB Adapter (Offline-First/Private Mode)
 export const LocalAdapter: IStorageAdapter = {
   getDoc: async <T,>(collectionName: string, id: string) => {
-    const key = `anichisom_os_${collectionName}_${id}`;
+    const key = `continuaos_os_${collectionName}_${id}`;
     return (await get(key)) as T | null;
   },
   setDoc: async <T,>(collectionName: string, id: string, data: Partial<T>) => {
-    const key = `anichisom_os_${collectionName}_${id}`;
+    const key = `continuaos_os_${collectionName}_${id}`;
     const existing = await get(key) || {};
     const value = { ...existing, ...data };
     await set(key, value);
@@ -105,7 +105,7 @@ export const LocalAdapter: IStorageAdapter = {
     channel?.close();
   },
   subscribe: <T,>(collectionName: string, id: string, callback: (data: T | null) => void) => {
-    const key = `anichisom_os_${collectionName}_${id}`;
+    const key = `continuaos_os_${collectionName}_${id}`;
     const channel = createLocalStorageChannel();
     let active = true;
     
@@ -127,7 +127,7 @@ export const LocalAdapter: IStorageAdapter = {
     };
   },
   deleteDoc: async (collectionName: string, id: string) => {
-    const key = `anichisom_os_${collectionName}_${id}`;
+    const key = `continuaos_os_${collectionName}_${id}`;
     await del(key);
 
     const channel = createLocalStorageChannel();

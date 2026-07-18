@@ -1,4 +1,4 @@
-# ANICHISOM OS — Build Log
+# ContinuaOS — Build Log
 
 > **Living document.** Updated after every work session.
 > Refer to `ARCHITECTURE.md` for the full system overview and implementation plan.

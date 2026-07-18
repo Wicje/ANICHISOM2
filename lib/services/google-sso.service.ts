@@ -25,7 +25,7 @@ export interface SSOConfig {
 
 // ─── Storage ────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = 'anichisom-google-sso';
+const STORAGE_KEY = 'continuaos-google-sso';
 
 function loadStorage(): SSOConfig | null {
   if (typeof window === 'undefined') return null;

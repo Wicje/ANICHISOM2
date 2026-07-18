@@ -34,7 +34,7 @@ Deliverables:
 
 Status: In Review`);
         await FS.write('Downloads/Minified Specs.json', JSON.stringify({
-          projectName: "ANICHISOM OS",
+          projectName: "ContinuaOS",
           version: "2.0.0",
           codename: "Ziklag",
           environment: "Production"

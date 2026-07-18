@@ -15,7 +15,7 @@ export function CallsApp({ window: osWindow }: { window: OSWindow }) {
   const projectId = osWindow.data?.projectId || 'global';
 
   const createRoom = () => {
-    const code = `anichisom-${projectId}-${Date.now().toString(36)}`;
+    const code = `continuaos-${projectId}-${Date.now().toString(36)}`;
     setRoomCode(code);
     setActiveRoom(code);
   };

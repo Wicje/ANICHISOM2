@@ -1,5 +1,5 @@
 /**
- * ANICHISOM OS: Presence Indicator
+ * ContinuaOS: Presence Indicator
  * 
  * Show online team members as avatars
  * Phase 2A: Collaboration

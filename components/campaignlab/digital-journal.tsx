@@ -12,7 +12,7 @@ interface JournalEntry {
   timestamp: number;
 }
 
-const STORAGE_KEY = 'anichisom-journal-entries';
+const STORAGE_KEY = 'continuaos-journal-entries';
 const MOODS: { value: JournalEntry['mood']; icon: React.ComponentType<any>; color: string; label: string }[] = [
   { value: 'great', icon: Heart, color: '#10b981', label: 'Great' },
   { value: 'good', icon: Smile, color: '#3b82f6', label: 'Good' },

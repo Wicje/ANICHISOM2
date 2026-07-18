@@ -1,5 +1,5 @@
 /**
- * ANICHISOM OS: Event Queue with Exponential Backoff
+ * ContinuaOS: Event Queue with Exponential Backoff
  * 
  * Reliable sync with offline-first support and retry logic
  * Phase 1: Infrastructure
@@ -212,7 +212,7 @@ export class SyncQueue {
   private async loadFromIndexedDB(): Promise<void> {
     try {
       const { get } = await import('idb-keyval');
-      const stored = await get('anichisom_sync_queue');
+      const stored = await get('continuaos_sync_queue');
       
       if (stored && Array.isArray(stored)) {
         for (const item of stored) {
@@ -238,7 +238,7 @@ export class SyncQueue {
 
       const { set } = await import('idb-keyval');
       const items = Array.from(this.queue.values());
-      await set('anichisom_sync_queue', items);
+      await set('continuaos_sync_queue', items);
     } catch (error) {
       // Silently fail if IndexedDB not available
     }
@@ -321,9 +321,9 @@ if (typeof window !== 'undefined') {
   window.addEventListener('unload', cleanup);
   
   // Prevent listener accumulation if module reloads
-  if ((window as any).__anichisom_cleanup) {
-    window.removeEventListener('beforeunload', (window as any).__anichisom_cleanup);
-    window.removeEventListener('unload', (window as any).__anichisom_cleanup);
+  if ((window as any).__continuaos_cleanup) {
+    window.removeEventListener('beforeunload', (window as any).__continuaos_cleanup);
+    window.removeEventListener('unload', (window as any).__continuaos_cleanup);
   }
-  (window as any).__anichisom_cleanup = cleanup;
+  (window as any).__continuaos_cleanup = cleanup;
 }

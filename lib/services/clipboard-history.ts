@@ -7,7 +7,7 @@ export interface ClipboardEntry {
   source?: string;
 }
 
-const IDB_DB = 'anichisom-clipboard';
+const IDB_DB = 'continuaos-clipboard';
 const IDB_STORE = 'entries';
 const MAX_ENTRIES = 50;
 

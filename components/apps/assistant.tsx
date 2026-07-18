@@ -129,7 +129,7 @@ export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
 
     try {
       const provider = getAiProvider(selectedProvider);
-      const systemPrompt = `You are the ANICHISOM OS System Assistant. You help users operate their desktop environment.
+      const systemPrompt = `You are the ContinuaOS System Assistant. You help users operate their desktop environment.
 
 Available apps the user can open (use the open command or suggest them):
 ${APP_LIST_FOR_AI}

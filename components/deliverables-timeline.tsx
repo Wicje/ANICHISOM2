@@ -1,5 +1,5 @@
 /**
- * ANICHISOM OS: Deliverables Timeline
+ * ContinuaOS: Deliverables Timeline
  * 
  * Visual timeline of project deliverables and milestones
  * Phase 2B: Campaign Lab App

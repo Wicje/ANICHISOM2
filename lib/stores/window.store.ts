@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { mark, measure } from '@/lib/perf';
 
 export type OSWindow = {
   id: string;
@@ -46,6 +47,7 @@ export const useWindowStore = create<WindowState>((set, get) => ({
   highestZIndex: 10,
 
   openWindow: (appId, title, data, activeWorkspace = 0) => {
+    mark('window:open');
     const { windows, highestZIndex } = get();
 
     const newId = `${appId}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -86,13 +88,17 @@ export const useWindowStore = create<WindowState>((set, get) => ({
     };
 
     set({ highestZIndex: nextZ, windows: [...windows, newWindow] });
+    measure('window:open');
   },
 
   closeWindow: (id) => {
+    mark('window:close');
     set((s) => ({ windows: s.windows.filter((w) => w.id !== id) }));
+    measure('window:close');
   },
 
   focusWindow: (id) => {
+    mark('window:focus');
     const { windows, highestZIndex } = get();
     const nextZ = highestZIndex + 1;
     set({
@@ -101,6 +107,7 @@ export const useWindowStore = create<WindowState>((set, get) => ({
         w.id === id ? { ...w, zIndex: nextZ, isMinimized: false } : w
       ),
     });
+    measure('window:focus');
   },
 
   minimizeWindow: (id) => {

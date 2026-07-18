@@ -94,16 +94,16 @@ function cleanupProxyRateLimits(): void {
 }
 
 const globalForProxy = globalThis as any;
-if (!globalForProxy.__anichisom_proxy_rate_limit_cleanup_interval) {
+if (!globalForProxy.__continuaos_proxy_rate_limit_cleanup_interval) {
   const interval = setInterval(cleanupProxyRateLimits, 5 * 60 * 1000);
   if (typeof interval === 'object' && 'unref' in interval) interval.unref();
-  globalForProxy.__anichisom_proxy_rate_limit_cleanup_interval = interval;
+  globalForProxy.__continuaos_proxy_rate_limit_cleanup_interval = interval;
 }
 
 // --- Security: Auth check (session cookie OR Supabase auth must exist) ---
 function hasAuthSession(request: NextRequest): boolean {
   // Allow if session cookie exists (legacy dev auth)
-  const sessionCookie = request.cookies.get('anichisom_session');
+  const sessionCookie = request.cookies.get('continuaos_session');
   if (sessionCookie?.value && resolveSession(sessionCookie.value)) return true;
 
   // Allow if any Supabase auth cookie exists WITH a valid JWT prefix (sb-* cookies)

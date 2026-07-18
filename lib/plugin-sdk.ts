@@ -1,4 +1,4 @@
-// ANICHISOM OS Plugin API SDK
+// ContinuaOS Plugin API SDK
 // Phase 4 — Full implementation with postMessage RPC protocol
 //
 // Plugins (iframe sandbox) import this SDK and call methods like:

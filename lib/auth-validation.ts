@@ -138,9 +138,9 @@ export function cleanupRateLimits(): void {
 // Cleanup every 10 minutes
 if (typeof setInterval !== 'undefined') {
   const globalForAuthValidation = globalThis as any;
-  if (!globalForAuthValidation.__anichisom_rate_limit_cleanup_interval) {
+  if (!globalForAuthValidation.__continuaos_rate_limit_cleanup_interval) {
     const interval = setInterval(cleanupRateLimits, 10 * 60 * 1000);
     if (typeof interval === 'object' && 'unref' in interval) interval.unref();
-    globalForAuthValidation.__anichisom_rate_limit_cleanup_interval = interval;
+    globalForAuthValidation.__continuaos_rate_limit_cleanup_interval = interval;
   }
 }

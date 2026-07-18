@@ -1,5 +1,5 @@
 /**
- * ANICHISOM OS: Supabase CRUD Adapter
+ * ContinuaOS: Supabase CRUD Adapter
  *
  * All database operations for workspaces, projects, files, events, presence
  * Replaces firestore-adapter.ts — uses Supabase Postgres instead of Firestore

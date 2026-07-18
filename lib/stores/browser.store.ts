@@ -68,9 +68,9 @@ type BrowserState = {
   persist: () => void;
 };
 
-const PINNED_APPS_KEY = 'anichisom_browser_pinned_apps';
-const TABS_KEY = 'anichisom_browser_tabs';
-const BOOKMARKS_KEY = 'anichisom_browser_bookmarks';
+const PINNED_APPS_KEY = 'continuaos_browser_pinned_apps';
+const TABS_KEY = 'continuaos_browser_tabs';
+const BOOKMARKS_KEY = 'continuaos_browser_bookmarks';
 
 function getDomainTitle(urlStr: string): string {
   try {

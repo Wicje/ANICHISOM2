@@ -1,5 +1,5 @@
 /**
- * ANICHISOM OS: AI Proposal Engine
+ * ContinuaOS: AI Proposal Engine
  * 
  * Generate design recommendations and proposals using AI
  * Phase 3B: AI Proposals & Adaptive UI

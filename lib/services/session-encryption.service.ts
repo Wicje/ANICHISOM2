@@ -17,8 +17,8 @@ import {
   type EncryptedPayload,
 } from '@/lib/crypto';
 
-const SESSION_KEY_STORE = 'anichisom-session-key';
-const ENCRYPTED_DATA_STORE = 'anichisom-encrypted-data';
+const SESSION_KEY_STORE = 'continuaos-session-key';
+const ENCRYPTED_DATA_STORE = 'continuaos-encrypted-data';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 

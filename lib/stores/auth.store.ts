@@ -33,7 +33,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setCurrentUser: (user) => {
     set({ currentUser: user });
     if (user) {
-      idbSet('anichisom_os_user_cache', user);
+      idbSet('continuaos_os_user_cache', user);
     }
   },
 
@@ -46,7 +46,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.error('Logout error:', e);
     }
     set({ currentUser: null });
-    await idbDel('anichisom_os_user_cache');
+    await idbDel('continuaos_os_user_cache');
   },
 
   wipeSession: async () => {
@@ -55,15 +55,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const supabase = createClient();
       await supabase.auth.signOut();
     } catch { /* ignore */ }
-    await idbDel('anichisom_os_user_cache');
-    localStorage.removeItem('anichisom_terminal_history');
-    localStorage.removeItem('anichisom_fs_current_path');
+    await idbDel('continuaos_os_user_cache');
+    localStorage.removeItem('continuaos_terminal_history');
+    localStorage.removeItem('continuaos_fs_current_path');
     window.location.reload();
   },
 
   checkSession: async () => {
     // 1. Instant: serve from IDB cache so UI unblocks immediately
-    const cachedUser = await idbGet<OSUser>('anichisom_os_user_cache');
+    const cachedUser = await idbGet<OSUser>('continuaos_os_user_cache');
     if (cachedUser) {
       set({ currentUser: cachedUser, sessionChecked: true });
     }
@@ -85,13 +85,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           avatarUrl: user.user_metadata?.avatar_url,
         };
         set({ currentUser: osUser, sessionChecked: true });
-        idbSet('anichisom_os_user_cache', osUser);
+        idbSet('continuaos_os_user_cache', osUser);
       } else {
         // No session — clear cache
         if (!cachedUser) {
           set({ currentUser: null, sessionChecked: true });
         }
-        await idbDel('anichisom_os_user_cache');
+        await idbDel('continuaos_os_user_cache');
         // Only clear if we didn't have a cached user (avoid flash)
         if (cachedUser) {
           set({ currentUser: null, sessionChecked: true });

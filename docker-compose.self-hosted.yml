@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  anichisom-os:
+  continuaos-os:
     build: .
     ports:
       - "3000:3000"
@@ -17,7 +17,7 @@ services:
       - MINIO_USE_SSL=false
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-admin}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-password}
-      - MINIO_BUCKET_NAME=anichisom-os-files
+      - MINIO_BUCKET_NAME=continuaos-os-files
     depends_on:
       - redis
       - minio

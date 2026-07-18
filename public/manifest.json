@@ -1,6 +1,6 @@
 {
-  "name": "ANICHISOM OS",
-  "short_name": "ANICHISOM",
+  "name": "ContinuaOS",
+  "short_name": "ContinuaOS",
   "description": "Browser-based operating system for creative dominance. Persistent workspace with real-time collaboration.",
   "start_url": "/",
   "scope": "/",
@@ -30,7 +30,7 @@
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "ANICHISOM OS Desktop"
+      "label": "ContinuaOS Desktop"
     }
   ]
 }

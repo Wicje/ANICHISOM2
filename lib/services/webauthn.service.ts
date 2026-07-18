@@ -8,7 +8,7 @@
  * Server routes handle challenge generation and verification.
  */
 
-const RP_NAME = 'ANICHISOM OS';
+const RP_NAME = 'ContinuaOS';
 const RP_ID = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -179,7 +179,7 @@ export async function authenticateWithPasskey(
 
 // ─── Local Storage (passkey metadata) ─────────────────────────────────────
 
-const PASSKEYS_KEY = 'anichisom-passkeys';
+const PASSKEYS_KEY = 'continuaos-passkeys';
 
 /**
  * Save passkey metadata locally (for "which passkeys do I have?" queries).

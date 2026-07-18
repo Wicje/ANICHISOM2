@@ -60,7 +60,7 @@ export interface BrandGuidelines {
 
 // ─── Storage ────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = 'anichisom-brand-state';
+const STORAGE_KEY = 'continuaos-brand-state';
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 function schedulePersist(state: BrandState) {

@@ -209,7 +209,7 @@ export const usePhotographyStore = create<PhotographyState>((set, get) => ({
       expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
       imageIds: [],
       downloadCount: 0,
-      shareUrl: `https://share.anichisom.com/${id}`,
+      shareUrl: `https://share.continuaos.com/${id}`,
       createdAt: Date.now(),
     };
     set((s) => {

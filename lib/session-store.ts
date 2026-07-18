@@ -50,7 +50,7 @@ export function createDevMasterSession(token: string): void {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('createDevMasterSession is not allowed in production');
   }
-  createSession(token, 'master-user-id', 'ANICHISOM', 'admin', DEV_SESSION_TTL_MS);
+  createSession(token, 'master-user-id', 'ContinuaOS', 'admin', DEV_SESSION_TTL_MS);
 }
 
 /**
@@ -94,9 +94,9 @@ export function pruneExpiredSessions(): number {
 // Auto-prune every 10 minutes
 if (typeof setInterval !== 'undefined') {
   const globalForSessionStore = globalThis as any;
-  if (!globalForSessionStore.__anichisom_session_prune_interval) {
+  if (!globalForSessionStore.__continuaos_session_prune_interval) {
     const interval = setInterval(pruneExpiredSessions, 10 * 60 * 1000);
     if (typeof interval === 'object' && 'unref' in interval) interval.unref();
-    globalForSessionStore.__anichisom_session_prune_interval = interval;
+    globalForSessionStore.__continuaos_session_prune_interval = interval;
   }
 }

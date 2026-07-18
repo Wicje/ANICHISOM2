@@ -44,7 +44,7 @@ export async function storeApiKey(
     createdAt: Date.now(),
   };
   meta.push(entry);
-  await idbSet('anichisom-api-key-meta', meta);
+  await idbSet('continuaos-api-key-meta', meta);
 
   return entry;
 }
@@ -60,7 +60,7 @@ export async function getApiKey(keyId: string): Promise<string | null> {
     const entry = meta.find((m) => m.keyId === keyId);
     if (entry) {
       entry.lastUsed = Date.now();
-      await idbSet('anichisom-api-key-meta', meta);
+      await idbSet('continuaos-api-key-meta', meta);
     }
   }
   return key;
@@ -70,7 +70,7 @@ export async function getApiKey(keyId: string): Promise<string | null> {
  * Get API key metadata (unencrypted) for listing.
  */
 export async function getApiKeyMetadata(): Promise<StoredApiKey[]> {
-  return (await idbGet<StoredApiKey[]>('anichisom-api-key-meta')) || [];
+  return (await idbGet<StoredApiKey[]>('continuaos-api-key-meta')) || [];
 }
 
 /**
@@ -80,7 +80,7 @@ export async function deleteApiKey(keyId: string): Promise<void> {
   await removeEncrypted(keyId);
   const meta = await getApiKeyMetadata();
   const filtered = meta.filter((m) => m.keyId !== keyId);
-  await idbSet('anichisom-api-key-meta', filtered);
+  await idbSet('continuaos-api-key-meta', filtered);
 }
 
 /**

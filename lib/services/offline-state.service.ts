@@ -3,7 +3,7 @@
  * and restores them on app load for offline-first experience.
  *
  * Uses a debounced write to avoid excessive IndexedDB operations.
- * Stores state under key `anichisom-offline-state` in IndexedDB.
+ * Stores state under key `continuaos-offline-state` in IndexedDB.
  */
 
 import { get, set } from 'idb-keyval';
@@ -43,7 +43,7 @@ export type OfflineStateSnapshot = {
   };
 };
 
-const STORAGE_KEY = 'anichisom-offline-state';
+const STORAGE_KEY = 'continuaos-offline-state';
 const CURRENT_VERSION = 1;
 const DEBOUNCE_MS = 2000;
 const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours

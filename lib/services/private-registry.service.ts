@@ -34,7 +34,7 @@ export interface OrgMember {
 
 // ─── Storage ────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = 'anichisom-private-registries';
+const STORAGE_KEY = 'continuaos-private-registries';
 
 function loadFromStorage(): {
   registries: Map<string, RegistryConfig>;

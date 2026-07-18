@@ -592,7 +592,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
 }
 
 const QUICK_LINKS = [
-  { label: 'ANICHISOM Docs', url: 'https://docs.anichisom.com', icon: 'A', color: 'bg-indigo-100 text-indigo-600' },
+  { label: 'ContinuaOS Docs', url: 'https://docs.continuaos.com', icon: 'A', color: 'bg-indigo-100 text-indigo-600' },
   { label: 'GitHub', url: 'https://github.com', icon: 'G', color: 'bg-slate-100 text-slate-700' },
   { label: 'Supabase', url: 'https://supabase.com', icon: 'S', color: 'bg-emerald-100 text-emerald-600' },
   { label: 'Vercel', url: 'https://vercel.com', icon: 'V', color: 'bg-black text-white' },
@@ -691,7 +691,7 @@ function BlockedSiteFallback({
           loading inside the browser for security reasons.
         </p>
         <p className="text-xs text-slate-400 mb-6">
-          This is a restriction set by the website, not by ANICHISOM OS.
+          This is a restriction set by the website, not by ContinuaOS.
         </p>
         <div className="flex flex-col gap-2">
           <button

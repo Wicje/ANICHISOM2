@@ -28,15 +28,15 @@ describe('GoogleSSOService', () => {
   describe('init', () => {
     it('should store config in localStorage', () => {
       GoogleSSOService.init(TEST_CONFIG);
-      expect(localStorageMock['anichisom-google-sso']).toBeDefined();
-      const stored = JSON.parse(localStorageMock['anichisom-google-sso']!);
+      expect(localStorageMock['continuaos-google-sso']).toBeDefined();
+      const stored = JSON.parse(localStorageMock['continuaos-google-sso']!);
       expect(stored.clientId).toBe(TEST_CONFIG.clientId);
       expect(stored.redirectUri).toBe(TEST_CONFIG.redirectUri);
     });
 
     it('should store scopes in config', () => {
       GoogleSSOService.init(TEST_CONFIG);
-      const stored = JSON.parse(localStorageMock['anichisom-google-sso']!);
+      const stored = JSON.parse(localStorageMock['continuaos-google-sso']!);
       expect(stored.scopes).toEqual(TEST_CONFIG.scopes);
     });
   });
@@ -158,10 +158,10 @@ describe('GoogleSSOService', () => {
   describe('logout', () => {
     it('should clear stored config', () => {
       GoogleSSOService.init(TEST_CONFIG);
-      expect(localStorageMock['anichisom-google-sso']).toBeDefined();
+      expect(localStorageMock['continuaos-google-sso']).toBeDefined();
 
       GoogleSSOService.logout();
-      expect(localStorageMock['anichisom-google-sso']).toBeUndefined();
+      expect(localStorageMock['continuaos-google-sso']).toBeUndefined();
     });
   });
 

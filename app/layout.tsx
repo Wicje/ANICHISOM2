@@ -4,7 +4,7 @@ import { PWASetup } from '@/components/pwa-setup';
 import { PWAInstall } from '@/components/pwa-install';
 
 export const metadata: Metadata = {
-  title: 'ANICHISOM | Creative OS',
+  title: 'ContinuaOS | Creative OS',
   description: 'Browser-based operating system for creative dominance.',
   manifest: '/manifest.json',
 };

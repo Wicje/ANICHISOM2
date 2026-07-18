@@ -717,7 +717,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                     <input
                       type="text"
                       readOnly
-                      value={`https://os.anichisom.com/c/${activePage.id}`}
+                      value={`https://os.continuaos.com/c/${activePage.id}`}
                       className="text-xs w-full outline-none text-[#37352f]/60 bg-transparent px-1"
                     />
                     <button className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded transition-colors" title="Copy Link">
@@ -766,7 +766,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                         <span className="text-xs flex-1 truncate">{share.label || 'Shared link'}</span>
                         <button
                           onClick={() => {
-                            navigator.clipboard.writeText(`https://os.anichisom.com/shared/${share.token}`);
+                            navigator.clipboard.writeText(`https://os.continuaos.com/shared/${share.token}`);
                           }}
                           className="text-xs text-blue-500 hover:underline"
                         >

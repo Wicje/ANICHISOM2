@@ -253,11 +253,11 @@ describe('PhotographyStore', () => {
 
   describe('watermark preset CRUD', () => {
     it('should create a watermark preset with defaults', () => {
-      const id = usePhotographyStore.getState().createWatermarkPreset('Default', '© Anichisom');
+      const id = usePhotographyStore.getState().createWatermarkPreset('Default', '© ContinuaOS');
       expect(id).toMatch(/^watermark_/);
       const preset = usePhotographyStore.getState().watermarkPresets[id];
       expect(preset!.name).toBe('Default');
-      expect(preset!.text).toBe('© Anichisom');
+      expect(preset!.text).toBe('© ContinuaOS');
       expect(preset!.opacity).toBe(0.5);
       expect(preset!.position).toBe('bottom-right');
       expect(preset!.fontSize).toBe(24);

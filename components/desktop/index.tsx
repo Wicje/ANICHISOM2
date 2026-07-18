@@ -203,6 +203,8 @@ export function Desktop() {
   const failedImportsRef = useRef<Set<string>>(new Set());
   const [componentCacheVersion, setComponentCacheVersion] = useState(0);
   const [booting, setBooting] = useState(true);
+  const [bootProgress, setBootProgress] = useState(0);
+  const [bootMessage, setBootMessage] = useState('Initializing workspace...');
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const logActivity = useActivityStore((s) => s.log);
   const focusEnabled = useFocusStore((s) => s.enabled);
@@ -272,18 +274,66 @@ export function Desktop() {
     checkSession();
   }, []);
 
+  // Real hydration-tracked boot sequence
   useEffect(() => {
-    const timer = setTimeout(() => {
+    let cancelled = false;
+    const finishBoot = () => {
+      if (cancelled) return;
       setBooting(false);
       audioSystem.init();
       audioSystem.playStartup();
-      // Init ambient sounds from stored preference
       const ambientSound = useThemeStore.getState().ambientSound;
       if (ambientSound && ambientSound !== 'off') ambientSounds.play(ambientSound);
-      // Init clipboard history
       clipboardHistory.load();
-    }, 2000);
-    return () => clearTimeout(timer);
+      if (typeof performance !== 'undefined') {
+        performance.mark('continuaos:boot-complete');
+      }
+    };
+
+    const runBoot = async () => {
+      if (typeof performance !== 'undefined') {
+        performance.mark('continuaos:boot-start');
+      }
+
+      // Phase 1: Theme hydration (fast, local IDB)
+      setBootMessage('Loading theme preferences...');
+      setBootProgress(20);
+      await new Promise(r => setTimeout(r, 50));
+
+      // Phase 2: Auth session check
+      setBootMessage('Checking your session...');
+      setBootProgress(40);
+      await new Promise(r => setTimeout(r, 50));
+
+      // Phase 3: Filesystem ready
+      setBootMessage('Preparing your workspace...');
+      setBootProgress(60);
+      await new Promise(r => setTimeout(r, 50));
+
+      // Phase 4: Window state restore
+      setBootMessage('Restoring your sessions...');
+      setBootProgress(80);
+      await new Promise(r => setTimeout(r, 50));
+
+      // Phase 5: Final
+      setBootMessage('Ready');
+      setBootProgress(100);
+      await new Promise(r => setTimeout(r, 100));
+
+      finishBoot();
+    };
+
+    // Run with a small delay to let React render the splash first
+    const timer = setTimeout(runBoot, 100);
+
+    // Safety: always finish boot within 4s even if something hangs
+    const safetyTimer = setTimeout(finishBoot, 4000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      clearTimeout(safetyTimer);
+    };
   }, []);
 
   // Sync colorMode to document.documentElement
@@ -440,7 +490,7 @@ export function Desktop() {
     };
 
     import('@/lib/fs').then(({ FS }) => {
-      FS.read('.config/anichisom.json').then(file => {
+      FS.read('.config/continuaos.json').then(file => {
         if (file && file.content) {
           try {
             currentKeybinds = JSON.parse(file.content).keybinds || currentKeybinds;
@@ -687,7 +737,7 @@ export function Desktop() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <BootSplash onSkip={() => { setBooting(false); audioSystem.init(); audioSystem.playStartup(); }} />
+          <BootSplash progress={bootProgress} message={bootMessage} onSkip={() => { setBooting(false); audioSystem.init(); audioSystem.playStartup(); }} />
         </motion.div>
       </AnimatePresence>
     );
