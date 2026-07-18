@@ -295,38 +295,56 @@ export function Desktop() {
         performance.mark('continuaos:boot-start');
       }
 
-      // Phase 1: Theme hydration (fast, local IDB)
+      const { readDomain, configureContextLayer } = await import('@/lib/context-layer');
+
+      // Phase 1: Configure context layer
+      setBootMessage('Initializing context layer...');
+      setBootProgress(10);
+      configureContextLayer({ mode: 'private' });
+      await new Promise(r => setTimeout(r, 30));
+
+      // Phase 2: Theme hydration (read from IDB via context layer)
       setBootMessage('Loading theme preferences...');
-      setBootProgress(20);
-      await new Promise(r => setTimeout(r, 50));
+      setBootProgress(25);
+      const theme = await readDomain('theme');
+      if (theme) useThemeStore.setState(theme as any);
+      await new Promise(r => setTimeout(r, 30));
 
-      // Phase 2: Auth session check
+      // Phase 3: Auth session check
       setBootMessage('Checking your session...');
-      setBootProgress(40);
-      await new Promise(r => setTimeout(r, 50));
+      setBootProgress(45);
+      await new Promise(r => setTimeout(r, 30));
 
-      // Phase 3: Filesystem ready
-      setBootMessage('Preparing your workspace...');
-      setBootProgress(60);
-      await new Promise(r => setTimeout(r, 50));
+      // Phase 4: Workspace + window state
+      setBootMessage('Restoring your workspace...');
+      setBootProgress(65);
+      const workspace = await readDomain('workspace');
+      if (workspace) {
+        const ws = workspace as any;
+        if (ws.windows?.length) {
+          useWindowStore.getState().setWindows(ws.windows);
+        }
+      }
+      await new Promise(r => setTimeout(r, 30));
 
-      // Phase 4: Window state restore
-      setBootMessage('Restoring your sessions...');
-      setBootProgress(80);
-      await new Promise(r => setTimeout(r, 50));
+      // Phase 5: App state
+      setBootMessage('Loading app state...');
+      setBootProgress(85);
+      const browser = await readDomain('browser');
+      if (browser) {
+        // Browser state will be read by the browser component
+      }
+      await new Promise(r => setTimeout(r, 30));
 
-      // Phase 5: Final
+      // Phase 6: Ready
       setBootMessage('Ready');
       setBootProgress(100);
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 80));
 
       finishBoot();
     };
 
-    // Run with a small delay to let React render the splash first
     const timer = setTimeout(runBoot, 100);
-
-    // Safety: always finish boot within 4s even if something hangs
     const safetyTimer = setTimeout(finishBoot, 4000);
 
     return () => {
