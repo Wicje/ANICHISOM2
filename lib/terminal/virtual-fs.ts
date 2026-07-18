@@ -153,14 +153,21 @@ export class VirtualFS {
 
   async stat(path: string): Promise<VFSEntry> {
     const resolved = this.resolvePath(path);
+    let isDir = false;
+    try {
+      await this.ls(resolved);
+      isDir = true;
+    } catch {
+      isDir = false;
+    }
     const file = await FS.read(resolved);
-    if (!file) throw new Error(`stat: ${path}: No such file or directory`);
+    if (!file && !isDir) throw new Error(`stat: ${path}: No such file or directory`);
     return {
-      name: file.name,
-      path: file.id,
-      isDir: false,
-      size: file.size || 0,
-      mimeType: file.mimeType || '',
+      name: file?.name || resolved.split('/').pop() || '',
+      path: resolved,
+      isDir,
+      size: file?.size || 0,
+      mimeType: file?.mimeType || '',
     };
   }
 

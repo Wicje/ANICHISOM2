@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const { data: invites, error } = await supabase
       .from('invites')
-      .select('id, code, email, role, createdBy, usedBy, usedAt, expiresAt, maxUses, useCount, createdAt')
-      .order('createdAt', { ascending: false })
+      .select('id, code, email, role, created_by, used_by, used_at, expires_at, max_uses, use_count, created_at')
+      .order('created_at', { ascending: false })
       .limit(200);
 
     if (error) {
@@ -75,9 +75,9 @@ export async function POST(request: NextRequest) {
         code,
         email: email || null,
         role,
-        createdBy: authResult.userId,
-        expiresAt,
-        maxUses: 1,
+        created_by: authResult.userId,
+        expires_at: expiresAt,
+        max_uses: 1,
       });
 
       if (error) {

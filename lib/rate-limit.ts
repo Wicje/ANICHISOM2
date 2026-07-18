@@ -8,12 +8,16 @@
 const buckets = new Map<string, { count: number; resetAt: number }>();
 
 // Periodic cleanup to prevent memory leaks
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, val] of buckets) {
-    if (val.resetAt <= now) buckets.delete(key);
-  }
-}, 60_000);
+const globalForRateLimit = globalThis as any;
+if (!globalForRateLimit.__continuaos_rl_cleanup) {
+  globalForRateLimit.__continuaos_rl_cleanup = true;
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of buckets) {
+      if (val.resetAt <= now) buckets.delete(key);
+    }
+  }, 60_000);
+}
 
 /**
  * Check rate limit. Returns null if allowed, or retry-after seconds if denied.

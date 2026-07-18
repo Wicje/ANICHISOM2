@@ -81,8 +81,8 @@ export class FileLockManager {
 
       // Update Firestore
       await fileAdapter.update(fileId, {
-        editingUserId: this.userId,
-        editingSessionId: this.sessionId,
+        editing_user_id: this.userId,
+        editing_session_id: this.sessionId,
       } as any);
 
       return true;
@@ -109,8 +109,8 @@ export class FileLockManager {
 
       // Update Firestore
       await fileAdapter.update(fileId, {
-        editingUserId: undefined,
-        editingSessionId: undefined,
+        editing_user_id: undefined,
+        editing_session_id: undefined,
       } as any);
 
     } catch (error) {

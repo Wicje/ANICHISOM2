@@ -5,20 +5,20 @@ import { createClient } from '@/utils/supabase/server';
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     // Check if user is admin
     const { data: userData } = await supabase
       .from('users')
-      .select('isAdmin')
-      .eq('id', session.user.id)
+      .select('is_admin')
+      .eq('id', user.id)
       .single();
 
-    if (!userData?.isAdmin) {
+    if (!userData?.is_admin) {
       return NextResponse.json({ ok: false, error: 'Forbidden — admin only' }, { status: 403 });
     }
 
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       .from('marketplace_submissions')
       .update({
         status: newStatus,
-        reviewed_by: session.user.id,
+        reviewed_by: user.id,
         reviewed_at: new Date().toISOString(),
         review_notes: reviewNotes || '',
         updated_at: new Date().toISOString(),

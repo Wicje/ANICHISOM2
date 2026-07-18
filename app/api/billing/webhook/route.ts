@@ -1,34 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import crypto from 'crypto';
 
-// Stripe webhook signature verification would go here
-// For now, this is a placeholder that handles key events
+function verifyStripeSignature(
+  payload: string,
+  signatureHeader: string,
+  secret: string
+): boolean {
+  const parts = signatureHeader.split(',');
+  const timestamp = parts.find(p => p.startsWith('t='))?.slice(2);
+  const signature = parts.find(p => p.startsWith('v1='))?.slice(3);
+
+  if (!timestamp || !signature) return false;
+
+  const tolerance = 300;
+  if (Math.abs(Date.now() / 1000 - Number(timestamp)) > tolerance) return false;
+
+  const signedPayload = `${timestamp}.${payload}`;
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(signedPayload)
+    .digest('hex');
+
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expectedSignature)
+  );
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const eventType = body.type;
+    const body = await request.text();
+    const sig = request.headers.get('stripe-signature');
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-    // In production, verify the webhook signature:
-    // const sig = request.headers.get('stripe-signature');
-    // const event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+    let event: { type: string; data: { object: Record<string, any> } };
+
+    if (webhookSecret && sig) {
+      if (!verifyStripeSignature(body, sig, webhookSecret)) {
+        console.error('[Webhook] Signature verification failed');
+        return NextResponse.json({ ok: false, error: 'Invalid signature' }, { status: 400 });
+      }
+      event = JSON.parse(body);
+    } else {
+      if (!webhookSecret) {
+        console.warn('[Webhook] STRIPE_WEBHOOK_SECRET not set — skipping signature verification (dev mode)');
+      }
+      event = JSON.parse(body);
+    }
 
     const supabase = await createClient();
 
-    switch (eventType) {
+    switch (event.type) {
       case 'checkout.session.completed': {
-        const session = body.data?.object;
-        const userId = session?.metadata?.userId;
-        const tierId = session?.metadata?.tierId;
+        const session = event.data.object;
+        const userId = session.metadata?.userId;
+        const tierId = session.metadata?.tierId;
 
         if (userId && tierId) {
-          // Update user's subscription in Supabase
           const { error } = await supabase
             .from('users')
             .update({
               subscription_tier: tierId,
               subscription_status: 'active',
-              subscription_id: session.subscription,
+              subscription_id: session.subscription as string,
               updated_at: new Date().toISOString(),
             })
             .eq('id', userId);
@@ -41,15 +76,14 @@ export async function POST(request: NextRequest) {
       }
 
       case 'customer.subscription.updated': {
-        const subscription = body.data?.object;
-        const userId = subscription?.metadata?.userId;
-        const status = subscription?.status;
+        const subscription = event.data.object;
+        const userId = subscription.metadata?.userId;
 
         if (userId) {
           const { error } = await supabase
             .from('users')
             .update({
-              subscription_status: status,
+              subscription_status: subscription.status,
               updated_at: new Date().toISOString(),
             })
             .eq('id', userId);
@@ -62,8 +96,8 @@ export async function POST(request: NextRequest) {
       }
 
       case 'customer.subscription.deleted': {
-        const subscription = body.data?.object;
-        const userId = subscription?.metadata?.userId;
+        const subscription = event.data.object;
+        const userId = subscription.metadata?.userId;
 
         if (userId) {
           const { error } = await supabase
@@ -83,8 +117,8 @@ export async function POST(request: NextRequest) {
       }
 
       case 'invoice.payment_failed': {
-        const invoice = body.data?.object;
-        const userId = invoice?.metadata?.userId;
+        const invoice = event.data.object;
+        const userId = invoice.metadata?.userId;
 
         if (userId) {
           const { error } = await supabase
@@ -103,7 +137,6 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        // Unhandled event type
         break;
     }
 

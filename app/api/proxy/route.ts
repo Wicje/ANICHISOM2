@@ -124,15 +124,26 @@ function hasAuthSession(request: NextRequest): boolean {
   return false;
 }
 
-// Return HTML error page for proxy failures (renders nicely in iframe)
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function proxyErrorHtml(title: string, message: string, url?: string): NextResponse {
+  const safeTitle = escapeHtml(title);
+  const safeMessage = escapeHtml(message);
+  const safeUrl = url ? escapeHtml(url) : null;
   return new NextResponse(
-    `<!DOCTYPE html><html><head><title>${title}</title></head><body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f0f0f;color:#e0e0e0">
+    `<!DOCTYPE html><html><head><title>${safeTitle}</title></head><body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f0f0f;color:#e0e0e0">
 <div style="text-align:center;max-width:400px;padding:2rem">
-<div style="font-size:2rem;margin-bottom:1rem">⚠️</div>
-<h2 style="color:#f59e0b;margin:0 0 0.5rem">${title}</h2>
-<p style="color:#888;margin:0 0 1rem;font-size:0.9rem">${message}</p>
-${url ? `<p style="color:#555;font-size:0.75rem;word-break:break-all">${url}</p>` : ''}
+<div style="font-size:2rem;margin-bottom:1rem">&#9888;&#65039;</div>
+<h2 style="color:#f59e0b;margin:0 0 0.5rem">${safeTitle}</h2>
+<p style="color:#888;margin:0 0 1rem;font-size:0.9rem">${safeMessage}</p>
+${safeUrl ? `<p style="color:#555;font-size:0.75rem;word-break:break-all">${safeUrl}</p>` : ''}
 </div></body></html>`,
     { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
   );

@@ -3,7 +3,6 @@ import { Inter, Montserrat, JetBrains_Mono, Space_Grotesk } from 'next/font/goog
 import './globals.css'; 
 import { PWASetup } from '@/components/pwa-setup';
 import { PWAInstall } from '@/components/pwa-install';
-import { initVitals } from '@/lib/vitals';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -28,11 +27,6 @@ const spaceGrotesk = Space_Grotesk({
   variable: '--font-space',
   display: 'swap',
 });
-
-// Initialize Web Vitals tracking (client-side only)
-if (typeof window !== 'undefined') {
-  initVitals();
-}
 
 export const metadata: Metadata = {
   title: 'ContinuaOS | Creative OS',

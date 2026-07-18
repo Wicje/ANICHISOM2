@@ -5,9 +5,9 @@ import { createClient } from '@/utils/supabase/server';
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     // Create submission record
     const submission = {
       id: crypto.randomUUID(),
-      developer_id: session.user.id,
+      developer_id: user.id,
       name,
       description,
       version,
@@ -80,20 +80,20 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     // Check if user is admin
     const { data: userData } = await supabase
       .from('users')
-      .select('isAdmin')
-      .eq('id', session.user.id)
+      .select('is_admin')
+      .eq('id', user.id)
       .single();
 
-    if (!userData?.isAdmin) {
+    if (!userData?.is_admin) {
       return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
     }
 

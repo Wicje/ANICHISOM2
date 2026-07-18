@@ -14,11 +14,11 @@ export async function POST(request: NextRequest) {
     // Store in Supabase
     try {
       const supabase = await createClient();
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { user } } = await supabase.auth.getUser();
 
       await supabase.from('vitals_metrics').insert({
         id: id || crypto.randomUUID(),
-        user_id: session?.user?.id || null,
+        user_id: user?.id || null,
         name,
         value,
         rating,
@@ -41,20 +41,20 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     // Check admin
     const { data: userData } = await supabase
       .from('users')
-      .select('isAdmin')
-      .eq('id', session.user.id)
+      .select('is_admin')
+      .eq('id', user.id)
       .single();
 
-    if (!userData?.isAdmin) {
+    if (!userData?.is_admin) {
       return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
     }
 

@@ -67,14 +67,14 @@ export const workspaceAdapter = {
       await client().from('workspaces').upsert({
         id: workspace.id,
         name: workspace.name,
-        ownerId: workspace.ownerId,
-        isPrivate: workspace.isPrivate,
+        owner_id: workspace.ownerId,
+        is_private: workspace.isPrivate,
         members: workspace.members.map((m) => ({
           ...m,
-          joinedAt: m.joinedAt.toISOString(),
+          joined_at: m.joinedAt.toISOString(),
         })),
-        createdAt: workspace.createdAt.toISOString(),
-        updatedAt: workspace.updatedAt.toISOString(),
+        created_at: workspace.createdAt.toISOString(),
+        updated_at: workspace.updatedAt.toISOString(),
       });
     } catch (error) {
       console.error('[v0] Failed to create workspace:', error);
@@ -92,11 +92,11 @@ export const workspaceAdapter = {
       if (error || !data) return null;
       return {
         ...data,
-        createdAt: toDate(data.createdAt),
-        updatedAt: toDate(data.updatedAt),
+        createdAt: toDate(data.created_at),
+        updatedAt: toDate(data.updated_at),
         members: (data.members ?? []).map((m: Record<string, unknown>) => ({
           ...m,
-          joinedAt: toDate(m.joinedAt),
+          joinedAt: toDate(m.joined_at),
         })),
       } as Workspace;
     } catch (error) {
@@ -114,11 +114,11 @@ export const workspaceAdapter = {
       if (error || !data) return [];
       return data.map((row: Record<string, unknown>) => ({
         ...row,
-        createdAt: toDate(row.createdAt),
-        updatedAt: toDate(row.updatedAt),
+        createdAt: toDate(row.created_at),
+        updatedAt: toDate(row.updated_at),
         members: (row.members as Record<string, unknown>[] ?? []).map((m: Record<string, unknown>) => ({
           ...m,
-          joinedAt: toDate(m.joinedAt),
+          joinedAt: toDate(m.joined_at),
         })),
       })) as Workspace[];
     } catch (error) {
@@ -129,11 +129,11 @@ export const workspaceAdapter = {
 
   async update(workspaceId: string, updates: Partial<Workspace>): Promise<void> {
     try {
-      const payload: Record<string, unknown> = { ...updates, updatedAt: new Date().toISOString() };
+      const payload: Record<string, unknown> = { ...updates, updated_at: new Date().toISOString() };
       if (updates.members) {
         payload.members = updates.members.map((m) => ({
           ...m,
-          joinedAt: m.joinedAt instanceof Date ? m.joinedAt.toISOString() : m.joinedAt,
+          joined_at: m.joinedAt instanceof Date ? m.joinedAt.toISOString() : m.joinedAt,
         }));
       }
       await client().from('workspaces').update(payload).eq('id', workspaceId);
@@ -157,11 +157,11 @@ export const workspaceAdapter = {
           const row = payload.new;
           callback({
             ...row,
-            createdAt: toDate(row.createdAt),
-            updatedAt: toDate(row.updatedAt),
+            createdAt: toDate(row.created_at),
+            updatedAt: toDate(row.updated_at),
             members: (row.members as Record<string, unknown>[] ?? []).map((m: Record<string, unknown>) => ({
               ...m,
-              joinedAt: toDate(m.joinedAt),
+              joinedAt: toDate(m.joined_at),
             })),
           } as Workspace);
         }
@@ -183,9 +183,9 @@ export const projectAdapter = {
     try {
       await client().from('projects').upsert({
         id: project.id,
-        workspaceId: project.workspaceId,
+        workspace_id: project.workspaceId,
         name: project.name,
-        clientId: project.clientId,
+        client_id: project.clientId,
         brief: project.brief,
         status: project.status,
         phase: project.phase,
@@ -203,9 +203,9 @@ export const projectAdapter = {
           ...d,
           dueDate: d.dueDate.toISOString(),
         })),
-        createdBy: project.createdBy,
-        createdAt: project.createdAt.toISOString(),
-        updatedAt: project.updatedAt.toISOString(),
+        created_by: project.createdBy,
+        created_at: project.createdAt.toISOString(),
+        updated_at: project.updatedAt.toISOString(),
       });
     } catch (error) {
       console.error('[v0] Failed to create project:', error);
@@ -223,8 +223,8 @@ export const projectAdapter = {
       if (error || !data) return null;
       return {
         ...data,
-        createdAt: toDate(data.createdAt),
-        updatedAt: toDate(data.updatedAt),
+        createdAt: toDate(data.created_at),
+        updatedAt: toDate(data.updated_at),
         timeline: {
           ...data.timeline,
           startDate: toDate(data.timeline?.startDate),
@@ -250,13 +250,13 @@ export const projectAdapter = {
       const { data, error } = await client()
         .from('projects')
         .select('*')
-        .eq('workspaceId', workspaceId)
-        .order('updatedAt', { ascending: false });
+        .eq('workspace_id', workspaceId)
+        .order('updated_at', { ascending: false });
       if (error || !data) return [];
       return data.map((row: Record<string, unknown>) => ({
         ...row,
-        createdAt: toDate(row.createdAt),
-        updatedAt: toDate(row.updatedAt),
+        createdAt: toDate(row.created_at),
+        updatedAt: toDate(row.updated_at),
         timeline: {
           ...(row.timeline as Record<string, unknown>),
           startDate: toDate((row.timeline as Record<string, unknown>)?.startDate),
@@ -279,7 +279,7 @@ export const projectAdapter = {
 
   async update(projectId: string, updates: Partial<Project>): Promise<void> {
     try {
-      const payload: Record<string, unknown> = { ...updates, updatedAt: new Date().toISOString() };
+      const payload: Record<string, unknown> = { ...updates, updated_at: new Date().toISOString() };
       if (updates.timeline) {
         payload.timeline = {
           ...updates.timeline,
@@ -318,8 +318,8 @@ export const projectAdapter = {
           const row = payload.new;
           callback({
             ...row,
-            createdAt: toDate(row.createdAt),
-            updatedAt: toDate(row.updatedAt),
+            createdAt: toDate(row.created_at),
+            updatedAt: toDate(row.updated_at),
             timeline: {
               ...(row.timeline as Record<string, unknown>),
               startDate: toDate((row.timeline as Record<string, unknown>)?.startDate),
@@ -353,17 +353,17 @@ export const fileAdapter = {
     try {
       await client().from('files').upsert({
         id: file.id,
-        projectId: file.projectId,
+        project_id: file.projectId,
         name: file.name,
         type: file.type,
         url: file.url,
-        editingUserId: file.editingUserId ?? null,
-        editingSessionId: file.editingSessionId ?? null,
-        createdBy: file.createdBy,
-        fileSize: file.fileSize ?? null,
-        mimeType: file.mimeType ?? null,
-        createdAt: file.createdAt.toISOString(),
-        updatedAt: file.updatedAt.toISOString(),
+        editing_user_id: file.editingUserId ?? null,
+        editing_session_id: file.editingSessionId ?? null,
+        created_by: file.createdBy,
+        file_size: file.fileSize ?? null,
+        mime_type: file.mimeType ?? null,
+        created_at: file.createdAt.toISOString(),
+        updated_at: file.updatedAt.toISOString(),
       });
     } catch (error) {
       console.error('[v0] Failed to create file:', error);
@@ -381,8 +381,8 @@ export const fileAdapter = {
       if (error || !data) return null;
       return {
         ...data,
-        createdAt: toDate(data.createdAt),
-        updatedAt: toDate(data.updatedAt),
+        createdAt: toDate(data.created_at),
+        updatedAt: toDate(data.updated_at),
       } as ProjectFile;
     } catch (error) {
       console.error('[v0] Failed to get file:', error);
@@ -395,12 +395,12 @@ export const fileAdapter = {
       const { data, error } = await client()
         .from('files')
         .select('*')
-        .eq('projectId', projectId);
+        .eq('project_id', projectId);
       if (error || !data) return [];
       return data.map((row: Record<string, unknown>) => ({
         ...row,
-        createdAt: toDate(row.createdAt),
-        updatedAt: toDate(row.updatedAt),
+        createdAt: toDate(row.created_at),
+        updatedAt: toDate(row.updated_at),
       })) as ProjectFile[];
     } catch (error) {
       console.error('[v0] Failed to get files:', error);
@@ -410,7 +410,7 @@ export const fileAdapter = {
 
   async update(fileId: string, updates: Partial<ProjectFile>): Promise<void> {
     try {
-      const payload: Record<string, unknown> = { ...updates, updatedAt: new Date().toISOString() };
+      const payload: Record<string, unknown> = { ...updates, updated_at: new Date().toISOString() };
       await client().from('files').update(payload).eq('id', fileId);
     } catch (error) {
       console.error('[v0] Failed to update file:', error);
@@ -428,12 +428,12 @@ export const eventAdapter = {
     try {
       await client().from('events').upsert({
         id: event.id,
-        workspaceId: event.workspaceId,
-        entityId: event.entityId,
+        workspace_id: event.workspaceId,
+        entity_id: event.entityId,
         type: event.type,
-        userId: event.userId,
-        oldValue: event.oldValue ?? null,
-        newValue: event.newValue ?? null,
+        user_id: event.userId,
+        old_value: event.oldValue ?? null,
+        new_value: event.newValue ?? null,
         comment: event.comment ?? null,
         metadata: event.metadata ?? {},
         timestamp: event.timestamp.toISOString(),
@@ -460,7 +460,7 @@ export const eventAdapter = {
       const { data, error } = await client()
         .from('events')
         .select('*')
-        .eq('workspaceId', workspaceId)
+        .eq('workspace_id', workspaceId)
         .order('timestamp', { ascending: false })
         .limit(limitVal);
       if (error || !data) return [];
@@ -479,8 +479,8 @@ export const eventAdapter = {
       const { data, error } = await client()
         .from('events')
         .select('*')
-        .eq('workspaceId', workspaceId)
-        .eq('entityId', entityId)
+        .eq('workspace_id', workspaceId)
+        .eq('entity_id', entityId)
         .order('timestamp', { ascending: false });
       if (error || !data) return [];
       return data.map((row: Record<string, unknown>) => ({
@@ -501,7 +501,7 @@ export const eventAdapter = {
       const { data } = await client()
         .from('events')
         .select('*')
-        .eq('workspaceId', workspaceId)
+        .eq('workspace_id', workspaceId)
         .order('timestamp', { ascending: false })
         .limit(500);
       if (data) {
@@ -519,7 +519,7 @@ export const eventAdapter = {
       .channel(`events:${workspaceId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'events', filter: `workspaceId=eq.${workspaceId}` },
+        { event: '*', schema: 'public', table: 'events', filter: `workspace_id=eq.${workspaceId}` },
         (payload: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) => {
           if (payload.eventType === 'DELETE') {
             currentEvents = currentEvents.filter((e) => e.id !== payload.old?.id);
@@ -556,10 +556,10 @@ export const presenceAdapter = {
       const presenceId = `${userId}_${workspaceId}`;
       await client().from('presence').upsert({
         id: presenceId,
-        userId,
-        workspaceId,
+        user_id: userId,
+        workspace_id: workspaceId,
         ...presence,
-        lastSeen: new Date().toISOString(),
+        last_seen: new Date().toISOString(),
       });
     } catch (error) {
       console.error('[v0] Failed to update presence:', error);
@@ -571,12 +571,12 @@ export const presenceAdapter = {
       const { data, error } = await client()
         .from('presence')
         .select('*')
-        .eq('workspaceId', workspaceId)
-        .eq('isOnline', true);
+        .eq('workspace_id', workspaceId)
+        .eq('is_online', true);
       if (error || !data) return [];
       return data.map((row: Record<string, unknown>) => ({
         ...row,
-        lastSeen: toDate(row.lastSeen),
+        lastSeen: toDate(row.last_seen),
       })) as Presence[];
     } catch (error) {
       console.error('[v0] Failed to get online users:', error);
@@ -589,7 +589,7 @@ export const presenceAdapter = {
       .channel(`presence:${workspaceId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'presence', filter: `workspaceId=eq.${workspaceId}` },
+        { event: '*', schema: 'public', table: 'presence', filter: `workspace_id=eq.${workspaceId}` },
         () => {
           // On any change, refetch all online users
           presenceAdapter.getOnlineUsers(workspaceId).then(callback);
@@ -612,12 +612,12 @@ export const snapshotAdapter = {
     try {
       await client().from('snapshots').upsert({
         id: snapshot.id,
-        projectId: snapshot.projectId,
-        workspaceId: snapshot.workspaceId,
+        project_id: snapshot.projectId,
+        workspace_id: snapshot.workspaceId,
         name: snapshot.name,
         data: snapshot.data,
-        createdBy: snapshot.createdBy,
-        createdAt: snapshot.createdAt.toISOString(),
+        created_by: snapshot.createdBy,
+        created_at: snapshot.createdAt.toISOString(),
       });
     } catch (error) {
       console.error('[v0] Failed to create snapshot:', error);
@@ -630,12 +630,12 @@ export const snapshotAdapter = {
       const { data, error } = await client()
         .from('snapshots')
         .select('*')
-        .eq('projectId', projectId)
-        .order('createdAt', { ascending: false });
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false });
       if (error || !data) return [];
       return data.map((row: Record<string, unknown>) => ({
         ...row,
-        createdAt: toDate(row.createdAt),
+        createdAt: toDate(row.created_at),
       })) as Snapshot[];
     } catch (error) {
       console.error('[v0] Failed to get snapshots:', error);
@@ -653,12 +653,12 @@ export const batchAdapter = {
     try {
       const rows = events.map((e) => ({
         id: e.id,
-        workspaceId: e.workspaceId,
-        entityId: e.entityId,
+        workspace_id: e.workspaceId,
+        entity_id: e.entityId,
         type: e.type,
-        userId: e.userId,
-        oldValue: e.oldValue ?? null,
-        newValue: e.newValue ?? null,
+        user_id: e.userId,
+        old_value: e.oldValue ?? null,
+        new_value: e.newValue ?? null,
         comment: e.comment ?? null,
         metadata: e.metadata ?? {},
         timestamp: e.timestamp.toISOString(),

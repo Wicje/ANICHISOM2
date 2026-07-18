@@ -9,14 +9,24 @@ import {
   sendTrialExpiryEmail,
 } from '@/lib/services/emails';
 
-// POST — Send email by type (admin or system only)
+// POST — Send email by type (admin only)
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: userData } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (!userData || !['admin', 'superadmin'].includes(userData.role)) {
+      return NextResponse.json({ ok: false, error: 'Forbidden: admin role required' }, { status: 403 });
     }
 
     const body = await request.json();

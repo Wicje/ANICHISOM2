@@ -5,20 +5,20 @@ import { createClient } from '@/utils/supabase/server';
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     // Check admin
     const { data: userData } = await supabase
       .from('users')
-      .select('isAdmin')
-      .eq('id', session.user.id)
+      .select('is_admin')
+      .eq('id', user.id)
       .single();
 
-    if (!userData?.isAdmin) {
+    if (!userData?.is_admin) {
       return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
     }
 
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       { count: pendingReviews },
     ] = await Promise.all([
       supabase.from('users').select('*', { count: 'exact', head: true }),
-      supabase.from('users').select('*', { count: 'exact', head: true }).gte('lastLogin', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
+      supabase.from('users').select('*', { count: 'exact', head: true }).gte('last_login', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
       supabase.from('marketplace_apps').select('*', { count: 'exact', head: true }).eq('status', 'published'),
       supabase.from('marketplace_submissions').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     ]);

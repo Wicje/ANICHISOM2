@@ -41,8 +41,8 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const { data: users, error, count } = await supabase
       .from('users')
-      .select('id, name, email, role, status, isAdmin, createdAt, lastLogin', { count: 'exact' })
-      .order('createdAt', { ascending: false })
+      .select('id, name, email, role, status, is_admin, created_at, last_login', { count: 'exact' })
+      .order('created_at', { ascending: false })
       .limit(100);
 
     if (error) {

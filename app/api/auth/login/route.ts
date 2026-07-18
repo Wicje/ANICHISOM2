@@ -16,7 +16,7 @@ import {
   apiUnauthorized,
   apiInternal,
 } from '@/lib/api-helpers';
-import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@/utils/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     const bodyObj = body as Record<string, unknown>;
-    const { email, password, name } = bodyObj;
+    const { email, password } = bodyObj;
 
     if (!email || !password) {
       return apiError('Missing required fields: email, password');
@@ -45,21 +45,7 @@ export async function POST(request: NextRequest) {
       return apiError('email and password must be strings');
     }
 
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll();
-          },
-          setAll(cookiesToSet) {
-            // We can't set cookies here in a route handler,
-            // but Supabase SSR handles this via middleware
-          },
-        },
-      },
-    );
+    const supabase = await createClient();
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email,

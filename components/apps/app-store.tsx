@@ -96,10 +96,10 @@ export function AppStoreApp({ window: osWindow }: { window: OSWindow }) {
   }, [openWindow]);
 
   // Listen for registry changes
-  useState(() => {
+  useEffect(() => {
     const unsub = subscribe(() => setRegistryPlugins(getAllPlugins()));
     return unsub;
-  });
+  }, []);
 
   // Fetch marketplace plugins from the API
   const [marketplacePlugins, setMarketplacePlugins] = useState<any[]>([]);

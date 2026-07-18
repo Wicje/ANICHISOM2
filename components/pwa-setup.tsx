@@ -8,8 +8,14 @@ import { useBrowserStore } from '@/lib/stores/browser.store';
 import { useFileStore } from '@/lib/stores/file.store';
 import { OfflineStateService } from '@/lib/services/offline-state.service';
 import { BackgroundSyncService } from '@/lib/services/background-sync.service';
+import { initVitals } from '@/lib/vitals';
 
 export function PWASetup() {
+  // ─── Initialize Web Vitals ──────────────────────────────
+  useEffect(() => {
+    initVitals();
+  }, []);
+
   // ─── Register Service Worker (deferred to idle) ─────────
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;

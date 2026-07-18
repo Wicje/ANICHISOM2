@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     const { data: invite, error } = await supabase
       .from('invites')
-      .select('id, code, email, role, maxUses, useCount, expiresAt')
+      .select('id, code, email, role, max_uses, use_count, expires_at')
       .eq('code', code.trim().toUpperCase())
       .single();
 
@@ -38,12 +38,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Check expiration
-    if (invite.expiresAt && new Date(invite.expiresAt) < new Date()) {
+    if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
       return apiError('This invite code has expired', 410);
     }
 
     // Check usage limit
-    if (invite.useCount >= invite.maxUses) {
+    if (invite.use_count >= invite.max_uses) {
       return apiError('This invite code has already been used', 410);
     }
 

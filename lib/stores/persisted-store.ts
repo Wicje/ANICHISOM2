@@ -50,13 +50,6 @@ export function createPersistedStore<T extends object>(
 ): UseBoundStore<StoreApi<T & { hydrate: () => Promise<void> }>> {
   // Build full state with hydrate
   const fullCreator: StateCreator<T & { hydrate: () => Promise<void> }, [], [], T> = (set, get, api) => {
-    const userState = creator(
-      set as any,
-      get as any,
-      api as any,
-    );
-
-    // Auto-persist on every state change (debounced)
     const originalSet = set;
     const persistingSet: typeof set = (...args: any[]) => {
       (originalSet as any)(...args);
@@ -65,15 +58,14 @@ export function createPersistedStore<T extends object>(
       schedulePersist(storageKey, persistable);
     };
 
-    // Re-create user state with persisting setter
-    const stateWithPersist = creator(
+    const userState = creator(
       persistingSet as any,
       get as any,
       api as any,
     );
 
     return {
-      ...stateWithPersist,
+      ...userState,
       hydrate: async () => {
         mark(`store:hydrate:${storageKey}`);
         try {

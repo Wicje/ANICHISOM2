@@ -30,12 +30,12 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('invites')
       .update({
-        usedBy: userId,
-        usedAt: new Date().toISOString(),
-        useCount: 1,
+        used_by: userId,
+        used_at: new Date().toISOString(),
+        use_count: 1,
       })
       .eq('code', code.trim().toUpperCase())
-      .lt('useCount', 1)  // Only redeem if not yet used
+      .lt('use_count', 1)  // Only redeem if not yet used
       .select('id')
       .single();
 

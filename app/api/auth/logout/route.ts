@@ -12,27 +12,14 @@ import {
   apiOk,
   apiInternal,
 } from '@/lib/api-helpers';
-import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@/utils/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
     const rl = checkRouteRateLimit(request, 'AUTH_LOGIN');
     if (rl) return rl;
 
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll();
-          },
-          setAll() {
-            // Read-only in API routes
-          },
-        },
-      },
-    );
+    const supabase = await createClient();
 
     await supabase.auth.signOut();
 

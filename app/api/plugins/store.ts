@@ -87,7 +87,7 @@ export async function getPluginStore(): Promise<PluginListing[]> {
     const { data, error } = await supabase
       .from('plugins')
       .select('*')
-      .order('createdAt', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (error || !data || data.length === 0) {
       // Fall back to seed data
@@ -108,7 +108,7 @@ export async function getPluginStore(): Promise<PluginListing[]> {
       source: 'marketplace',
       rating: 0,
       installCount: 0,
-      publishedAt: new Date(p.createdAt).getTime(),
+      publishedAt: new Date(p.created_at).getTime(),
       publisherId: p.developer || 'community',
     }));
   } catch {

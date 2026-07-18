@@ -11,6 +11,30 @@ export interface AppNotification {
   read: boolean;
 }
 
+const STORAGE_KEY = 'continuaos:notifications';
+
+function loadNotifications(): AppNotification[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.slice(0, 50);
+  } catch {
+    return [];
+  }
+}
+
+function saveNotifications(notifications: AppNotification[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
+  } catch {
+    // Storage full or unavailable — silent fail
+  }
+}
+
 interface NotificationState {
   notifications: AppNotification[];
   addNotification: (title: string, type?: NotificationType, description?: string) => string;
@@ -21,7 +45,7 @@ interface NotificationState {
 }
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
-  notifications: [],
+  notifications: loadNotifications(),
 
   addNotification: (title, type = 'info', description) => {
     const notification: AppNotification = {
@@ -32,31 +56,34 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       timestamp: Date.now(),
       read: false,
     };
-    set((s) => ({
-      notifications: [notification, ...s.notifications].slice(0, 50),
-    }));
+    const updated = [notification, ...get().notifications].slice(0, 50);
+    set({ notifications: updated });
+    saveNotifications(updated);
     return notification.id;
   },
 
   dismiss: (id) => {
-    set((s) => ({
-      notifications: s.notifications.filter((n) => n.id !== id),
-    }));
+    const updated = get().notifications.filter((n) => n.id !== id);
+    set({ notifications: updated });
+    saveNotifications(updated);
   },
 
   markRead: (id) => {
-    set((s) => ({
-      notifications: s.notifications.map((n) =>
-        n.id === id ? { ...n, read: true } : n
-      ),
-    }));
+    const updated = get().notifications.map((n) =>
+      n.id === id ? { ...n, read: true } : n
+    );
+    set({ notifications: updated });
+    saveNotifications(updated);
   },
 
   markAllRead: () => {
-    set((s) => ({
-      notifications: s.notifications.map((n) => ({ ...n, read: true })),
-    }));
+    const updated = get().notifications.map((n) => ({ ...n, read: true }));
+    set({ notifications: updated });
+    saveNotifications(updated);
   },
 
-  clearAll: () => set({ notifications: [] }),
+  clearAll: () => {
+    set({ notifications: [] });
+    saveNotifications([]);
+  },
 }));

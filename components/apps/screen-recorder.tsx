@@ -1,7 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useOS, OSWindow } from '@/lib/os-context';
-import { Monitor, Square, Circle, Download, X, Video } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Monitor, Square, Circle, Download, X } from 'lucide-react';
 import { FS } from '@/lib/fs';
 
 const CODEC_CHAIN = [
@@ -29,21 +28,51 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
 
-  // Cleanup stream on unmount
+  const streamRef = useRef<MediaStream | null>(null);
+  const isRecordingRef = useRef(false);
+  const mimeTypeRef = useRef<string | null>(null);
+
+  useEffect(() => { streamRef.current = stream; }, [stream]);
+  useEffect(() => { isRecordingRef.current = isRecording; }, [isRecording]);
+
+  const stopRecording = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+    const recording = isRecordingRef.current;
+    if (recorder && recording) {
+      try {
+        if (recorder.state === 'recording') {
+          recorder.stop();
+        }
+      } catch (err) {
+        console.warn('[ScreenRecorder] Error stopping recorder:', err);
+      }
+      mediaRecorderRef.current = null;
+      isRecordingRef.current = false;
+      setIsRecording(false);
+    }
+  }, []);
+
+  const stopAllTracks = useCallback(() => {
+    const s = streamRef.current;
+    if (s) {
+      s.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+      setStream(null);
+    }
+  }, []);
+
   useEffect(() => {
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
+      stopRecording();
+      stopAllTracks();
     };
-  }, [stream]);
+  }, [stopRecording, stopAllTracks]);
 
-  // Attach stream to video element
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
@@ -57,58 +86,80 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
         video: { displaySurface: 'monitor' },
         audio: true
       });
+      streamRef.current = displayStream;
       setStream(displayStream);
-      
-      // Listen for user stopping share via browser UI
+
       displayStream.getVideoTracks()[0]!.onended = () => {
-        stopShare();
+        const recording = isRecordingRef.current;
+        if (recording) {
+          stopRecording();
+        }
+        streamRef.current = null;
+        setStream(null);
       };
     } catch (err: any) {
       setError(err.message || 'Failed to get display media');
     }
   };
 
-  const stopShare = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
-    if (isRecording) {
+  const handleStopShare = () => {
+    const recording = isRecordingRef.current;
+    if (recording) {
       stopRecording();
     }
+    stopAllTracks();
   };
 
   const startRecording = () => {
-    if (!stream) return;
-    
+    const currentStream = streamRef.current;
+    if (!currentStream) return;
+
     chunksRef.current = [];
     const mimeType = getSupportedMimeType();
-    
+
     if (!mimeType) {
       setError('No supported video codec found. Your browser does not support screen recording.');
       return;
     }
+    mimeTypeRef.current = mimeType;
 
     try {
-      const recorder = new MediaRecorder(stream, { mimeType });
-      
+      const recorder = new MediaRecorder(currentStream, { mimeType });
+
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
         }
       };
-      
+
+      recorder.onerror = () => {
+        const errorMsg = recorder.mimeType
+          ? `Recording error with codec ${recorder.mimeType}`
+          : 'Recording error: stream may have been interrupted';
+        setError(errorMsg);
+        mediaRecorderRef.current = null;
+        isRecordingRef.current = false;
+        setIsRecording(false);
+      };
+
       recorder.onstop = async () => {
-        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-        const blob = new Blob(chunksRef.current, { type: mimeType });
+        if (chunksRef.current.length === 0) {
+          window.dispatchEvent(new CustomEvent('os:notify', {
+            detail: { title: 'Recording Empty', description: 'No data was captured. The stream may have ended before recording started.', type: 'warning' },
+          }));
+          mediaRecorderRef.current = null;
+          return;
+        }
+
+        const ext = mimeTypeRef.current?.includes('mp4') ? 'mp4' : 'webm';
+        const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || 'video/webm' });
         const url = URL.createObjectURL(blob);
         setRecordedUrl(url);
 
-        // Save to VirtualFS
         try {
           await FS.mkdir('Recordings');
           const filename = `Recordings/Screen_Recording_${new Date().toISOString().replace(/[:.]/g, '-')}.${ext}`;
-          await FS.write(filename, blob, mimeType);
+          await FS.write(filename, blob, mimeTypeRef.current || 'video/webm');
           window.dispatchEvent(new CustomEvent('os:notify', {
             detail: { title: 'Recording Saved', description: `Saved to ${filename}`, type: 'success' },
           }));
@@ -117,11 +168,17 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
           }));
         } catch (fsErr) {
           console.warn('Failed to save recording to FS:', fsErr);
+          window.dispatchEvent(new CustomEvent('os:notify', {
+            detail: { title: 'Save Failed', description: 'Recording captured but could not be saved to the file system.', type: 'error' },
+          }));
         }
+
+        mediaRecorderRef.current = null;
       };
-      
+
       mediaRecorderRef.current = recorder;
       recorder.start();
+      isRecordingRef.current = true;
       setIsRecording(true);
       notify('Recording Started', { body: `Recording with ${mimeType.split(';')[0]}` });
     } catch (err: any) {
@@ -129,16 +186,9 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
   const downloadRecording = () => {
     if (recordedUrl) {
-      const mimeType = mediaRecorderRef.current?.mimeType || 'video/webm';
+      const mimeType = mimeTypeRef.current || 'video/webm';
       const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
       const a = document.createElement('a');
       a.href = recordedUrl;
@@ -176,8 +226,8 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
               Select Screen
             </button>
           ) : (
-            <button 
-              onClick={stopShare}
+            <button
+              onClick={handleStopShare}
               className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-1.5 rounded-md text-xs font-medium transition-colors border border-white/10"
             >
               <X className="w-4 h-4" />
