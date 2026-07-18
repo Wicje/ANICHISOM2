@@ -23,7 +23,7 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
         <div className="mt-12 flex flex-col items-center gap-4">
           {currentUser?.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={currentUser.avatarUrl} alt="avatar" className="w-20 h-20 rounded-full shadow-2xl" style={{ border: '2px solid var(--os-glass-border)' }} />
+            <img loading="lazy" src={currentUser.avatarUrl} alt="avatar" className="w-20 h-20 rounded-full shadow-2xl" style={{ border: '2px solid var(--os-glass-border)' }} />
           ) : (
             <div className="w-20 h-20 rounded-full flex items-center justify-center shadow-2xl" style={{ background: 'var(--os-glass-bg)', border: '2px solid var(--os-glass-border)' }}>
               <User className="w-10 h-10" style={{ color: 'var(--os-text-muted)' }} />

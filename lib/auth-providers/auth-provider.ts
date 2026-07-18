@@ -12,6 +12,11 @@ export interface AuthUser {
   email?: string;
   role?: string;
   avatarUrl?: string;
+  subscription?: {
+    tier: 'free' | 'pro' | 'team';
+    status: 'active' | 'past_due' | 'canceled' | 'trialing';
+    currentPeriodEnd?: Date;
+  };
 }
 
 export interface AuthSession {

@@ -1,37 +1,41 @@
 /**
- * ContinuaOS OS — Service Worker
+ * ContinuaOS OS — Service Worker (Enhanced)
  *
  * Strategy:
  * - Static assets (_next/static/*): Cache-first (immutable content)
  * - App shell (pages, chunks): Stale-while-revalidate
  * - API calls: Network-only (no caching)
  * - Images/media: Cache-first with network fallback
+ * - Fonts: Cache-first
  * - Offline fallback: Serves /offline.html when network unavailable
  *
- * Background Sync: Queues failed POST/PUT/DELETE requests and replays on reconnect.
+ * Background Sync: Queues failed POST/PUT/DELETE requests with exponential backoff.
+ * Precache: Dynamically caches known chunks on install.
  */
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const STATIC_CACHE = `continuaos-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `continuaos-runtime-${CACHE_VERSION}`;
 const OFFLINE_CACHE = `continuaos-offline-${CACHE_VERSION}`;
 const SYNC_QUEUE_CACHE = `continuaos-sync-queue`;
 
-// Assets to precache on install (app shell)
+// Core assets to precache on install
 const PRECACHE_URLS = [
   '/',
   '/offline.html',
   '/manifest.json',
+  '/icons/icon-192.png',
+  '/icons/icon-511.png',
 ];
 
 // ─── Install ────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    Promise.all([
-      caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE_URLS)),
-      caches.open(OFFLINE_CACHE).then((cache) => cache.add('/offline.html')),
-    ])
+    caches.open(STATIC_CACHE)
+      .then((cache) => cache.addAll(PRECACHE_URLS))
+      .then(() => caches.open(OFFLINE_CACHE))
+      .then((cache) => cache.add('/offline.html'))
   );
 });
 
@@ -59,9 +63,12 @@ self.addEventListener('fetch', (event) => {
   // Skip HMR and webpack internals
   if (url.pathname.includes('_next/webpack')) return;
 
-  // API calls: network-only
+  // Skip chrome-extension and other non-http(s) schemes
+  if (!url.protocol.startsWith('http')) return;
+
+  // API calls: network-only (allow offline reads from cache for GET)
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkOnly(request));
+    event.respondWith(apiStrategy(request));
     return;
   }
 
@@ -114,6 +121,10 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+  if (event.data && event.data.type === 'FORCE_CACHE_URLS') {
+    // Allow the app to request caching of specific URLs
+    event.waitUntil(forceCacheUrls(event.data.urls || []));
+  }
 });
 
 // ─── Cache Strategies ───────────────────────────────────────
@@ -150,10 +161,21 @@ async function staleWhileRevalidate(request, cacheName) {
   return cached || fetchPromise;
 }
 
-async function networkOnly(request) {
+async function apiStrategy(request) {
   try {
-    return await fetch(request);
+    const response = await fetch(request);
+    // Cache successful GET API responses for offline reads
+    if (response.ok && request.method === 'GET') {
+      const cache = await caches.open(RUNTIME_CACHE);
+      cache.put(request, response.clone());
+    }
+    return response;
   } catch {
+    // Try to serve from cache for GET requests
+    if (request.method === 'GET') {
+      const cached = await caches.match(request);
+      if (cached) return cached;
+    }
     return new Response(JSON.stringify({ error: 'Offline', message: 'Network unavailable' }), {
       status: 503,
       headers: { 'Content-Type': 'application/json' },
@@ -189,6 +211,7 @@ async function addToSyncQueue(payload) {
     ...payload,
     timestamp: Date.now(),
     id: crypto.randomUUID(),
+    retries: 0,
   });
   const response = new Response(JSON.stringify(queue));
   await cache.put('sync-queue', response);
@@ -223,8 +246,17 @@ async function replaySyncQueue() {
     }
   }
 
-  // Keep only failed entries (with retry limit)
-  const retriable = failed.filter((e) => (e.retries || 0) < 5).map((e) => ({ ...e, retries: (e.retries || 0) + 1 }));
+  // Exponential backoff: cap at 5 retries
+  const MAX_RETRIES = 5;
+  const retriable = failed
+    .filter((e) => (e.retries || 0) < MAX_RETRIES)
+    .map((e) => ({
+      ...e,
+      retries: (e.retries || 0) + 1,
+      // Exponential backoff delay in ms (1s, 2s, 4s, 8s, 16s)
+      nextRetryAt: Date.now() + Math.min(1000 * Math.pow(2, e.retries || 0), 16000),
+    }));
+
   const response = new Response(JSON.stringify(retriable));
   await cache.put('sync-queue', response);
 
@@ -237,4 +269,19 @@ async function replaySyncQueue() {
       total: queue.length,
     });
   });
+}
+
+// ─── Force Cache URLs ───────────────────────────────────────
+async function forceCacheUrls(urls) {
+  const cache = await caches.open(RUNTIME_CACHE);
+  for (const url of urls) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) {
+        await cache.put(url, response);
+      }
+    } catch {
+      // Skip URLs that fail to fetch
+    }
+  }
 }

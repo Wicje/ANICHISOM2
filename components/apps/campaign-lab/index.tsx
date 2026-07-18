@@ -349,7 +349,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
           >
             {activePage.coverImage && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={activePage.coverImage} className="w-full h-full object-cover" alt="Cover" />
+              <img loading="lazy" src={activePage.coverImage} className="w-full h-full object-cover" alt="Cover" />
             )}
             <div className="absolute inset-0 bg-black/0 group-hover/cover:bg-black/20 transition-colors flex items-center justify-center">
               <div className="opacity-0 group-hover/cover:opacity-100 transition-opacity flex gap-2">

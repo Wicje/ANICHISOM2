@@ -229,7 +229,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                    >
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors z-10" />
                       {img.content ? (
-                         <img src={img.content as string} className="w-full h-full object-cover" alt={img.name} />
+                         <img loading="lazy" src={img.content as string} className="w-full h-full object-cover" alt={img.name} />
                       ) : (
                          <div className="absolute inset-0 flex items-center justify-center">
                             <ImageIcon className="w-12 h-12 text-zinc-400 opacity-20" />
@@ -362,7 +362,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                 {/* Cover Image */}
                 <div className="h-64 sm:h-80 bg-zinc-900 w-full relative shrink-0">
                    {images.length > 0 ? (
-                      <img src={images[0]!.content as string} className="w-full h-full object-cover opacity-60" />
+                      <img loading="lazy" src={images[0]!.content as string} className="w-full h-full object-cover opacity-60" />
                    ) : (
                       <div className="w-full h-full flex items-center justify-center text-zinc-700">No images available</div>
                    )}
@@ -391,7 +391,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                       ) : (
                          images.map((img, i) => (
                             <div key={img.id} className="relative rounded-xl overflow-hidden group cursor-pointer border border-zinc-200 bg-white">
-                               <img src={img.content as string} className="w-full h-auto" />
+                               <img loading="lazy" src={img.content as string} className="w-full h-auto" />
                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
                                   <button className="w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center text-white hover:bg-white hover:text-indigo-600 transition-colors">
                                      <Download className="w-5 h-5" />
@@ -566,7 +566,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
               <button className="absolute top-6 right-6 text-white/50 hover:text-white md:hidden bg-black/50 p-2 rounded-full backdrop-blur">✖</button>
               <div className="w-full h-full max-h-[80vh] bg-black/50 rounded-2xl border border-white/10 shadow-2xl flex items-center justify-center overflow-hidden">
                  {selectedImage.content ? (
-                    <img src={selectedImage.content as string} className="w-full h-full object-contain" alt={selectedImage.name} />
+                    <img loading="lazy" src={selectedImage.content as string} className="w-full h-full object-contain" alt={selectedImage.name} />
                  ) : (
                     <ImageIcon className="w-16 h-16 text-zinc-700" />
                  )}

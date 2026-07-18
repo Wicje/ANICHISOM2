@@ -71,7 +71,7 @@ Status: In Review`);
           >
             {isImage && file.content ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={file.content} alt={file.name} className="w-12 h-12 object-cover rounded shadow-lg" />
+              <img loading="lazy" src={file.content} alt={file.name} className="w-12 h-12 object-cover rounded shadow-lg" />
             ) : isMedia ? (
               <Film className="w-12 h-12 text-rose-400 drop-shadow-md" />
             ) : (

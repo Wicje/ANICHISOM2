@@ -1031,7 +1031,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                       {isFolder ? (
                         <Folder className={cn("w-12 h-12 drop-shadow-md transition-colors", isDropTarget ? "text-emerald-300" : "text-emerald-400")} fill="currentColor" />
                       ) : isImage && file.content ? (
-                        <img src={file.content} alt={file.name} className="w-16 h-16 object-cover rounded-lg shadow-md" />
+                        <img loading="lazy" src={file.content} alt={file.name} className="w-16 h-16 object-cover rounded-lg shadow-md" />
                       ) : isMedia ? (
                         <Video className="w-12 h-12 text-rose-400 drop-shadow-md" />
                       ) : isPdf ? (
@@ -1119,7 +1119,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                         <Folder className="w-12 h-12 text-emerald-400 drop-shadow-md" fill="currentColor" />
                       ) : isImage ? (
                         file.thumbnailUrl ? (
-                          <img src={file.thumbnailUrl} alt={file.name} className="w-16 h-16 object-cover rounded-lg shadow-md" />
+                          <img loading="lazy" src={file.thumbnailUrl} alt={file.name} className="w-16 h-16 object-cover rounded-lg shadow-md" />
                         ) : (
                           <ImageIcon className="w-12 h-12 text-sky-400 drop-shadow-md" />
                         )

@@ -20,8 +20,13 @@ create table if not exists public.users (
   avatar     text,
   status     text not null default 'pending',   -- pending | approved | rejected
   isAdmin    boolean not null default false,
+  subscription_tier text not null default 'free',  -- free | pro | team
+  subscription_status text not null default 'active', -- active | past_due | canceled | trialing
+  subscription_id text, -- Stripe subscription ID
+  subscription_current_period_end timestamptz,
   createdAt  timestamptz not null default now(),
-  lastLogin  timestamptz not null default now()
+  lastLogin  timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 -- ============================================================================
@@ -498,6 +503,84 @@ create policy "Users can delete own context records"
 
 -- Realtime: enable replication for context_records
 alter publication supabase_realtime add table public.context_records;
+
+-- ============================================================================
+-- 13. MARKETPLACE SUBMISSIONS
+-- ============================================================================
+create table if not exists public.marketplace_submissions (
+  id           text primary key,
+  developer_id text not null,
+  name         text not null,
+  description  text not null,
+  version      text not null,
+  category     text not null default 'utilities',
+  icon         text not null default 'Package',
+  manifest_url text not null,
+  permissions  jsonb not null default '[]',
+  tags         jsonb not null default '[]',
+  status       text not null default 'pending',  -- pending | approved | rejected
+  submitted_at timestamptz not null default now(),
+  reviewed_by  text,
+  reviewed_at  timestamptz,
+  review_notes text,
+  updated_at   timestamptz not null default now()
+);
+
+create index if not exists idx_marketplace_submissions_status on public.marketplace_submissions(status);
+create index if not exists idx_marketplace_submissions_developer on public.marketplace_submissions(developer_id);
+
+-- RLS: developers can read their own submissions; admins can read all
+alter table public.marketplace_submissions enable row level security;
+
+create policy "Developers can read own submissions"
+  on public.marketplace_submissions for select
+  using (auth.uid() = developer_id);
+
+create policy "Developers can insert submissions"
+  on public.marketplace_submissions for insert
+  with check (auth.uid() = developer_id);
+
+create policy "Developers can update own submissions"
+  on public.marketplace_submissions for update
+  using (auth.uid() = developer_id);
+
+-- ============================================================================
+-- 14. MARKETPLACE PUBLISHED APPS
+-- ============================================================================
+create table if not exists public.marketplace_apps (
+  id             text primary key,
+  submission_id  text not null references public.marketplace_submissions(id) on delete cascade,
+  developer_id   text not null,
+  name           text not null,
+  description    text not null,
+  version        text not null,
+  category       text not null default 'utilities',
+  icon           text not null default 'Package',
+  manifest_url   text not null,
+  permissions    jsonb not null default '[]',
+  tags           jsonb not null default '[]',
+  status         text not null default 'published',  -- published | deprecated | removed
+  published_at   timestamptz not null default now(),
+  downloads      integer not null default 0,
+  rating         numeric(3,2) not null default 0,
+  rating_count   integer not null default 0,
+  updated_at     timestamptz not null default now()
+);
+
+create index if not exists idx_marketplace_apps_category on public.marketplace_apps(category);
+create index if not exists idx_marketplace_apps_status on public.marketplace_apps(status);
+create index if not exists idx_marketplace_apps_developer on public.marketplace_apps(developer_id);
+
+-- RLS: public read, developer write
+alter table public.marketplace_apps enable row level security;
+
+create policy "Anyone can read published apps"
+  on public.marketplace_apps for select
+  using (status = 'published');
+
+create policy "Developers can update own apps"
+  on public.marketplace_apps for update
+  using (auth.uid() = developer_id);
 
 -- ============================================================================
 -- DONE

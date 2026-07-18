@@ -49,7 +49,7 @@ function BlobViewer({ asset, onClose }: { asset: any, onClose: () => void }) {
              <video src={src} controls className="max-w-full max-h-[70vh]" autoPlay />
           ) : asset.metadata.type?.startsWith('image/') ? (
              // eslint-disable-next-line @next/next/no-img-element
-             <img src={src} alt={asset.metadata.name} className="max-w-full max-h-[70vh] object-contain" />
+             <img loading="lazy" src={src} alt={asset.metadata.name} className="max-w-full max-h-[70vh] object-contain" />
           ) : (
              <div className="p-12 text-white/40 flex flex-col items-center">
                 <File className="w-16 h-16 mb-4 opacity-50" />

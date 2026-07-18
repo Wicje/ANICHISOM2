@@ -261,7 +261,7 @@ export function AppStoreApp({ window: osWindow }: { window: OSWindow }) {
                   <div key={i} className="aspect-video bg-white/5 rounded-lg border border-white/5 flex items-center justify-center text-white/20 text-xs">
                     {src.startsWith('/') ? `Screenshot ${i + 1}` : (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={src} alt={`Screenshot ${i + 1}`} className="w-full h-full object-cover rounded-lg" />
+                      <img loading="lazy" src={src} alt={`Screenshot ${i + 1}`} className="w-full h-full object-cover rounded-lg" />
                     )}
                   </div>
                 ))}

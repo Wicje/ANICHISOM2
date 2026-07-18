@@ -118,7 +118,7 @@ export function MenuBar({
         <div className="font-bold flex items-center cursor-default uppercase tracking-wider text-xs px-2 py-0.5 rounded gap-2" style={{ background: 'var(--os-hover)' }}>
           {currentUser.avatarUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={currentUser.avatarUrl} alt="avatar" className="w-4 h-4 rounded-full" referrerPolicy="no-referrer" loading="lazy" />
+            <img loading="lazy" src={currentUser.avatarUrl} alt="avatar" className="w-4 h-4 rounded-full" referrerPolicy="no-referrer" />
           )}
           {currentUser.name}
         </div>

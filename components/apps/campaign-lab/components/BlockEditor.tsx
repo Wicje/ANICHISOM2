@@ -311,7 +311,7 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
                     {block.content ? (
                       <div className="relative group/img max-w-full inline-block">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={block.content} className="max-w-full max-h-[500px] rounded-lg border border-black/5" alt="Block image" />
+                        <img loading="lazy" src={block.content} className="max-w-full max-h-[500px] rounded-lg border border-black/5" alt="Block image" />
                         <button className="absolute top-2 right-2 p-1.5 bg-black/60 rounded backdrop-blur text-white opacity-0 group-hover/img:opacity-100" onClick={() => updateBlock(index, { content: '' })}><Trash2 className="w-4 h-4" /></button>
                       </div>
                     ) : (

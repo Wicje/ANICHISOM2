@@ -135,7 +135,7 @@ export function MovieBrowser({ window: osWindow }: { window?: any }) {
                 <div className="relative rounded-xl overflow-hidden aspect-[2/3] shadow-md group-hover:shadow-xl transition-shadow">
                   {movie.posterPath ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={movie.posterPath} alt={movie.title} className="w-full h-full object-cover" loading="lazy" />
+                    <img loading="lazy" src={movie.posterPath} alt={movie.title} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                       <span className="text-gray-400 text-lg font-bold">{movie.title.charAt(0)}</span>

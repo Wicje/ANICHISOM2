@@ -178,7 +178,7 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
                       <div key={node.id} className="bg-white/5 border border-white/10 rounded-lg overflow-hidden group">
                         {node.type === 'image' && node.content ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={node.content} alt={node.label || 'Asset'} className="w-full h-32 object-cover" />
+                          <img loading="lazy" src={node.content} alt={node.label || 'Asset'} className="w-full h-32 object-cover" />
                         ) : (
                           <div className="w-full h-32 bg-white/5 flex items-center justify-center text-white/20 text-xs">
                             {node.type === 'text' ? 'Text' : node.type === 'video' ? 'Video' : 'Embed'}

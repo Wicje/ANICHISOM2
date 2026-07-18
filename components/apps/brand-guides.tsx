@@ -391,7 +391,7 @@ function LogosSection({ brandId, logos, store }: { brandId: string; logos: Brand
         {logos.map((logo) => (
           <div key={logo.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logo.dataUrl} alt={logo.name} className="w-full h-24 object-contain rounded bg-white/5 mb-2" />
+            <img loading="lazy" src={logo.dataUrl} alt={logo.name} className="w-full h-24 object-contain rounded bg-white/5 mb-2" />
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-xs font-bold">{logo.name}</div>

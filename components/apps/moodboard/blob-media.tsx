@@ -24,5 +24,5 @@ export function BlobMedia({ content, type, className }: { content: string; type:
   if (!src) return <div className="w-[400px] h-[300px] bg-slate-100 animate-pulse rounded flex items-center justify-center text-xs text-black/50">Loading Media...</div>;
   if (type === 'video') return <video src={src} className={className} controls onPointerDown={(e) => e.stopPropagation()} />;
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} className={className} alt="Media content" />;
+  return <img loading="lazy" src={src} className={className} alt="Media content" />;
 }

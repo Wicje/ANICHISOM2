@@ -185,7 +185,7 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                       )}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={wp.url} alt={wp.name} className="w-full h-full object-cover" />
+                      <img loading="lazy" src={wp.url} alt={wp.name} className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
                         <span className="text-xs font-medium">{wp.name}</span>
                       </div>
@@ -464,7 +464,7 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                   <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/d/da/Google_Drive_logo.png" alt="Google Drive" className="w-5 h-5" />
+                        <img loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/d/da/Google_Drive_logo.png" alt="Google Drive" className="w-5 h-5" />
                       </div>
                       <div>
                         <h3 className="font-medium text-sm">Google Drive</h3>

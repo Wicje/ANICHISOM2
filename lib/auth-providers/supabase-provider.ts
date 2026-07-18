@@ -29,11 +29,25 @@ export class SupabaseAuthProvider implements AuthProvider {
     
     if (!user) return null;
 
+    // Fetch subscription data from users table
+    const { data: userData } = await this.supabase
+      .from('users')
+      .select('subscription_tier, subscription_status, subscription_current_period_end')
+      .eq('id', user.id)
+      .single();
+
     return {
       id: user.id,
       name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
       email: user.email,
       avatarUrl: user.user_metadata?.avatar_url,
+      subscription: userData ? {
+        tier: userData.subscription_tier || 'free',
+        status: userData.subscription_status || 'active',
+        currentPeriodEnd: userData.subscription_current_period_end
+          ? new Date(userData.subscription_current_period_end)
+          : undefined,
+      } : { tier: 'free', status: 'active' },
     };
   }
 
@@ -49,12 +63,26 @@ export class SupabaseAuthProvider implements AuthProvider {
 
     if (error) throw error;
 
+    // Fetch subscription data
+    const { data: userData } = await this.supabase
+      .from('users')
+      .select('subscription_tier, subscription_status, subscription_current_period_end')
+      .eq('id', data.user.id)
+      .single();
+
     return {
       user: {
         id: data.user.id,
         name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'User',
         email: data.user.email,
         avatarUrl: data.user.user_metadata?.avatar_url,
+        subscription: userData ? {
+          tier: userData.subscription_tier || 'free',
+          status: userData.subscription_status || 'active',
+          currentPeriodEnd: userData.subscription_current_period_end
+            ? new Date(userData.subscription_current_period_end)
+            : undefined,
+        } : { tier: 'free', status: 'active' },
       },
       token: data.session?.access_token,
       expiresAt: data.session?.expires_at ? new Date(data.session.expires_at * 1000) : undefined,
