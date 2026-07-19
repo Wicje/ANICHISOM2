@@ -15,7 +15,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // Public routes — no session check needed
-  const isPublicRoute = pathname === '/' || pathname === '/waitlist' || pathname.startsWith('/auth') || pathname.startsWith('/login');
+  // /os is public because the Desktop component handles its own auth (shows login screen)
+  const isPublicRoute = pathname === '/' || pathname === '/os' || pathname === '/waitlist' || pathname.startsWith('/auth') || pathname.startsWith('/login');
   if (isPublicRoute) {
     // If user has Supabase session and is on landing page, redirect to /os
     if (pathname === '/') {
@@ -32,7 +33,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // Protected routes (including /os) — require Supabase session
+  // Protected routes — require Supabase session
   const supabaseCookie = request.cookies.getAll().find(c => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
   if (!supabaseCookie) {
     const url = request.nextUrl.clone();
