@@ -40,8 +40,6 @@ export function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [passkeySupported, setPasskeySupported] = useState(false);
-  const [needsBootstrap, setNeedsBootstrap] = useState(false);
-  const [bootstrapChecked, setBootstrapChecked] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -60,16 +58,6 @@ export function LoginScreen() {
     if (typeof window !== 'undefined' && window.PublicKeyCredential) {
       setPasskeySupported(true);
     }
-  }, []);
-
-  useEffect(() => {
-    fetch('/api/auth/bootstrap/check')
-      .then(r => r.json())
-      .then(data => {
-        setNeedsBootstrap(data.ok ? data.data?.needsBootstrap === true : true);
-      })
-      .catch(() => setNeedsBootstrap(true))
-      .finally(() => setBootstrapChecked(true));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -150,61 +138,6 @@ export function LoginScreen() {
       const message = err instanceof Error ? err.message : 'Authentication failed';
       setError(message);
     } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleBootstrap = async () => {
-    setError('');
-    setSuccessMsg('');
-    setIsLoading(true);
-
-    try {
-      const res = await fetch('/api/auth/bootstrap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password,
-          name: displayName || email.split('@')[0],
-        }),
-      });
-      const data = await res.json();
-
-      if (!data.ok) {
-        setError(data.error || 'Bootstrap failed');
-        setIsLoading(false);
-        return;
-      }
-
-      if (data.data?.user) {
-        setSuccessMsg('Admin account created. Signing in...');
-        setTimeout(async () => {
-          try {
-            const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({
-              email,
-              password,
-            });
-            if (loginErr) throw loginErr;
-            setCurrentUser({
-              id: loginData.user.id,
-              name: loginData.user.user_metadata?.name || email.split('@')[0],
-              role: (loginData.user.user_metadata?.role as OSRole) || 'admin',
-              avatarUrl: loginData.user.user_metadata?.avatar_url,
-            });
-          } catch {
-            setMode('login');
-            setSuccessMsg('Admin account created. Please sign in.');
-            setIsLoading(false);
-          }
-        }, 1500);
-      } else {
-        setSuccessMsg(data.data?.message || 'Check your email to confirm your account');
-        setIsLoading(false);
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Bootstrap failed';
-      setError(message);
       setIsLoading(false);
     }
   };
@@ -320,40 +253,6 @@ export function LoginScreen() {
             </p>
           </div>
         </div>
-
-        {/* Bootstrap — first user setup, shown ABOVE the form */}
-        {bootstrapChecked && needsBootstrap && (
-          <div className="mb-6 p-5 rounded-xl border-2 border-dashed border-[#10F4A0]/30 bg-[#10F4A0]/[0.05]">
-            <div className="text-center mb-4">
-              <p className="text-[#10F4A0] text-sm font-bold font-mono uppercase tracking-wider">First user setup</p>
-              <p className="text-white/40 text-xs mt-2">No admin exists yet. Create the first account — no invite needed.</p>
-            </div>
-            <div className="flex flex-col gap-3">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@email.com"
-                className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#10F4A0]/40"
-              />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Choose a password (min 6 chars)"
-                minLength={6}
-                className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#10F4A0]/40"
-              />
-              <button
-                onClick={handleBootstrap}
-                disabled={isLoading || !email || !password}
-                className="w-full py-3.5 rounded-lg text-sm font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-[#10F4A0] text-[#060608] hover:bg-[#0BC68A] flex items-center justify-center gap-2"
-              >
-                {isLoading ? 'Creating admin...' : 'Create Admin Account'}
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Error */}
         {error && (
