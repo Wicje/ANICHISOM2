@@ -4,7 +4,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { useOnboardingStore } from '@/lib/stores/onboarding.store';
 import { APP_MANIFEST, getManifestEntry } from '@/lib/app-manifest';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, Check, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import type { UserRole } from '@/lib/stores/onboarding.store';
 
 const STEPS = ['welcome', 'role', 'apps'] as const;
@@ -68,13 +68,16 @@ export default function OnboardingWizard() {
   if (onboarding.completed) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0a0a0a] text-white">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#060608] text-white">
+      {/* Ambient glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-[#10F4A0]/[0.03] blur-[120px] pointer-events-none" />
+
       <div className="absolute top-6 right-6">
         <button
           onClick={handleSkip}
-          className="text-sm text-white/40 hover:text-white/70 transition-colors"
+          className="text-xs text-white/20 hover:text-white/50 transition-colors font-mono tracking-wider uppercase"
         >
-          Skip for now
+          Skip
         </button>
       </div>
 
@@ -84,8 +87,8 @@ export default function OnboardingWizard() {
           <div
             key={s}
             className={cn(
-              'w-2.5 h-2.5 rounded-full transition-all duration-300',
-              i === stepIndex ? 'bg-white scale-110' : i < stepIndex ? 'bg-white/60' : 'bg-white/20',
+              'w-2 h-2 rounded-full transition-all duration-300',
+              i === stepIndex ? 'bg-[#10F4A0] scale-125 shadow-[0_0_8px_rgba(16,244,160,0.4)]' : i < stepIndex ? 'bg-[#10F4A0]/40' : 'bg-white/10',
             )}
           />
         ))}
@@ -121,8 +124,8 @@ export default function OnboardingWizard() {
             onClick={goBack}
             disabled={isFirst}
             className={cn(
-              'flex items-center gap-1 px-4 py-2 rounded-lg text-sm transition-colors',
-              isFirst ? 'text-white/20 cursor-not-allowed' : 'text-white/60 hover:text-white hover:bg-white/5',
+              'flex items-center gap-1 px-4 py-2 rounded-lg text-sm transition-colors font-mono',
+              isFirst ? 'text-white/10 cursor-not-allowed' : 'text-white/40 hover:text-white/70 hover:bg-white/[0.04]',
             )}
           >
             <ChevronLeft className="w-4 h-4" />
@@ -135,16 +138,16 @@ export default function OnboardingWizard() {
             className={cn(
               'flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all',
               step === 'role' && !selectedRole
-                ? 'bg-white/10 text-white/30 cursor-not-allowed'
+                ? 'bg-white/[0.06] text-white/20 cursor-not-allowed'
                 : isLast
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                  : 'bg-white/10 hover:bg-white/20 text-white',
+                  ? 'bg-[#10F4A0] hover:bg-[#0BC68A] text-[#060608]'
+                  : 'bg-white/[0.08] hover:bg-white/[0.12] text-white',
             )}
           >
             {isLast ? (
               <>
                 <Check className="w-4 h-4" />
-                Finish
+                Enter Continua
               </>
             ) : (
               <>
@@ -163,14 +166,18 @@ function WelcomeStep() {
   return (
     <div className="text-center py-12">
       <div className="flex justify-center mb-6">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center">
-          <Sparkles className="w-8 h-8 text-white" />
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#10F4A0] to-[#0BC68A] flex items-center justify-center shadow-[0_0_60px_rgba(16,244,160,0.2)]">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#060608" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5"/>
+            <path d="M2 12l10 5 10-5"/>
+          </svg>
         </div>
       </div>
-      <h1 className="text-3xl font-bold mb-3">Welcome to ContinuaOS</h1>
-      <p className="text-white/50 text-lg max-w-md mx-auto">
-        A creative operating system built for filmmakers, developers, and creators.
-        Let&apos;s set up your workspace in a few steps.
+      <h1 className="text-3xl font-bold mb-3">Welcome to Continua</h1>
+      <p className="text-white/40 text-base max-w-md mx-auto leading-relaxed">
+        The persistent context layer. Pick up exactly where you stopped — not the file, the context.
+        Let&apos;s set up your workspace.
       </p>
     </div>
   );
@@ -185,8 +192,8 @@ interface RoleStepProps {
 function RoleStep({ roles, selectedRole, onSelect }: RoleStepProps) {
   return (
     <div>
-      <h2 className="text-2xl font-bold text-center mb-2">What&apos;s your role?</h2>
-      <p className="text-white/40 text-center mb-8">We&apos;ll customize your apps based on your workflow.</p>
+      <h2 className="text-2xl font-bold text-center mb-2">What&apos;s your discipline?</h2>
+      <p className="text-white/40 text-center mb-8 font-mono text-xs tracking-wider">We shape your context around how you work.</p>
       <div className="grid grid-cols-2 gap-3">
         {roles.map((role) => (
           <button
@@ -206,7 +213,7 @@ function RoleStep({ roles, selectedRole, onSelect }: RoleStepProps) {
             </div>
             {selectedRole === role.id && (
               <div className="ml-auto mt-1">
-                <Check className="w-4 h-4 text-emerald-400" />
+                <Check className="w-4 h-4 text-[#10F4A0]" />
               </div>
             )}
           </button>
@@ -236,8 +243,8 @@ function AppsStep({ selectedApps, onToggle }: AppsStepProps) {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-center mb-2">Select your apps</h2>
-      <p className="text-white/40 text-center mb-6">Choose the tools you need. You can always add more later.</p>
+      <h2 className="text-2xl font-bold text-center mb-2">Select your tools</h2>
+      <p className="text-white/40 text-center mb-6">Choose what matters. You can always add more later.</p>
       <div className="grid grid-cols-3 gap-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin">
         {apps.map((app) => {
           const Icon = app.icon;
@@ -259,8 +266,8 @@ function AppsStep({ selectedApps, onToggle }: AppsStepProps) {
               </div>
               {app.selected && (
                 <div className="ml-auto shrink-0">
-                  <div className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
-                    <Check className="w-2.5 h-2.5 text-white" />
+                  <div className="w-4 h-4 rounded-full bg-[#10F4A0] flex items-center justify-center">
+                    <Check className="w-2.5 h-2.5 text-[#060608]" />
                   </div>
                 </div>
               )}

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore, OSRole } from '@/lib/stores/auth.store';
 import { createClient } from '@/utils/supabase/client';
-import { Key, Loader2, AlertCircle, Mail, Lock, UserPlus, LogIn, Ticket, Fingerprint } from 'lucide-react';
+import { Loader2, AlertCircle, Mail, Lock, UserPlus, LogIn, Ticket, Fingerprint } from 'lucide-react';
 
 type AuthMode = 'login' | 'signup';
 
@@ -40,6 +40,8 @@ export function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [passkeySupported, setPasskeySupported] = useState(false);
+  const [needsBootstrap, setNeedsBootstrap] = useState(false);
+  const [bootstrapChecked, setBootstrapChecked] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -58,6 +60,16 @@ export function LoginScreen() {
     if (typeof window !== 'undefined' && window.PublicKeyCredential) {
       setPasskeySupported(true);
     }
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/auth/bootstrap/check')
+      .then(r => r.json())
+      .then(data => {
+        setNeedsBootstrap(data.ok && data.data?.needsBootstrap === true);
+      })
+      .catch(() => {})
+      .finally(() => setBootstrapChecked(true));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -166,11 +178,26 @@ export function LoginScreen() {
       }
 
       if (data.data?.user) {
-        setSuccessMsg('Admin account created. Switching to login...');
-        setTimeout(() => {
-          setMode('login');
-          setIsLoading(false);
-        }, 2000);
+        setSuccessMsg('Admin account created. Signing in...');
+        setTimeout(async () => {
+          try {
+            const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({
+              email,
+              password,
+            });
+            if (loginErr) throw loginErr;
+            setCurrentUser({
+              id: loginData.user.id,
+              name: loginData.user.user_metadata?.name || email.split('@')[0],
+              role: (loginData.user.user_metadata?.role as OSRole) || 'admin',
+              avatarUrl: loginData.user.user_metadata?.avatar_url,
+            });
+          } catch {
+            setMode('login');
+            setSuccessMsg('Admin account created. Please sign in.');
+            setIsLoading(false);
+          }
+        }, 1500);
       } else {
         setSuccessMsg(data.data?.message || 'Check your email to confirm your account');
         setIsLoading(false);
@@ -219,11 +246,11 @@ export function LoginScreen() {
       const credential = await navigator.credentials.create({
         publicKey: {
           challenge,
-          rp: { name: 'ContinuaOS', id: window.location.hostname },
+          rp: { name: 'Continua', id: window.location.hostname },
           user: {
             id: new Uint8Array(16),
-            name: email || 'user@continuaos',
-            displayName: displayName || 'ContinuaOS User',
+            name: email || 'user@continua',
+            displayName: displayName || 'Continua User',
           },
           pubKeyCredParams: [
             { alg: -7, type: 'public-key' },
@@ -260,54 +287,72 @@ export function LoginScreen() {
   };
 
   return (
-    <div className="fixed inset-0 bg-[#0a0a0a] flex items-center justify-center p-4 font-sans">
-      <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
+    <div className="fixed inset-0 bg-[#060608] flex items-center justify-center p-4 font-sans overflow-hidden">
+      {/* Ambient glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#10F4A0]/[0.03] blur-[120px] pointer-events-none" />
 
-      <div className="relative z-10 w-full max-w-md">
-        <div className="flex flex-col items-center gap-4 mb-10 text-center">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white rounded-none flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.15)]">
-              <Key className="w-6 h-6 text-black" />
+      {/* Grid texture */}
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]" style={{
+        backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+        backgroundSize: '40px 40px',
+      }} />
+
+      <div className="relative z-10 w-full max-w-[400px]">
+        {/* Logo + tagline */}
+        <div className="flex flex-col items-center gap-5 mb-12 text-center">
+          <div className="relative">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#10F4A0] to-[#0BC68A] flex items-center justify-center shadow-[0_0_60px_rgba(16,244,160,0.2)]">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#060608" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+              </svg>
             </div>
-            <div className="font-mono text-2xl font-bold text-white tracking-[0.2em] uppercase">
-              ContinuaOS
-            </div>
+            <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-[#10F4A0] animate-pulse" />
           </div>
-          <p className="text-white/40 text-xs max-w-xs font-mono uppercase tracking-widest">
-            {mode === 'login' ? 'Sign in to your workspace' : 'Create your account'}
-          </p>
+
+          <div>
+            <h1 className="font-mono text-[22px] font-bold text-white tracking-[0.25em] uppercase">
+              Continua
+            </h1>
+            <p className="text-white/30 text-[11px] font-mono tracking-[0.15em] mt-2">
+              The layer that remembers
+            </p>
+          </div>
         </div>
 
+        {/* Error */}
         {error && (
-          <div className="w-full bg-white/5 border border-white/20 text-white text-xs p-4 flex items-start gap-3 mb-6 backdrop-blur-md font-mono uppercase tracking-wide">
+          <div className="w-full bg-red-500/[0.08] border border-red-500/20 text-red-300/90 text-xs p-3.5 flex items-start gap-3 mb-5 rounded-lg font-mono">
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-            <span>{error}</span>
+            <span className="leading-relaxed">{error}</span>
           </div>
         )}
 
+        {/* Success */}
         {successMsg && (
-          <div className="w-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs p-4 flex items-start gap-3 mb-6 backdrop-blur-md font-mono uppercase tracking-wide">
-            <span>{successMsg}</span>
+          <div className="w-full bg-[#10F4A0]/[0.08] border border-[#10F4A0]/20 text-[#10F4A0] text-xs p-3.5 flex items-start gap-3 mb-5 rounded-lg font-mono">
+            <span className="leading-relaxed">{successMsg}</span>
           </div>
         )}
 
         {/* SSO Buttons */}
-        <div className="flex flex-col gap-3 mb-6">
+        <div className="flex flex-col gap-2.5 mb-5">
           <button
             onClick={() => handleSSO('google')}
             disabled={isLoading}
-            className="w-full bg-white hover:bg-neutral-100 text-black disabled:opacity-50 font-bold py-3.5 transition-all flex items-center justify-center gap-3 text-sm"
+            className="w-full bg-white/[0.06] hover:bg-white/[0.1] text-white/90 disabled:opacity-50 font-medium py-3 transition-all flex items-center justify-center gap-3 text-sm rounded-lg border border-white/[0.08] hover:border-white/[0.15]"
           >
-            <GoogleIcon className="w-5 h-5" />
+            <GoogleIcon className="w-4 h-4" />
             Continue with Google
           </button>
 
           <button
             onClick={() => handleSSO('github')}
             disabled={isLoading}
-            className="w-full bg-[#24292e] hover:bg-[#2f363d] text-white disabled:opacity-50 font-bold py-3.5 transition-all flex items-center justify-center gap-3 text-sm"
+            className="w-full bg-white/[0.06] hover:bg-white/[0.1] text-white/90 disabled:opacity-50 font-medium py-3 transition-all flex items-center justify-center gap-3 text-sm rounded-lg border border-white/[0.08] hover:border-white/[0.15]"
           >
-            <GitHubIcon className="w-5 h-5" />
+            <GitHubIcon className="w-4 h-4" />
             Continue with GitHub
           </button>
 
@@ -315,34 +360,33 @@ export function LoginScreen() {
             <button
               onClick={handlePasskey}
               disabled={isLoading}
-              className="w-full bg-white/10 hover:bg-white/15 text-white disabled:opacity-50 font-bold py-3.5 transition-all flex items-center justify-center gap-3 text-sm border border-white/20"
+              className="w-full bg-white/[0.04] hover:bg-white/[0.08] text-white/70 disabled:opacity-50 font-medium py-3 transition-all flex items-center justify-center gap-3 text-sm rounded-lg border border-white/[0.06] hover:border-white/[0.12]"
             >
-              <Fingerprint className="w-5 h-5" />
+              <Fingerprint className="w-4 h-4" />
               Sign in with Passkey
             </button>
           )}
         </div>
 
         {/* Divider */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="flex-1 h-px bg-white/10" />
-          <span className="text-white/30 text-[10px] uppercase tracking-widest font-mono">or</span>
-          <div className="flex-1 h-px bg-white/10" />
+        <div className="flex items-center gap-4 mb-5">
+          <div className="flex-1 h-px bg-white/[0.06]" />
+          <span className="text-white/20 text-[10px] uppercase tracking-[0.2em] font-mono">or</span>
+          <div className="flex-1 h-px bg-white/[0.06]" />
         </div>
 
-        {/* Email/Password Form */}
-        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-5 p-8 bg-black border border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)]">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4 p-6 bg-white/[0.03] border border-white/[0.08] rounded-xl backdrop-blur-sm">
           {mode === 'signup' && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-mono">Name</label>
-              <div className="flex items-center border-b border-white/20 focus-within:border-white transition-colors">
-                <UserPlus className="w-4 h-4 text-white/30 shrink-0" />
+              <label className="text-white/30 text-[10px] uppercase tracking-[0.2em] font-mono">Name</label>
+              <div className="flex items-center bg-white/[0.04] rounded-lg border border-white/[0.06] focus-within:border-[#10F4A0]/40 transition-colors">
                 <input
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Your name"
-                  className="w-full bg-transparent px-3 py-3 text-white placeholder-white/20 focus:outline-none text-sm tracking-wide"
+                  className="w-full bg-transparent px-4 py-3 text-white placeholder-white/20 focus:outline-none text-sm"
                 />
               </div>
             </div>
@@ -350,9 +394,9 @@ export function LoginScreen() {
 
           {mode === 'signup' && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-mono">Invite Code</label>
-              <div className="flex items-center border-b border-white/20 focus-within:border-white transition-colors">
-                <Ticket className="w-4 h-4 text-white/30 shrink-0" />
+              <label className="text-white/30 text-[10px] uppercase tracking-[0.2em] font-mono">Invite Code</label>
+              <div className="flex items-center bg-white/[0.04] rounded-lg border border-white/[0.06] focus-within:border-[#10F4A0]/40 transition-colors">
+                <Ticket className="w-4 h-4 text-white/20 shrink-0 ml-4" />
                 <input
                   type="text"
                   value={inviteCode}
@@ -362,31 +406,31 @@ export function LoginScreen() {
                   }}
                   placeholder="Enter your invite code"
                   required
-                  className="w-full bg-transparent px-3 py-3 text-white placeholder-white/20 focus:outline-none text-sm tracking-wide uppercase"
+                  className="w-full bg-transparent px-3 py-3 text-white placeholder-white/20 focus:outline-none text-sm tracking-wide uppercase font-mono"
                 />
               </div>
             </div>
           )}
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-mono">Email</label>
-            <div className="flex items-center border-b border-white/20 focus-within:border-white transition-colors">
-              <Mail className="w-4 h-4 text-white/30 shrink-0" />
+            <label className="text-white/30 text-[10px] uppercase tracking-[0.2em] font-mono">Email</label>
+            <div className="flex items-center bg-white/[0.04] rounded-lg border border-white/[0.06] focus-within:border-[#10F4A0]/40 transition-colors">
+              <Mail className="w-4 h-4 text-white/20 shrink-0 ml-4" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@email.com"
                 required
-                className="w-full bg-transparent px-3 py-3 text-white placeholder-white/20 focus:outline-none text-sm tracking-wide"
+                className="w-full bg-transparent px-3 py-3 text-white placeholder-white/20 focus:outline-none text-sm"
               />
             </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-mono">Password</label>
-            <div className="flex items-center border-b border-white/20 focus-within:border-white transition-colors">
-              <Lock className="w-4 h-4 text-white/30 shrink-0" />
+            <label className="text-white/30 text-[10px] uppercase tracking-[0.2em] font-mono">Password</label>
+            <div className="flex items-center bg-white/[0.04] rounded-lg border border-white/[0.06] focus-within:border-[#10F4A0]/40 transition-colors">
+              <Lock className="w-4 h-4 text-white/20 shrink-0 ml-4" />
               <input
                 type="password"
                 value={password}
@@ -394,7 +438,7 @@ export function LoginScreen() {
                 placeholder={mode === 'signup' ? 'Min 6 characters' : 'Your password'}
                 required
                 minLength={6}
-                className="w-full bg-transparent px-3 py-3 text-white placeholder-white/20 focus:outline-none text-sm tracking-wide"
+                className="w-full bg-transparent px-3 py-3 text-white placeholder-white/20 focus:outline-none text-sm"
               />
             </div>
           </div>
@@ -402,7 +446,7 @@ export function LoginScreen() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-white hover:bg-neutral-200 text-black disabled:opacity-50 disabled:cursor-not-allowed font-bold py-4 transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs mt-2"
+            className="w-full bg-[#10F4A0] hover:bg-[#0BC68A] text-[#060608] disabled:opacity-40 disabled:cursor-not-allowed font-bold py-3.5 transition-all flex items-center justify-center gap-2.5 rounded-lg text-sm mt-1"
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -415,22 +459,24 @@ export function LoginScreen() {
           </button>
         </form>
 
-        {mode === 'signup' && (
+        {/* Bootstrap — only visible when no admin exists */}
+        {mode === 'signup' && bootstrapChecked && needsBootstrap && (
           <div className="mt-4 text-center">
             <button
               onClick={handleBootstrap}
               disabled={isLoading || !email || !password}
-              className="text-white/20 hover:text-white/60 text-[10px] uppercase tracking-widest transition-colors font-mono disabled:opacity-30"
+              className="text-white/15 hover:text-[#10F4A0]/60 text-[10px] uppercase tracking-[0.2em] transition-colors font-mono disabled:opacity-20"
             >
               First user? Create admin account without invite
             </button>
           </div>
         )}
 
-        <div className="mt-6 text-center">
+        {/* Mode toggle */}
+        <div className="mt-5 text-center">
           <button
             onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setSuccessMsg(''); setInviteCode(''); setInviteValid(null); }}
-            className="text-white/30 hover:text-white text-xs uppercase tracking-widest transition-colors font-mono"
+            className="text-white/20 hover:text-white/50 text-[11px] uppercase tracking-[0.15em] transition-colors font-mono"
           >
             {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
           </button>

@@ -61,10 +61,10 @@ export function CardSkeleton({ count = 6 }: { count?: number }) {
 }
 
 const BOOT_MESSAGES = [
-  'Initializing workspace...',
-  'Loading core services...',
-  'Restoring your sessions...',
+  'Initializing the layer...',
+  'Restoring context...',
   'Preparing your workspace...',
+  'Almost there...',
 ];
 
 export function BootSplash({ onSkip, progress: externalProgress, message: externalMessage }: { onSkip?: () => void; progress?: number; message?: string }) {
@@ -90,7 +90,7 @@ export function BootSplash({ onSkip, progress: externalProgress, message: extern
   return (
     <div
       className="fixed inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer"
-      style={{ background: 'var(--os-bg, #0a0a0a)' }}
+      style={{ background: '#060608' }}
       onClick={onSkip}
     >
       <style>{`
@@ -100,38 +100,45 @@ export function BootSplash({ onSkip, progress: externalProgress, message: extern
         }
       `}</style>
       
+      {/* Ambient glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full blur-[100px] opacity-[0.06]" style={{ background: '#10F4A0' }} />
+
       {/* Logo with glow */}
       <div className="mb-8 relative">
-        <div className="absolute inset-0 blur-2xl opacity-30" style={{ background: 'var(--os-primary, #6366f1)' }} />
-        <svg width="64" height="64" viewBox="0 0 64 64" fill="none" className="relative">
-          <rect width="64" height="64" rx="16" fill="var(--os-primary, #6366f1)" />
-          <path d="M20 44V20h8l8 12 8-12h8v24h-7V30l-7 10-7-10v14h-7z" fill="white" />
-        </svg>
+        <div className="absolute inset-0 blur-3xl opacity-40" style={{ background: '#10F4A0' }} />
+        <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-[#10F4A0] to-[#0BC68A] flex items-center justify-center shadow-[0_0_80px_rgba(16,244,160,0.25)]">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#060608" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5"/>
+            <path d="M2 12l10 5 10-5"/>
+          </svg>
+        </div>
       </div>
       
       {/* App name */}
-      <h1 className="text-xl font-semibold mb-6" style={{ color: 'var(--os-text, #fff)' }}>
-        ContinuaOS
+      <h1 className="text-lg font-mono font-bold tracking-[0.3em] uppercase mb-8 text-white/90">
+        Continua
       </h1>
       
       {/* Progress bar */}
-      <div className="w-48 h-1 rounded-full overflow-hidden" style={{ background: 'var(--os-border, #333)' }}>
+      <div className="w-40 h-[2px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
         <div
           className="h-full rounded-full transition-all duration-100"
           style={{
-            background: 'var(--os-primary, #6366f1)',
+            background: 'linear-gradient(90deg, #10F4A0, #0BC68A)',
             width: `${progress}%`,
+            boxShadow: '0 0 12px rgba(16,244,160,0.4)',
           }}
         />
       </div>
       
       {/* Staged boot message */}
-      <p className="text-xs mt-4 transition-opacity duration-300" style={{ color: 'var(--os-text-muted, #666)' }}>
+      <p className="text-[11px] mt-4 transition-opacity duration-300 font-mono tracking-wider" style={{ color: 'rgba(255,255,255,0.25)' }}>
         {message}
       </p>
       
       {/* Skip hint */}
-      <p className="text-[10px] mt-8 opacity-30" style={{ color: 'var(--os-text-muted, #666)' }}>
+      <p className="text-[10px] mt-10 opacity-20 font-mono tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.3)' }}>
         Click anywhere to skip
       </p>
     </div>

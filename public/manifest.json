@@ -1,14 +1,14 @@
 {
-  "name": "ContinuaOS",
-  "short_name": "ContinuaOS",
-  "description": "Browser-based operating system for creative dominance. Persistent workspace with real-time collaboration.",
+  "name": "Continua",
+  "short_name": "Continua",
+  "description": "The persistent context layer. Pick up exactly where you stopped.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#000000",
-  "theme_color": "#0a0a0a",
-  "categories": ["productivity", "design", "developer tools"],
+  "background_color": "#060608",
+  "theme_color": "#10F4A0",
+  "categories": ["productivity", "developer tools"],
   "prefer_related_applications": false,
   "icons": [
     {
@@ -30,7 +30,7 @@
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "ContinuaOS Desktop"
+      "label": "Continua Desktop"
     }
   ]
 }

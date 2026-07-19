@@ -29,8 +29,8 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'ContinuaOS | Creative OS',
-  description: 'Browser-based operating system for creative dominance.',
+  title: 'Continua',
+  description: 'The persistent context layer. Pick up exactly where you stopped.',
   manifest: '/manifest.json',
 };
 
