@@ -142,6 +142,46 @@ export function LoginScreen() {
     }
   };
 
+  const handleBootstrap = async () => {
+    setError('');
+    setSuccessMsg('');
+    setIsLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/bootstrap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+          name: displayName || email.split('@')[0],
+        }),
+      });
+      const data = await res.json();
+
+      if (!data.ok) {
+        setError(data.error || 'Bootstrap failed');
+        setIsLoading(false);
+        return;
+      }
+
+      if (data.data?.user) {
+        setSuccessMsg('Admin account created. Switching to login...');
+        setTimeout(() => {
+          setMode('login');
+          setIsLoading(false);
+        }, 2000);
+      } else {
+        setSuccessMsg(data.data?.message || 'Check your email to confirm your account');
+        setIsLoading(false);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Bootstrap failed';
+      setError(message);
+      setIsLoading(false);
+    }
+  };
+
   const handleSSO = async (provider: 'google' | 'github') => {
     setError('');
     setIsLoading(true);
@@ -374,6 +414,18 @@ export function LoginScreen() {
             {isLoading ? 'Authenticating...' : mode === 'login' ? 'Sign In' : 'Create Account'}
           </button>
         </form>
+
+        {mode === 'signup' && (
+          <div className="mt-4 text-center">
+            <button
+              onClick={handleBootstrap}
+              disabled={isLoading || !email || !password}
+              className="text-white/20 hover:text-white/60 text-[10px] uppercase tracking-widest transition-colors font-mono disabled:opacity-30"
+            >
+              First user? Create admin account without invite
+            </button>
+          </div>
+        )}
 
         <div className="mt-6 text-center">
           <button
