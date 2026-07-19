@@ -123,8 +123,8 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
   // Dynamic Depth: Higher z-index = softer, larger shadow
   const shadowDepth = Math.min(zIndex, 50);
   const activeShadow = performanceMode === 'heavy'
-    ? `0 ${shadowDepth}px ${shadowDepth * 3}px rgba(0,0,0,0.25), 0 0 0 1px rgba(128,128,128,0.1)`
-    : `0 ${shadowDepth}px ${shadowDepth * 2}px rgba(0,0,0,0.15)`;
+    ? `0 ${shadowDepth}px ${shadowDepth * 3}px rgba(0,0,0,0.25), 0 0 0 1px rgba(16,244,160,0.12), 0 0 20px rgba(16,244,160,0.04)`
+    : `0 ${shadowDepth}px ${shadowDepth * 2}px rgba(0,0,0,0.15), 0 0 0 1px rgba(16,244,160,0.08)`;
 
   const inactiveShadow = performanceMode === 'heavy'
     ? `0 ${shadowDepth / 2}px ${shadowDepth}px rgba(0,0,0,0.15)`

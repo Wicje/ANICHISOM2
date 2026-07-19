@@ -3,27 +3,45 @@ import { updateSession } from '@/utils/supabase/middleware';
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  const isPublicRoute = pathname === '/' || pathname.startsWith('/auth') || pathname.startsWith('/login');
   const isStaticAsset = pathname.startsWith('/_next') || pathname.startsWith('/favicon') ||
     pathname.endsWith('.js') || pathname.endsWith('.css') || pathname.endsWith('.png') ||
     pathname.endsWith('.ico') || pathname.endsWith('.svg') || pathname.endsWith('.woff2');
 
-  // Only refresh Supabase session for protected routes (not public or static)
-  if (!isPublicRoute && !isStaticAsset) {
-    const supabaseCookie = request.cookies.getAll().find(c => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
-    if (!supabaseCookie) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/';
-      return NextResponse.redirect(url);
-    }
-    // Session refresh only for protected routes
-    const response = await updateSession(request);
+  // Static assets — no checks
+  if (isStaticAsset) {
+    const response = NextResponse.next();
     applyHeaders(response);
     return response;
   }
 
-  // Public routes and static assets — no session check, no latency
-  const response = NextResponse.next();
+  // Public routes — no session check needed
+  const isPublicRoute = pathname === '/' || pathname === '/waitlist' || pathname.startsWith('/auth') || pathname.startsWith('/login');
+  if (isPublicRoute) {
+    // If user has Supabase session and is on landing page, redirect to /os
+    if (pathname === '/') {
+      const supabaseCookie = request.cookies.getAll().find(c => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
+      if (supabaseCookie) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/os';
+        return NextResponse.redirect(url);
+      }
+    }
+
+    const response = NextResponse.next();
+    applyHeaders(response);
+    return response;
+  }
+
+  // Protected routes (including /os) — require Supabase session
+  const supabaseCookie = request.cookies.getAll().find(c => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
+  if (!supabaseCookie) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/';
+    return NextResponse.redirect(url);
+  }
+
+  // Session refresh for protected routes
+  const response = await updateSession(request);
   applyHeaders(response);
   return response;
 }

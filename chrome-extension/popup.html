@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 340px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #060608;
+      color: #e0e0e0;
+      padding: 16px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .logo {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #10F4A0, #00D4AA);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+      color: #060608;
+    }
+    .title { font-size: 14px; font-weight: 600; }
+    .status {
+      font-size: 11px;
+      color: rgba(255,255,255,0.4);
+      margin-left: auto;
+    }
+    .status.connected { color: #10F4A0; }
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      margin-bottom: 8px;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: #10F4A0; color: #060608; }
+    .btn-secondary { background: rgba(255,255,255,0.06); color: #e0e0e0; }
+    .context-list { margin-top: 12px; }
+    .context-item {
+      padding: 10px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+      margin-bottom: 6px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .context-item .url {
+      font-size: 11px;
+      color: #10F4A0;
+      word-break: break-all;
+      margin-bottom: 4px;
+    }
+    .context-item .title {
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 4px;
+    }
+    .context-item .meta {
+      font-size: 10px;
+      color: rgba(255,255,255,0.3);
+    }
+    .config { margin-top: 12px; }
+    .config input {
+      width: 100%;
+      padding: 8px 10px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 6px;
+      color: #e0e0e0;
+      font-size: 12px;
+      outline: none;
+      margin-bottom: 8px;
+    }
+    .config input:focus { border-color: rgba(16,244,160,0.3); }
+    .empty { text-align: center; padding: 20px; color: rgba(255,255,255,0.3); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">C</div>
+    <span class="title">Continua</span>
+    <span class="status" id="status">Checking...</span>
+  </div>
+
+  <button class="btn btn-primary" id="captureBtn">Capture Current Tab</button>
+
+  <div class="config">
+    <input type="text" id="continuaUrl" placeholder="Continua URL (http://localhost:3000)">
+  </div>
+
+  <div class="context-list" id="contextList">
+    <div class="empty">No captured contexts yet.</div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

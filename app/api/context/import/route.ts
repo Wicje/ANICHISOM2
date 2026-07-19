@@ -1,97 +1,70 @@
+/**
+ * Context Protocol — Import
+ *
+ * POST /api/context/import
+ * Import context from a snapshot (merge mode).
+ * Uses the Context Kernel protocol.
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { requireSession } from '@/lib/api-helpers';
+import { getContextRepository } from '@/lib/context-kernel';
+import type { ContextSnapshot } from '@/lib/context-kernel';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireSession(request);
+    if (!auth.ok) return auth.response;
 
     const body = await request.json();
-    const { context, mode = 'merge' } = body;
+    const { snapshot, mode = 'merge' } = body;
 
-    if (!context || typeof context !== 'object') {
-      return NextResponse.json({ ok: false, error: 'Invalid context data' }, { status: 400 });
+    if (!snapshot || typeof snapshot !== 'object') {
+      return NextResponse.json({ ok: false, error: 'Invalid snapshot data' }, { status: 400 });
     }
 
-    if (mode !== 'merge' && mode !== 'replace') {
-      return NextResponse.json({ ok: false, error: 'Mode must be "merge" or "replace"' }, { status: 400 });
+    const repo = getContextRepository();
+
+    if (snapshot.domains && Array.isArray(snapshot.domains)) {
+      const result = await repo.importAll(auth.userId, snapshot as ContextSnapshot);
+      return NextResponse.json({
+        ok: true,
+        imported: result.imported,
+        conflicts: result.conflicts,
+      });
     }
 
-    const deviceId = request.headers.get('x-device-id') || 'import';
-    const results: { domain: string; action: string }[] = [];
+    const legacySnapshot: ContextSnapshot = {
+      id: crypto.randomUUID(),
+      userId: auth.userId,
+      createdAt: new Date().toISOString(),
+      schemaVersion: '1.0.0',
+      deviceId: 'import-legacy',
+      domains: Object.entries(snapshot).map(([domain, data]) => ({
+        id: `${auth.userId}:${domain}`,
+        userId: auth.userId,
+        domain,
+        data,
+        version: 0,
+        deviceId: 'import-legacy',
+        updatedAt: new Date().toISOString(),
+        schemaVersion: '1.0.0',
+        deleted: false,
+      })),
+      metadata: {
+        domainCount: Object.keys(snapshot).length,
+        totalSizeBytes: new TextEncoder().encode(JSON.stringify(snapshot)).length,
+      },
+    };
 
-    if (mode === 'replace') {
-      const { error: deleteError } = await supabase
-        .from('context_records')
-        .delete()
-        .eq('user_id', user.id);
-
-      if (deleteError) {
-        return NextResponse.json({ ok: false, error: `Failed to clear existing context: ${deleteError.message}` }, { status: 500 });
-      }
-    }
-
-    for (const [domain, data] of Object.entries(context)) {
-      const id = `${user.id}:${domain}`;
-
-      if (mode === 'merge') {
-        const { data: existing } = await supabase
-          .from('context_records')
-          .select('version')
-          .eq('id', id)
-          .single();
-
-        const newVersion = (existing?.version || 0) + 1;
-
-        const { error: upsertError } = await supabase
-          .from('context_records')
-          .upsert({
-            id,
-            user_id: user.id,
-            domain,
-            data,
-            version: newVersion,
-            device_id: deviceId,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'id' });
-
-        if (upsertError) {
-          results.push({ domain, action: `error: ${upsertError.message}` });
-        } else {
-          results.push({ domain, action: 'imported' });
-        }
-      } else {
-        const { error: insertError } = await supabase
-          .from('context_records')
-          .insert({
-            id,
-            user_id: user.id,
-            domain,
-            data,
-            version: 1,
-            device_id: deviceId,
-            updated_at: new Date().toISOString(),
-          });
-
-        if (insertError) {
-          results.push({ domain, action: `error: ${insertError.message}` });
-        } else {
-          results.push({ domain, action: 'imported' });
-        }
-      }
-    }
-
+    const result = await repo.importAll(auth.userId, legacySnapshot);
     return NextResponse.json({
       ok: true,
-      imported: results.filter(r => r.action === 'imported').length,
-      errors: results.filter(r => r.action.startsWith('error')).length,
-      results,
+      imported: result.imported,
+      conflicts: result.conflicts,
     });
   } catch (e) {
+    console.error('[context/import] Error:', e);
     return NextResponse.json({ ok: false, error: 'Import failed' }, { status: 500 });
   }
 }

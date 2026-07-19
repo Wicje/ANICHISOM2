@@ -1,16 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { get } from 'idb-keyval';
+import { readBlob } from '@/lib/context-layer';
 
 export function BlobMedia({ content, type, className }: { content: string; type: 'image' | 'video'; className?: string }) {
   const [blobSrc, setBlobSrc] = useState<string>('');
   useEffect(() => {
     if (content.startsWith('local-blob:')) {
-      const id = content.split(':')[1];
+      const id = content.split(':')[1] || '';
       let active = true;
       let url = '';
-      get(`blob_${id}`).then((blob: any) => {
+      readBlob(id).then((blob: any) => {
         if (active && blob instanceof Blob) {
           url = URL.createObjectURL(blob);
           setBlobSrc(url);

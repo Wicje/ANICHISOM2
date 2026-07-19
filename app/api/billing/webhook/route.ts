@@ -22,10 +22,12 @@ function verifyStripeSignature(
     .update(signedPayload)
     .digest('hex');
 
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature)
-  );
+  // timingSafeEqual throws RangeError if buffers differ in length
+  const sigBuf = Buffer.from(signature);
+  const expectedBuf = Buffer.from(expectedSignature);
+  if (sigBuf.length !== expectedBuf.length) return false;
+
+  return crypto.timingSafeEqual(sigBuf, expectedBuf);
 }
 
 export async function POST(request: NextRequest) {
@@ -44,6 +46,10 @@ export async function POST(request: NextRequest) {
       event = JSON.parse(body);
     } else {
       if (!webhookSecret) {
+        if (process.env.NODE_ENV === 'production') {
+          console.error('[Webhook] STRIPE_WEBHOOK_SECRET not set in production — rejecting');
+          return NextResponse.json({ ok: false, error: 'Webhook secret not configured' }, { status: 500 });
+        }
         console.warn('[Webhook] STRIPE_WEBHOOK_SECRET not set — skipping signature verification (dev mode)');
       }
       event = JSON.parse(body);

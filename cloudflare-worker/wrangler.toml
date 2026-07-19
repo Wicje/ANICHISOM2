@@ -1,0 +1,16 @@
+name = "continua-proxy"
+main = "index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+ALLOWED_ORIGINS = "https://anichisom-2.vercel.app,http://localhost:3000"
+PROXY_PATH = "/proxy"
+
+# Rate limiting
+RATE_LIMIT_MAX = 120
+RATE_LIMIT_WINDOW_SECONDS = 60
+
+# Optional: KV namespace for rate limit persistence across workers
+# [[kv_namespaces]]
+# binding = "RATE_LIMITS"
+# id = "your-kv-namespace-id"

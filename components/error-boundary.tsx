@@ -13,6 +13,25 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
+async function reportCrash(error: Error, errorInfo: React.ErrorInfo, extra?: Record<string, unknown>) {
+  try {
+    await fetch('/api/vitals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'crash',
+        error: error.message,
+        stack: error.stack?.slice(0, 2000),
+        componentStack: errorInfo.componentStack?.slice(0, 2000),
+        url: typeof window !== 'undefined' ? window.location.href : '',
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+        timestamp: Date.now(),
+        ...extra,
+      }),
+    });
+  } catch { /* best effort */ }
+}
+
 export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
@@ -25,6 +44,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('[ErrorBoundary] Component error:', error, errorInfo);
+    reportCrash(error, errorInfo);
     this.props.onError?.(error, errorInfo);
   }
 
@@ -52,4 +72,25 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     }
     return this.props.children;
   }
+}
+
+/**
+ * Install global error handlers. Call once at app root.
+ */
+export function installGlobalErrorHandlers() {
+  if (typeof window === 'undefined') return;
+
+  window.addEventListener('error', (event) => {
+    reportCrash(
+      event.error || new Error(event.message || 'Unknown error'),
+      { componentStack: '' } as React.ErrorInfo,
+      { source: 'window.onerror', filename: event.filename, lineno: event.lineno, colno: event.colno }
+    );
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    const error = reason instanceof Error ? reason : new Error(String(reason));
+    reportCrash(error, { componentStack: '' } as React.ErrorInfo, { source: 'unhandledrejection' });
+  });
 }

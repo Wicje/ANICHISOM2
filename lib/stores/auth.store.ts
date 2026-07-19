@@ -1,5 +1,14 @@
+/**
+ * Auth Zustand Store — user session management.
+ *
+ * Auth state persisted through Context Layer (readDomain/writeDomain).
+ * Supabase auth calls remain direct (auth is infrastructure, not a context domain).
+ */
 import { create } from 'zustand';
-import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
+import { readDomain, writeDomain } from '@/lib/context-layer';
+
+const AUTH_DOMAIN = 'auth';
+const LEGACY_KEY = 'continuaos_os_user_cache';
 
 export type OSRole = 'admin' | 'filmmaker' | 'technician' | 'user';
 
@@ -32,9 +41,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setCurrentUser: (user) => {
     set({ currentUser: user });
-    if (user) {
-      idbSet('continuaos_os_user_cache', user);
-    }
+    if (user) writeDomain(AUTH_DOMAIN, user);
   },
 
   logout: async () => {
@@ -46,7 +53,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.error('Logout error:', e);
     }
     set({ currentUser: null });
-    await idbDel('continuaos_os_user_cache');
+    writeDomain(AUTH_DOMAIN, null);
   },
 
   wipeSession: async () => {
@@ -55,7 +62,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const supabase = createClient();
       await supabase.auth.signOut();
     } catch { /* ignore */ }
-    await idbDel('continuaos_os_user_cache');
+    writeDomain(AUTH_DOMAIN, null);
     localStorage.removeItem('continuaos_terminal_history');
     localStorage.removeItem('continuaos_fs_current_path');
     window.location.reload();
@@ -63,7 +70,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   checkSession: async () => {
     // 1. Instant: serve from IDB cache so UI unblocks immediately
-    const cachedUser = await idbGet<OSUser>('continuaos_os_user_cache');
+    let cachedUser = await readDomain<OSUser>(AUTH_DOMAIN);
+    if (!cachedUser) {
+      // Migration: try legacy key
+      const { get: idbGet } = await import('idb-keyval');
+      cachedUser = (await idbGet<OSUser>(LEGACY_KEY)) ?? null;
+      if (cachedUser) writeDomain(AUTH_DOMAIN, cachedUser);
+    }
     if (cachedUser) {
       set({ currentUser: cachedUser, sessionChecked: true });
     }
@@ -85,20 +98,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           avatarUrl: user.user_metadata?.avatar_url,
         };
         set({ currentUser: osUser, sessionChecked: true });
-        idbSet('continuaos_os_user_cache', osUser);
+        writeDomain(AUTH_DOMAIN, osUser);
       } else {
-        // No session — clear cache
         if (!cachedUser) {
           set({ currentUser: null, sessionChecked: true });
         }
-        await idbDel('continuaos_os_user_cache');
-        // Only clear if we didn't have a cached user (avoid flash)
+        writeDomain(AUTH_DOMAIN, null);
         if (cachedUser) {
           set({ currentUser: null, sessionChecked: true });
         }
       }
     } catch {
-      // Supabase timed out or errored — keep whatever cache had
       if (!cachedUser) {
         set({ currentUser: null, sessionChecked: true });
       }

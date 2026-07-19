@@ -1,7 +1,15 @@
+/**
+ * Workspace Zustand Store — workspace mode, active workspace, installed apps.
+ *
+ * All persistence through Context Layer (readDomain/writeDomain).
+ */
 import { create } from 'zustand';
-import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { readDomain, writeDomain } from '@/lib/context-layer';
 import { syncQueue } from '@/lib/sync-queue';
 import { Workspace, Event } from '@/lib/workspace-types';
+
+const DOMAIN = 'workspace';
+const LEGACY_SNAPSHOTS_KEY = 'continuaos_os_snapshots';
 
 export type WorkspaceMode = 'private' | 'agency';
 
@@ -35,6 +43,22 @@ type WorkspaceState = {
   loadPersisted: () => Promise<void>;
 };
 
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+function persistWorkspace(state: WorkspaceState) {
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    writeDomain(DOMAIN, {
+      workspaceMode: state.workspaceMode,
+      activeWorkspace: state.activeWorkspace,
+      installedApps: state.installedApps,
+      recentApps: state.recentApps,
+      snapshots: state.snapshots,
+      workspaceId: state.workspaceId,
+      mode: state.mode,
+    });
+  }, 2000);
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   workspaceMode: 'private',
   activeWorkspace: 0,
@@ -45,63 +69,65 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   workspaces: [],
   mode: 'create',
 
-  setWorkspaceMode: (workspaceMode) => set({ workspaceMode }),
-  setActiveWorkspace: (activeWorkspace) => set({ activeWorkspace }),
+  setWorkspaceMode: (workspaceMode) => { set({ workspaceMode }); persistWorkspace(get()); },
+  setActiveWorkspace: (activeWorkspace) => { set({ activeWorkspace }); persistWorkspace(get()); },
 
   installApp: (appId) => {
     const { installedApps } = get();
     if (!installedApps.includes(appId)) {
       set({ installedApps: [...installedApps, appId] });
+      persistWorkspace(get());
     }
   },
 
   uninstallApp: (appId) => {
-    set((s) => ({
-      installedApps: s.installedApps.filter((id) => id !== appId),
-    }));
+    set(s => ({ installedApps: s.installedApps.filter(id => id !== appId) }));
+    persistWorkspace(get());
   },
 
   saveSnapshot: (name, windows) => {
-    const newSnapshot: Snapshot = {
-      id: crypto.randomUUID(),
-      timestamp: Date.now(),
-      name,
-      windows: structuredClone(windows),
-    };
-    set((s) => {
+    const newSnapshot: Snapshot = { id: crypto.randomUUID(), timestamp: Date.now(), name, windows: structuredClone(windows) };
+    set(s => {
       const updated = [newSnapshot, ...s.snapshots];
-      idbSet('continuaos_os_snapshots', updated);
       return { snapshots: updated };
     });
+    persistWorkspace(get());
   },
 
-  restoreSnapshot: (id) => {
-    const { snapshots } = get();
-    return snapshots.find((s) => s.id === id) || null;
-  },
-
-  setWorkspaceId: (workspaceId) => set({ workspaceId }),
+  restoreSnapshot: (id) => get().snapshots.find(s => s.id === id) || null,
+  setWorkspaceId: (workspaceId) => { set({ workspaceId }); persistWorkspace(get()); },
   setWorkspaces: (workspaces) => set({ workspaces }),
-  setMode: (mode) => set({ mode }),
+  setMode: (mode) => { set({ mode }); persistWorkspace(get()); },
 
   emitEvent: (eventData) => {
-    const event: Event = {
-      ...eventData,
-      id: crypto.randomUUID(),
-      timestamp: new Date(),
-    };
+    const event: Event = { ...eventData, id: crypto.randomUUID(), timestamp: new Date() };
     syncQueue.enqueue(event);
   },
 
   addRecentApp: (appId) => {
-    set((s) => {
-      const next = [appId, ...s.recentApps.filter((id) => id !== appId)].slice(0, 5);
-      return { recentApps: next };
-    });
+    set(s => ({ recentApps: [appId, ...s.recentApps.filter(id => id !== appId)].slice(0, 5) }));
+    persistWorkspace(get());
   },
 
   loadPersisted: async () => {
-    const snapshots = await idbGet('continuaos_os_snapshots');
-    if (snapshots) set({ snapshots });
+    try {
+      const ctxData = await readDomain<Partial<WorkspaceState>>(DOMAIN);
+      if (ctxData) {
+        const patch: Partial<WorkspaceState> = {};
+        if (ctxData.workspaceMode) patch.workspaceMode = ctxData.workspaceMode;
+        if (typeof ctxData.activeWorkspace === 'number') patch.activeWorkspace = ctxData.activeWorkspace;
+        if (ctxData.installedApps?.length) patch.installedApps = ctxData.installedApps;
+        if (ctxData.recentApps?.length) patch.recentApps = ctxData.recentApps;
+        if (ctxData.snapshots?.length) patch.snapshots = ctxData.snapshots;
+        if (ctxData.workspaceId) patch.workspaceId = ctxData.workspaceId;
+        if (ctxData.mode) patch.mode = ctxData.mode;
+        if (Object.keys(patch).length > 0) set(patch);
+        return;
+      }
+      // Migration: legacy snapshots
+      const { get: idbGet } = await import('idb-keyval');
+      const snapshots = await idbGet<Snapshot[]>(LEGACY_SNAPSHOTS_KEY);
+      if (snapshots) { set({ snapshots }); persistWorkspace(get()); }
+    } catch {}
   },
 }));

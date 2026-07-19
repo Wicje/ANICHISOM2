@@ -1,4 +1,14 @@
-import { get, set, del } from 'idb-keyval';
+/**
+ * Storage Facade — app-specific persistence.
+ *
+ * LocalAdapter now delegates to context-layer.ts (readDomain/writeDomain).
+ * SupabaseAdapter stays as-is for real-time workspace data (projects, events, etc.)
+ *
+ * Components using Storage.getDoc('collection', 'id', 'private') will
+ * persist through the Context Layer automatically.
+ */
+
+import { readDomain, writeDomain } from '@/lib/context-layer';
 import { getSupabase } from '@/lib/supabase';
 
 export interface IStorageAdapter {
@@ -20,7 +30,7 @@ function createLocalStorageChannel(): BroadcastChannel | null {
   return new BroadcastChannel(LOCAL_STORAGE_CHANNEL);
 }
 
-// 1. Supabase Adapter
+// 1. Supabase Adapter (for real-time workspace data)
 export const SupabaseAdapter: IStorageAdapter = {
   getDoc: async <T,>(collectionName: string, id: string) => {
     try {
@@ -46,7 +56,6 @@ export const SupabaseAdapter: IStorageAdapter = {
     }
   },
   subscribe: <T,>(collectionName: string, id: string, callback: (data: T | null) => void) => {
-    // Initial fetch
     getSupabase()
       .from(collectionName)
       .select('*')
@@ -56,88 +65,84 @@ export const SupabaseAdapter: IStorageAdapter = {
         callback((data as T) || null);
       });
 
-    // Realtime subscription
     const channel = getSupabase()
       .channel(`${collectionName}:${id}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: collectionName, filter: `id=eq.${id}` },
         (payload: any) => {
-          if (payload.eventType === 'DELETE') {
-            callback(null);
-          } else {
-            callback(payload.new as T);
-          }
+          if (payload.eventType === 'DELETE') callback(null);
+          else callback(payload.new as T);
         }
       )
       .subscribe();
 
-    return () => {
-      getSupabase().removeChannel(channel);
-    };
+    return () => { getSupabase().removeChannel(channel); };
   },
   deleteDoc: async (collectionName: string, id: string) => {
     try {
-      await getSupabase()
-        .from(collectionName)
-        .delete()
-        .eq('id', id);
+      await getSupabase().from(collectionName).delete().eq('id', id);
     } catch (e) {
       console.warn('Supabase deleteDoc failed', e);
     }
   }
 };
 
-// 2. Local IndexedDB Adapter (Offline-First/Private Mode)
+// 2. Local Adapter — delegates to Context Layer (readDomain/writeDomain)
+//    The domain key is '{collection}:{id}' so each doc gets its own context domain.
 export const LocalAdapter: IStorageAdapter = {
   getDoc: async <T,>(collectionName: string, id: string) => {
-    const key = `continuaos_os_${collectionName}_${id}`;
-    return (await get(key)) as T | null;
+    const domain = `${collectionName}:${id}`;
+    return readDomain<T>(domain);
   },
-  setDoc: async <T,>(collectionName: string, id: string, data: Partial<T>) => {
-    const key = `continuaos_os_${collectionName}_${id}`;
-    const existing = await get(key) || {};
-    const value = { ...existing, ...data };
-    await set(key, value);
 
+  setDoc: async <T,>(collectionName: string, id: string, data: Partial<T>) => {
+    const domain = `${collectionName}:${id}`;
+    // Read existing, merge, write back
+    const existing = await readDomain<Record<string, unknown>>(domain);
+    const merged = { ...(existing || {}), ...data };
+    await writeDomain(domain, merged);
+
+    // Broadcast to other tabs
     const channel = createLocalStorageChannel();
-    channel?.postMessage({ type: 'set', key, value } satisfies LocalStorageMessage);
+    channel?.postMessage({ type: 'set', key: domain, value: merged } satisfies LocalStorageMessage);
     channel?.close();
   },
+
   subscribe: <T,>(collectionName: string, id: string, callback: (data: T | null) => void) => {
-    const key = `continuaos_os_${collectionName}_${id}`;
+    const domain = `${collectionName}:${id}`;
     const channel = createLocalStorageChannel();
     let active = true;
-    
+
     // Initial fetch
-    get(key).then(val => {
-       if (active) callback(val as T | null);
+    readDomain<T>(domain).then(val => {
+      if (active) callback(val);
     });
 
     if (channel) {
       channel.onmessage = (event: MessageEvent<LocalStorageMessage>) => {
-        if (!active || event.data?.key !== key) return;
+        if (!active || event.data?.key !== domain) return;
         callback((event.data.type === 'delete' ? null : event.data.value) as T | null);
       };
     }
-    
+
     return () => {
       active = false;
       channel?.close();
     };
   },
+
   deleteDoc: async (collectionName: string, id: string) => {
-    const key = `continuaos_os_${collectionName}_${id}`;
-    await del(key);
+    const domain = `${collectionName}:${id}`;
+    await writeDomain(domain, null);
 
     const channel = createLocalStorageChannel();
-    channel?.postMessage({ type: 'delete', key } satisfies LocalStorageMessage);
+    channel?.postMessage({ type: 'delete', key: domain } satisfies LocalStorageMessage);
     channel?.close();
   }
 };
 
 // 3. Provider Factory
-// Allows components to just say Storage.getDoc('code', 'roomId', 'private')
 export const Storage = {
   getDoc: <T = any>(collection: string, id: string, mode: 'private' | 'agency'): Promise<T | null> => {
     const adapter = mode === 'agency' ? SupabaseAdapter : LocalAdapter;
@@ -160,24 +165,24 @@ export const Storage = {
 export class StorageAdapter {
   collection: string;
   mode: 'private' | 'agency';
-  
+
   constructor(collection: string, mode: 'private' | 'agency') {
     this.collection = collection;
     this.mode = mode;
   }
-  
+
   async get<T = any>(id: string): Promise<T | null> {
     return Storage.getDoc<T>(this.collection, id, this.mode);
   }
-  
+
   async set(id: string, data: any) {
     return Storage.setDoc(this.collection, id, data, this.mode);
   }
-  
+
   subscribe(id: string, callback: (data: any) => void) {
     return Storage.subscribe(this.collection, id, this.mode, callback);
   }
-  
+
   async delete(id: string) {
     return Storage.deleteDoc(this.collection, id, this.mode);
   }

@@ -3,9 +3,14 @@
  *
  * All database operations for workspaces, projects, files, events, presence
  * Replaces firestore-adapter.ts — uses Supabase Postgres instead of Firestore
+ *
+ * On the server (API routes), creates a client from request cookies so RLS
+ * policies that check auth.uid() work correctly. On the client, uses the
+ * browser singleton.
  */
 
 import { getSupabase } from './supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './supabase-types';
 import {
   Workspace,
@@ -18,7 +23,34 @@ import {
 
 type SupabaseDB = Database;
 
-function client() {
+// Server-side client created from request cookies (for API routes).
+// Set by createServerAdapter() before using adapter methods in API routes.
+let _serverClient: SupabaseClient | null = null;
+
+/**
+ * Create a server-side adapter bound to a request's cookies.
+ * Use in API routes: `const adapter = createServerAdapter(request);`
+ * Then call adapter.workspaceAdapter.getByUser(userId), etc.
+ */
+export function createServerAdapter(request: { cookies: { getAll: () => Array<{ name: string; value: string }> } }) {
+  // Lazy import to avoid pulling server code into client bundles
+  const { createServerClient } = require('@supabase/ssr') as typeof import('@supabase/ssr');
+  _serverClient = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll() { return request.cookies.getAll(); },
+        setAll() { /* read-only in API routes */ },
+      },
+    },
+  );
+  return { workspaceAdapter, projectAdapter, eventAdapter, presenceAdapter, fileAdapter };
+}
+
+function client(): SupabaseClient {
+  // Prefer server client if set (API route context)
+  if (_serverClient) return _serverClient;
   return getSupabase();
 }
 

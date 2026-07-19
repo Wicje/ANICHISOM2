@@ -1,12 +1,18 @@
+/**
+ * Theme Zustand Store — appearance settings.
+ *
+ * All persistence through Context Layer (readDomain/writeDomain).
+ */
 import { create } from 'zustand';
-import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { readDomain, writeDomain } from '@/lib/context-layer';
 import type { AmbientPreset } from '@/lib/services/ambient-sounds';
 
 export type PerformanceMode = 'light' | 'heavy';
 export type ColorMode = 'light' | 'dark';
 
-const STORAGE_KEY = 'continuaos-theme';
-const THEME_KEY = 'continuaos-theme-settings';
+const DOMAIN = 'theme';
+const LEGACY_KEY = 'continuaos-theme-settings';
+const LEGACY_COLOR_KEY = 'continuaos-theme';
 
 type ThemeState = {
   wallpaper: string;
@@ -51,115 +57,66 @@ const DEFAULTS = {
   ambientSound: 'off' as AmbientPreset,
 };
 
-function persistTheme(settings: Partial<ThemeState>) {
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+function persistTheme(state: ThemeState) {
   if (typeof window === 'undefined') return;
-    const { setWallpaper, setThemeColor, setFontFamily, setScreenShader, setPerformanceMode, setColorMode, setVolume, setMuted, setAnimationsEnabled, setGlassmorphism, setAeroSnap, setAmbientSound, hydrateAll, ...rest } = settings as any;
-  idbSet(THEME_KEY, rest).catch(() => {});
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    const { setWallpaper, setThemeColor, setFontFamily, setScreenShader, setPerformanceMode, setColorMode, setVolume, setMuted, setAnimationsEnabled, setGlassmorphism, setAeroSnap, setAmbientSound, hydrateAll, ...data } = state as any;
+    writeDomain(DOMAIN, data);
+  }, 2000);
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
   ...DEFAULTS,
 
-  setWallpaper: (wallpaper) => {
-    set({ wallpaper });
-    persistTheme({ ...get(), wallpaper });
-  },
-
+  setWallpaper: (wallpaper) => { set({ wallpaper }); persistTheme({ ...get(), wallpaper }); },
   setThemeColor: (themeColor) => {
     set({ themeColor });
-    if (typeof document !== 'undefined') {
-      document.documentElement.style.setProperty('--os-primary', themeColor);
-    }
+    if (typeof document !== 'undefined') document.documentElement.style.setProperty('--os-primary', themeColor);
     persistTheme({ ...get(), themeColor });
   },
-
-  setFontFamily: (fontFamily) => {
-    set({ fontFamily });
-    persistTheme({ ...get(), fontFamily });
-  },
-
-  setScreenShader: (screenShader) => {
-    set({ screenShader });
-    persistTheme({ ...get(), screenShader });
-  },
-
+  setFontFamily: (fontFamily) => { set({ fontFamily }); persistTheme({ ...get(), fontFamily }); },
+  setScreenShader: (screenShader) => { set({ screenShader }); persistTheme({ ...get(), screenShader }); },
   setPerformanceMode: (performanceMode) => {
     set({ performanceMode });
-    if (typeof document !== 'undefined') {
-      document.body.classList.toggle('performance-light', performanceMode === 'light');
-    }
+    if (typeof document !== 'undefined') document.body.classList.toggle('performance-light', performanceMode === 'light');
     persistTheme({ ...get(), performanceMode });
   },
-
   setColorMode: (colorMode) => {
     set({ colorMode });
-    if (typeof document !== 'undefined') {
-      document.documentElement.classList.toggle('dark', colorMode === 'dark');
-    }
-    idbSet(STORAGE_KEY, colorMode).catch(() => {});
+    if (typeof document !== 'undefined') document.documentElement.classList.toggle('dark', colorMode === 'dark');
     persistTheme({ ...get(), colorMode });
   },
-
-  setVolume: (volume) => {
-    set({ volume });
-    persistTheme({ ...get(), volume });
-  },
-
-  setMuted: (muted) => {
-    set({ muted });
-    persistTheme({ ...get(), muted });
-  },
-
-  setAnimationsEnabled: (animationsEnabled) => {
-    set({ animationsEnabled });
-    persistTheme({ ...get(), animationsEnabled });
-  },
-
-  setGlassmorphism: (glassmorphism) => {
-    set({ glassmorphism });
-    persistTheme({ ...get(), glassmorphism });
-  },
-
-  setAeroSnap: (aeroSnap) => {
-    set({ aeroSnap });
-    persistTheme({ ...get(), aeroSnap });
-  },
-
-  setAmbientSound: (ambientSound) => {
-    set({ ambientSound });
-    persistTheme({ ...get(), ambientSound });
-  },
+  setVolume: (volume) => { set({ volume }); persistTheme({ ...get(), volume }); },
+  setMuted: (muted) => { set({ muted }); persistTheme({ ...get(), muted }); },
+  setAnimationsEnabled: (animationsEnabled) => { set({ animationsEnabled }); persistTheme({ ...get(), animationsEnabled }); },
+  setGlassmorphism: (glassmorphism) => { set({ glassmorphism }); persistTheme({ ...get(), glassmorphism }); },
+  setAeroSnap: (aeroSnap) => { set({ aeroSnap }); persistTheme({ ...get(), aeroSnap }); },
+  setAmbientSound: (ambientSound) => { set({ ambientSound }); persistTheme({ ...get(), ambientSound }); },
 
   hydrateAll: async () => {
     try {
-      const [savedColorMode, savedTheme] = await Promise.all([
-        idbGet<ColorMode>(STORAGE_KEY),
-        idbGet<Partial<ThemeState>>(THEME_KEY),
-      ]);
-
-      const patch: Partial<ThemeState> = {};
-
-      if (savedColorMode && (savedColorMode === 'light' || savedColorMode === 'dark')) {
-        patch.colorMode = savedColorMode;
+      // Try Context Layer first, fall back to legacy IDB keys
+      let patch: Partial<ThemeState> = {};
+      const ctxData = await readDomain<Partial<ThemeState>>(DOMAIN);
+      if (ctxData && Object.keys(ctxData).length > 0) {
+        patch = ctxData;
+      } else {
+        // Migration: read from legacy keys
+        const { get: idbGet } = await import('idb-keyval');
+        const [savedColorMode, savedTheme] = await Promise.all([
+          idbGet<ColorMode>(LEGACY_COLOR_KEY),
+          idbGet<Partial<ThemeState>>(LEGACY_KEY),
+        ]);
+        if (savedColorMode) patch.colorMode = savedColorMode;
+        if (savedTheme) Object.assign(patch, savedTheme);
+        // Migrate to Context Layer
+        if (Object.keys(patch).length > 0) writeDomain(DOMAIN, patch);
       }
 
-      if (savedTheme) {
-        if (savedTheme.wallpaper) patch.wallpaper = savedTheme.wallpaper;
-        if (savedTheme.themeColor) patch.themeColor = savedTheme.themeColor;
-        if (savedTheme.fontFamily) patch.fontFamily = savedTheme.fontFamily;
-        if (savedTheme.screenShader) patch.screenShader = savedTheme.screenShader;
-        if (savedTheme.performanceMode) patch.performanceMode = savedTheme.performanceMode;
-        if (typeof savedTheme.volume === 'number') patch.volume = savedTheme.volume;
-        if (typeof savedTheme.muted === 'boolean') patch.muted = savedTheme.muted;
-        if (typeof savedTheme.animationsEnabled === 'boolean') patch.animationsEnabled = savedTheme.animationsEnabled;
-        if (typeof savedTheme.glassmorphism === 'boolean') patch.glassmorphism = savedTheme.glassmorphism;
-        if (typeof savedTheme.aeroSnap === 'boolean') patch.aeroSnap = savedTheme.aeroSnap;
-        if (savedTheme.ambientSound) patch.ambientSound = savedTheme.ambientSound;
-      }
-
-      if (Object.keys(patch).length > 0) {
-        set(patch);
-      }
+      if (Object.keys(patch).length > 0) set(patch as any);
 
       const final = get();
       if (typeof document !== 'undefined') {

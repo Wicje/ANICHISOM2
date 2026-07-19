@@ -15,6 +15,13 @@ import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import { resolveSession } from './lib/session-store';
 
+// Feature gate: only run collab server when explicitly enabled
+if (process.env.NEXT_PUBLIC_ENABLE_COLLAB !== 'true') {
+  console.log('[server] Collaboration server disabled (NEXT_PUBLIC_ENABLE_COLLAB != true)');
+  console.log('[server] Run with NEXT_PUBLIC_ENABLE_COLLAB=true to enable WebSocket collaboration');
+  // Still start Next.js without the collab layer
+}
+
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
 const handle = app.getRequestHandler();

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useCallback, useEffect, useRef, useMemo } from 'react';
-import { get, set, clear } from 'idb-keyval';
+import { readDomain, writeDomain } from '@/lib/context-layer';
+import { clear as idbClear } from 'idb-keyval';
 import { syncQueue } from '@/lib/sync-queue';
 import { Workspace, Event } from '@/lib/workspace-types';
 import { initSessionKeyRandom, isSessionUnlocked, lockSession } from '@/lib/services/session-encryption.service';
@@ -127,10 +128,10 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     // auth state. We only need to hydrate desktop state when user becomes available.
     const hydrateDesktopState = async () => {
       if (!isHydratedRef.current) {
-        const localData = await get('continuaos_os_desktop');
+        const localData = await readDomain<{ windows?: any[]; workspaceMode?: string; installedApps?: string[]; recentApps?: string[]; wallpaper?: string; themeColor?: string; fontFamily?: string; screenShader?: string }>('desktop');
         if (localData && localData.windows) {
           windowSetWindows(localData.windows);
-          if (localData.workspaceMode) wsSetWorkspaceMode(localData.workspaceMode);
+          if (localData.workspaceMode) wsSetWorkspaceMode(localData.workspaceMode as any);
           if (localData.installedApps) {
             localData.installedApps.forEach((id: string) => wsInstallApp(id));
           }
@@ -165,7 +166,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     
     const t = setTimeout(async () => {
       try {
-        await set('continuaos_os_desktop', {
+        await writeDomain('desktop', {
           windows,
           workspaceMode,
           installedApps,
@@ -209,7 +210,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
   }, [authLogout, windowSetWindows]);
 
   const wipeSession = useCallback(async () => {
-    await clear();
+    await idbClear();
     localStorage.clear();
     window.location.reload();
   }, []);

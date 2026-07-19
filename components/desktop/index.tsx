@@ -297,55 +297,45 @@ export function Desktop() {
 
       const { readDomain, configureContextLayer } = await import('@/lib/context-layer');
 
-      // Phase 1: Configure context layer
-      setBootMessage('Initializing context layer...');
+      // Phase 1: Configure context layer (fast, no await needed)
+      setBootMessage('Initializing...');
       setBootProgress(10);
       configureContextLayer({ mode: 'private' });
-      await new Promise(r => setTimeout(r, 30));
 
-      // Phase 2: Theme hydration (read from IDB via context layer)
-      setBootMessage('Loading theme preferences...');
-      setBootProgress(25);
-      const theme = await readDomain('theme');
+      // Phase 2: Parallel hydration — read all domains simultaneously
+      setBootMessage('Restoring context...');
+      setBootProgress(40);
+      const [theme, workspace, browser] = await Promise.all([
+        readDomain('theme'),
+        readDomain('workspace'),
+        readDomain('browser'),
+      ]);
+
+      // Apply theme immediately (affects visual rendering)
       if (theme) useThemeStore.setState(theme as any);
-      await new Promise(r => setTimeout(r, 30));
 
-      // Phase 3: Auth session check
-      setBootMessage('Checking your session...');
-      setBootProgress(45);
-      await new Promise(r => setTimeout(r, 30));
-
-      // Phase 4: Workspace + window state
-      setBootMessage('Restoring your workspace...');
-      setBootProgress(65);
-      const workspace = await readDomain('workspace');
+      // Apply workspace state
+      setBootMessage('Restoring workspace...');
+      setBootProgress(70);
       if (workspace) {
         const ws = workspace as any;
-        if (ws.windows?.length) {
-          useWindowStore.getState().setWindows(ws.windows);
-        }
+        if (ws.windows?.length) useWindowStore.getState().setWindows(ws.windows);
       }
-      await new Promise(r => setTimeout(r, 30));
 
-      // Phase 5: App state
-      setBootMessage('Loading app state...');
-      setBootProgress(85);
-      const browser = await readDomain('browser');
-      if (browser) {
-        // Browser state will be read by the browser component
-      }
-      await new Promise(r => setTimeout(r, 30));
+      // Browser state will be read by the browser component itself
 
-      // Phase 6: Ready
+      // Phase 3: Ready
       setBootMessage('Ready');
       setBootProgress(100);
-      await new Promise(r => setTimeout(r, 80));
 
       finishBoot();
     };
 
-    const timer = setTimeout(runBoot, 100);
-    const safetyTimer = setTimeout(finishBoot, 4000);
+    const timer = setTimeout(() => runBoot().catch((err) => {
+      console.error('[Desktop] Boot failed:', err);
+      finishBoot();
+    }), 100);
+    const safetyTimer = setTimeout(finishBoot, 3000);
 
     return () => {
       cancelled = true;
@@ -640,9 +630,9 @@ export function Desktop() {
     };
   }, []);
 
-  // MCP Bridge
+  // MCP Bridge — only when collaboration server is enabled
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || process.env.NEXT_PUBLIC_ENABLE_COLLAB !== 'true') return;
     let mcpSocket: any = null;
     import('socket.io-client').then(async ({ io }) => {
       try {

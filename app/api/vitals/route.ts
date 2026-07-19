@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { checkRouteRateLimit } from '@/lib/api-helpers';
 
-// POST — Receive and store vitals metrics
+// POST — Receive and store vitals metrics (rate-limited, anonymous OK)
 export async function POST(request: NextRequest) {
   try {
+    const rl = checkRouteRateLimit(request, 'VITALS');
+    if (rl) return rl;
+
     const body = await request.json();
     const { name, value, rating, delta, id, url, userAgent, timestamp } = body;
 

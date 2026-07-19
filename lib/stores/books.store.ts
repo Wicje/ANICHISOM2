@@ -1,20 +1,18 @@
+/**
+ * Books Zustand Store — reading list.
+ *
+ * All persistence through Context Layer (readDomain/writeDomain).
+ */
 import { create } from 'zustand';
-import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { readDomain, writeDomain } from '@/lib/context-layer';
+
+const DOMAIN = 'books';
+const LEGACY_KEY = 'continuaos_books';
 
 export interface BookItem {
-  id: string;
-  title: string;
-  author: string;
-  color: string;
-  rotation: number;
-  x: number;
-  y: number;
-  progress?: number; // 0-100
-  notes?: string;
-  addedAt: number;
+  id: string; title: string; author: string; color: string; rotation: number;
+  x: number; y: number; progress?: number; notes?: string; addedAt: number;
 }
-
-const STORAGE_KEY = 'continuaos_books';
 
 const DEFAULT_BOOKS: BookItem[] = [
   { id: 'b1', title: 'The Edge Manifesto', author: 'ContinuaOS', color: '#4A6FA5', rotation: -5, x: 15, y: 20, progress: 72, addedAt: Date.now() },
@@ -27,6 +25,12 @@ const DEFAULT_BOOKS: BookItem[] = [
   { id: 'b8', title: 'Thinking, Fast and Slow', author: 'Daniel Kahneman', color: '#2F4F4F', rotation: 1, x: 72, y: 46, progress: 20, addedAt: Date.now() },
 ];
 
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+function persistBooks(books: BookItem[]) {
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => writeDomain(DOMAIN, books), 2000);
+}
+
 interface BooksState {
   books: BookItem[];
   loaded: boolean;
@@ -38,54 +42,35 @@ interface BooksState {
 }
 
 export const useBooksStore = create<BooksState>((set, get) => ({
-  books: [],
-  loaded: false,
+  books: [], loaded: false,
 
   loadBooks: async () => {
     try {
-      const saved = await idbGet<BookItem[]>(STORAGE_KEY);
-      if (saved && saved.length > 0) {
-        set({ books: saved, loaded: true });
-      } else {
-        set({ books: DEFAULT_BOOKS, loaded: true });
-        idbSet(STORAGE_KEY, DEFAULT_BOOKS);
-      }
-    } catch {
-      set({ books: DEFAULT_BOOKS, loaded: true });
-    }
+      const ctxData = await readDomain<BookItem[]>(DOMAIN);
+      if (ctxData && ctxData.length > 0) { set({ books: ctxData, loaded: true }); return; }
+      // Migration
+      const { get: idbGet } = await import('idb-keyval');
+      const saved = await idbGet<BookItem[]>(LEGACY_KEY);
+      if (saved && saved.length > 0) { set({ books: saved, loaded: true }); writeDomain(DOMAIN, saved); }
+      else { set({ books: DEFAULT_BOOKS, loaded: true }); writeDomain(DOMAIN, DEFAULT_BOOKS); }
+    } catch { set({ books: DEFAULT_BOOKS, loaded: true }); }
   },
 
   addBook: (book) => {
-    const newBook: BookItem = {
-      ...book,
-      id: `b-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      addedAt: Date.now(),
-    };
-    set((s) => {
-      const next = [...s.books, newBook];
-      idbSet(STORAGE_KEY, next);
-      return { books: next };
-    });
+    const newBook: BookItem = { ...book, id: `b-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, addedAt: Date.now() };
+    set(s => ({ books: [...s.books, newBook] }));
+    persistBooks(get().books);
   },
 
   removeBook: (id) => {
-    set((s) => {
-      const next = s.books.filter((b) => b.id !== id);
-      idbSet(STORAGE_KEY, next);
-      return { books: next };
-    });
+    set(s => ({ books: s.books.filter(b => b.id !== id) }));
+    persistBooks(get().books);
   },
 
   updateBook: (id, updates) => {
-    set((s) => {
-      const next = s.books.map((b) => (b.id === id ? { ...b, ...updates } : b));
-      idbSet(STORAGE_KEY, next);
-      return { books: next };
-    });
+    set(s => ({ books: s.books.map(b => b.id === id ? { ...b, ...updates } : b) }));
+    persistBooks(get().books);
   },
 
-  persist: () => {
-    const { books } = get();
-    idbSet(STORAGE_KEY, books);
-  },
+  persist: () => writeDomain(DOMAIN, get().books),
 }));

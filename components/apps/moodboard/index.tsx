@@ -10,7 +10,7 @@ import {
   ChevronDown, ChevronRight, Send, Filter, Presentation, Scissors, ExternalLink,
   Image as ImageIcon
 } from 'lucide-react';
-import { get, set } from 'idb-keyval';
+import { writeBlob } from '@/lib/context-layer';
 import { cn } from '@/lib/utils';
 import { useCollaborativeDoc } from '@/lib/hooks/useCollaborativeDoc';
 import { SyncPromptBanner } from '../sync-prompt-banner';
@@ -205,7 +205,7 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     if (!file) return;
     if (file.size > 50 * 1024 * 1024) { window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'File Too Large', message: 'Maximum file size is 50MB.' } })); return; }
     const fileId = crypto.randomUUID();
-    await set(`blob_${fileId}`, file);
+    await writeBlob(fileId, file);
     const type = file.type.startsWith('video/') ? 'video' : 'image';
     const newId = crypto.randomUUID();
     _updateYNode({ id: newId, type, x: centerCanvasX(), y: centerCanvasY(), content: `local-blob:${fileId}` });
@@ -541,7 +541,7 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
           const reader = new FileReader();
           reader.onload = async () => {
             const fileId = crypto.randomUUID();
-            await set(`blob_${fileId}`, file);
+            await writeBlob(fileId, file);
             _updateYNode({ id: crypto.randomUUID(), type: 'image', x: centerCanvasX(), y: centerCanvasY(), content: `local-blob:${fileId}` });
           };
           reader.readAsArrayBuffer(file);

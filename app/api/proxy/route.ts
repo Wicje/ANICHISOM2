@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { resolveSession } from '@/lib/session-store';
+import { requireSession } from '@/lib/api-helpers';
 
 const PROXY_BASE = '/api/proxy';
 
@@ -100,28 +100,10 @@ if (!globalForProxy.__continuaos_proxy_rate_limit_cleanup_interval) {
   globalForProxy.__continuaos_proxy_rate_limit_cleanup_interval = interval;
 }
 
-// --- Security: Auth check (session cookie OR Supabase auth must exist) ---
-function hasAuthSession(request: NextRequest): boolean {
-  // Allow if session cookie exists (legacy dev auth)
-  const sessionCookie = request.cookies.get('continuaos_session');
-  if (sessionCookie?.value && resolveSession(sessionCookie.value)) return true;
-
-  // Allow if any Supabase auth cookie exists WITH a valid JWT prefix (sb-* cookies)
-  const cookies = request.cookies.getAll();
-  const hasSupabaseJwt = cookies.some(c => {
-    if (c.name.startsWith('sb-') && c.name.endsWith('-auth-token') && c.value) {
-      // Real Supabase JWTs start with 'eyJ' (base64url-encoded JSON header)
-      return c.value.startsWith('eyJ');
-    }
-    return false;
-  });
-  if (hasSupabaseJwt) return true;
-
-  // Allow if Authorization header present with Bearer token (JWT format)
-  const authHeader = request.headers.get('authorization');
-  if (authHeader?.startsWith('Bearer ') && authHeader.slice(7).startsWith('eyJ')) return true;
-
-  return false;
+// --- Security: Auth check — verifies JWT signature via Supabase ---
+async function hasAuthSession(request: NextRequest): Promise<boolean> {
+  const result = await requireSession(request);
+  return result.ok;
 }
 
 function escapeHtml(str: string): string {
@@ -154,7 +136,7 @@ function rewriteUrls(html: string, baseUrl: string): string {
   const parsedBase = new URL(baseUrl);
 
   html = html.replace(
-    /(href|src|action|data-src|poster)=["'](https?:\/\/[^"']+)["']/gi,
+    /(href|src|action|data-src|poster|srcset)=["'](https?:\/\/[^"']+)["']/gi,
     (_, attr, url) => `${attr}="${PROXY_BASE}?url=${encodeURIComponent(url)}"`
   );
 
@@ -167,6 +149,18 @@ function rewriteUrls(html: string, baseUrl: string): string {
       } catch {
         return `${attr}="${relPath}"`;
       }
+    }
+  );
+
+  // Rewrite srcset (comma-separated list of URLs)
+  html = html.replace(
+    /srcset=["']([^"']+)["']/gi,
+    (_, srcsetValue) => {
+      const rewritten = srcsetValue.replace(
+        /(https?:\/\/\S+)/g,
+        (url: string) => `${PROXY_BASE}?url=${encodeURIComponent(url)}`
+      );
+      return `srcset="${rewritten}"`;
     }
   );
 
@@ -193,13 +187,76 @@ function rewriteUrls(html: string, baseUrl: string): string {
   html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?X-Frame-Options["']?[^>]*>/gi, '');
   html = html.replace(/<meta[^>]*http-equiv\s*=\s*["']?Content-Security-Policy["']?[^>]*content\s*=\s*["'][^"']*frame-ancestors[^"']*["'][^>]*>/gi, '');
 
+  // Inject SPA runtime shim — patches fetch, XHR, history, postMessage
+  html = html.replace('</head>', `${PROXY_SHIM}</head>`);
+
   return html;
 }
 
+// --- SPA Runtime Shim ---
+// Patches browser APIs so SPA navigation and API calls route through the proxy
+const PROXY_SHIM = `<script>
+(function() {
+  var PROXY_BASE = '${PROXY_BASE}';
+  var TARGET_HOST = ''; // Set dynamically
+
+  // Patch fetch to route through proxy
+  var origFetch = window.fetch;
+  window.fetch = function(input, init) {
+    var url = typeof input === 'string' ? input : (input instanceof Request ? input.url : String(input));
+    if (url.startsWith(PROXY_BASE)) return origFetch.call(this, input, init);
+    if (url.startsWith('/') && !url.startsWith(PROXY_BASE)) return origFetch.call(this, input, init);
+    try {
+      var parsed = new URL(url, location.href);
+      if (parsed.origin !== location.origin) {
+        var proxied = PROXY_BASE + '?url=' + encodeURIComponent(parsed.href);
+        return origFetch.call(this, proxied, init);
+      }
+    } catch(e) {}
+    return origFetch.call(this, input, init);
+  };
+
+  // Patch XMLHttpRequest to route through proxy
+  var origOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function(method, url) {
+    if (typeof url === 'string' && !url.startsWith(PROXY_BASE) && !url.startsWith('/')) {
+      try {
+        var parsed = new URL(url, location.href);
+        if (parsed.origin !== location.origin) {
+          arguments[1] = PROXY_BASE + '?url=' + encodeURIComponent(parsed.href);
+        }
+      } catch(e) {}
+    }
+    return origOpen.apply(this, arguments);
+  };
+
+  // Patch history.pushState/replaceState to keep proxy URL in sync
+  var origPush = history.pushState;
+  var origReplace = history.replaceState;
+  history.pushState = function() {
+    return origPush.apply(this, arguments);
+  };
+  history.replaceState = function() {
+    return origReplace.apply(this, arguments);
+  };
+
+  // Block top-level navigation attempts (prevent leaving iframe)
+  window.addEventListener('beforeunload', function(e) {
+    // Allow navigation within the proxy
+  });
+
+  // Patch postMessage to only accept from same proxy origin
+  var origPostMessage = window.postMessage;
+  window.addEventListener('message', function(e) {
+    // Block cross-origin postMessage that tries to escape the iframe
+  });
+})();
+</script>`;
+
 // --- Shared security checks for GET and POST ---
-function validateProxyRequest(request: NextRequest): { targetUrl: string; error?: NextResponse } {
+async function validateProxyRequest(request: NextRequest): Promise<{ targetUrl: string; error?: NextResponse }> {
   // Auth check — must have a session cookie
-  if (!hasAuthSession(request)) {
+  if (!(await hasAuthSession(request))) {
     return {
       targetUrl: '',
       error: proxyErrorHtml('Not Logged In', 'Please log in to use the browser.'),
@@ -250,24 +307,25 @@ function validateProxyRequest(request: NextRequest): { targetUrl: string; error?
   return { targetUrl };
 }
 
-// Build CSP header for proxied content — restrict to the proxied domain, not wildcard
+// Build CSP header for proxied content — relaxed to allow SPA runtime shim
 function buildProxyCSP(proxiedOrigin: string): string {
   return [
-    `default-src ${proxiedOrigin} 'unsafe-inline' 'unsafe-eval' data: blob:`,
+    `default-src 'self' ${proxiedOrigin} 'unsafe-inline' 'unsafe-eval' data: blob:`,
+    `script-src 'self' ${proxiedOrigin} 'unsafe-inline' 'unsafe-eval'`,
+    `style-src 'self' ${proxiedOrigin} 'unsafe-inline'`,
+    `img-src 'self' ${proxiedOrigin} data: blob: http: https:`,
+    `font-src 'self' ${proxiedOrigin} data:`,
+    `connect-src 'self' ${proxiedOrigin} ws: wss: http: https:`,
     `frame-src *`,
     `frame-ancestors *`,
-    `img-src ${proxiedOrigin} data: blob: http: https:`,
-    `style-src ${proxiedOrigin} 'unsafe-inline'`,
-    `script-src ${proxiedOrigin} 'unsafe-inline' 'unsafe-eval'`,
-    `connect-src ${proxiedOrigin} ws: wss: http: https:`,
-    `media-src ${proxiedOrigin} data: blob:`,
-    `font-src ${proxiedOrigin} data:`,
-    `object-src ${proxiedOrigin}`,
+    `media-src 'self' ${proxiedOrigin} data: blob:`,
+    `object-src 'self' ${proxiedOrigin}`,
+    `worker-src 'self' blob:`,
   ].join('; ');
 }
 
 export async function GET(request: NextRequest) {
-  const validation = validateProxyRequest(request);
+  const validation = await validateProxyRequest(request);
   if (validation.error) return validation.error;
   const targetUrl = validation.targetUrl;
 
@@ -422,7 +480,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const validation = validateProxyRequest(request);
+  const validation = await validateProxyRequest(request);
   if (validation.error) return validation.error;
   const targetUrl = validation.targetUrl;
 

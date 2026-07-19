@@ -1,17 +1,22 @@
 /**
- * ContinuaOS Context Layer
- * 
+ * Continua Context Layer
+ *
  * Central API for session state persistence and sync.
  * All stores read/write through this layer instead of direct IDB.
- * 
+ *
+ * Architecture:
+ * - Local: IDB (fast path, always available)
+ * - Cloud: API routes → Context Kernel → Supabase
+ *
  * In Private mode: IDB only (fast, local)
- * In Agency mode: IDB + Supabase mirror (cross-device sync)
+ * In Agency mode: IDB + API mirror (cross-device sync)
  */
 
 import { get as idbGet, set as idbSet } from 'idb-keyval';
 import { mark, measure } from '@/lib/perf';
 
-const STORAGE_PREFIX = 'continuaos-';
+const STORAGE_PREFIX = 'continua-';
+const SYNC_VERSION_PREFIX = 'continua-sync:';
 const DEBOUNCE_MS = 2000;
 
 type SyncMode = 'private' | 'agency';
@@ -28,6 +33,25 @@ let config: ContextLayerConfig = {
   userId: null,
   deviceId: typeof crypto !== 'undefined' ? crypto.randomUUID().slice(0, 8) : 'unknown',
 };
+
+// ─── Offline Awareness ─────────────────────────────────────────
+
+let _isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => { _isOnline = true; });
+  window.addEventListener('offline', () => { _isOnline = false; });
+}
+
+/** Whether the device is currently online. */
+export function isOnline(): boolean {
+  return _isOnline;
+}
+
+/** Get current sync status for UI display. */
+export function getSyncStatus(): { online: boolean; mode: SyncMode; userId: string | null } {
+  return { online: _isOnline, mode: config.mode, userId: config.userId };
+}
 
 /** Configure the context layer */
 export function configureContextLayer(cfg: Partial<ContextLayerConfig>): void {
@@ -60,7 +84,7 @@ export async function readDomain<T>(domain: string): Promise<T | null> {
  */
 export async function writeDomain<T>(domain: string, data: T): Promise<void> {
   mark(`ctx:write:${domain}`);
-  
+
   // Immediate IDB write
   try {
     await idbSet(`${STORAGE_PREFIX}${domain}`, data);
@@ -84,7 +108,7 @@ export async function readAllDomains<T extends Record<string, unknown>>(
 ): Promise<Partial<T>> {
   mark('ctx:readAll');
   const result: Record<string, unknown> = {};
-  
+
   const entries = await Promise.allSettled(
     domains.map(async (domain) => {
       const data = await idbGet(`${STORAGE_PREFIX}${domain}`);
@@ -107,7 +131,7 @@ export async function readAllDomains<T extends Record<string, unknown>>(
  */
 export async function writeAllDomains(domains: Record<string, unknown>): Promise<void> {
   mark('ctx:writeAll');
-  
+
   await Promise.allSettled(
     Object.entries(domains).map(([domain, data]) =>
       idbSet(`${STORAGE_PREFIX}${domain}`, data)
@@ -133,7 +157,7 @@ export async function exportContext(): Promise<Record<string, unknown>> {
     'photography', 'hardware', 'clothing', 'forensics', 'sidegigs',
     'devops', 'privacy', 'registry', 'campaign', 'onboarding',
   ];
-  
+
   return readAllDomains(domains);
 }
 
@@ -144,33 +168,67 @@ export async function importContext(context: Record<string, unknown>): Promise<v
   await writeAllDomains(context);
 }
 
-// ─── Cloud Sync (debounced) ──────────────────────────────────────────
+// ─── Blob Storage (for moodboard and binary data) ─────────────────
+
+const BLOB_PREFIX = 'continua-blob:';
+
+/**
+ * Store a blob (binary data) in IDB.
+ * Used by moodboard for images/videos that can't go through JSON domain sync.
+ */
+export async function writeBlob(key: string, data: Blob | ArrayBuffer): Promise<void> {
+  try {
+    await idbSet(`${BLOB_PREFIX}${key}`, data);
+  } catch (e) {
+    console.warn(`[ContextLayer] Blob write failed for ${key}:`, e);
+  }
+}
+
+/**
+ * Read a blob from IDB.
+ */
+export async function readBlob<T = Blob | ArrayBuffer>(key: string): Promise<T | null> {
+  try {
+    const data = await idbGet<T>(`${BLOB_PREFIX}${key}`);
+    return data ?? null;
+  } catch (e) {
+    console.warn(`[ContextLayer] Blob read failed for ${key}:`, e);
+    return null;
+  }
+}
+
+// ─── Cloud Sync (via API routes → Context Kernel) ────────────────
 
 let syncInProgress = false;
 
 async function scheduleCloudSync(domain: string, data: unknown): Promise<void> {
-  // Debounce: if a sync is already scheduled for this domain, skip
   const key = `sync:${domain}`;
   const existing = debounceTimers.get(key);
   if (existing) clearTimeout(existing);
 
   debounceTimers.set(key, setTimeout(async () => {
     debounceTimers.delete(key);
-    
-    if (!config.userId || syncInProgress) return;
-    
+
+    if (!config.userId || syncInProgress || !_isOnline) return;
+
     try {
-      const { pushDomain } = await import('@/lib/sync/context-sync');
-      const { createClient } = await import('@/utils/supabase/client');
-      const supabase = createClient();
-      
-      // Read current version from IDB (stored alongside data)
-      const versionKey = `${STORAGE_PREFIX}sync_version:${domain}`;
+      const versionKey = `${SYNC_VERSION_PREFIX}${domain}`;
       const currentVersion = (await idbGet<number>(versionKey)) || 0;
-      
-      const newVersion = await pushDomain(config.userId!, domain, data, currentVersion, supabase);
-      
-      if (newVersion !== null) {
+
+      const res = await fetch('/api/context/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          domain,
+          data,
+          version: currentVersion,
+          deviceId: config.deviceId,
+        }),
+      });
+
+      if (res.ok) {
+        const body = await res.json();
+        const newVersion = body.data?.version ?? currentVersion;
         await idbSet(versionKey, newVersion);
       }
     } catch (e) {
@@ -185,7 +243,7 @@ async function scheduleCloudSync(domain: string, data: unknown): Promise<void> {
  * Called during boot in Agency mode.
  */
 export async function syncFromCloud(): Promise<{ pulled: number; conflicts: number }> {
-  if (config.mode !== 'agency' || !config.userId) {
+  if (config.mode !== 'agency' || !config.userId || !_isOnline) {
     return { pulled: 0, conflicts: 0 };
   }
 
@@ -193,28 +251,35 @@ export async function syncFromCloud(): Promise<{ pulled: number; conflicts: numb
   syncInProgress = true;
 
   try {
-    const { pullAllDomains } = await import('@/lib/sync/context-sync');
-    const { createClient } = await import('@/utils/supabase/client');
-    const supabase = createClient();
-    
-    const remoteDomains = await pullAllDomains(config.userId, supabase);
+    const res = await fetch('/api/context/pull');
+    if (!res.ok) {
+      console.warn('[ContextLayer] Cloud pull failed:', res.status);
+      return { pulled: 0, conflicts: 0 };
+    }
+
+    const body = await res.json();
+    const records = body.data?.domains || [];
     let pulled = 0;
     let conflicts = 0;
 
-    for (const [domain, remote] of remoteDomains) {
-      const localData = await idbGet(`${STORAGE_PREFIX}${domain}`);
-      const localVersion = (await idbGet<number>(`${STORAGE_PREFIX}sync_version:${domain}`)) || 0;
+    for (const record of records) {
+      const { domain, data, version } = record;
 
-      if (remote.version > localVersion) {
+      // Skip internal domains (__snapshot:*, __device:*)
+      if (domain.startsWith('__')) continue;
+
+      const localVersion = (await idbGet<number>(`${SYNC_VERSION_PREFIX}${domain}`)) || 0;
+
+      if (version > localVersion) {
         // Remote is newer — apply
-        await idbSet(`${STORAGE_PREFIX}${domain}`, remote.data);
-        await idbSet(`${STORAGE_PREFIX}sync_version:${domain}`, remote.version);
+        await idbSet(`${STORAGE_PREFIX}${domain}`, data);
+        await idbSet(`${SYNC_VERSION_PREFIX}${domain}`, version);
         pulled++;
-        conflicts++;
-      } else if (localVersion === 0 && remote.version > 0) {
+        if (localVersion > 0) conflicts++;
+      } else if (localVersion === 0 && version > 0) {
         // No local data — pull remote
-        await idbSet(`${STORAGE_PREFIX}${domain}`, remote.data);
-        await idbSet(`${STORAGE_PREFIX}sync_version:${domain}`, remote.version);
+        await idbSet(`${STORAGE_PREFIX}${domain}`, data);
+        await idbSet(`${SYNC_VERSION_PREFIX}${domain}`, version);
         pulled++;
       }
     }

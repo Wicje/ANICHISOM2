@@ -1,14 +1,26 @@
+/**
+ * Browser Zustand Store — tabs, pinned apps, bookmarks.
+ *
+ * All persistence through Context Layer (readDomain/writeDomain).
+ */
 import { create } from 'zustand';
-import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { readDomain, writeDomain } from '@/lib/context-layer';
+
+const DOMAIN = 'browser';
+const LEGACY_KEYS = {
+  pinned: 'continuaos_browser_pinned_apps',
+  tabs: 'continuaos_browser_tabs',
+  bookmarks: 'continuaos_browser_bookmarks',
+};
 
 export type PinnedApp = {
   id: string;
   url: string;
   title: string;
-  icon: string; // URL to favicon or emoji
+  icon: string;
   lastVisited?: number;
-  lastUrl?: string; // Context memory: last URL visited under this pin
-  sessionId?: string; // Persistent session identifier
+  lastUrl?: string;
+  sessionId?: string;
 };
 
 type BrowserTab = {
@@ -40,37 +52,24 @@ type BrowserState = {
   bookmarks: Bookmark[];
   _loaded: boolean;
 
-  // Pinned apps
   addPinnedApp: (url: string, title: string, icon?: string) => void;
   removePinnedApp: (id: string) => void;
   reorderPinnedApps: (fromIndex: number, toIndex: number) => void;
   updatePinnedAppLastUrl: (id: string, lastUrl: string) => void;
-
-  // Tabs
   addTab: (url?: string, pinnedAppId?: string) => void;
   closeTab: (id: string) => void;
   setActiveTab: (id: string) => void;
   updateTabUrl: (id: string, url: string, title: string) => void;
   navigateTab: (id: string, url: string, title: string) => void;
-
-  // Bookmarks
   addBookmark: (url: string, title: string, favicon?: string) => void;
   removeBookmark: (id: string) => void;
   isBookmarked: (url: string) => boolean;
-
-  // UI
   toggleSidebar: () => void;
   toggleFocusMode: () => void;
   toggleSplitView: (targetAppId?: string) => void;
-
-  // Persistence
   loadPersisted: () => Promise<void>;
   persist: () => void;
 };
-
-const PINNED_APPS_KEY = 'continuaos_browser_pinned_apps';
-const TABS_KEY = 'continuaos_browser_tabs';
-const BOOKMARKS_KEY = 'continuaos_browser_bookmarks';
 
 function getDomainTitle(urlStr: string): string {
   try {
@@ -81,17 +80,29 @@ function getDomainTitle(urlStr: string): string {
   }
 }
 
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+
+function persistBrowser(state: BrowserState) {
+  if (!state._loaded) return;
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    writeDomain(DOMAIN, {
+      pinnedApps: state.pinnedApps,
+      tabs: state.tabs.map(t => ({ id: t.id, url: t.url, title: t.title, pinnedAppId: t.pinnedAppId })),
+      bookmarks: state.bookmarks,
+    });
+  }, 2000);
+}
+
 export const useBrowserStore = create<BrowserState>((set, get) => ({
   pinnedApps: [],
-  tabs: [
-    {
-      id: '1',
-      url: 'https://duckduckgo.com/',
-      title: 'DuckDuckGo',
-      history: ['https://duckduckgo.com/'],
-      historyIndex: 0,
-    },
-  ],
+  tabs: [{
+    id: '1',
+    url: 'https://duckduckgo.com/',
+    title: 'DuckDuckGo',
+    history: ['https://duckduckgo.com/'],
+    historyIndex: 0,
+  }],
   activeTabId: '1',
   sidebarVisible: true,
   focusMode: false,
@@ -103,185 +114,149 @@ export const useBrowserStore = create<BrowserState>((set, get) => ({
   addPinnedApp: (url, title, icon) => {
     const pinned: PinnedApp = {
       id: `pin-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      url,
-      title,
+      url, title,
       icon: icon || `https://www.google.com/s2/favicons?domain=${new URL(url.startsWith('http') ? url : `https://${url}`).hostname}&sz=64`,
-      lastVisited: Date.now(),
-      lastUrl: url,
+      lastVisited: Date.now(), lastUrl: url,
     };
-    set((s) => {
-      const next = [...s.pinnedApps, pinned];
-      idbSet(PINNED_APPS_KEY, next);
-      return { pinnedApps: next };
-    });
+    set(s => { const next = [...s.pinnedApps, pinned]; return { pinnedApps: next }; });
+    persistBrowser(get());
   },
 
   removePinnedApp: (id) => {
-    set((s) => {
-      const next = s.pinnedApps.filter((p) => p.id !== id);
-      idbSet(PINNED_APPS_KEY, next);
-      return { pinnedApps: next };
-    });
+    set(s => ({ pinnedApps: s.pinnedApps.filter(p => p.id !== id) }));
+    persistBrowser(get());
   },
 
   reorderPinnedApps: (fromIndex, toIndex) => {
-    set((s) => {
+    set(s => {
       const next = [...s.pinnedApps];
       const [moved] = next.splice(fromIndex, 1);
       next.splice(toIndex, 0, moved!);
-      idbSet(PINNED_APPS_KEY, next);
       return { pinnedApps: next };
     });
+    persistBrowser(get());
   },
 
   updatePinnedAppLastUrl: (id, lastUrl) => {
-    set((s) => {
-      const next = s.pinnedApps.map((p) =>
-        p.id === id ? { ...p, lastUrl, lastVisited: Date.now() } : p
-      );
-      idbSet(PINNED_APPS_KEY, next);
-      return { pinnedApps: next };
-    });
+    set(s => ({
+      pinnedApps: s.pinnedApps.map(p => p.id === id ? { ...p, lastUrl, lastVisited: Date.now() } : p),
+    }));
+    persistBrowser(get());
   },
 
   addTab: (url, pinnedAppId) => {
-    const { tabs } = get();
     const defaultUrl = url || 'https://duckduckgo.com/';
     const newId = `tab-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const newTab: BrowserTab = {
-      id: newId,
-      url: defaultUrl,
-      title: getDomainTitle(defaultUrl),
-      history: [defaultUrl],
-      historyIndex: 0,
-      pinnedAppId,
+      id: newId, url: defaultUrl, title: getDomainTitle(defaultUrl),
+      history: [defaultUrl], historyIndex: 0, pinnedAppId,
     };
-    set((s) => {
-      const next = [...s.tabs, newTab];
-      idbSet(TABS_KEY, next.map((t) => ({ id: t.id, url: t.url, title: t.title, pinnedAppId: t.pinnedAppId })));
-      return { tabs: next, activeTabId: newId };
-    });
+    set(s => ({ tabs: [...s.tabs, newTab], activeTabId: newId }));
+    persistBrowser(get());
   },
 
   closeTab: (id) => {
     const { tabs, activeTabId } = get();
     if (tabs.length <= 1) return;
-    const next = tabs.filter((t) => t.id !== id);
+    const next = tabs.filter(t => t.id !== id);
     const newActive = activeTabId === id ? next[next.length - 1]!.id : activeTabId;
-    set((s) => {
-      const updatedTabs = s.tabs.filter((t) => t.id !== id);
-      idbSet(TABS_KEY, updatedTabs.map((t) => ({ id: t.id, url: t.url, title: t.title, pinnedAppId: t.pinnedAppId })));
-      return { tabs: updatedTabs, activeTabId: newActive };
-    });
+    set({ tabs: next, activeTabId: newActive });
+    persistBrowser(get());
   },
 
   setActiveTab: (id) => set({ activeTabId: id }),
 
   updateTabUrl: (id, url, title) => {
-    set((s) => ({
-      tabs: s.tabs.map((t) => (t.id === id ? { ...t, url, title } : t)),
-    }));
+    set(s => ({ tabs: s.tabs.map(t => t.id === id ? { ...t, url, title } : t) }));
   },
 
   navigateTab: (id, url, title) => {
-    set((s) => {
-      const next = s.tabs.map((t) => {
+    set(s => {
+      const next = s.tabs.map(t => {
         if (t.id !== id) return t;
         const newHistory = t.history.slice(0, t.historyIndex + 1);
         newHistory.push(url);
-        return {
-          ...t,
-          url,
-          title: title || getDomainTitle(url),
-          history: newHistory,
-          historyIndex: newHistory.length - 1,
-        };
+        return { ...t, url, title: title || getDomainTitle(url), history: newHistory, historyIndex: newHistory.length - 1 };
       });
-      // Also update pinned app's lastUrl if this tab is pinned
-      const tab = next.find((t) => t.id === id);
+      const tab = next.find(t => t.id === id);
       if (tab?.pinnedAppId) {
-        const pinnedApps = s.pinnedApps.map((p) =>
-          p.id === tab.pinnedAppId ? { ...p, lastUrl: url, lastVisited: Date.now() } : p
-        );
-        idbSet(PINNED_APPS_KEY, pinnedApps);
+        const pinnedApps = s.pinnedApps.map(p => p.id === tab.pinnedAppId ? { ...p, lastUrl: url, lastVisited: Date.now() } : p);
         return { tabs: next, pinnedApps };
       }
       return { tabs: next };
     });
+    persistBrowser(get());
   },
 
-  toggleSidebar: () => set((s) => ({ sidebarVisible: !s.sidebarVisible })),
-
-  toggleFocusMode: () => set((s) => ({ focusMode: !s.focusMode })),
-
+  toggleSidebar: () => set(s => ({ sidebarVisible: !s.sidebarVisible })),
+  toggleFocusMode: () => set(s => ({ focusMode: !s.focusMode })),
   toggleSplitView: (targetAppId) => {
-    set((s) => {
-      if (s.splitView && !targetAppId) {
-        return { splitView: false, splitViewTarget: null };
-      }
+    set(s => {
+      if (s.splitView && !targetAppId) return { splitView: false, splitViewTarget: null };
       return { splitView: true, splitViewTarget: targetAppId || null };
     });
   },
 
-  // Bookmarks
   addBookmark: (url, title, favicon) => {
     const { bookmarks } = get();
     if (bookmarks.some(b => b.url === url)) return;
     const bookmark: Bookmark = {
       id: `bm-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      url,
-      title,
+      url, title,
       favicon: favicon || `https://www.google.com/s2/favicons?domain=${getDomainTitle(url)}&sz=64`,
       createdAt: Date.now(),
     };
-    set((s) => {
-      const next = [...s.bookmarks, bookmark];
-      idbSet(BOOKMARKS_KEY, next);
-      return { bookmarks: next };
-    });
+    set(s => ({ bookmarks: [...s.bookmarks, bookmark] }));
+    persistBrowser(get());
   },
 
   removeBookmark: (id) => {
-    set((s) => {
-      const next = s.bookmarks.filter(b => b.id !== id);
-      idbSet(BOOKMARKS_KEY, next);
-      return { bookmarks: next };
-    });
+    set(s => ({ bookmarks: s.bookmarks.filter(b => b.id !== id) }));
+    persistBrowser(get());
   },
 
-  isBookmarked: (url) => {
-    return get().bookmarks.some(b => b.url === url);
-  },
+  isBookmarked: (url) => get().bookmarks.some(b => b.url === url),
 
   loadPersisted: async () => {
-    const [pinnedApps, tabs, bookmarks] = await Promise.all([
-      idbGet<PinnedApp[]>(PINNED_APPS_KEY),
-      idbGet<Partial<BrowserTab>[]>(TABS_KEY),
-      idbGet<Bookmark[]>(BOOKMARKS_KEY),
-    ]);
-    const updates: Partial<BrowserState> = {};
-    if (pinnedApps && pinnedApps.length > 0) updates.pinnedApps = pinnedApps;
-    if (bookmarks && bookmarks.length > 0) updates.bookmarks = bookmarks;
-    if (tabs && tabs.length > 0) {
-      updates.tabs = tabs.map((t) => ({
-        id: t.id || `tab-${Date.now()}`,
-        url: t.url || '',
-        title: t.title || getDomainTitle(t.url || ''),
-        history: t.history || [t.url || ''],
-        historyIndex: t.historyIndex || 0,
-        pinnedAppId: t.pinnedAppId,
-      }));
-      updates.activeTabId = updates.tabs![0]!.id;
+    // Try Context Layer first, fall back to legacy keys
+    const ctxData = await readDomain<{ pinnedApps?: PinnedApp[]; tabs?: Partial<BrowserTab>[]; bookmarks?: Bookmark[] }>(DOMAIN);
+    if (ctxData && (ctxData.pinnedApps || ctxData.tabs || ctxData.bookmarks)) {
+      const updates: Partial<BrowserState> = {};
+      if (ctxData.pinnedApps?.length) updates.pinnedApps = ctxData.pinnedApps;
+      if (ctxData.bookmarks?.length) updates.bookmarks = ctxData.bookmarks;
+      if (ctxData.tabs?.length) {
+        updates.tabs = ctxData.tabs.map(t => ({
+          id: t.id || `tab-${Date.now()}`, url: t.url || '', title: t.title || getDomainTitle(t.url || ''),
+          history: t.history || [t.url || ''], historyIndex: t.historyIndex || 0, pinnedAppId: t.pinnedAppId,
+        }));
+        updates.activeTabId = updates.tabs![0]!.id;
+      }
+      if (Object.keys(updates).length > 0) set(updates);
+    } else {
+      // Migration: read from legacy keys
+      const { get: idbGet } = await import('idb-keyval');
+      const [pinnedApps, tabs, bookmarks] = await Promise.all([
+        idbGet<PinnedApp[]>(LEGACY_KEYS.pinned),
+        idbGet<Partial<BrowserTab>[]>(LEGACY_KEYS.tabs),
+        idbGet<Bookmark[]>(LEGACY_KEYS.bookmarks),
+      ]);
+      const updates: Partial<BrowserState> = {};
+      if (pinnedApps?.length) updates.pinnedApps = pinnedApps;
+      if (bookmarks?.length) updates.bookmarks = bookmarks;
+      if (tabs?.length) {
+        updates.tabs = tabs.map(t => ({
+          id: t.id || `tab-${Date.now()}`, url: t.url || '', title: t.title || getDomainTitle(t.url || ''),
+          history: t.history || [t.url || ''], historyIndex: t.historyIndex || 0, pinnedAppId: t.pinnedAppId,
+        }));
+        updates.activeTabId = updates.tabs![0]!.id;
+      }
+      if (Object.keys(updates).length > 0) {
+        set(updates);
+        persistBrowser(get());
+      }
     }
-    if (Object.keys(updates).length > 0) set(updates);
     set({ _loaded: true });
   },
 
-  persist: () => {
-    if (!get()._loaded) return;
-    const { pinnedApps, tabs, bookmarks } = get();
-    idbSet(PINNED_APPS_KEY, pinnedApps);
-    idbSet(TABS_KEY, tabs.map((t) => ({ id: t.id, url: t.url, title: t.title, pinnedAppId: t.pinnedAppId })));
-    idbSet(BOOKMARKS_KEY, bookmarks);
-  },
+  persist: () => persistBrowser(get()),
 }));

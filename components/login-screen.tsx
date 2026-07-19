@@ -481,6 +481,16 @@ export function LoginScreen() {
             {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
           </button>
         </div>
+
+        {/* Waitlist link */}
+        <div className="mt-3 text-center">
+          <a
+            href="/waitlist"
+            className="text-white/15 hover:text-[#10F4A0]/60 text-[10px] uppercase tracking-[0.2em] transition-colors font-mono"
+          >
+            Don't have an invite? Request access
+          </a>
+        </div>
       </div>
     </div>
   );

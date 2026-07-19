@@ -50,6 +50,8 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
   return (
     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[260] pointer-events-none">
       <nav role="toolbar" aria-label="Application dock" className="flex items-end gap-3 px-3 py-2 glass-panel rounded-3xl shadow-2xl pointer-events-auto contain-layout relative">
+        {/* Green accent line at top of dock */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-[2px] rounded-full bg-[var(--os-primary)] opacity-60" />
         {unreadCount > 0 && (
           <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[var(--os-bg)]" />
         )}

@@ -200,7 +200,7 @@ export function MenuBar({
               style={{
                 background: workspaceMode === 'agency' ? 'var(--os-primary)' : 'transparent',
                 color: workspaceMode === 'agency' ? 'white' : 'var(--os-text-muted)',
-                boxShadow: workspaceMode === 'agency' ? '0 1px 3px rgba(0,88,188,0.2)' : 'none',
+                boxShadow: workspaceMode === 'agency' ? '0 1px 3px rgba(16,244,160,0.3)' : 'none',
               }}
             >
               <Users className="w-3.5 h-3.5" />

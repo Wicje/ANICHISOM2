@@ -1,61 +1,61 @@
 /**
- * Zustand persistence factory — eliminates duplicated IDB persist/hydrate
- * boilerplate across 11+ stores.
+ * Zustand persistence factory — Context Layer backed.
+ *
+ * All persistence flows through readDomain/writeDomain from context-layer.ts.
+ * This is the ONLY IDB path for Zustand stores. No direct idb-keyval imports.
  *
  * Usage:
  *   import { createPersistedStore } from '@/lib/stores/persisted-store';
  *
- *   const useMyStore = createPersistedStore('my-store', { count: 0 }, (set, get) => ({
+ *   const useMyStore = createPersistedStore('my-domain', { count: 0 }, (set, get) => ({
  *     increment: () => set({ count: get().count + 1 }),
  *   }));
  */
 
 import { create, StateCreator, StoreApi, UseBoundStore } from 'zustand';
-import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { readDomain, writeDomain } from '@/lib/context-layer';
 import { mark, measure } from '@/lib/perf';
 
-const STORAGE_PREFIX = 'continuaos-';
 const DEBOUNCE_MS = 2000;
 
 const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 /**
- * Schedule a debounced write to IndexedDB.
- * Each store key gets its own timer — changing store A doesn't reset store B's timer.
+ * Schedule a debounced write through the Context Layer.
  */
-function schedulePersist<T>(key: string, data: T): void {
-  const existing = debounceTimers.get(key);
+function schedulePersist<T>(domain: string, data: T): void {
+  const existing = debounceTimers.get(domain);
   if (existing) clearTimeout(existing);
 
-  debounceTimers.set(key, setTimeout(() => {
-    idbSet(`${STORAGE_PREFIX}${key}`, data).catch((e: unknown) => {
-      console.warn(`[PersistedStore:${key}] Failed to persist:`, e);
+  debounceTimers.set(domain, setTimeout(() => {
+    writeDomain(domain, data).catch((e: unknown) => {
+      console.warn(`[PersistedStore:${domain}] Failed to persist:`, e);
     });
-    debounceTimers.delete(key);
+    debounceTimers.delete(domain);
   }, DEBOUNCE_MS));
 }
 
 /**
- * Create a Zustand store with automatic IndexedDB persistence.
+ * Create a Zustand store with automatic Context Layer persistence.
  *
- * @param storageKey - Short key for IDB (e.g. 'brand-state'). Stored as 'continuaos-brand-state'.
- * @param initialState - Initial state values to persist.
+ * @param domain - Context domain name (e.g. 'theme', 'workspace', 'browser').
+ *                 Stored via writeDomain → IDB key 'continuaos-{domain}'.
+ * @param initialState - Initial state values.
  * @param creator - Zustand state creator (set, get, api) => state additions.
  * @returns A Zustand store with an added `hydrate()` method.
  */
 export function createPersistedStore<T extends object>(
-  storageKey: string,
+  domain: string,
   initialState: T,
   creator: StateCreator<T & { hydrate: () => Promise<void> }, [], [], T>
 ): UseBoundStore<StoreApi<T & { hydrate: () => Promise<void> }>> {
-  // Build full state with hydrate
   const fullCreator: StateCreator<T & { hydrate: () => Promise<void> }, [], [], T> = (set, get, api) => {
     const originalSet = set;
     const persistingSet: typeof set = (...args: any[]) => {
       (originalSet as any)(...args);
       const state = (api as StoreApi<T & { hydrate: () => Promise<void> }>).getState();
       const { hydrate: _, ...persistable } = state as any;
-      schedulePersist(storageKey, persistable);
+      schedulePersist(domain, persistable);
     };
 
     const userState = creator(
@@ -67,16 +67,16 @@ export function createPersistedStore<T extends object>(
     return {
       ...userState,
       hydrate: async () => {
-        mark(`store:hydrate:${storageKey}`);
+        mark(`store:hydrate:${domain}`);
         try {
-          const data = await idbGet<Partial<T>>(`${STORAGE_PREFIX}${storageKey}`);
+          const data = await readDomain<Partial<T>>(domain);
           if (data) {
             set(data as any);
           }
         } catch (e) {
-          console.warn(`[PersistedStore:${storageKey}] Failed to hydrate:`, e);
+          console.warn(`[PersistedStore:${domain}] Failed to hydrate:`, e);
         }
-        measure(`store:hydrate:${storageKey}`);
+        measure(`store:hydrate:${domain}`);
       },
     };
   };
@@ -90,14 +90,10 @@ export function createPersistedStore<T extends object>(
  */
 export function withPersistence<T extends object>(
   store: UseBoundStore<StoreApi<T>>,
-  storageKey: string,
+  domain: string,
   persistKeys: (keyof T)[]
 ): void {
-  const fullKey = `${STORAGE_PREFIX}${storageKey}`;
-
-  // Subscribe to changes and debounce persist
   store.subscribe((state, prevState) => {
-    // Only persist if a persisted key changed
     const changed = persistKeys.some(k => state[k] !== prevState[k]);
     if (!changed) return;
 
@@ -105,20 +101,19 @@ export function withPersistence<T extends object>(
     for (const k of persistKeys) {
       (data as any)[k] = state[k];
     }
-    schedulePersist(storageKey, data);
+    schedulePersist(domain, data);
   });
 
-  // Hydrate function
   (store as any).hydrate = async () => {
-    mark(`store:hydrate:${storageKey}`);
+    mark(`store:hydrate:${domain}`);
     try {
-      const data = await idbGet<Partial<T>>(fullKey);
+      const data = await readDomain<Partial<T>>(domain);
       if (data) {
         store.setState(data);
       }
     } catch (e) {
-      console.warn(`[PersistedStore:${storageKey}] Failed to hydrate:`, e);
+      console.warn(`[PersistedStore:${domain}] Failed to hydrate:`, e);
     }
-    measure(`store:hydrate:${storageKey}`);
+    measure(`store:hydrate:${domain}`);
   };
 }

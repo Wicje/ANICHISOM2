@@ -3,6 +3,7 @@ import { Inter, Montserrat, JetBrains_Mono, Space_Grotesk } from 'next/font/goog
 import './globals.css'; 
 import { PWASetup } from '@/components/pwa-setup';
 import { PWAInstall } from '@/components/pwa-install';
+import { GlobalErrorHandlers } from '@/components/global-error-handlers';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -50,6 +51,7 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
       </head>
       <body className="font-sans bg-black text-slate-100 antialiased selection:bg-neon-blue selection:text-black" suppressHydrationWarning>
         {children}
+        <GlobalErrorHandlers />
         <PWASetup />
         <PWAInstall />
       </body>
