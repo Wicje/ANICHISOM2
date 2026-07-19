@@ -66,9 +66,9 @@ export function LoginScreen() {
     fetch('/api/auth/bootstrap/check')
       .then(r => r.json())
       .then(data => {
-        setNeedsBootstrap(data.ok && data.data?.needsBootstrap === true);
+        setNeedsBootstrap(data.ok ? data.data?.needsBootstrap === true : true);
       })
-      .catch(() => {})
+      .catch(() => setNeedsBootstrap(true))
       .finally(() => setBootstrapChecked(true));
   }, []);
 
@@ -321,6 +321,40 @@ export function LoginScreen() {
           </div>
         </div>
 
+        {/* Bootstrap — first user setup, shown ABOVE the form */}
+        {bootstrapChecked && needsBootstrap && (
+          <div className="mb-6 p-5 rounded-xl border-2 border-dashed border-[#10F4A0]/30 bg-[#10F4A0]/[0.05]">
+            <div className="text-center mb-4">
+              <p className="text-[#10F4A0] text-sm font-bold font-mono uppercase tracking-wider">First user setup</p>
+              <p className="text-white/40 text-xs mt-2">No admin exists yet. Create the first account — no invite needed.</p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@email.com"
+                className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#10F4A0]/40"
+              />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Choose a password (min 6 chars)"
+                minLength={6}
+                className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#10F4A0]/40"
+              />
+              <button
+                onClick={handleBootstrap}
+                disabled={isLoading || !email || !password}
+                className="w-full py-3.5 rounded-lg text-sm font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-[#10F4A0] text-[#060608] hover:bg-[#0BC68A] flex items-center justify-center gap-2"
+              >
+                {isLoading ? 'Creating admin...' : 'Create Admin Account'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Error */}
         {error && (
           <div className="w-full bg-red-500/[0.08] border border-red-500/20 text-red-300/90 text-xs p-3.5 flex items-start gap-3 mb-5 rounded-lg font-mono">
@@ -458,19 +492,6 @@ export function LoginScreen() {
             {isLoading ? 'Authenticating...' : mode === 'login' ? 'Sign In' : 'Create Account'}
           </button>
         </form>
-
-        {/* Bootstrap — only visible when no admin exists */}
-        {bootstrapChecked && needsBootstrap && (
-          <div className="mt-4 text-center">
-            <button
-              onClick={handleBootstrap}
-              disabled={isLoading || !email || !password}
-              className="text-white/30 hover:text-[#10F4A0]/80 text-[10px] uppercase tracking-[0.2em] transition-colors font-mono disabled:opacity-20"
-            >
-              First user? Create admin account without invite
-            </button>
-          </div>
-        )}
 
         {/* Mode toggle */}
         <div className="mt-5 text-center">

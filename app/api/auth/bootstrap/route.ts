@@ -14,14 +14,23 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
 
-    // Check if any admin user already exists
-    const { data: existingAdmin } = await supabase
-      .from('users')
-      .select('id')
-      .eq('is_admin', true)
-      .limit(1);
+    // Check if any admin user already exists (skip if table doesn't exist)
+    let adminExists = false;
+    try {
+      const { data: existingAdmin, error: adminCheckErr } = await supabase
+        .from('users')
+        .select('id')
+        .eq('is_admin', true)
+        .limit(1);
 
-    if (existingAdmin && existingAdmin.length > 0) {
+      if (!adminCheckErr && existingAdmin && existingAdmin.length > 0) {
+        adminExists = true;
+      }
+    } catch {
+      // users table may not exist yet — allow bootstrap
+    }
+
+    if (adminExists) {
       return apiError('Admin account already exists. Use the invite system instead.', 403);
     }
 
