@@ -460,12 +460,12 @@ export function LoginScreen() {
         </form>
 
         {/* Bootstrap — only visible when no admin exists */}
-        {mode === 'signup' && bootstrapChecked && needsBootstrap && (
+        {bootstrapChecked && needsBootstrap && (
           <div className="mt-4 text-center">
             <button
               onClick={handleBootstrap}
               disabled={isLoading || !email || !password}
-              className="text-white/15 hover:text-[#10F4A0]/60 text-[10px] uppercase tracking-[0.2em] transition-colors font-mono disabled:opacity-20"
+              className="text-white/30 hover:text-[#10F4A0]/80 text-[10px] uppercase tracking-[0.2em] transition-colors font-mono disabled:opacity-20"
             >
               First user? Create admin account without invite
             </button>
