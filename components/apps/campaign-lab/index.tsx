@@ -8,7 +8,7 @@ import {
   ChevronRight, Globe, Lock, Search, Image as ImageIcon, Palette, Layout, CheckCircle, Send,
   Type, AtSign, Copy, Share2, Undo2, Redo2, Star, Trash, Clock, Brain, Sparkles,
   Eye, MessageSquare, Edit3, Shield, X, Users, Link2, Mail, ExternalLink, Camera,
-  Bell, Target, Layers, ListTodo
+  Bell, Target, Layers, ListTodo, LayoutDashboard, FileText, Folder
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +19,10 @@ import { useCampaignStore } from '@/lib/stores/campaign.store';
 import { CursorOverlay } from './components/CursorOverlay';
 import { SidebarSections } from './components/PageTree';
 import { BlockEditor } from './components/BlockEditor';
+import CommandCenter from '@/components/campaignlab/project-dashboard';
+import AudienceHub from '@/components/campaignlab/community-page';
+import AssetsLibrary from '@/components/campaignlab/file-management';
+import { TimelineView as CampaignTimeline } from '@/components/campaignlab/timeline-view';
 
 const LEVEL_ICONS: Record<PageLevel, React.ComponentType<{ className?: string }>> = {
   campaign: Target,
@@ -30,6 +34,7 @@ const LEVEL_ICONS: Record<PageLevel, React.ComponentType<{ className?: string }>
 export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
   const { currentUser, workspaceMode, openWindow } = useOS();
   const store = useCampaignStore();
+  const [activeView, setActiveView] = React.useState<'page' | 'dashboard' | 'timeline' | 'audience' | 'assets'>('dashboard');
   const [moreMenuOpen, setMoreMenuOpen] = React.useState(false);
   const moreMenuRef = React.useRef<HTMLDivElement>(null);
 
@@ -167,6 +172,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
       });
     });
     setActivePageId(parentId);
+    setActiveView('page');
   }, [databaseStore, updateDatabase, pages.length, updateYPage, setActivePageId]);
 
   const deletePage = useCallback((id: string, e?: React.MouseEvent) => {
@@ -252,15 +258,38 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
             </button>
           </div>
 
-          <SidebarSections
-            pages={pages}
-            activePageId={activePageId}
-            setActivePageId={setActivePageId}
-            updatePage={updatePage}
-            addPage={addPage}
-            deletePage={deletePage}
-            restorePage={restorePage}
-          />
+          <div className="px-3 border-b border-black/5 pb-3 pt-2">
+            <div className="text-xs font-semibold text-[#37352f]/50 uppercase tracking-wider mb-2">Views</div>
+            <div className="flex flex-col gap-1">
+              <button onClick={() => setActiveView('dashboard')} className={cn("flex items-center gap-2 text-xs p-2 rounded text-left transition-colors", activeView === 'dashboard' ? "bg-black/5 text-[#37352f] font-medium" : "text-[#37352f]/70 hover:bg-black/5")}>
+                <LayoutDashboard className="w-4 h-4 text-indigo-500" /> Command Center
+              </button>
+              <button onClick={() => setActiveView('timeline')} className={cn("flex items-center gap-2 text-xs p-2 rounded text-left transition-colors", activeView === 'timeline' ? "bg-black/5 text-[#37352f] font-medium" : "text-[#37352f]/70 hover:bg-black/5")}>
+                <Clock className="w-4 h-4 text-blue-500" /> Timeline
+              </button>
+              <button onClick={() => setActiveView('audience')} className={cn("flex items-center gap-2 text-xs p-2 rounded text-left transition-colors", activeView === 'audience' ? "bg-black/5 text-[#37352f] font-medium" : "text-[#37352f]/70 hover:bg-black/5")}>
+                <Users className="w-4 h-4 text-rose-500" /> Audience Hub
+              </button>
+              <button onClick={() => setActiveView('assets')} className={cn("flex items-center gap-2 text-xs p-2 rounded text-left transition-colors", activeView === 'assets' ? "bg-black/5 text-[#37352f] font-medium" : "text-[#37352f]/70 hover:bg-black/5")}>
+                <Folder className="w-4 h-4 text-amber-500" /> Assets Library
+              </button>
+              <button onClick={() => setActiveView('page')} className={cn("flex items-center gap-2 text-xs p-2 rounded text-left transition-colors", activeView === 'page' ? "bg-black/5 text-[#37352f] font-medium" : "text-[#37352f]/70 hover:bg-black/5")}>
+                <FileText className="w-4 h-4 text-emerald-500" /> Docs & Pages
+              </button>
+            </div>
+          </div>
+
+          <div className={cn("flex-1 overflow-y-auto transition-opacity", activeView === 'page' ? 'opacity-100' : 'opacity-40 pointer-events-none')}>
+            <SidebarSections
+              pages={pages}
+              activePageId={activePageId}
+              setActivePageId={(id) => { setActivePageId(id); setActiveView('page'); }}
+              updatePage={updatePage}
+              addPage={addPage}
+              deletePage={deletePage}
+              restorePage={restorePage}
+            />
+          </div>
 
           {/* Templates */}
           <div className="px-3 border-t border-black/5 pt-3 pb-1">
@@ -470,8 +499,16 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
           </div>
         </div>
 
-        {/* Page Content */}
-        {activePage ? (
+        {/* Dynamic View Content */}
+        {activeView === 'dashboard' ? (
+          <CommandCenter />
+        ) : activeView === 'timeline' ? (
+          <CampaignTimeline />
+        ) : activeView === 'audience' ? (
+          <AudienceHub />
+        ) : activeView === 'assets' ? (
+          <AssetsLibrary />
+        ) : activeView === 'page' && activePage ? (
           <div className="max-w-4xl w-full mx-auto px-12 py-8 flex-1 flex flex-col focus-within:ring-0 pb-32">
             {/* Hierarchy level badge */}
             {activePage.level && (
@@ -605,7 +642,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-[#37352f]/40 text-sm gap-4">
             <div className="text-6xl">🎯</div>
-            <div className="text-lg font-medium text-[#37352f]/60">Select or create a campaign</div>
+            <div className="text-lg font-medium text-[#37352f]/60">Select or create a campaign document</div>
             <div className="flex gap-2">
               {TEMPLATES.slice(0, 4).map(t => (
                 <button key={t.name} onClick={() => applyTemplate(t)} className="flex items-center gap-2 px-4 py-2 bg-white border border-black/10 rounded-lg text-sm hover:bg-black/5 transition-colors">

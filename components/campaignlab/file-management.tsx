@@ -1,284 +1,233 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
-  LayoutDashboard, Calendar, Inbox, CheckSquare, Users, Folder,
-  ChevronDown, ChevronRight, Plus, Search, List, Grid3x3
+  UploadCloud, Image as ImageIcon, Video, FileText, PenTool,
+  Search, Grid3x3, List, MoreVertical, Plus, Download, Trash2, Folder, HardDrive, LayoutTemplate
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useCampaignStore } from '@/lib/stores/campaign.store';
-import type { Page, Block } from '@/lib/campaign-types';
+import { writeBlob } from '@/lib/context-layer';
 
-const AVATAR_COLORS = ['bg-pink-400', 'bg-blue-400', 'bg-purple-400', 'bg-green-400', 'bg-amber-400'];
+type FileType = 'image' | 'video' | 'copy' | 'design' | 'template';
 
-function getAvatarColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]!;
-}
-
-function formatDate(ts: number): string {
-  const d = new Date(ts);
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${days[d.getDay()]}, ${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()}`;
-}
-
-interface FolderItem {
+interface AssetFile {
+  id: string;
   name: string;
-  files: number;
+  type: FileType;
+  url: string | null;
   size: string;
-}
-
-interface FileRow {
-  name: string;
   date: string;
-  addedBy: string;
-  avatarColor: string;
 }
 
-const sidebarTree = [
-  { label: 'Dashboard', count: 48 },
-  { label: 'Calendar', count: 12 },
-  { label: 'Inbox', count: 127 },
-  { label: 'My Tasks', count: 21 },
+const TEMPLATES: AssetFile[] = [
+  { id: 't1', name: 'IG Story (1080x1920)', type: 'template', url: null, size: '2 MB', date: 'Today' },
+  { id: 't2', name: 'Email Header (600x200)', type: 'template', url: null, size: '1.5 MB', date: 'Yesterday' },
+  { id: 't3', name: 'FB Ad (1200x628)', type: 'template', url: null, size: '3.1 MB', date: '2 days ago' },
 ];
 
-const neuralinkTree: Array<{ label: string; count?: number; indent?: boolean; expanded?: boolean; active?: boolean; children?: Array<{ label: string; count?: number; indent?: boolean; active?: boolean }> }> = [
-  { label: 'Operations', count: 48, indent: true },
-  { label: 'Folders', count: 12, indent: true, expanded: true, children: [
-    { label: 'Documents', indent: true, active: true },
-    { label: 'Sprint 28 - Product Spec', indent: true },
-    { label: 'Design System Update', indent: true },
-  ]},
-  { label: 'Tasks', count: 127, indent: true },
-  { label: 'Activity', count: 54, indent: true },
-  { label: 'Channels', count: 12, indent: true },
-];
+const ICONS = {
+  image: <ImageIcon className="w-5 h-5 text-blue-500" />,
+  video: <Video className="w-5 h-5 text-purple-500" />,
+  copy: <FileText className="w-5 h-5 text-amber-500" />,
+  design: <PenTool className="w-5 h-5 text-rose-500" />,
+  template: <LayoutTemplate className="w-5 h-5 text-emerald-500" />
+};
 
-export function FileManagement({ window: osWindow }: { window?: any }) {
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-  const [activeSidebar, setActiveSidebar] = useState('Dashboard');
-  const pages = useCampaignStore((s) => s.pages);
+export function AssetsLibrary({ window: osWindow }: { window?: any }) {
+  const [files, setFiles] = useState<AssetFile[]>([...TEMPLATES]);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [filter, setFilter] = useState<FileType | 'all'>('all');
+  const [search, setSearch] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const folders: FolderItem[] = useMemo(() => {
-    return pages
-      .filter((p) => p.level === 'campaign' && !p.trash)
-      .map((p) => ({
-        name: p.title,
-        files: p.blocks?.length || 0,
-        size: `${p.blocks?.length || 0} blocks`,
-      }));
-  }, [pages]);
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
 
-  const files: FileRow[] = useMemo(() => {
-    return pages
-      .filter((p) => p.level !== 'campaign' && !p.trash)
-      .sort((a, b) => b.updatedAt - a.updatedAt)
-      .map((p) => ({
-        name: p.title,
-        date: formatDate(p.updatedAt),
-        addedBy: p.assignee || 'Unknown',
-        avatarColor: getAvatarColor(p.assignee || 'Unknown'),
-      }));
-  }, [pages]);
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const processFiles = async (fileList: FileList | null) => {
+    if (!fileList) return;
+    const newFiles: AssetFile[] = [];
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      if (!file) continue;
+      const fileId = crypto.randomUUID();
+      await writeBlob(fileId, file);
+      
+      let type: FileType = 'copy';
+      if (file.type.startsWith('image/')) type = 'image';
+      else if (file.type.startsWith('video/')) type = 'video';
+      else if (file.name.endsWith('.ai') || file.name.endsWith('.psd') || file.name.endsWith('.fig')) type = 'design';
+
+      newFiles.push({
+        id: fileId,
+        name: file.name,
+        type,
+        url: URL.createObjectURL(file), // create local preview
+        size: (file.size / 1024 / 1024).toFixed(1) + ' MB',
+        date: 'Just now'
+      });
+    }
+    setFiles(prev => [...newFiles, ...prev]);
+  };
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    await processFiles(e.dataTransfer.files);
+  }, []);
+
+  const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    await processFiles(e.target.files);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDelete = (id: string) => {
+    setFiles(prev => prev.filter(f => f.id !== id));
+  };
+
+  const filteredFiles = files.filter(f => 
+    (filter === 'all' || f.type === filter) && 
+    f.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <div className="w-full h-full flex bg-[#f8f7f4] font-sans overflow-hidden rounded-xl">
-      {/* Sidebar */}
-      <div className="w-56 flex flex-col shrink-0 border-r border-gray-200/80 bg-white/80 backdrop-blur-xl">
-        {/* Logo */}
-        <div className="px-4 py-4 flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-            <span className="text-white text-xs font-bold">S</span>
-          </div>
-          <span className="text-sm font-bold text-gray-900">Synapse</span>
+    <div className="w-full h-full flex flex-col bg-slate-50 font-sans text-slate-900">
+      <div className="px-8 py-6 bg-white border-b border-black/5 flex items-center justify-between shrink-0">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Folder className="w-6 h-6 text-blue-500" />
+            Assets Library
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">Manage and organize your campaign files and templates.</p>
         </div>
-
-        <div className="flex-1 overflow-y-auto px-3 py-2">
-          {/* Folders */}
-          <div className="mb-4">
-            <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Folders</div>
-            <div className="flex flex-col gap-0.5">
-              {sidebarTree.map((item, i) => (
-                <button key={i} onClick={() => setActiveSidebar(item.label)} className={cn("flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-colors", activeSidebar === item.label ? "bg-gray-100 text-gray-900 font-medium" : "text-gray-600 hover:bg-gray-50")}>
-                  <div className="flex items-center gap-2">
-                    {item.label === 'Dashboard' && <LayoutDashboard className="w-3.5 h-3.5 text-gray-400" />}
-                    {item.label === 'Calendar' && <Calendar className="w-3.5 h-3.5 text-gray-400" />}
-                    {item.label === 'Inbox' && <Inbox className="w-3.5 h-3.5 text-gray-400" />}
-                    {item.label === 'My Tasks' && <CheckSquare className="w-3.5 h-3.5 text-gray-400" />}
-                    {item.label}
-                  </div>
-                  <span className="text-[10px] text-gray-400">{item.count}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Neuralink Space */}
-          <div className="mb-4">
-            <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Neuralink Space</div>
-            <div className="flex flex-col gap-0.5">
-              {neuralinkTree.map((item, i) => (
-                <React.Fragment key={i}>
-                  <button onClick={() => setActiveSidebar(item.label)} className={cn(
-                    "flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-colors",
-                    activeSidebar === item.label ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-600 hover:bg-gray-50"
-                  )}>
-                    <div className="flex items-center gap-2">
-                      {item.expanded ? <ChevronDown className="w-3 h-3 text-gray-400" /> : item.children ? <ChevronRight className="w-3 h-3 text-gray-400" /> : <div className="w-3" />}
-                      {item.label === 'Operations' && <Users className="w-3.5 h-3.5 text-gray-400" />}
-                      {item.label === 'Folders' && <Folder className="w-3.5 h-3.5 text-gray-400" />}
-                      {item.label === 'Tasks' && <CheckSquare className="w-3.5 h-3.5 text-gray-400" />}
-                      {item.label === 'Activity' && <Calendar className="w-3.5 h-3.5 text-gray-400" />}
-                      {item.label === 'Channels' && <Inbox className="w-3.5 h-3.5 text-gray-400" />}
-                      {item.label}
-                    </div>
-                    {item.count !== undefined && <span className="text-[10px] text-gray-400">{item.count}</span>}
-                  </button>
-                  {item.children?.map((child, ci) => (
-                    <button key={ci} className={cn(
-                      "flex items-center gap-2 pl-8 pr-3 py-1.5 rounded-lg text-xs transition-colors",
-                      child.active ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-500 hover:bg-gray-50"
-                    )}>
-                      <Folder className="w-3.5 h-3.5 text-gray-400" />
-                      {child.label}
-                    </button>
-                  ))}
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
-
-          {/* Tags */}
-          <div>
-            <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tags</div>
-            <div className="flex flex-col gap-0.5 px-3">
-              {[
-                { color: 'bg-red-500', label: 'Important', count: 12 },
-                { color: 'bg-yellow-500', label: 'Normal', count: 47 },
-              ].map((tag, i) => (
-                <div key={i} className="flex items-center justify-between py-1.5 text-xs text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <div className={cn("w-2 h-2 rounded-full", tag.color)} />
-                    {tag.label}
-                  </div>
-                  <span className="text-[10px] text-gray-400">{tag.count}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className="flex gap-2">
+          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-black/10 rounded-lg text-sm font-medium hover:bg-slate-50">
+            <HardDrive className="w-4 h-4 text-slate-500" /> Import from Drive
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 shadow-sm">
+            <Plus className="w-4 h-4" /> Upload Files
+          </button>
+          <input type="file" ref={fileInputRef} className="hidden" multiple onChange={handleFileInput} />
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 shrink-0">
-          <div className="flex items-center gap-2 text-xs text-gray-400 mb-3">
-            <span>📁 Docs</span>
-            <ChevronRight className="w-3 h-3" />
-            <span className="text-gray-700 font-medium">Meeting Notes</span>
+      <div className="flex-1 flex overflow-hidden">
+        {/* Sidebar filters */}
+        <div className="w-56 shrink-0 bg-white border-r border-black/5 p-4 flex flex-col">
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-2">File Types</div>
+          <div className="space-y-1">
+            {(['all', 'image', 'video', 'design', 'copy', 'template'] as const).map(t => (
+              <button key={t} onClick={() => setFilter(t)} className={cn("w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium capitalize transition-colors", filter === t ? "bg-blue-50 text-blue-600" : "text-slate-600 hover:bg-slate-50")}>
+                {t === 'all' ? <Grid3x3 className="w-4 h-4" /> : ICONS[t as FileType]}
+                {t}
+              </button>
+            ))}
           </div>
+        </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-lg font-bold text-gray-900">Documents</h1>
-              <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
-                <button onClick={() => setViewMode('list')} className={cn("px-3 py-1 rounded-md text-xs font-medium transition-colors", viewMode === 'list' ? "text-gray-700 bg-white shadow-sm" : "text-gray-500 hover:text-gray-700")}>List View</button>
-                <button onClick={() => setViewMode('grid')} className={cn("px-3 py-1 rounded-md text-xs font-medium transition-colors", viewMode === 'grid' ? "text-gray-700 bg-white shadow-sm" : "text-gray-500 hover:text-gray-700")}>
-                  <Grid3x3 className="w-3.5 h-3.5 inline mr-1" />
-                  Grid
-                </button>
-              </div>
+        {/* Main Content */}
+        <div 
+          className="flex-1 flex flex-col relative"
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          {isDragging && (
+            <div className="absolute inset-0 z-50 bg-blue-500/10 border-4 border-dashed border-blue-500 rounded-xl m-4 flex flex-col items-center justify-center pointer-events-none backdrop-blur-sm">
+              <UploadCloud className="w-16 h-16 text-blue-500 mb-4" />
+              <h2 className="text-2xl font-bold text-blue-600">Drop files to upload</h2>
+              <p className="text-blue-500 font-medium">Files will be saved as local blobs</p>
+            </div>
+          )}
+
+          <div className="p-4 border-b border-black/5 flex items-center justify-between shrink-0 bg-white/50 backdrop-blur">
+            <div className="relative w-64">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input type="text" placeholder="Search assets..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-4 py-1.5 text-sm border border-black/10 rounded-lg outline-none focus:border-blue-500 bg-white" />
+            </div>
+            <div className="flex bg-white rounded-lg border border-black/10 p-0.5">
+              <button onClick={() => setViewMode('grid')} className={cn("p-1.5 rounded-md transition-colors", viewMode === 'grid' ? "bg-slate-100 text-slate-900" : "text-slate-400 hover:text-slate-600")}><Grid3x3 className="w-4 h-4" /></button>
+              <button onClick={() => setViewMode('list')} className={cn("p-1.5 rounded-md transition-colors", viewMode === 'list' ? "bg-slate-100 text-slate-900" : "text-slate-400 hover:text-slate-600")}><List className="w-4 h-4" /></button>
             </div>
           </div>
 
-          <div className="mt-3 text-xs text-gray-500">Recent {files.length}</div>
-        </div>
-
-        {/* Folder cards */}
-        <div className="px-6 py-4 border-b border-gray-100">
-          <div className={cn(viewMode === 'grid' ? "grid grid-cols-3 gap-4" : "flex gap-4")}>
-            {folders.map((folder, i) => (
-              <div key={i} className="flex-1 bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition-shadow cursor-pointer">
-                <div className="w-14 h-12 mb-3">
-                  <svg viewBox="0 0 60 50" fill="none" className="w-full h-full">
-                    <path d="M3 10C3 7.23858 5.23858 5 8 5H22L27 10H52C54.7614 10 57 12.2386 57 15V40C57 42.7614 54.7614 45 52 45H8C5.23858 45 3 42.7614 3 40V10Z" fill="url(#fmFolderGrad)" />
-                    <path d="M3 15C3 12.2386 5.23858 10 8 10H52C54.7614 10 57 12.2386 57 15V17H3V15Z" fill="url(#fmFolderTop)" />
-                    <defs>
-                      <linearGradient id="fmFolderGrad" x1="3" y1="5" x2="57" y2="45" gradientUnits="userSpaceOnUse">
-                        <stop stopColor="#60B3F7" /><stop offset="1" stopColor="#3B82F6" />
-                      </linearGradient>
-                      <linearGradient id="fmFolderTop" x1="3" y1="10" x2="57" y2="17" gradientUnits="userSpaceOnUse">
-                        <stop stopColor="#93C5FD" /><stop offset="1" stopColor="#60B3F7" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                </div>
-                <div className="text-xs font-semibold text-gray-900 mb-0.5">{folder.name}</div>
-                <div className="text-[10px] text-gray-400">{folder.files} Files · {folder.size}</div>
+          <div className="flex-1 overflow-y-auto p-6">
+            {filteredFiles.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                <UploadCloud className="w-12 h-12 mb-4 opacity-50" />
+                <p>No files found.</p>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* File list */}
-        <div className="flex-1 overflow-y-auto">
-          {viewMode === 'list' ? (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left px-6 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">File name</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Date added</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Added by</th>
-              </tr>
-            </thead>
-            <tbody>
-              {files.map((file, i) => (
-                <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50 cursor-pointer">
-                  <td className="px-6 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                        <span className="text-blue-500 text-xs">📄</span>
+            ) : viewMode === 'grid' ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {filteredFiles.map(file => (
+                  <div key={file.id} className="bg-white border border-black/5 rounded-xl overflow-hidden hover:shadow-md transition-shadow group relative flex flex-col">
+                    <div className="aspect-square bg-slate-50 flex items-center justify-center relative p-4">
+                      {file.type === 'image' && file.url ? (
+                        <img src={file.url} alt="" className="w-full h-full object-contain" />
+                      ) : (
+                        <div className="scale-[2] opacity-50">{ICONS[file.type]}</div>
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <button className="p-2 bg-white rounded-full text-slate-900 hover:scale-110 transition-transform"><Download className="w-4 h-4" /></button>
+                        <button onClick={() => handleDelete(file.id)} className="p-2 bg-red-500 rounded-full text-white hover:scale-110 transition-transform"><Trash2 className="w-4 h-4" /></button>
                       </div>
-                      <span className="text-xs font-medium text-gray-700">{file.name}</span>
                     </div>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500">{file.date}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className={cn("w-5 h-5 rounded-full", file.avatarColor)} />
-                      <span className="text-xs text-gray-500">{file.addedBy}</span>
+                    <div className="p-3 border-t border-black/5 flex-1 flex flex-col justify-center">
+                      <div className="text-sm font-medium text-slate-800 truncate" title={file.name}>{file.name}</div>
+                      <div className="text-xs text-slate-400 flex justify-between mt-1">
+                        <span>{file.size}</span>
+                        <span>{file.date}</span>
+                      </div>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          ) : (
-          <div className="grid grid-cols-3 gap-4 p-6">
-            {files.map((file, i) => (
-              <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition-shadow cursor-pointer">
-                <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mb-3">
-                  <span className="text-blue-500 text-sm">📄</span>
-                </div>
-                <div className="text-xs font-medium text-gray-700 mb-1">{file.name}</div>
-                <div className="text-[10px] text-gray-400">{file.date}</div>
-                <div className="flex items-center gap-1.5 mt-2">
-                  <div className={cn("w-4 h-4 rounded-full", file.avatarColor)} />
-                  <span className="text-[10px] text-gray-500">{file.addedBy}</span>
-                </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            ) : (
+              <div className="bg-white border border-black/5 rounded-xl overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 border-b border-black/5">
+                    <tr>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Name</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Size</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Date</th>
+                      <th className="px-4 py-3 text-right"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredFiles.map(file => (
+                      <tr key={file.id} className="border-b border-black/5 last:border-0 hover:bg-slate-50/50 group">
+                        <td className="px-4 py-3 flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                            {ICONS[file.type]}
+                          </div>
+                          <span className="text-sm font-medium text-slate-800">{file.name}</span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-slate-500">{file.size}</td>
+                        <td className="px-4 py-3 text-sm text-slate-500">{file.date}</td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="opacity-0 group-hover:opacity-100 flex justify-end gap-2 transition-opacity">
+                            <button className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded"><Download className="w-4 h-4" /></button>
+                            <button onClick={() => handleDelete(file.id)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-          )}
         </div>
       </div>
     </div>
   );
 }
 
-export default FileManagement;
+export default AssetsLibrary;

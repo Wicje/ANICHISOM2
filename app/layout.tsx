@@ -4,6 +4,7 @@ import './globals.css';
 import { PWASetup } from '@/components/pwa-setup';
 import { PWAInstall } from '@/components/pwa-install';
 import { GlobalErrorHandlers } from '@/components/global-error-handlers';
+import { HelpModal } from '@/components/help/help-modal';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -54,6 +55,7 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
         <GlobalErrorHandlers />
         <PWASetup />
         <PWAInstall />
+        <HelpModal />
       </body>
     </html>
   );

@@ -62,15 +62,8 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
   'movie-browser': () => import('@/components/media/movie-browser'),
   'books-collection': () => import('@/components/media/books-collection'),
   'bookmarks-sidebar': () => import('@/components/notifications/bookmarks-sidebar'),
-  'campaign-dashboard': () => import('@/components/campaignlab/project-dashboard'),
-  'campaign-timeline': () => import('@/components/campaignlab/timeline-view'),
-  'campaign-community': () => import('@/components/campaignlab/community-page'),
   'digital-journal': () => import('@/components/campaignlab/digital-journal'),
-  'campaign-files': () => import('@/components/campaignlab/file-management'),
-  'canvas-board': () => import('@/components/moodboard/canvas-board'),
   'digital-library': () => import('@/components/moodboard/digital-library'),
-  'nothing-product': () => import('@/components/moodboard/nothing-product'),
-  'samur-ai-board': () => import('@/components/moodboard/samur-ai-board'),
   'notification-settings': () => import('@/components/settings/notification-settings'),
   'analytics': () => import('@/components/apps/analytics/dashboard'),
 };
@@ -199,17 +192,10 @@ export const APP_MANIFEST: AppManifestEntry[] = [
   { id: 'bookmarks-sidebar', component: null as any, icon: Bookmark, iconImage: ICO.mail, title: 'Bookmarks', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'Save and organize your favorite bookmarks' },
 
   // Campaign Lab Views
-  { id: 'campaign-dashboard', component: null as any, icon: Layout, iconImage: ICO.layout, title: 'Campaign Dashboard', roles: ['admin', 'filmmaker', 'marketer'], isCore: false, category: 'productivity', description: 'Campaign project dashboard and overview' },
-  { id: 'campaign-timeline', component: null as any, icon: Clock, iconImage: ICO.clock, title: 'Campaign Timeline', roles: ['admin', 'filmmaker', 'marketer'], isCore: false, category: 'productivity', description: 'Campaign timeline and scheduling view' },
-  { id: 'campaign-community', component: null as any, icon: Users, iconImage: ICO.users, title: 'Campaign Community', roles: ['admin', 'filmmaker', 'marketer'], isCore: false, category: 'social', description: 'Campaign community and collaboration page' },
   { id: 'digital-journal', component: null as any, icon: FileText, iconImage: ICO.book, title: 'Digital Journal', roles: ['admin', 'filmmaker', 'user', 'technician'], isCore: false, category: 'productivity', description: 'Digital journal and notes' },
-  { id: 'campaign-files', component: null as any, icon: FolderOpen, iconImage: ICO.files, title: 'Campaign Files', roles: ['admin', 'filmmaker', 'marketer'], isCore: false, category: 'productivity', description: 'Campaign file management' },
 
   // Moodboard Views
-  { id: 'canvas-board', component: null as any, icon: Palette, iconImage: ICO.moodboard, title: 'Canvas Board', roles: ['admin', 'filmmaker', 'designer', 'user'], isCore: false, category: 'creative', description: 'Visual canvas board for notes and images' },
   { id: 'digital-library', component: null as any, icon: BookOpen, iconImage: ICO.book, title: 'Digital Library', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'Digital asset library and collection' },
-  { id: 'nothing-product', component: null as any, icon: Eye, iconImage: ICO.eye, title: 'Nothing Product', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'Product visualization board' },
-  { id: 'samur-ai-board', component: null as any, icon: Sparkles, iconImage: ICO.sparkles, title: 'SamurAI Board', roles: ['admin', 'filmmaker', 'designer'], isCore: false, category: 'creative', description: 'AI-powered creative board' },
 
   // Dock & Widgets
   { id: 'notification-settings', component: null as any, icon: Activity, iconImage: ICO.notification, title: 'Activity Monitor', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'system', description: 'Real-time system event timeline and activity log' },
