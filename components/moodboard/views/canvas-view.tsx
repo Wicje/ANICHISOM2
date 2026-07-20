@@ -44,6 +44,7 @@ export function CanvasView(props: CanvasViewProps) {
   const [isPanning, setIsPanning] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [dragLocalPos, setDragLocalPos] = useState<{ x: number; y: number } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
@@ -61,15 +62,19 @@ export function CanvasView(props: CanvasViewProps) {
     if (draggingId) {
       const x = (e.clientX - dragOffset.x - camera.x) / camera.z;
       const y = (e.clientY - dragOffset.y - camera.y) / camera.z;
-      updateNodePosition(draggingId, x, y);
+      setDragLocalPos({ x, y });
     }
-  }, [isPanning, draggingId, dragOffset, camera, setCamera, updateNodePosition]);
+  }, [isPanning, draggingId, dragOffset, camera, setCamera]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     setIsPanning(false);
+    if (draggingId && dragLocalPos) {
+      updateNodePosition(draggingId, dragLocalPos.x, dragLocalPos.y);
+    }
     setDraggingId(null);
+    setDragLocalPos(null);
     e.currentTarget.releasePointerCapture(e.pointerId);
-  }, []);
+  }, [draggingId, dragLocalPos, updateNodePosition]);
 
   const handleNodePointerDown = useCallback((e: React.PointerEvent, node: BoardNode) => {
     e.stopPropagation();
@@ -128,7 +133,23 @@ export function CanvasView(props: CanvasViewProps) {
     _updateYNode({ id: newId, type: 'text', x: 200, y: 200, content: '☐ Item 1\n☐ Item 2\n☐ Item 3', width: 180, height: 120 });
   }, [_updateYNode]);
 
-  const cards = nodes.map((node, i) => ({
+  // Viewport Culling (Virtualization)
+  const visibleNodes = React.useMemo(() => {
+    const buffer = 300 / camera.z;
+    const viewLeft = -camera.x / camera.z - buffer;
+    const viewTop = -camera.y / camera.z - buffer;
+    const viewRight = (props.osWindow.width - camera.x) / camera.z + buffer;
+    const viewBottom = (props.osWindow.height - camera.y) / camera.z + buffer;
+
+    return nodes.filter(n => {
+      const w = n.width || 200;
+      const h = n.height || 200;
+      return n.x < viewRight && (n.x + w) > viewLeft &&
+             n.y < viewBottom && (n.y + h) > viewTop;
+    });
+  }, [nodes, camera, props.osWindow.width, props.osWindow.height]);
+
+  const cards = visibleNodes.map((node, i) => ({
     ...node,
     rotation: ((i * 7) % 7) - 3,
   }));
@@ -177,8 +198,8 @@ export function CanvasView(props: CanvasViewProps) {
                 draggingId === card.id && "z-50"
               )}
               style={{
-                left: card.x,
-                top: card.y,
+                left: draggingId === card.id && dragLocalPos ? dragLocalPos.x : card.x,
+                top: draggingId === card.id && dragLocalPos ? dragLocalPos.y : card.y,
                 width: card.width || 140,
                 height: card.height || 100,
                 transform: `rotate(${card.rotation || 0}deg)`,

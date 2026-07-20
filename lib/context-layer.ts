@@ -12,7 +12,7 @@
  * In Agency mode: IDB + API mirror (cross-device sync)
  */
 
-import { get as idbGet, set as idbSet } from 'idb-keyval';
+import { get as idbGet, set as idbSet, keys as idbKeys, del as idbDel } from 'idb-keyval';
 import { mark, measure } from '@/lib/perf';
 
 const STORAGE_PREFIX = 'continua-';
@@ -173,14 +173,44 @@ export async function importContext(context: Record<string, unknown>): Promise<v
 const BLOB_PREFIX = 'continua-blob:';
 
 /**
+ * Check if the browser is approaching its storage quota (e.g. >90% full).
+ */
+export async function isStorageQuotaExceeded(): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.estimate) {
+    try {
+      const { usage, quota } = await navigator.storage.estimate();
+      if (usage !== undefined && quota !== undefined) {
+        // If usage is above 90% of quota
+        return (usage / quota) > 0.9;
+      }
+    } catch (e) {
+      console.warn('[ContextLayer] Failed to estimate storage:', e);
+    }
+  }
+  return false;
+}
+
+/**
  * Store a blob (binary data) in IDB.
  * Used by moodboard for images/videos that can't go through JSON domain sync.
  */
-export async function writeBlob(key: string, data: Blob | ArrayBuffer): Promise<void> {
+export async function writeBlob(key: string, data: Blob | ArrayBuffer): Promise<boolean> {
   try {
+    const isExceeded = await isStorageQuotaExceeded();
+    if (isExceeded) {
+      console.error('[ContextLayer] Quota exceeded. Cannot save blob:', key);
+      // Dispatch an event so the UI can show a warning toast
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('continua-storage-warning'));
+      }
+      return false; // Failed to write due to space
+    }
+
     await idbSet(`${BLOB_PREFIX}${key}`, data);
+    return true;
   } catch (e) {
     console.warn(`[ContextLayer] Blob write failed for ${key}:`, e);
+    return false;
   }
 }
 
@@ -197,9 +227,92 @@ export async function readBlob<T = Blob | ArrayBuffer>(key: string): Promise<T |
   }
 }
 
+/**
+ * Delete a blob from IDB.
+ */
+export async function deleteBlob(key: string): Promise<void> {
+  try {
+    await idbDel(`${BLOB_PREFIX}${key}`);
+  } catch (e) {
+    console.warn(`[ContextLayer] Blob delete failed for ${key}:`, e);
+  }
+}
+
+/**
+ * Garbage collect unused blobs.
+ * @param activeKeys Set of blob IDs (without prefix) currently in use.
+ */
+export async function garbageCollectBlobs(activeKeys: Set<string>): Promise<number> {
+  try {
+    const allKeys = await idbKeys();
+    let deletedCount = 0;
+    for (const key of allKeys) {
+      if (typeof key === 'string' && key.startsWith(BLOB_PREFIX)) {
+        const blobId = key.substring(BLOB_PREFIX.length);
+        if (!activeKeys.has(blobId)) {
+          await idbDel(key);
+          deletedCount++;
+        }
+      }
+    }
+    return deletedCount;
+  } catch (e) {
+    console.warn('[ContextLayer] Blob garbage collection failed:', e);
+    return 0;
+  }
+}
+
 // ─── Cloud Sync (via API routes → Context Kernel) ────────────────
 
 let syncInProgress = false;
+
+// ─── Offline Blob Sync Queue ─────────────────────────────────────
+const PENDING_BLOBS_KEY = 'continua-pending-blobs';
+
+export async function queueBlobForSync(key: string): Promise<void> {
+  try {
+    const queue = (await idbGet<string[]>(PENDING_BLOBS_KEY)) || [];
+    if (!queue.includes(key)) {
+      queue.push(key);
+      await idbSet(PENDING_BLOBS_KEY, queue);
+    }
+  } catch (e) {
+    console.warn('[ContextLayer] Failed to queue blob for sync:', e);
+  }
+}
+
+export async function processOfflineSyncQueue(): Promise<void> {
+  if (!_isOnline || config.mode !== 'agency' || !config.userId) return;
+
+  try {
+    const queue = (await idbGet<string[]>(PENDING_BLOBS_KEY)) || [];
+    if (queue.length === 0) return;
+
+    console.log(`[ContextLayer] Processing ${queue.length} offline blobs...`);
+    const remaining = [];
+
+    for (const key of queue) {
+      const blob = await readBlob(key);
+      if (blob) {
+        // Pseudo-code for cloud upload
+        // const success = await uploadToSupabase(key, blob);
+        // if (!success) remaining.push(key);
+      }
+    }
+
+    await idbSet(PENDING_BLOBS_KEY, remaining);
+  } catch (e) {
+    console.warn('[ContextLayer] Failed to process offline queue:', e);
+  }
+}
+
+// Attach to network online event
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => { 
+    _isOnline = true; 
+    processOfflineSyncQueue();
+  });
+}
 
 async function scheduleCloudSync(domain: string, data: unknown): Promise<void> {
   const key = `sync:${domain}`;

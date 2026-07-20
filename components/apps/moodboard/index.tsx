@@ -397,6 +397,21 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     return result;
   }, [nodes, activeFilter]);
 
+  const visibleNodes = useMemo(() => {
+    const buffer = 500 / camera.z;
+    const viewLeft = -camera.x / camera.z - buffer;
+    const viewTop = -camera.y / camera.z - buffer;
+    const viewRight = (osWindow.width - camera.x) / camera.z + buffer;
+    const viewBottom = (osWindow.height - camera.y) / camera.z + buffer;
+
+    return filteredNodes.filter(n => {
+      const w = n.width || 300;
+      const h = n.height || 200;
+      return n.x < viewRight && (n.x + w) > viewLeft &&
+             n.y < viewBottom && (n.y + h) > viewTop;
+    });
+  }, [filteredNodes, camera, osWindow.width, osWindow.height]);
+
   const autoArrange = useCallback(() => {
     const yNodes = collab.sharedTypesRef.current.nodes;
     if (!yNodes) return;
@@ -737,10 +752,10 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
         }}
       />
 
-      <ConnectionLines connections={connections} nodes={filteredNodes} camera={camera} />
+      <ConnectionLines connections={connections} nodes={visibleNodes} camera={camera} />
 
       <div className="absolute inset-0 origin-top-left" style={{ transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.z})` }}>
-        {filteredNodes.map(node => (
+        {visibleNodes.map(node => (
           <DraggableNode
             key={node.id}
             node={node}

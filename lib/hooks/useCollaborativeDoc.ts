@@ -382,6 +382,7 @@ export function useCollaborativeDoc(config: CollaborativeDocConfig): Collaborati
         providerRef.current = null;
       }
       if (undoManagerRef.current) {
+        try { undoManagerRef.current.destroy(); } catch {}
         undoManagerRef.current = null;
       }
       if (ydocRef.current) {

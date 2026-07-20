@@ -17,13 +17,13 @@
   --os-surface: #ffffff;
   --os-surface-elevated: #f0f0f0;
   --os-surface-dim: #e4e4e4;
-  --os-border: rgba(0, 0, 0, 0.06);
-  --os-border-strong: rgba(0, 0, 0, 0.12);
-  --os-glass-bg: rgba(255, 255, 255, 0.72);
-  --os-glass-border: rgba(255, 255, 255, 0.5);
-  --os-glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.06);
-  --os-hover: rgba(16, 244, 160, 0.08);
-  --os-active: rgba(16, 244, 160, 0.14);
+  --os-border: rgba(0, 0, 0, 0.08);
+  --os-border-strong: rgba(0, 0, 0, 0.16);
+  --os-glass-bg: rgba(255, 255, 255, 0.65);
+  --os-glass-border: rgba(255, 255, 255, 0.8);
+  --os-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --os-hover: rgba(16, 244, 160, 0.12);
+  --os-active: rgba(16, 244, 160, 0.2);
   --os-primary: #0a8f5c;
   --os-primary-container: #10F4A0;
   --os-error: #ba1a1a;
@@ -39,13 +39,13 @@
   --os-surface: #111113;
   --os-surface-elevated: #1a1a1d;
   --os-surface-dim: #0d0d0f;
-  --os-border: rgba(255, 255, 255, 0.07);
-  --os-border-strong: rgba(255, 255, 255, 0.14);
-  --os-glass-bg: rgba(18, 18, 22, 0.78);
-  --os-glass-border: rgba(255, 255, 255, 0.08);
-  --os-glass-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
-  --os-hover: rgba(16, 244, 160, 0.06);
-  --os-active: rgba(16, 244, 160, 0.12);
+  --os-border: rgba(255, 255, 255, 0.08);
+  --os-border-strong: rgba(255, 255, 255, 0.16);
+  --os-glass-bg: rgba(12, 12, 14, 0.65);
+  --os-glass-border: rgba(255, 255, 255, 0.12);
+  --os-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --os-hover: rgba(16, 244, 160, 0.08);
+  --os-active: rgba(16, 244, 160, 0.15);
   --os-primary: #10F4A0;
   --os-primary-container: #0BC68A;
   --os-error: #ffb4ab;
@@ -98,15 +98,17 @@
 @layer utilities {
   .glass-panel {
     background: var(--os-glass-bg);
-    backdrop-filter: blur(40px) saturate(180%);
+    backdrop-filter: blur(48px) saturate(200%);
+    -webkit-backdrop-filter: blur(48px) saturate(200%);
     border: 1px solid var(--os-glass-border);
-    box-shadow: var(--os-glass-shadow);
+    box-shadow: var(--os-glass-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
   .glass-panel-active {
     background: var(--os-glass-bg);
-    backdrop-filter: blur(50px) saturate(200%);
+    backdrop-filter: blur(64px) saturate(220%);
+    -webkit-backdrop-filter: blur(64px) saturate(220%);
     border: 1px solid var(--os-glass-border);
-    box-shadow: var(--os-glass-shadow), 0 0 0 1px rgba(128, 128, 128, 0.08);
+    box-shadow: var(--os-glass-shadow), 0 0 0 1px rgba(16, 244, 160, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   }
   .hide-scrollbar::-webkit-scrollbar {
     display: none;

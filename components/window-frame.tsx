@@ -9,6 +9,7 @@ import { useFocusStore } from '@/lib/stores/focus.store';
 import { X, Minus, Maximize2, Square, Lock } from 'lucide-react';
 import { getFileLockManager } from '@/lib/file-lock-manager';
 import { audioSystem } from '@/lib/services/audio-engine';
+import { ErrorBoundary } from '@/components/error-boundary';
 
 interface WindowFrameProps {
   osWindow: OSWindow;
@@ -303,7 +304,9 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
 
       {/* Window Content */}
       <div className="flex-1 overflow-hidden relative break-words" style={{ background: 'var(--os-surface)' }}>
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </div>
       
       {/* Edge & Corner Resizers */}

@@ -789,13 +789,31 @@ export function Desktop() {
 
       <CommandPalette />
 
-      <div
-        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat transition-all duration-1000"
-        style={{
-          backgroundImage: `url("${wallpaper}")`,
-          transform: `translate(${mousePos.x * -8}px, ${mousePos.y * -8}px) scale(1.05)`,
-        }}
-      />
+      <div className="absolute inset-0 z-0 overflow-hidden bg-[#060608]">
+        {/* Animated Mesh Gradient Base */}
+        <div 
+          className="absolute inset-0 opacity-80"
+          style={{
+            background: `
+              radial-gradient(circle at 15% 50%, rgba(16, 244, 160, 0.15), transparent 50%),
+              radial-gradient(circle at 85% 30%, rgba(0, 240, 255, 0.12), transparent 50%),
+              radial-gradient(circle at 50% 80%, rgba(138, 43, 226, 0.12), transparent 50%)
+            `,
+            filter: 'blur(60px)',
+            transform: `translate(${mousePos.x * -15}px, ${mousePos.y * -15}px) scale(1.1)`,
+            transition: 'transform 0.2s ease-out'
+          }}
+        />
+        {/* Main Wallpaper Image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-1000"
+          style={{
+            backgroundImage: `url("${wallpaper}")`,
+            transform: `translate(${mousePos.x * -8}px, ${mousePos.y * -8}px) scale(1.05)`,
+            opacity: wallpaper ? 1 : 0
+          }}
+        />
+      </div>
 
       <MenuBar
         showLaunchpad={showLaunchpad}
