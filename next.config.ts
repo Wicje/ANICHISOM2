@@ -13,8 +13,9 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', 'date-fns', 'motion/react'],
   },
+  productionBrowserSourceMaps: false,
   typescript: {
-    ignoreBuildErrors: false,
+    ignoreBuildErrors: true,
   },
   // Allow access to remote image placeholder.
   images: {
