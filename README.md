@@ -1,437 +1,154 @@
-# ContinuaOS
+# ContinuaOS — The Creative Operating System
 
-**The Creative OS Infrastructure** — A browser-based operating system that eliminates machine-switching and context-switching friction for anyone running multiple ventures.
+ContinuaOS is a browser-based, local-first operating system designed to eliminate machine-switching and context-switching friction. Built for creators, founders, developers, and operators running multiple ventures, ContinuaOS lets you open your workspace on any device, close it, and reopen it on another—restoring windows, apps, files, and sessions exactly where you left off.
 
-> Your workspace follows you. Open on any machine, close, reopen on another — everything restores exactly where you left off.
-
----
-
-## Table of Contents
-
-1. [What ContinuaOS Is](#1-what-continuaos-os-is)
-2. [Quick Start](#2-quick-start)
-3. [Architecture](#3-architecture)
-4. [Built-in Apps](#4-built-in-apps)
-5. [Venture Packs](#5-venture-packs)
-6. [Configuration](#6-configuration)
-7. [Deployment](#7-deployment)
-8. [Development](#8-development)
-9. [Project Structure](#9-project-structure)
-10. [Testing](#10-testing)
-11. [Contributing](#11-contributing)
+It replaces 5-10 separate productivity, design, and development tools with one unified, beautiful desktop workspace.
 
 ---
 
-## 1. What ContinuaOS Is
+## 🚀 One-Click Deploy (For Web Beta Testers)
 
-ContinuaOS runs in your browser and gives you a persistent desktop environment — windows, apps, files, and sessions — that syncs across machines. It replaces 5-10 separate tools with one unified workspace.
+The fastest way to get ContinuaOS running in the cloud for up to **70 active beta testers at $0 cost** is deploying to **Vercel** and **Supabase**.
 
-### The Core Experience
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FWicje%2FANICHISOM2&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,SUPABASE_SECRET_KEY,SUPABASE_JWTS_URL,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_AUTH_PROVIDER)
 
-```
-1. Open your-domain.com in any browser (or install the PWA)
-2. Sign up with email/password
-3. Pick your role → pick your apps → workspace loads
-4. Close on any machine → reopen on any other → everything restores
-```
+### Step-by-Step Cloud Deployment
 
-### Who It's For
+1. **Create a Supabase Project**:
+   * Sign up at [supabase.com](https://supabase.com) and create a new project.
+   * Go to the **SQL Editor** -> **New Query**, paste the contents of [supabase-schema.sql](file:///home/zk3/workstation/experiments/ANICHISOM2/supabase-schema.sql), and click **Run**.
+   * Go to **Database → Replication** and enable replication for: `users`, `context_records`, and `apps`.
 
-| Persona | What They Get |
-|---|---|
-| **Creative Agency** | Browser with Figma/Framer pinned, Campaign Lab, Moodboard, Files bridge |
-| **Freelancer** | Portable workspace, Side-Gigs, Proposal Generator |
-| **Developer** | Terminal, Code Editor (Monaco), Deployment Tracker, API Monitor |
-| **Student** | Notes, PDF Reader, research tools, personal cloud files |
-| **Multi-venture Operator** | Separate workspace contexts per venture, each with its own apps |
-
-### Positioning
-
-```
-Layer 3:  Marketplace (revenue)     → plugins, packs, templates
-Layer 2:  Vertical Apps (stickiness) → filmmaker, agency, dev, designer packs
-Layer 1:  Core OS (infrastructure)   → runtime, storage, sync, auth, collaboration
-```
-
-**The pitch:** *"ContinuaOS is the operating system your creative team runs in the browser. We provide the infrastructure — you install the apps you need."*
+2. **Deploy to Vercel**:
+   * Import your cloned fork of this repository (`Wicje/ANICHISOM2`) to Vercel.
+   * Configure the following environment variables:
+     ```bash
+     NEXT_PUBLIC_AUTH_PROVIDER=supabase
+     NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-anon-key
+     SUPABASE_SECRET_KEY=your-service-role-key
+     SUPABASE_JWTS_URL=https://your-project.supabase.co/auth/v1
+     NEXT_PUBLIC_APP_URL=https://your-domain.vercel.app
+     ```
+   * Ensure the **Build Command** is set to `next build` and the **Install Command** is `npm install --legacy-peer-deps`.
+   * Click **Deploy**. Your OS will be live at `https://your-domain.vercel.app`.
 
 ---
 
-## 2. Quick Start
+## 🖥️ Desktop Installation (Tauri App)
 
-### Prerequisites
+For power users who need native access, frame-busting bypass (e.g., using Figma, Notion, or Miro inside the OS without iframe blocks), and sandboxed system security.
 
-- Node.js v18+
-- A [Supabase](https://supabase.com) account (free tier)
+### Local Development & Native Build
 
-### Install & Run
+1. **Install Prerequisites**:
+   Ensure you have Rust and Cargo installed. (Follow [Tauri's guide](https://tauri.app/start/prerequisites/)).
+   On Linux:
+   ```bash
+   sudo apt update && sudo apt install -y libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+   ```
+
+2. **Clone & Configure**:
+   ```bash
+   git clone https://github.com/Wicje/ANICHISOM2.git
+   cd ANICHISOM2
+   npm install --legacy-peer-deps
+   cp .env.example .env.local
+   # Update .env.local with your Supabase keys
+   ```
+
+3. **Build the Desktop Native Binary**:
+   ```bash
+   npm run tauri build
+   ```
+   * **Linux output:** `src-tauri/target/release/bundle/appimage/continua-os_0.1.0_amd64.AppImage`
+   * **macOS output:** `src-tauri/target/release/bundle/dmg/continua-os_0.1.0_x64.dmg`
+   * **Windows output:** `src-tauri/target/release/bundle/msi/continua-os_0.1.0_x64_en-US.msi`
+
+---
+
+## 👥 Onboarding & Managing Beta Testers
+
+ContinuaOS is built to make onboarding seamless for your initial users.
+
+### Step 1: User Onboarding Flow
+1. Testers navigate to your deployed URL or launch the desktop client.
+2. If they are new, they are greeted by the **Onboarding Wizard**. They pick their professional role (e.g., Creative Agency, Developer, Writer) and select which default app packs they want to pre-install.
+3. Once completed, they are redirected to the **Signup/Login Screen** to persist their choices.
+
+### Step 2: Restricting Access (Invite-Only Beta)
+To run a gated beta:
+* Go to **Supabase Dashboard → Authentication → Providers → Email**.
+* Turn off **Confirm Email** or **Allow new users to sign up** if you want to explicitly invite users via the Supabase Auth Invite API.
+* Alternatively, add an email domain constraint in Supabase or use the Admin panel inside ContinuaOS to approve accounts.
+
+### Step 3: Distributing Tauri Desktop Apps
+Compile the release binaries (see [Desktop Installation](#-desktop-installation-tauri-app)) and upload the built `.dmg`, `.msi`, or `.AppImage` to a download portal, Google Drive, or release them via GitHub Releases for your testers to install natively.
+
+---
+
+## ⚙️ Core Technical Setup
+
+For active developers looking to host the full collaboration stack locally or self-host on a VPS.
+
+### Running Locally with Real-Time Collaboration
 
 ```bash
-# Clone the repo
-git clone git@github.com:Wicje/ContinuaOS.git
-cd ContinuaOS
-
-# Install dependencies
-npm install --legacy-peer-deps
-
-# Configure environment
-cp .env.example .env.local
-# Edit .env.local — see Section 6
-
-# Start development server
-npm run dev
+# Starts Next.js frontend + local Express/Socket.io WebSocket server on port 1234
+npm run dev:local
 ```
 
-The OS starts at `http://localhost:3000`.
+### Self-Hosting Stack (Docker Compose)
+A production-ready stack is available for self-hosting with local file storage (MinIO) and session caching (Redis):
 
-### Setup Supabase (required)
-
-1. Create a free project at [supabase.com](https://supabase.com)
-2. Go to **Settings → API** → copy Project URL, Publishable Key, and Secret Key
-3. Paste into `.env.local`:
-   ```bash
-   NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
-   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY_HERE
-   SUPABASE_SECRET_KEY=YOUR_SECRET_KEY_HERE
-   ```
-4. Go to **SQL Editor** → paste contents of `supabase-schema.sql` → Run
-5. Go to **Database → Replication** → enable for all tables
-6. Done — apps will appear after completing the onboarding wizard
-
-### What Works Without API Keys
-
-| Feature | Requires Supabase? |
-|---|---|
-| Desktop, window management, themes | No |
-| App launcher, command palette | No |
-| Local file system (OPFS) | No |
-| Notes, PDF Reader | No |
-| Campaign Lab, Moodboard (local state) | No |
-| Code Editor (Monaco) | No |
-| Terminal | No |
-| User accounts, cloud sync, collaboration | **Yes** |
-| Real-time presence, event history | **Yes** |
+```bash
+# Set up your environment variables
+cp .env.example .env.local
+docker-compose -f docker-compose.self-hosted.yml up --build -d
+```
 
 ---
 
-## 3. Architecture
-
-### Three-Layer Design
+## 🛡️ Architecture & Security Model
 
 ```
 ╔═══════════════════════════════════════════════════════════╗
-║  LAYER 3 — ECOSYSTEM (Marketplace, install what you need) ║
-║                                                           ║
-║  [ContinuaOS Pack] [Ziklag Forensics] [Clothing Brand]    ║
-║  [Hardware Pack] [Developer Pack] [Photography Pack] [+]  ║
+║  LAYER 3 — ECOSYSTEM (Venture Packs & App Store Apps)     ║
+║  [Creative Pack]  [Developer Pack]  [Hardware BOM Pack]   ║
 ╠═══════════════════════════════════════════════════════════╣
-║  LAYER 2 — BUILT-IN APPS (Come with every workspace)      ║
-║                                                           ║
-║  [Browser]  [Campaign Lab]  [Moodboard]  [Files]          ║
-║  [Calls]  [Notes]  [Terminal]  [Code Editor]              ║
-║  [Side-Gigs]  [Productivity Suite]                        ║
+║  LAYER 2 — CORE APPS (Built-in Web Workspace Tools)       ║
+║  [Power Browser]  [Campaign Lab]  [Moodboard]  [Monaco]   ║
 ╠═══════════════════════════════════════════════════════════╣
-║  LAYER 1 — THE CORE (The platform itself)                 ║
-║                                                           ║
-║  Supabase (auth+db+realtime) | IndexedDB (offline)        ║
-║  Yjs (collaboration) | Event Sourcing | Privacy Model     ║
+║  LAYER 1 — THE ENGINE (State, storage, security, sync)    ║
+║  IndexedDB (Local Files) ↔ Yjs Docs ↔ Supabase Postgres   ║
+║  Tauri IPC Sandboxing (Figma & Notion Frame Isolation)   ║
 ╚═══════════════════════════════════════════════════════════╝
 ```
 
-### How Storage Works
-
-| Layer | Who owns it | What it stores |
-|---|---|---|
-| **Supabase** (your instance) | You (the founder) | Accounts, workspaces, events, presence, app registry, terminal history, plugins |
-| **IndexedDB** (browser) | Each user | Private files, offline data, local preferences — stays on THEIR machine |
-| **Cloud connectors** | Per-user OAuth | Google Drive / Dropbox / OneDrive — user authenticates, tokens stored encrypted in Supabase |
-
-**Users never touch `.env`.** They visit your URL, sign up, and use the OS. The `.env` is configured once on your deployment.
-
-### Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 15 (App Router) |
-| Language | TypeScript 5.9 (strict mode) |
-| UI | React 19 + Tailwind CSS 4 |
-| State | Zustand 5 + idb-keyval (IndexedDB) |
-| Real-time | Yjs + y-websocket + y-indexeddb |
-| Backend | Supabase (Postgres + Auth + Realtime) |
-| Editors | TipTap (rich text), Monaco (code), Fabric.js (canvas) |
-| AI | Gemini, OpenAI, Claude, Qwen, Local (Ollama) |
-| Storage | Google Drive, Dropbox, OneDrive, Local (OPFS) |
-| WebSocket | Express + Socket.IO |
-| Deployment | Vercel (frontend) + Supabase (backend) |
-
-### Privacy Model
-
-- **All user data stays in IndexedDB/OPFS** by default
-- **OAuth tokens encrypted at rest** — AES-256-CBC
-- **No tracking** — anonymous usage only if explicitly configured
-- **Per-app privacy** — each app can be Private or Shared
+*   **Local-First Context Layer**: All user assets, system configs, and offline files are managed via a client-side database (IndexedDB/OPFS).
+*   **Encrypted Secrets**: Custom cloud integration tokens (Google Drive, Dropbox) are encrypted at rest (AES-256-CBC) before syncing to Supabase.
+*   **Window-Level Sandboxing**: Fatal app crashes are caught by isolated React `<ErrorBoundary>` containers inside `WindowFrame.tsx`, leaving the core OS runtime active and intact.
+*   **Storage Quota Management**: Prevents browser crashes by querying `navigator.storage.estimate()` before saving massive files offline.
 
 ---
 
-## 4. Built-in Apps
-
-ContinuaOS ships with **46 apps**. Each app has a unique brand-inspired SVG icon.
-
-### Core Apps
-
-| App | What It Does | Replaces |
-|---|---|---|
-| **Browser** | Pin any website as a "native" app. Persistent sessions, search engine selector. | Chrome + bookmarks |
-| **Campaign Lab** | Project hierarchy, multiple views (kanban, timeline, table), templates. | Notion, Asana, Trello |
-| **Moodboard** | Visual canvas for design references. Browser clipping, voting, export. | Milanote, Pinterest |
-| **Files** | Unified file explorer with multi-select, drag-to-move, batch ops. Cloud sync (Drive, Dropbox, OneDrive). | Finder + cloud apps |
-| **Calls** | Video calling with campaign context, auto meeting notes. | Google Meet |
-| **Terminal** | Full terminal with AI integration, session sync, persistent history. | iTerm |
-| **Code Editor** | Monaco-based IDE. Multi-file, AI copilot, Yjs collaboration, live preview. | VS Code (browser) |
-| **Notes** | Rich text editor with markdown, PDF annotation. | Notion Notes, Obsidian |
-
-### Productivity Apps
-
-| App | What It Does |
-|---|---|
-| **Productivity Suite** | Word (TipTap), Sheets (formula engine), Slides (Fabric.js) |
-| **PDF Reader** | PDF viewer with annotation |
-| **Side-Gigs** | Private time tracking, invoicing, client management |
-| **Proposal Generator** | AI-powered client proposal creation |
-| **Brand Guides** | Brand style guide editor |
-| **Client Portal** | Read-only client view with approval UI |
-| **Bookmarks** | Visual bookmark manager with folders and tags |
-| **Assistant** | AI copilot with app context awareness |
-
-### System Apps
-
-| App | What It Does |
-|---|---|
-| **Settings** | Wallpaper (dynamic time-of-day), theme, fonts, shaders, performance mode |
-| **Control Center** | Quick settings panel (macOS-style) |
-| **Command Palette** | Spotlight search — launch apps, run commands (`Cmd+K`) |
-| **App Store** | Install/manage venture packs and plugins |
-| **Admin Panel** | User and role management |
-| **History** | Event history viewer with undo/redo |
-| **Notifications** | Notification center with real-time alerts |
-| **Task Manager** | System resource monitoring |
-
-### Widget System
-
-| Widget | What It Does |
-|---|---|
-| **Notch Nook** | System overlay with quick actions (toggle with `Alt+N`) |
-| **Widget Stack** | Customizable widget panel (toggle with `Alt+W`) |
-
----
-
-## 5. Venture Packs
-
-Installable per workspace. Available from the App Store.
-
-| Pack | Price | What You Get |
-|---|---|---|
-| **ContinuaOS Creative Pack** | $15/mo | Moodboard Mill, Proposal Generator, Client Portal, Brand Guides |
-| **Ziklag Forensics Pack** | $25/mo | Case Manager, Chain of Custody, Evidence Log, Hash Verifier |
-| **Clothing Brand Pack** | $12/mo | Lookbook, Supplier Tracker, Collection Planner, Shopify Sync |
-| **Hardware Pack** | $12/mo | BOM Manager, Firmware Tracker, Supplier Contacts, Component Library |
-| **Developer Pack** | $10/mo | Deployment Tracker, Code Review Log, API Monitor, CI Bridge |
-| **Photography Pack** | $10/mo | Gallery Manager, Client Delivery, Watermarking, Print Orders |
-| **Side Gigs Pack** | $5/mo | Income Tracker, Client CRM, Task Boards, Tax Export |
-
----
-
-## 6. Configuration
-
-### Environment Variables
-
-Copy `.env.example` to `.env.local` and configure:
+## 🧪 Testing
 
 ```bash
-cp .env.example .env.local
-```
-
-#### Required — Supabase
-
-| Variable | Purpose |
-|---|---|
-| `NEXT_PUBLIC_AUTH_PROVIDER` | Set to `supabase` |
-| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Your Supabase publishable (anon) key |
-| `SUPABASE_SECRET_KEY` | Your Supabase service role key (server-side only) |
-
-#### Optional — AI (at least one recommended)
-
-| Variable | Purpose |
-|---|---|
-| `GEMINI_API_KEY` | Google Gemini |
-| `OPENAI_API_KEY` | OpenAI |
-| `ANTHROPIC_API_KEY` | Anthropic Claude |
-| `QWEN_API_KEY` | Alibaba Qwen |
-| `LOCAL_AI_BASE_URL` | Ollama/LM Studio endpoint |
-
-#### Optional — Cloud Storage
-
-| Variable | Purpose |
-|---|---|
-| `GOOGLE_DRIVE_CLIENT_ID` / `SECRET` | Google Drive integration |
-| `DROPBOX_CLIENT_ID` / `SECRET` | Dropbox integration |
-| `ONEDRIVE_CLIENT_ID` / `SECRET` | OneDrive integration |
-| `TOKEN_ENCRYPTION_KEY` | 64-char hex for encrypting OAuth tokens |
-
-#### Optional — Power Browser
-
-| Variable | Purpose |
-|---|---|
-| `NEXT_PUBLIC_APP_URL` | Your deployed URL for proxy redirects (defaults to `http://localhost:3000`) |
-
----
-
-## 7. Deployment
-
-### Recommended: Vercel + Supabase
-
-For 70 beta users: **$0 infrastructure cost.**
-
-```bash
-# 1. Create Supabase project (free tier: 50k MAU)
-# 2. Run supabase-schema.sql in SQL Editor
-# 3. Enable Realtime on all tables (Database → Replication)
-# 4. Deploy to Vercel (free tier: 100GB bandwidth)
-# 5. Set env vars in Vercel dashboard
-# 6. Done
-```
-
-### Scaling
-
-| Users | Supabase Plan | Vercel Plan | Monthly Cost |
-|---|---|---|---|
-| 1-50 | Free | Free | $0 |
-| 50-200 | Free | Free | $0 |
-| 200-1k | Pro ($25/mo) | Pro ($20/mo) | $45 |
-| 1k-10k | Pro ($25/mo) | Pro ($20/mo) | $45 |
-| 10k+ | Team ($599/mo) | Enterprise | Custom |
-
----
-
-## 8. Development
-
-### Commands
-
-| Command | What It Does |
-|---|---|
-| `npm run dev` | Start development server (with Socket.IO + Yjs) |
-| `npm run build` | Production build |
-| `npm run start` | Start production server |
-| `npm test` | Run test suite |
-| `npm run test:watch` | Run tests in watch mode |
-
-### Adding a New App
-
-1. Create component: `components/apps/my-app.tsx`
-2. Add icon SVG to `ICO` object in `lib/app-manifest.ts`
-3. Register in both `APP_MANIFEST` and `appRegistry`
-4. Add role-app mappings in `lib/roles.ts`
-
-### Adding a New Zustand Store
-
-1. Create `lib/stores/my-feature.store.ts`
-2. Follow existing pattern (see `auth.store.ts`)
-3. Write tests in `__tests__/stores/`
-
-### Key Patterns
-
-- **Zustand stores** — All state in `lib/stores/`. Components subscribe via selectors.
-- **App manifest** — Declarative app registration. Every app needs entries in both `APP_MANIFEST` and `appRegistry`.
-- **Supabase adapters** — All DB ops via Supabase client. Server-side uses `@supabase/ssr`.
-- **Event sourcing** — Every action is an immutable event. Full audit trail.
-- **Cloud storage connectors** — OAuth2 flow in `lib/storage-connectors/`, API routes in `app/api/storage/`.
-- **Power Browser proxy** — SSRF-protected, frame-busting neutralized, JWT-authenticated.
-
----
-
-## 9. Project Structure
-
-```
-ContinuaOS/
-├── app/                          # Next.js App Router
-│   ├── api/                      # API routes (auth, proxy, cloud storage)
-│   ├── layout.tsx                # Root layout
-│   └── page.tsx                  # Entry point
-│
-├── components/
-│   ├── desktop/                  # Desktop shell (menu bar, taskbar, overlays)
-│   ├── apps/                     # 46 app components
-│   ├── notifications/            # Notification center
-│   └── ui/                       # Shared UI (OSModal, Skeleton, AppIcon, etc.)
-│
-├── lib/
-│   ├── stores/                   # Zustand stores (auth, windows, files, etc.)
-│   ├── services/                 # Business logic (plugin, campaign, etc.)
-│   ├── hooks/                    # Custom React hooks
-│   ├── storage-connectors/       # Google Drive, Dropbox, OneDrive connectors
-│   ├── supabase.ts               # Supabase client
-│   ├── app-manifest.ts           # App registry + SVG icons
-│   ├── fs.ts                     # Virtual filesystem (OPFS + IDB)
-│   ├── campaign-types.ts         # Campaign Lab types
-│   └── ...                       # 70+ lib files
-│
-├── __tests__/                    # Test suite (38 files, 606 tests)
-├── supabase-schema.sql           # Database schema (12 tables + RLS + triggers)
-├── server.ts                     # Express + Socket.IO + Yjs WebSocket server
-├── middleware.ts                  # Auth guard, CSP, security headers
-├── .env.local                    # Environment config
-├── .npmrc                        # legacy-peer-deps=true
-├── VISION.md                     # Product vision (authoritative)
-├── ARCHITECTURE.md               # Architecture documentation
-├── BUILD_LOG.md                  # Development session log
-└── README.md                     # This file
-```
-
----
-
-## 10. Testing
-
-```bash
-# Full test suite
+# Run unit & integration test suite (600+ tests)
 npm test
 
-# TypeScript type check
-npx tsc --noEmit --incremental false
+# Run End-to-End (E2E) UI Tests with Playwright
+npx playwright test
 ```
-
-| Category | Files | Tests |
-|---|---|---|
-| Zustand stores | 18 | ~350 |
-| Services | 12 | ~150 |
-| Core libs | 8 | ~106 |
-| **Total** | **38** | **606** |
 
 ---
 
-## 11. Contributing
+## 📝 Configuration Directory
 
-### Code Style
-
-- TypeScript strict mode (`noUncheckedIndexedAccess`)
-- No `any` types
-- No comments unless requested
-- Follow existing patterns
-
-### Before Submitting
-
-```bash
-npx tsc --noEmit --incremental false    # Type check
-npm test                                # Tests
-```
-
-### Principles
-
-1. **Repository Pattern** — All data through abstract interfaces
-2. **Event Sourcing** — Every action is an immutable event
-3. **Offline-First** — IndexedDB primary, Supabase sync
-4. **Privacy by Default** — Private mode unless explicitly shared
-
----
-
-*Vision: `VISION.md` | Architecture: `ARCHITECTURE.md` | Progress: `BUILD_LOG.md`*
+| File | Purpose |
+|---|---|
+| [SETUP.md](file:///home/zk3/workstation/experiments/ANICHISOM2/SETUP.md) | In-depth credential configuration (Stripe, Resend, OAuth) |
+| [ARCHITECTURE.md](file:///home/zk3/workstation/experiments/ANICHISOM2/ARCHITECTURE.md) | Technical deep dive on layout systems & event state logs |
+| [VISION.md](file:///home/zk3/workstation/experiments/ANICHISOM2/VISION.md) | Product vision, business plan, and roadmap |
+| [supabase-schema.sql](file:///home/zk3/workstation/experiments/ANICHISOM2/supabase-schema.sql) | SQL setup queries for database tables, triggers & policies |
