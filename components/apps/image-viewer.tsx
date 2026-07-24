@@ -27,8 +27,8 @@ export function ImageViewerApp({ window: osWindow }: { window: any }) {
       try {
         if (fileData.path && !fileData.url) {
           const file = await FS.read(fileData.path);
-          if (file) {
-            setImageUrl(file.contentUrl || (typeof file.content === 'string' ? file.content : null));
+          if (file?.content) {
+            setImageUrl(file.content);
             if (file.size) setFileSize(`${(file.size / 1024).toFixed(1)} KB`);
           }
         } else if (fileData.url) {
