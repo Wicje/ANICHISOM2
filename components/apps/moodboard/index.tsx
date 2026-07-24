@@ -11,6 +11,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { writeBlob } from '@/lib/context-layer';
+import { FS } from '@/lib/fs';
 import { cn } from '@/lib/utils';
 import { useCollaborativeDoc } from '@/lib/hooks/useCollaborativeDoc';
 import { SyncPromptBanner } from '../sync-prompt-banner';
@@ -115,38 +116,81 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     };
   }, [collab.synced, collab.sharedTypesRef]);
 
-  useEffect(() => {
-    if (collab.synced && osWindow.data?.url) {
-      const yNodes = collab.sharedTypesRef.current.nodes;
-      if (yNodes) {
-        const existing = Array.from(yNodes.values()).find((n: any) => n.content === osWindow.data?.url);
-        if (!existing) {
-          const newId = crypto.randomUUID();
-          yNodes.set(newId, { id: newId, type: 'image', x: 200, y: 200, width: 400, content: osWindow.data.url });
-        }
+  const addImportedNode = useCallback(async (data: { url?: string; image?: string; title?: string }) => {
+    if (!collab.synced) return;
+    const rawContent = data.image || data.url;
+    if (!rawContent) return;
+
+    let content = rawContent;
+    if (!content.startsWith('http') && !content.startsWith('blob:') && !content.startsWith('data:')) {
+      try {
+        const localFile = await FS.read(content);
+        if (localFile?.content) content = localFile.content;
+      } catch {
+        /* fallback to rawContent */
       }
     }
-  }, [osWindow.data?.url, collab.synced, collab.sharedTypesRef]);
 
+    const yNodes = collab.sharedTypesRef.current.nodes;
+    if (!yNodes) return;
+
+    // Check if node already exists on canvas
+    const existing = Array.from(yNodes.values()).find((n: any) => n.content === content || n.content === rawContent);
+    if (existing) {
+      setSelectedNodeIds([(existing as any).id]);
+      return;
+    }
+
+    const newId = crypto.randomUUID();
+    const winW = osWindow.width || 800;
+    const winH = osWindow.height || 600;
+    const targetX = Math.round((winW / 2 - camera.x) / camera.z - 175);
+    const targetY = Math.round((winH / 2 - camera.y) / camera.z - 100);
+
+    const isImage = isImageUrl(rawContent) || isImageUrl(content) || !!data.image;
+    const nodeType = isImage ? 'image' : 'embed';
+
+    const newNode = {
+      id: newId,
+      type: nodeType,
+      x: targetX,
+      y: targetY,
+      width: isImage ? 350 : 450,
+      height: isImage ? 250 : 300,
+      content,
+      label: data.title || (rawContent.split('/').pop() || 'Imported Asset'),
+      createdAt: Date.now(),
+    };
+
+    yNodes.set(newId, newNode);
+    setSelectedNodeIds([newId]);
+
+    // Center camera on newly created node
+    setCamera((prev) => ({
+      ...prev,
+      x: Math.round(winW / 2 - (targetX + 175) * prev.z),
+      y: Math.round(winH / 2 - (targetY + 100) * prev.z),
+    }));
+  }, [collab.synced, collab.sharedTypesRef, camera, osWindow.width, osWindow.height, osWindow.title]);
+
+  // Handle window data imports (e.g. from Files app)
+  useEffect(() => {
+    if (collab.synced && (osWindow.data?.url || osWindow.data?.image)) {
+      addImportedNode({ url: osWindow.data.url, image: osWindow.data.image, title: osWindow.title });
+    }
+  }, [osWindow.data?.url, osWindow.data?.image, collab.synced, addImportedNode, osWindow.title]);
+
+  // Handle custom clip events (e.g. from Power Browser)
   useEffect(() => {
     const handleClip = (e: CustomEvent) => {
       const { url, title, image } = e.detail || {};
       if (url || image) {
-        const yNodes = collab.sharedTypesRef.current.nodes;
-        const newId = crypto.randomUUID();
-        const x = (osWindow.width / 2 - camera.x) / camera.z;
-        const y = (osWindow.height / 2 - camera.y) / camera.z;
-        if (image) {
-          yNodes.set(newId, { id: newId, type: 'image', x, y, width: 350, content: image, label: title || 'Clipped from browser' });
-        } else if (url) {
-          const type = isImageUrl(url) ? 'image' : 'embed';
-          yNodes.set(newId, { id: newId, type, x, y, content: url, label: title || 'Clipped from browser' });
-        }
+        addImportedNode({ url, image, title });
       }
     };
     window.addEventListener('os:clip-to-moodboard', handleClip as EventListener);
     return () => window.removeEventListener('os:clip-to-moodboard', handleClip as EventListener);
-  }, [collab.synced, collab.sharedTypesRef, camera, osWindow.width, osWindow.height]);
+  }, [addImportedNode]);
 
   useEffect(() => {
     const container = containerRef.current;
