@@ -22,7 +22,7 @@ interface CanvasViewProps {
   deleteNode: (id: string) => void;
   addText: () => void;
   processUrl: (url: string) => void;
-  fileInputRef: React.RefObject<HTMLInputElement>;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
   handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   addNodeReaction: (nodeId: string, emoji: string) => void;
   addNodeComment: (nodeId: string, text: string) => void;
@@ -223,13 +223,9 @@ export function CanvasView(props: CanvasViewProps) {
                       autoFocus
                     />
                   ) : (
-                    <>
-                      <div className="text-[10px] font-semibold text-gray-700 mb-1 line-clamp-2">{card.content?.substring(0, 40) || 'Untitled'}</div>
-                      <div className="flex-1 space-y-1">
-                        <div className="w-full h-1.5 bg-black/5 rounded" />
-                        <div className="w-3/4 h-1.5 bg-black/5 rounded" />
-                      </div>
-                    </>
+                    <div className="text-[10.5px] text-gray-700 leading-normal overflow-hidden whitespace-pre-wrap flex-1 break-words select-none font-medium">
+                      {card.content || 'Double click to edit'}
+                    </div>
                   )}
                   {/* Delete button */}
                   <button

@@ -14,7 +14,7 @@ import {
   apiForbidden,
   apiInternal,
 } from '@/lib/api-helpers';
-import { getStorageConnector, getConnectedConnectors, getConfiguredConnectors } from '@/lib/storage-connectors/connector-registry';
+import { getStorageConnector, getConnectedConnectors, getConfiguredConnectors, getRegisteredConnectors } from '@/lib/storage-connectors/connector-registry';
 import { TokenStore } from '@/lib/storage-connectors/token-store';
 
 export async function GET(request: NextRequest) {
@@ -28,20 +28,23 @@ export async function GET(request: NextRequest) {
     const path = request.nextUrl.searchParams.get('path') || 'root';
     const pageToken = request.nextUrl.searchParams.get('pageToken') || undefined;
 
-    // If no specific provider, return status of all configured connectors
+    // If no specific provider, return status of all registered connectors
     if (!providerId) {
-      const configured = getConfiguredConnectors();
+      const registeredIds = getRegisteredConnectors();
       const connected = getConnectedConnectors(userId);
 
-      const connectors = configured.map(c => ({
-        id: c.id,
-        name: c.name,
-        icon: c.icon,
-        configured: true,
-        connected: connected.some(cc => cc.id === c.id),
-        accountName: TokenStore.getAccountName(userId, c.id),
-        capabilities: c.getCapabilities(),
-      }));
+      const connectors = registeredIds.map(id => {
+        const c = getStorageConnector(id);
+        return {
+          id: c.id,
+          name: c.name,
+          icon: c.icon,
+          configured: c.isConfigured(),
+          connected: connected.some(cc => cc.id === c.id),
+          accountName: TokenStore.getAccountName(userId, c.id),
+          capabilities: c.getCapabilities(),
+        };
+      });
 
       return apiOk({ connectors });
     }

@@ -21,7 +21,7 @@ interface AssetPreviewProps {
   deleteNode: (id: string) => void;
   addText: () => void;
   processUrl: (url: string) => void;
-  fileInputRef: React.RefObject<HTMLInputElement>;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
   handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   addNodeReaction: (nodeId: string, emoji: string) => void;
   addNodeComment: (nodeId: string, text: string) => void;

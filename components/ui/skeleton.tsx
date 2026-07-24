@@ -37,7 +37,7 @@ export function PageSkeleton({ lines = 5, className }: { lines?: number; classNa
         {Array.from({ length: lines }).map((_, i) => (
           <Skeleton
             key={i}
-            width={`${60 + Math.random() * 40}%`}
+            width={`${60 + ((i * 37) % 35)}%`}
             height="16px"
           />
         ))}

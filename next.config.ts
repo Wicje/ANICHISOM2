@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  output: 'standalone',
+  output: (process.env.NEXT_EXPORT === 'true' || process.env.TAURI_BUILD === 'true') ? 'export' : 'standalone',
   transpilePackages: ['motion'],
   serverExternalPackages: ['socket.io', 'pg', 'redis', 'minio', 'ws'],
   async headers() {

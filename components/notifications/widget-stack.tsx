@@ -93,11 +93,10 @@ export function WidgetStack({ window: osWindow }: { window?: any }) {
   const eventTime = '14:30';
 
   return (
-    <div className="w-full h-full flex items-start justify-center bg-gradient-to-b from-[#1a3a8a] to-[#0f2060] font-sans overflow-hidden p-4">
+    <div className="w-80 flex flex-col gap-3 bg-[#0d0d0f]/80 backdrop-blur-2xl rounded-3xl p-4 shadow-2xl border border-white/10 font-sans overflow-hidden">
       <audio ref={audioRef} onEnded={() => {
         if (audioFiles.length > 0) setCurrentTrack(prev => (prev + 1) % audioFiles.length);
       }} />
-      <div className="w-80 flex flex-col gap-3">
         {/* Status bar */}
         <div className="flex items-center justify-between px-1 text-white/80 text-[10px]">
           <div className="flex items-center gap-2">
@@ -259,7 +258,6 @@ export function WidgetStack({ window: osWindow }: { window?: any }) {
           )}
         </div>
       </div>
-    </div>
   );
 }
 

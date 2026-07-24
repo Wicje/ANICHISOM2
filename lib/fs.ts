@@ -85,6 +85,7 @@ export interface LocalFile {
   size?: number;
   mimeType?: string;
   isFolder?: boolean;
+  modified?: number;
 }
 
 export const FS = {
@@ -271,6 +272,7 @@ export const FS = {
                       mimeType,
                       content: contentUrl,
                       isFolder: false,
+                      modified: file.lastModified,
                     });
                  } catch (err) {
                     // Ignore unreadable files
@@ -282,6 +284,7 @@ export const FS = {
                    name: name,
                    mimeType: 'inode/directory',
                    isFolder: true,
+                   modified: Date.now() - 3600000, // mock a slightly older date for folders so files appear first/separately
                  });
                  // Only traverse deeper if depth > 0 (1 = immediate children only, 0 = recursive)
                  if (depth > 0) {

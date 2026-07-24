@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "clean": "next clean",
     "tauri": "tauri",
+    "build:tauri": "TAURI_BUILD=true NODE_OPTIONS=--max-old-space-size=4096 next build",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -46,6 +47,7 @@
     "fabric": "^7.4.0",
     "gray-matter": "^4.0.3",
     "hot-formula-parser": "^4.0.0",
+    "html2canvas": "^1.4.1",
     "idb-keyval": "^6.2.4",
     "isomorphic-dompurify": "^3.15.0",
     "lucide-react": "^0.553.0",

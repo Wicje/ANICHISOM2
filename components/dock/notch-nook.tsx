@@ -62,9 +62,9 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
   });
 
   return (
-    <div className="w-full flex justify-center pt-4">
+    <div className="w-full flex justify-center">
       <audio ref={audioRef} onEnded={playNext} />
-      <div className="flex items-center gap-6 bg-[#1c1c1e]/95 backdrop-blur-2xl rounded-2xl px-5 py-3 shadow-2xl border border-white/10 max-w-lg">
+      <div className="flex items-center gap-6 bg-[#0c0c0e] rounded-b-[24px] px-6 py-4 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.6)] border-x border-b border-white/10 max-w-lg">
         {/* Tab indicators */}
         <div className="flex items-center gap-3 shrink-0">
           <button

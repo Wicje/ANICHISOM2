@@ -875,7 +875,7 @@ export function Desktop() {
       {showLaunchpad && <Suspense fallback={<CardSkeleton />}><Launchpad onClose={() => setShowLaunchpad(false)} /></Suspense>}
       {showMissionControl && <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--os-text-muted)' }} /></div>}><MissionControl onClose={() => setShowMissionControl(false)} /></Suspense>}
       {showNotchNook && (
-        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-[300]">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 z-[270] pointer-events-auto">
           <Suspense fallback={<div className="flex items-center justify-center p-4"><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--os-text-muted)' }} /></div>}><NotchNook /></Suspense>
         </div>
       )}

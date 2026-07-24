@@ -303,7 +303,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
       </div>
 
       {/* Window Content */}
-      <div className="flex-1 overflow-hidden relative break-words" style={{ background: 'var(--os-surface)' }}>
+      <div className="flex-1 overflow-hidden relative break-words" style={{ background: 'transparent' }}>
         <ErrorBoundary>
           {children}
         </ErrorBoundary>

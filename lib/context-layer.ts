@@ -289,7 +289,7 @@ export async function processOfflineSyncQueue(): Promise<void> {
     if (queue.length === 0) return;
 
     console.log(`[ContextLayer] Processing ${queue.length} offline blobs...`);
-    const remaining = [];
+    const remaining: string[] = [];
 
     for (const key of queue) {
       const blob = await readBlob(key);
