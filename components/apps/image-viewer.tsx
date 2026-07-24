@@ -11,8 +11,9 @@ import { BrowserClipService } from '@/lib/services/browser-clip.service';
 
 export function ImageViewerApp({ window: osWindow }: { window: any }) {
   const fileData = osWindow?.data || {};
-  const [imageUrl, setImageUrl] = useState<string | null>(fileData.url || fileData.path || null);
-  const [fileName, setFileName] = useState<string>(fileData.name || 'Image Preview');
+  const initialUrl = fileData.content || fileData.url || fileData.fileId || fileData.path || null;
+  const [imageUrl, setImageUrl] = useState<string | null>(initialUrl);
+  const [fileName, setFileName] = useState<string>(fileData.name || osWindow?.title || 'Image Preview');
   const [fileSize, setFileSize] = useState<string>('Unknown');
   const [zoom, setZoom] = useState<number>(1);
   const [rotation, setRotation] = useState<number>(0);
@@ -25,8 +26,11 @@ export function ImageViewerApp({ window: osWindow }: { window: any }) {
     async function loadImage() {
       setLoading(true);
       try {
-        if (fileData.path && !fileData.url) {
-          const file = await FS.read(fileData.path);
+        const pathOrId = fileData.fileId || fileData.path;
+        if (fileData.content) {
+           setImageUrl(fileData.content);
+        } else if (pathOrId && !fileData.url) {
+          const file = await FS.read(pathOrId);
           if (file?.content) {
             setImageUrl(file.content);
             if (file.size) setFileSize(`${(file.size / 1024).toFixed(1)} KB`);
@@ -41,7 +45,7 @@ export function ImageViewerApp({ window: osWindow }: { window: any }) {
       }
     }
     loadImage();
-  }, [fileData.path, fileData.url]);
+  }, [fileData]);
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
