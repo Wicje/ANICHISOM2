@@ -136,10 +136,7 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
 
     // Check if node already exists on canvas
     const existing = Array.from(yNodes.values()).find((n: any) => n.content === content || n.content === rawContent);
-    if (existing) {
-      setSelectedNodeIds([(existing as any).id]);
-      return;
-    }
+    if (existing) return;
 
     const newId = crypto.randomUUID();
     const winW = osWindow.width || 800;
@@ -163,7 +160,6 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     };
 
     yNodes.set(newId, newNode);
-    setSelectedNodeIds([newId]);
 
     // Center camera on newly created node
     setCamera((prev) => ({
