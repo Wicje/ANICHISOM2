@@ -92,9 +92,12 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
     e.preventDefault();
     if (!inputUrl) return;
     let finalUrl = inputUrl;
-    const isDomain = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/.test(inputUrl) || inputUrl.startsWith('http');
+    const isDomain = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/.test(inputUrl) || inputUrl.startsWith('http');
     if (isDomain) {
       if (!inputUrl.startsWith('http')) finalUrl = `https://${inputUrl}`;
+    } else if (inputUrl.toLowerCase().startsWith('wikipedia')) {
+      const query = inputUrl.replace(/^wikipedia\s*/i, '').trim();
+      finalUrl = query ? `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(query)}` : `https://en.wikipedia.org`;
     } else {
       const q = encodeURIComponent(inputUrl);
       if (searchEngine === 'google') finalUrl = `https://www.google.com/search?q=${q}`;
