@@ -40,7 +40,7 @@ const DEFAULT_TITLES: Record<string, string> = {
   'campaign': 'Campaign Lab',
 };
 
-const SINGLE_INSTANCE_APPS = ['terminal', 'files', 'settings', 'store', 'campaign', 'admin'];
+const SINGLE_INSTANCE_APPS = ['terminal', 'files', 'settings', 'store', 'campaign', 'admin', 'moodboard', 'image-viewer', 'browser'];
 
 export const useWindowStore = create<WindowState>((set, get) => ({
   windows: [],
@@ -64,10 +64,15 @@ export const useWindowStore = create<WindowState>((set, get) => ({
         highestZIndex: nextZ,
         windows: windows.map((w) =>
           w.appId === appId && w.workspace === activeWorkspace
-            ? { ...w, zIndex: nextZ, isMinimized: false }
+            ? { ...w, zIndex: nextZ, isMinimized: false, data: data ? { ...w.data, ...data } : w.data }
             : w
         ),
       });
+      if (appId === 'moodboard' && (data?.url || data?.image)) {
+        window.dispatchEvent(new CustomEvent('os:clip-to-moodboard', {
+          detail: { url: data.url, image: data.image, title: title || 'Imported File' },
+        }));
+      }
       return;
     }
 

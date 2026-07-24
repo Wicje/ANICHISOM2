@@ -26,11 +26,10 @@ export function ImageViewerApp({ window: osWindow }: { window: any }) {
       setLoading(true);
       try {
         if (fileData.path && !fileData.url) {
-          const blob = await FS.read(fileData.path);
-          if (blob) {
-            const objectUrl = URL.createObjectURL(blob);
-            setImageUrl(objectUrl);
-            setFileSize(`${(blob.size / 1024).toFixed(1)} KB`);
+          const file = await FS.read(fileData.path);
+          if (file) {
+            setImageUrl(file.contentUrl || (typeof file.content === 'string' ? file.content : null));
+            if (file.size) setFileSize(`${(file.size / 1024).toFixed(1)} KB`);
           }
         } else if (fileData.url) {
           setImageUrl(fileData.url);
