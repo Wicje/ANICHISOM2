@@ -66,6 +66,7 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
   'digital-library': () => import('@/components/moodboard/digital-library'),
   'notification-settings': () => import('@/components/settings/notification-settings'),
   'analytics': () => import('@/components/apps/analytics/dashboard'),
+  'image-viewer': () => import('@/components/apps/image-viewer'),
 };
 
 // SVG data URIs — brand-inspired distinctive app icons
@@ -184,6 +185,7 @@ export const APP_MANIFEST: AppManifestEntry[] = [
   { id: 'calls', component: null as any, icon: Phone, iconImage: ICO.phone, title: 'Calls', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'Video and voice calls' },
 
   // Media
+  { id: 'image-viewer', component: null as any, icon: Image, iconImage: ICO.camera, title: 'Image Viewer', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: true, category: 'media', description: 'View, zoom, rotate, and export images' },
   { id: 'media-player', component: null as any, icon: Play, iconImage: ICO.play, title: 'Media Player', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'media', description: 'Media player for video and audio' },
   { id: 'pdf-reader', component: null as any, icon: FileText, iconImage: ICO.pdf, title: 'PDF Reader', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'media', description: 'PDF viewer' },
   { id: 'screen-recorder', component: null as any, icon: Circle, iconImage: ICO.recorder, title: 'Screen Recorder', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'media', description: 'Screen recording tool' },

@@ -7,11 +7,14 @@ import { audioSystem } from '@/lib/services/audio-engine';
 import { ambientSounds, type AmbientPreset } from '@/lib/services/ambient-sounds';
 
 const PRESET_WALLPAPERS = [
-  { name: 'Default Dark', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop' },
-  { name: 'Neon City', url: 'https://images.unsplash.com/photo-1555680202-c86f0e12f086?q=80&w=2564&auto=format&fit=crop' },
+  { name: 'Tahoe Mesh', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop' },
+  { name: 'Neon Cyberpunk', url: 'https://images.unsplash.com/photo-1555680202-c86f0e12f086?q=80&w=2564&auto=format&fit=crop' },
   { name: 'Abstract Liquid', url: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2564&auto=format&fit=crop' },
-  { name: 'Deep Space', url: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=2000&auto=format&fit=crop' },
-  { name: 'Minimalist Gradient', url: 'https://images.unsplash.com/photo-1557682250-33bd709cbe85?q=80&w=2564&auto=format&fit=crop' }
+  { name: 'Deep Space Nebula', url: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=2000&auto=format&fit=crop' },
+  { name: 'Sunset Aura', url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=2564&auto=format&fit=crop' },
+  { name: 'Dark Topography', url: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=2564&auto=format&fit=crop' },
+  { name: 'Glass Dunes', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=2564&auto=format&fit=crop' },
+  { name: 'Minimalist Gradient', url: 'https://images.unsplash.com/photo-1557682250-33bd709cbe85?q=80&w=2564&auto=format&fit=crop' },
 ];
 
 const PRESET_THEMES = [
@@ -23,10 +26,14 @@ const PRESET_THEMES = [
 ];
 
 const PRESET_FONTS = [
-  { name: 'System Default', value: 'system-ui, sans-serif' },
-  { name: 'Inter (Modern)', value: '"Inter", sans-serif' },
+  { name: 'Outfit (Modern)', value: '"Outfit", sans-serif' },
+  { name: 'Plus Jakarta (Clean)', value: '"Plus Jakarta Sans", sans-serif' },
+  { name: 'Inter (Standard)', value: '"Inter", sans-serif' },
   { name: 'Space Mono (Dev)', value: '"Space Mono", monospace' },
+  { name: 'Fira Code (Code)', value: '"Fira Code", monospace' },
+  { name: 'JetBrains Mono', value: '"JetBrains Mono", monospace' },
   { name: 'Playfair (Serif)', value: '"Playfair Display", serif' },
+  { name: 'System Default', value: 'system-ui, sans-serif' },
 ];
 
 const PRESET_SHADERS = [

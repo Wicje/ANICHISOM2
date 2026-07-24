@@ -616,6 +616,9 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
       }
     }
     fetchFiles();
+    window.dispatchEvent(new CustomEvent('os:notify', {
+      detail: { title: 'Batch Upload Complete', description: `${droppedFiles.length} file(s) saved to ${currentPath}`, type: 'success' },
+    }));
   };
 
   // Import file from URL

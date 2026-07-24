@@ -446,6 +446,10 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                           title: activeTab.title,
                           source: 'power-browser',
                         });
+                        openWindow('moodboard', 'Moodboard Canvas');
+                        window.dispatchEvent(new CustomEvent('os:notify', {
+                          detail: { title: 'Clipped to Moodboard', description: `${activeTab.title || 'Page'} added to Canvas`, type: 'success' },
+                        }));
                       }
                     }}
                     className="hover:text-black hover:bg-rose-50 rounded p-1.5 transition-colors text-rose-500"

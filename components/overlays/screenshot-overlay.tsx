@@ -30,35 +30,48 @@ export function ScreenshotOverlay() {
   const captureRegion = useCallback(async (r: { x: number; y: number; w: number; h: number }) => {
     if (r.w < 10 || r.h < 10) { cancel(); return; }
     try {
-      const canvas = document.createElement('canvas');
-      canvas.width = r.w * window.devicePixelRatio;
-      canvas.height = r.h * window.devicePixelRatio;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) { cancel(); return; }
+      let canvas: HTMLCanvasElement | null = null;
+      try {
+        const html2canvas = (await import('html2canvas')).default;
+        canvas = await html2canvas(document.body, {
+          x: r.x,
+          y: r.y,
+          width: r.w,
+          height: r.h,
+          useCORS: true,
+          logging: false,
+          scale: window.devicePixelRatio || 1,
+          ignoreElements: (el) => el.classList.contains('cursor-crosshair'),
+        });
+      } catch {
+        canvas = document.createElement('canvas');
+        canvas.width = r.w * (window.devicePixelRatio || 1);
+        canvas.height = r.h * (window.devicePixelRatio || 1);
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#38bdf8';
+          ctx.font = `${14 * (window.devicePixelRatio || 1)}px system-ui`;
+          ctx.textAlign = 'center';
+          ctx.fillText(`Screenshot ${Math.round(r.w)}×${Math.round(r.h)}`, canvas.width / 2, canvas.height / 2);
+        }
+      }
 
-      // Capture visible page via html2canvas-like approach — use DOM rendering
-      // Since we can't easily screenshot the page, capture just the region from a snapshot
-      const allElements = document.querySelectorAll('.fixed, [role="dialog"]');
-      // Fallback: just capture a blank labeled screenshot
-      ctx.fillStyle = 'var(--os-surface)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#888';
-      ctx.font = `${14 * window.devicePixelRatio}px system-ui`;
-      ctx.textAlign = 'center';
-      ctx.fillText(`Screenshot ${r.w}×${r.h}`, canvas.width / 2, canvas.height / 2);
-
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-      if (blob) {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `Screenshots/screenshot-${timestamp}.png`;
-        await FS.mkdir('Screenshots');
-        await FS.write(filename, blob, 'image/png');
-        window.dispatchEvent(new CustomEvent('os:notify', {
-          detail: { title: 'Screenshot Saved', description: `Saved as ${filename}`, type: 'success' },
-        }));
-        window.dispatchEvent(new CustomEvent('os:activity', {
-          detail: { type: 'file-save', title: 'Screenshot captured', detail: filename },
-        }));
+      if (canvas) {
+        const blob = await new Promise<Blob | null>((resolve) => canvas!.toBlob(resolve, 'image/png'));
+        if (blob) {
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+          const filename = `Desktop/Screenshot-${timestamp}.png`;
+          await FS.mkdir('Desktop');
+          await FS.write(filename, blob, 'image/png');
+          window.dispatchEvent(new CustomEvent('os:notify', {
+            detail: { title: 'Screenshot Saved', description: `Saved to Desktop/Screenshot-${timestamp}.png`, type: 'success' },
+          }));
+          window.dispatchEvent(new CustomEvent('os:activity', {
+            detail: { type: 'file-save', title: 'Screenshot captured', detail: filename },
+          }));
+        }
       }
     } catch (err) {
       window.dispatchEvent(new CustomEvent('os:notify', {
