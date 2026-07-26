@@ -19,16 +19,13 @@ import { TokenStore } from '@/lib/storage-connectors/token-store';
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request, 'STORAGE');
-    if (!authResult.ok) return authResult.response;
-
-    const userId = authResult.userId;
-
     const providerId = request.nextUrl.searchParams.get('provider');
     const path = request.nextUrl.searchParams.get('path') || 'root';
     const pageToken = request.nextUrl.searchParams.get('pageToken') || undefined;
 
-    // If no specific provider, return status of all registered connectors
+    let userId = 'guest';
+    
+    // If no specific provider, return status of all registered connectors without auth
     if (!providerId) {
       const registeredIds = getRegisteredConnectors();
       const connected = getConnectedConnectors(userId);
@@ -50,6 +47,10 @@ export async function GET(request: NextRequest) {
     }
 
     // List files from specific provider
+    const authResult = await requireAuth(request, 'STORAGE');
+    if (!authResult.ok) return authResult.response;
+    userId = authResult.userId;
+
     let connector;
     try {
       connector = getStorageConnector(providerId);

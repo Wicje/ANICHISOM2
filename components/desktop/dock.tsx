@@ -45,11 +45,23 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
     return [...pinned, ...openNotPinned];
   }, [activeWindows]);
 
+  const isAnyWindowMaximized = useMemo(
+    () => activeWindows.some((w) => w.isMaximized),
+    [activeWindows]
+  );
+
   if (!currentUser) return null;
 
   return (
-    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[260] pointer-events-none">
-      <nav role="toolbar" aria-label="Application dock" className="flex items-end gap-3 px-3 py-2 glass-panel rounded-3xl shadow-2xl pointer-events-auto contain-layout relative">
+    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[260] w-[80vw] h-20 flex flex-col items-center justify-end pointer-events-none group/dock">
+      <nav 
+        role="toolbar" 
+        aria-label="Application dock" 
+        className={cn(
+          "flex items-end gap-3 px-3 py-2 glass-panel rounded-3xl shadow-2xl pointer-events-auto contain-layout relative mb-3 transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
+          isAnyWindowMaximized ? "translate-y-24 group-hover/dock:translate-y-0" : "translate-y-0"
+        )}
+      >
         {/* Green accent line at top of dock */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-[2px] rounded-full bg-[var(--os-primary)] opacity-60" />
         {unreadCount > 0 && (

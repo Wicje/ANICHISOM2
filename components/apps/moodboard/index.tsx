@@ -116,9 +116,9 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     };
   }, [collab.synced, collab.sharedTypesRef]);
 
-  const addImportedNode = useCallback(async (data: { url?: string; image?: string; title?: string }) => {
+  const addImportedNode = useCallback(async (data: { url?: string; image?: string; video?: string; title?: string }) => {
     if (!collab.synced) return;
-    const rawContent = data.image || data.url;
+    const rawContent = data.image || data.video || data.url;
     if (!rawContent) return;
 
     let content = rawContent;
@@ -145,7 +145,8 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     const targetY = Math.round((winH / 2 - camera.y) / camera.z - 100);
 
     const isImage = isImageUrl(rawContent) || isImageUrl(content) || !!data.image;
-    const nodeType = isImage ? 'image' : 'embed';
+    const isVideo = rawContent.match(/\.(mp4|webm|ogg)$/i) || !!data.video;
+    const nodeType = isImage ? 'image' : (isVideo ? 'video' : 'embed');
 
     const newNode = {
       id: newId,
@@ -250,17 +251,22 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 50 * 1024 * 1024) { window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'File Too Large', message: 'Maximum file size is 50MB.' } })); return; }
-    const fileId = crypto.randomUUID();
-    await writeBlob(fileId, file);
+    
+    try {
+      await FS.mkdir('Media');
+    } catch { /* ignore */ }
+    const path = `Media/${file.name}`;
+    await FS.write(path, file);
+
     const type = file.type.startsWith('video/') ? 'video' : 'image';
-    const newId = crypto.randomUUID();
-    _updateYNode({ id: newId, type, x: centerCanvasX(), y: centerCanvasY(), content: `local-blob:${fileId}` });
+    addImportedNode({ [type]: path, title: file.name });
+
     if (fileInputRef.current) fileInputRef.current.value = '';
 
     if (file.size > 5 * 1024 * 1024) {
       setSyncPromptFile({ name: file.name, size: file.size, type: file.type });
     }
-  }, [_updateYNode, centerCanvasX, centerCanvasY]);
+  }, [addImportedNode]);
 
   const processUrl = useCallback((url: string) => {
     let type: BoardNode['type'] = 'embed';
