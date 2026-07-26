@@ -172,17 +172,17 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
 
   // Handle window data imports (e.g. from Files app)
   useEffect(() => {
-    if (collab.synced && (osWindow.data?.url || osWindow.data?.image)) {
-      addImportedNode({ url: osWindow.data.url, image: osWindow.data.image, title: osWindow.title });
+    if (collab.synced && (osWindow.data?.url || osWindow.data?.image || osWindow.data?.video)) {
+      addImportedNode({ url: osWindow.data.url, image: osWindow.data.image, video: osWindow.data.video, title: osWindow.title });
     }
-  }, [osWindow.data?.url, osWindow.data?.image, collab.synced, addImportedNode, osWindow.title]);
+  }, [osWindow.data?.url, osWindow.data?.image, osWindow.data?.video, collab.synced, addImportedNode, osWindow.title]);
 
   // Handle custom clip events (e.g. from Power Browser)
   useEffect(() => {
     const handleClip = (e: CustomEvent) => {
-      const { url, title, image } = e.detail || {};
-      if (url || image) {
-        addImportedNode({ url, image, title });
+      const { url, title, image, video } = e.detail || {};
+      if (url || image || video) {
+        addImportedNode({ url, image, video, title });
       }
     };
     window.addEventListener('os:clip-to-moodboard', handleClip as EventListener);

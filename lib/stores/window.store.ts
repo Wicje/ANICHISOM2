@@ -68,9 +68,9 @@ export const useWindowStore = create<WindowState>((set, get) => ({
             : w
         ),
       });
-      if (appId === 'moodboard' && (data?.url || data?.image)) {
+      if (appId === 'moodboard' && (data?.url || data?.image || data?.video)) {
         window.dispatchEvent(new CustomEvent('os:clip-to-moodboard', {
-          detail: { url: data.url, image: data.image, title: title || 'Imported File' },
+          detail: { url: data.url, image: data.image, video: data.video, title: title || 'Imported File' },
         }));
       }
       return;

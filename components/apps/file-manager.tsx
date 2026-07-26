@@ -459,7 +459,8 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
       if (appId === 'media-player') {
         openWindow(appId, title, { fileUrl: file.content || file.id, mimeType: mime });
       } else if (appId === 'moodboard') {
-        openWindow(appId, title, { url: file.content || file.id });
+        const payload = mime.startsWith('image/') ? { image: file.content || file.id } : mime.startsWith('video/') ? { video: file.content || file.id } : { url: file.content || file.id };
+        openWindow(appId, title, payload);
       } else if (appId === 'pdf-reader') {
         openWindow(appId, title, { url: file.content || file.id });
       } else {
@@ -482,7 +483,8 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
       if (appId === 'media-player') {
         openWindow(appId, file.name, { fileUrl: downloadUrl, mimeType: mime });
       } else if (appId === 'moodboard') {
-        openWindow(appId, file.name, { url: downloadUrl });
+        const payload = mime.startsWith('image/') ? { image: downloadUrl } : mime.startsWith('video/') ? { video: downloadUrl } : { url: downloadUrl };
+        openWindow(appId, file.name, payload);
       } else if (appId === 'pdf-reader') {
         openWindow(appId, file.name, { url: downloadUrl });
       } else {
@@ -1177,12 +1179,20 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                                   setRenamingId(null);
                                 }}
                                 onKeyDown={(e) => {
+                                  e.stopPropagation();
                                   if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                                   if (e.key === 'Escape') setRenamingId(null);
                                 }}
                                 className="w-full text-xs text-center bg-[var(--os-surface-elevated)] border border-[var(--os-primary)] rounded px-1 py-0.5 outline-none text-[var(--os-text)]"
                                 autoFocus
+                                ref={(el) => {
+                                  if (el && document.activeElement !== el) {
+                                    el.focus();
+                                    el.select();
+                                  }
+                                }}
                                 onClick={(e) => e.stopPropagation()}
+                                onPointerDown={(e) => e.stopPropagation()}
                               />
                             ) : (
                               <span className="text-xs font-medium text-[var(--os-text)] text-center line-clamp-2 w-full break-words">
