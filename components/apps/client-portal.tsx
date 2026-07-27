@@ -22,20 +22,23 @@ interface PortalComment {
 }
 
 export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
-  const [storage] = useState(() => new StorageAdapter('client-portal', 'private'));
+  
   const [activeTab, setActiveTab] = useState<PortalTab>('overview');
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<PortalComment[]>([]);
 
   useEffect(() => {
-    storage.get('comments').then((saved) => {
-      if (saved) setComments(saved);
-    });
-  }, [storage]);
+    const saved = localStorage.getItem('client-portal-comments');
+    if (saved) {
+      try { setComments(JSON.parse(saved)); } catch (e) {}
+    }
+  }, []);
 
   useEffect(() => {
-    if (comments.length > 0) storage.set('comments', comments);
-  }, [comments, storage]);
+    if (comments.length > 0) {
+      localStorage.setItem('client-portal-comments', JSON.stringify(comments));
+    }
+  }, [comments]);
 
   const brands = useBrandStore((s) => Object.values(s.brands));
   const boards = useMoodboardStore((s) => Object.values(s.boards));

@@ -41,6 +41,7 @@ export type CampaignState = {
   // Database
   updateDatabase: (dbId: string, updates: Partial<DatabaseSchema>) => void;
   addDatabase: (schema: DatabaseSchema) => void;
+  setDatabaseStore: (store: DatabaseStore) => void;
   linkDatabase: (sourceDbId: string, targetCampaignId: string, label?: string) => LinkedDatabase;
   unlinkDatabase: (linkId: string) => void;
   getLinkedDatabases: (campaignId: string) => LinkedDatabase[];
@@ -75,6 +76,7 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
   linkedDatabases: [],
   campaignShares: [],
   notifications: [],
+  setDatabaseStore: (store) => {}, // implemented below
 
   // ─── UI state ───────────────────────────────────────────
   activePageId: null,
@@ -381,4 +383,4 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
   setCoverPickerOpen: (open) => set({ coverPickerOpen: open }),
 }));
 
-withPersistence(useCampaignStore, 'campaign-state', ['databaseStore', 'linkedDatabases', 'campaignShares', 'notifications']);
+withPersistence(useCampaignStore, 'campaign-state', ['linkedDatabases', 'campaignShares', 'notifications']);

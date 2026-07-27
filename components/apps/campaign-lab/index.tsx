@@ -56,10 +56,14 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
   const collab = useCollaborativeDoc({
     appPrefix: 'campaign',
     docId: projectId,
-    sharedTypes: [{ name: 'pages', kind: 'Map' }],
-    undoTrackingTypes: ['pages'],
+    sharedTypes: [
+      { name: 'pages', kind: 'Map' },
+      { name: 'databases', kind: 'Map' }
+    ],
+    undoTrackingTypes: ['pages', 'databases'],
     onFirstSync: (ydoc, types) => {
       DEFAULT_PAGES.forEach(p => types.pages.set(p.id, p));
+      DEFAULT_DATABASES.forEach(db => types.databases.set(db.id, db));
     },
   });
 
@@ -67,7 +71,8 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
   useEffect(() => {
     if (!collab.synced) return;
     const yPages = collab.sharedTypesRef.current.pages;
-    if (!yPages) return;
+    const yDatabases = collab.sharedTypesRef.current.databases;
+    if (!yPages || !yDatabases) return;
 
     const syncPages = () => {
       const arr = Array.from(yPages.values()) as Page[];
@@ -77,7 +82,18 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
 
     syncPages();
     yPages.observe(syncPages);
-    return () => yPages.unobserve(syncPages);
+    
+    const syncDatabases = () => {
+      const dbMap = Object.fromEntries(yDatabases.entries());
+      store.setDatabaseStore(dbMap);
+    };
+    syncDatabases();
+    yDatabases.observe(syncDatabases);
+    
+    return () => {
+      yPages.unobserve(syncPages);
+      yDatabases.unobserve(syncDatabases);
+    };
   }, [collab.synced]);
 
   const updateYPage = useCallback((newVals: Partial<Page> & { id: string }) => {
@@ -99,7 +115,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
     activePageId, sidebarOpen, shareModalOpen, coverPickerOpen,
     setActivePageId, setSidebarOpen, setShareModalOpen, setCoverPickerOpen,
     addPage: storeAddPage, updatePage: storeUpdatePage, deletePage: storeDeletePage, restorePage: storeRestorePage,
-    updateDatabase, getBreadcrumbs, getChildren,
+    updateDatabase: storeUpdateDatabase, getBreadcrumbs, setDatabaseStore, getChildren,
     createShareLink, getCampaignShares, addNotification,
     addCommentWithMentions,
   } = store;
@@ -125,12 +141,24 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
     updateYPage(newPage);
   }, [storeAddPage, updateYPage]);
 
+  const updateYDatabase = useCallback((id: string, updates: Partial<DatabaseSchema>) => {
+    const yDatabases = collab.sharedTypesRef.current.databases;
+    if (yDatabases) {
+      const existing = yDatabases.get(id) || {};
+      yDatabases.set(id, { ...existing, ...updates, id });
+    }
+  }, [collab]);
+
+  const updateDatabase = useCallback((dbId: string, updates: Partial<DatabaseSchema>) => {
+    updateYDatabase(dbId, updates);
+  }, [updateYDatabase]);
+
   const applyTemplate = useCallback((template: typeof TEMPLATES[0]) => {
     if (template.databases) {
       template.databases.forEach(dbId => {
         if (!databaseStore[dbId]) {
           const defaultDb = DEFAULT_DATABASES.find(d => d.id === dbId);
-          if (defaultDb) updateDatabase(dbId, defaultDb);
+          if (defaultDb) updateYDatabase(dbId, defaultDb);
         }
       });
     }
@@ -838,10 +866,10 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
     if (!email || !activePage) return;
     updatePage(activePage.id, {
       share: {
-        ...activePage.share || { shareLinks: [], invitedUsers: [] },
+        ...activePage.share || { shareLinks: [], invitedUsers: [], publicAccess: null },
         invitedUsers: [
           ...(activePage.share?.invitedUsers || []),
-          { id: crypto.randomUUID(), name: email, email, permission: permission as any || 'viewer' },
+          { userId: crypto.randomUUID(), name: email, permission: permission as any || 'viewer' },
         ],
       },
     });

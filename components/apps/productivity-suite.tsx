@@ -691,7 +691,7 @@ function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab, 
                   value={activeCell === cellId ? rawValue : displayValue}
                   onChange={(e) => handleChange(cellId, e.target.value)}
                   onFocus={() => setActiveCell(cellId)}
-                  onBlur={() => setActiveCell(null)}
+                  onBlur={() => setActiveCell('')}
                   className={cn(
                      "w-full h-full outline-none px-1 py-0.5 text-slate-700 focus:bg-blue-50/50 focus:ring-1 focus:ring-blue-500 focus:ring-inset",
                      r === 1 ? 'font-bold bg-slate-50' : 'bg-transparent'
@@ -765,7 +765,7 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
       canvasRef.current = canvas;
 
       const createDefaultSlideState = (isFirst: boolean) => {
-         const tempCanvas = new fabric.Canvas(null, { width: 768, height: 432, backgroundColor: '#ffffff' });
+         const tempCanvas = new fabric.Canvas(document.createElement('canvas'), { width: 768, height: 432, backgroundColor: '#ffffff' });
          if (isFirst) {
            const title = new fabric.IText('Project "Edge"', { left: 384, top: 150, originX: 'center', originY: 'center', fontFamily: 'sans-serif', fontSize: 48, fontWeight: 'bold', fill: '#1e293b' });
            const subtitle = new fabric.IText('An infrastructure presentation\nexplaining local-first architecture and node scaling.', { left: 384, top: 250, originX: 'center', originY: 'center', fontFamily: 'sans-serif', fontSize: 20, fill: '#64748b', textAlign: 'center' });
@@ -926,7 +926,7 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
     const newOrder = slideOrder.filter(s => s !== id);
     canvasMap.set('slide_order', JSON.stringify(newOrder));
     setSlideOrder(newOrder);
-    if (activeSlideId === id) setActiveSlideId(newOrder[0]);
+    if (activeSlideId === id) setActiveSlideId(newOrder[0] || null);
   };
 
   const handleSlidesUndo = () => {

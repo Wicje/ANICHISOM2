@@ -61,6 +61,8 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   } = useBrowserStore();
 
   const [inputUrl, setInputUrl] = useState('');
+  const [splitUrl, setSplitUrl] = useState('https://duckduckgo.com/');
+  const [splitInputUrl, setSplitInputUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPinDialog, setShowPinDialog] = useState(false);
   const [pinUrl, setPinUrl] = useState('');
