@@ -122,14 +122,8 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     if (!rawContent) return;
 
     let content = rawContent;
-    if (!content.startsWith('http') && !content.startsWith('blob:') && !content.startsWith('data:')) {
-      try {
-        const localFile = await FS.read(content);
-        if (localFile?.content) content = localFile.content;
-      } catch {
-        /* fallback to rawContent */
-      }
-    }
+    // We intentionally keep local file paths as paths (e.g. "Desktop/image.png")
+    // BlobMedia will handle dynamic resolving to avoid storing transient Blob URLs in CRDT state.
 
     const yNodes = collab.sharedTypesRef.current.nodes;
     if (!yNodes) return;

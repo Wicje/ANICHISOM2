@@ -279,7 +279,23 @@ async function validateProxyRequest(request: NextRequest): Promise<{ targetUrl: 
 
   // Parse target URL
   const { searchParams } = new URL(request.url);
-  const targetUrl = searchParams.get('url');
+  let targetUrl = searchParams.get('url');
+  
+  if (targetUrl) {
+    // Append any extra query parameters (e.g. from form submissions) to the targetUrl
+    try {
+      const parsedTarget = new URL(targetUrl);
+      searchParams.forEach((val, key) => {
+        if (key !== 'url') {
+          parsedTarget.searchParams.append(key, val);
+        }
+      });
+      targetUrl = parsedTarget.href;
+    } catch {
+      // Ignore invalid URLs here, it will be caught below
+    }
+  }
+
   if (!targetUrl) {
     return {
       targetUrl: '',

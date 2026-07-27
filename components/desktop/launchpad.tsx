@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAuthStore } from '@/lib/stores/auth.store';
 import { useWindowStore } from '@/lib/stores/window.store';
+import { useWindowActions } from '@/lib/hooks/use-window-actions';
 import { useWorkspaceStore } from '@/lib/stores/workspace.store';
 import { APP_MANIFEST } from '@/lib/app-manifest';
 import { getAllPlugins, isPluginActive } from '@/lib/plugin-registry';
@@ -14,7 +15,7 @@ interface LaunchpadProps {
 
 export function Launchpad({ onClose }: LaunchpadProps) {
   const { currentUser } = useAuthStore();
-  const { openWindow } = useWindowStore();
+  const { openWindow } = useWindowActions();
   const { installedApps } = useWorkspaceStore();
   const [query, setQuery] = useState('');
 

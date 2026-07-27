@@ -15,6 +15,10 @@ const PRESET_WALLPAPERS = [
   { name: 'Dark Topography', url: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=2564&auto=format&fit=crop' },
   { name: 'Glass Dunes', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=2564&auto=format&fit=crop' },
   { name: 'Minimalist Gradient', url: 'https://images.unsplash.com/photo-1557682250-33bd709cbe85?q=80&w=2564&auto=format&fit=crop' },
+  { name: 'Aesthetic Vaporwave', url: 'https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=2564&auto=format&fit=crop' },
+  { name: 'Midnight Mountains', url: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?q=80&w=2564&auto=format&fit=crop' },
+  { name: 'Serene Pastel Sky', url: 'https://images.unsplash.com/photo-1505909182942-e2f09aee3e89?q=80&w=2564&auto=format&fit=crop' },
+  { name: 'Geometric Elegance', url: 'https://images.unsplash.com/photo-1518640467707-6811f4a6ab73?q=80&w=2564&auto=format&fit=crop' }
 ];
 
 const PRESET_THEMES = [
@@ -33,6 +37,9 @@ const PRESET_FONTS = [
   { name: 'Fira Code (Code)', value: '"Fira Code", monospace' },
   { name: 'JetBrains Mono', value: '"JetBrains Mono", monospace' },
   { name: 'Playfair (Serif)', value: '"Playfair Display", serif' },
+  { name: 'Roboto (Classic)', value: '"Roboto", sans-serif' },
+  { name: 'Poppins (Geometric)', value: '"Poppins", sans-serif' },
+  { name: 'Merriweather (Elegant)', value: '"Merriweather", serif' },
   { name: 'System Default', value: 'system-ui, sans-serif' },
 ];
 

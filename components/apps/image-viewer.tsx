@@ -27,9 +27,8 @@ export function ImageViewerApp({ window: osWindow }: { window: any }) {
       setLoading(true);
       try {
         const pathOrId = fileData.fileId || fileData.path;
-        if (fileData.content) {
-           setImageUrl(fileData.content);
-        } else if (pathOrId && !fileData.url) {
+        // If it's a local file, read it freshly so we don't rely on volatile blob URLs from file-manager
+        if (pathOrId && !fileData.url) {
           const file = await FS.read(pathOrId);
           if (file?.content) {
             setImageUrl(file.content);
@@ -37,6 +36,8 @@ export function ImageViewerApp({ window: osWindow }: { window: any }) {
           }
         } else if (fileData.url) {
           setImageUrl(fileData.url);
+        } else if (fileData.content) {
+          setImageUrl(fileData.content);
         }
       } catch (err) {
         console.error('Failed to load image into viewer:', err);

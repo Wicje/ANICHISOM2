@@ -93,57 +93,63 @@ export function WidgetStack({ window: osWindow }: { window?: any }) {
   const eventTime = '14:30';
 
   return (
-    <div className="w-80 flex flex-col gap-3 bg-[#0d0d0f]/80 backdrop-blur-2xl rounded-3xl p-4 shadow-2xl border border-white/10 font-sans overflow-hidden">
+    <div className="w-80 flex flex-col gap-4 bg-black/60 backdrop-blur-[40px] rounded-[36px] p-5 shadow-[0_30px_80px_-20px_rgba(0,0,0,1),inset_0_1px_0_rgba(255,255,255,0.15)] border border-white/5 font-sans overflow-hidden ring-1 ring-white/10 relative">
+      {/* Decorative ambient background */}
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+        <div className="absolute top-[-20%] left-[-20%] w-[140%] h-[140%] bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-pink-500/10 blur-[60px] opacity-60" />
+      </div>
+
       <audio ref={audioRef} onEnded={() => {
         if (audioFiles.length > 0) setCurrentTrack(prev => (prev + 1) % audioFiles.length);
       }} />
+      
         {/* Status bar */}
-        <div className="flex items-center justify-between px-1 text-white/80 text-[10px]">
-          <div className="flex items-center gap-2">
-            <Play className="w-3 h-3" />
-            <Battery className="w-4 h-4" />
-            <Wifi className="w-3 h-3" />
-            <Search className="w-3 h-3" />
+        <div className="flex items-center justify-between px-2 pt-1 text-white/90 text-[11px] font-semibold tracking-wide relative z-10 drop-shadow-md">
+          <div className="flex items-center gap-2.5">
+            <Play className="w-3.5 h-3.5 opacity-80" />
+            <Battery className="w-4 h-4 opacity-80" />
+            <Wifi className="w-3.5 h-3.5 opacity-80" />
           </div>
-          <span className="font-medium">{dateStr}  {timeStr}</span>
+          <span>{dateStr}  <span className="opacity-60 ml-1">{timeStr}</span></span>
         </div>
 
         {/* Outlook Widget */}
-        <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#0078D4] flex items-center justify-center shrink-0">
-              <span className="text-white text-xs font-bold">O</span>
+        <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl rounded-[28px] p-4 border border-white/10 shadow-[0_8px_32px_-10px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] group hover:bg-white/15 transition-all duration-300 relative z-10 cursor-default">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-[18px] bg-gradient-to-b from-[#0078D4] to-[#005a9e] flex items-center justify-center shrink-0 shadow-[0_4px_12px_rgba(0,120,212,0.4),inset_0_1px_2px_rgba(255,255,255,0.4)]">
+              <span className="text-white text-lg font-black tracking-wide drop-shadow-md">O</span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-white text-sm font-semibold">Outlook</div>
-              <div className="text-white/60 text-xs flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                {audioFiles.length} audio files on disk
+              <div className="text-white text-[15px] font-bold tracking-wide">Outlook</div>
+              <div className="text-white/60 text-xs font-semibold flex items-center gap-2 mt-1">
+                <span className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.8)]" />
+                {audioFiles.length} local audio files
               </div>
             </div>
             <div className="text-right shrink-0">
-              <div className="text-white/40 text-[10px]">Today</div>
-              <div className="text-white/40 text-[10px]">{timeStr}</div>
+              <div className="text-blue-400/80 text-[10px] uppercase tracking-widest font-bold">Today</div>
+              <div className="text-white/90 text-[13px] font-black mt-1 tracking-wider">{timeStr}</div>
             </div>
           </div>
         </div>
 
         {/* Event + Calendar */}
-        <div className="flex gap-3">
+        <div className="flex gap-4 relative z-10">
           {/* Next event */}
-          <div className="flex-1 bg-white rounded-2xl p-4">
-            <div className="text-gray-400 text-[10px] mb-1">Next event:</div>
-            <div className="text-gray-900 text-lg font-bold leading-tight mb-3 whitespace-pre-line">{eventTitle}</div>
-            <div className="flex items-center gap-4">
+          <div className="flex-1 bg-gradient-to-br from-indigo-500/10 to-purple-500/5 backdrop-blur-xl rounded-[28px] p-4.5 border border-white/10 shadow-[0_8px_32px_-10px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] group hover:bg-white/10 transition-all duration-300 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/20 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none" />
+            <div className="text-indigo-300/80 text-[10px] uppercase tracking-widest mb-2 font-bold flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" /> Next event</div>
+            <div className="text-white text-[17px] font-extrabold leading-[1.1] mb-4 tracking-tight relative z-10">{eventTitle}</div>
+            <div className="flex items-center gap-5 relative z-10">
               <div>
-                <div className="text-gray-400 text-[9px]">Time:</div>
-                <div className="text-gray-900 text-sm font-bold">{eventTime}</div>
+                <div className="text-white/40 text-[9px] uppercase tracking-widest font-semibold">Time</div>
+                <div className="text-white/90 text-xs font-bold mt-1 tracking-wider">{eventTime}</div>
               </div>
               <div>
-                <div className="text-gray-400 text-[9px]">With:</div>
-                <div className="flex -space-x-1.5 mt-0.5">
+                <div className="text-white/40 text-[9px] uppercase tracking-widest font-semibold mb-1">With</div>
+                <div className="flex -space-x-2 relative z-10">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 border-2 border-white" />
+                    <div key={i} className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 border border-white/20 shadow-md relative z-20 hover:-translate-y-1 transition-transform" style={{ zIndex: 10 - i }} />
                   ))}
                 </div>
               </div>
@@ -151,19 +157,21 @@ export function WidgetStack({ window: osWindow }: { window?: any }) {
           </div>
 
           {/* Calendar */}
-          <div className="flex-1 bg-white rounded-2xl p-3">
-            <div className="text-gray-900 text-sm font-bold mb-2">{monthName}</div>
-            <div className="grid grid-cols-7 gap-0.5">
+          <div className="flex-1 bg-gradient-to-b from-white/10 to-transparent backdrop-blur-xl rounded-[28px] p-4 border border-white/10 shadow-[0_8px_32px_-10px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] group hover:bg-white/10 transition-all duration-300">
+            <div className="text-white font-black mb-3 tracking-widest text-center uppercase text-sm drop-shadow-sm">{monthName}</div>
+            <div className="grid grid-cols-7 gap-y-1.5">
               {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-                <div key={i} className="text-[8px] text-gray-400 text-center font-medium">{d}</div>
+                <div key={i} className="text-[9px] text-white/30 text-center font-bold tracking-wider">{d}</div>
               ))}
               {calendarDays.map((d, i) => (
                 <div
                   key={i}
                   className={cn(
-                    "text-[9px] text-center py-0.5 rounded-full",
-                    d === now.getDate() ? "bg-red-500 text-white font-bold" : "text-gray-600",
-                    d < 1 || d > daysInMonth ? "text-gray-300" : ""
+                    "text-[11px] text-center w-6 h-6 mx-auto flex items-center justify-center rounded-full transition-all duration-300 font-bold",
+                    d === now.getDate() && d > 0 && d <= daysInMonth
+                      ? "bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-[0_2px_10px_rgba(225,29,72,0.6)] ring-1 ring-red-400/50" 
+                      : "text-white/70",
+                    (d < 1 || d > daysInMonth) ? "text-white/20" : "hover:bg-white/20 cursor-pointer"
                   )}
                 >
                   {d}
@@ -174,49 +182,52 @@ export function WidgetStack({ window: osWindow }: { window?: any }) {
         </div>
 
         {/* Music + Weather */}
-        <div className="flex gap-3">
+        <div className="flex gap-4 relative z-10">
           {/* Music */}
-          <div className="flex-1 bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/10">
-            <div className="w-full aspect-square rounded-xl bg-gradient-to-br from-gray-700 to-gray-900 mb-3 overflow-hidden">
-              <div className="w-full h-full flex items-center justify-center">
-                <div className="text-4xl">🎵</div>
+          <div className="flex-1 bg-gradient-to-br from-gray-800/80 to-black/80 backdrop-blur-xl rounded-[28px] p-4.5 border border-white/10 shadow-[0_8px_32px_-10px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] group hover:border-white/20 transition-all duration-300">
+            <div className="w-full aspect-square rounded-[20px] bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 mb-4 relative overflow-hidden ring-1 ring-white/20 shadow-[0_10px_20px_-5px_rgba(0,0,0,0.5)] group-hover:shadow-[0_15px_30px_-5px_rgba(0,0,0,0.6)] transition-all duration-500">
+              <div className="w-full h-full flex items-center justify-center bg-black/20">
+                <div className="text-4xl filter drop-shadow-xl scale-100 group-hover:scale-110 transition-transform duration-500">🎵</div>
               </div>
             </div>
-            <div className="text-white text-sm font-semibold truncate">{track?.name?.replace(/\.[^.]+$/, '') || 'No track'}</div>
-            <div className="text-white/50 text-xs">{track ? 'Local File' : 'Add audio files'}</div>
-            <div className="flex items-center justify-between mt-3">
-              <button onClick={() => { if (audioFiles.length > 0) setCurrentTrack(prev => (prev - 1 + audioFiles.length) % audioFiles.length); }} className="text-white/50 hover:text-white"><Shuffle className="w-3 h-3" /></button>
-              <button onClick={() => { if (audioFiles.length > 0) setCurrentTrack(prev => (prev - 1 + audioFiles.length) % audioFiles.length); }} className="text-white/50 hover:text-white"><SkipBack className="w-3 h-3 fill-current" /></button>
+            <div className="text-white text-[13px] font-bold truncate tracking-wide drop-shadow-md">{track?.name?.replace(/\.[^.]+$/, '') || 'No track'}</div>
+            <div className="text-white/50 text-[11px] font-semibold mt-1 tracking-wide">{track ? 'Local File' : 'Add audio files'}</div>
+            <div className="flex items-center justify-between mt-4 px-0.5">
+              <button onClick={() => { if (audioFiles.length > 0) setCurrentTrack(prev => (prev - 1 + audioFiles.length) % audioFiles.length); }} className="text-white/40 hover:text-white transition-colors duration-200"><Shuffle className="w-4 h-4" /></button>
+              <button onClick={() => { if (audioFiles.length > 0) setCurrentTrack(prev => (prev - 1 + audioFiles.length) % audioFiles.length); }} className="text-white/60 hover:text-white transition-colors duration-200"><SkipBack className="w-4 h-4 fill-current" /></button>
               <button
                 onClick={() => setIsPlaying(!isPlaying)}
-                className="text-white hover:text-white/80"
+                className="w-10 h-10 flex items-center justify-center rounded-full bg-white text-black hover:scale-105 transition-all duration-300 shadow-[0_0_15px_rgba(255,255,255,0.3)]"
               >
-                {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+                {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
               </button>
-              <button onClick={() => { if (audioFiles.length > 0) setCurrentTrack(prev => (prev + 1) % audioFiles.length); }} className="text-white/50 hover:text-white"><SkipForward className="w-3 h-3 fill-current" /></button>
-              <button className="text-white/50 hover:text-white"><Repeat className="w-3 h-3" /></button>
+              <button onClick={() => { if (audioFiles.length > 0) setCurrentTrack(prev => (prev + 1) % audioFiles.length); }} className="text-white/60 hover:text-white transition-colors duration-200"><SkipForward className="w-4 h-4 fill-current" /></button>
+              <button className="text-white/40 hover:text-white transition-colors duration-200"><Repeat className="w-4 h-4" /></button>
             </div>
           </div>
 
           {/* Weather */}
-          <div className="flex-1 bg-white rounded-2xl p-4 flex flex-col">
-            <div className="text-gray-900 text-3xl font-light">26°</div>
-            <div className="text-gray-400 text-xs mt-1">H: 28  L: 19</div>
-            <div className="mt-auto flex items-center gap-2">
-              <span className="text-2xl">☀️</span>
-              <span className="text-gray-700 text-sm">Sunny</span>
+          <div className="flex-1 bg-gradient-to-b from-blue-500/10 to-blue-900/10 backdrop-blur-xl rounded-[28px] p-5 flex flex-col border border-white/10 shadow-[0_8px_32px_-10px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] group hover:bg-white/10 transition-all duration-300 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-yellow-500/20 rounded-full blur-[40px] -mr-10 -mt-10 pointer-events-none group-hover:bg-yellow-400/30 transition-colors duration-700" />
+            <div className="text-white text-4xl font-light tracking-tighter leading-none relative z-10 drop-shadow-md">26°</div>
+            <div className="text-white/60 text-[11px] font-bold mt-2 relative z-10 tracking-widest">H: 28°  L: 19°</div>
+            <div className="mt-auto flex items-center gap-3 relative z-10">
+              <span className="text-4xl filter drop-shadow-[0_0_15px_rgba(250,204,21,0.4)] hover:scale-110 transition-transform duration-500">☀️</span>
+              <span className="text-white/90 text-sm font-bold tracking-widest uppercase">Sunny</span>
             </div>
           </div>
         </div>
 
         {/* Timer */}
-        <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/10">
+        <div className="bg-gradient-to-r from-orange-500/10 to-red-500/5 backdrop-blur-xl rounded-[28px] p-4.5 border border-white/10 shadow-[0_8px_32px_-10px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] group transition-all duration-300 relative z-10">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
-              </svg>
-              <span className="text-white text-xl font-light">{formatTimer(timerSeconds)}</span>
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-[0_4px_12px_rgba(249,115,22,0.4),inset_0_2px_4px_rgba(255,255,255,0.3)]">
+                <svg className="w-5 h-5 text-white drop-shadow-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+                </svg>
+              </div>
+              <span className="text-white text-3xl font-black tracking-tighter drop-shadow-md" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatTimer(timerSeconds)}</span>
             </div>
             <div className="ml-auto flex gap-2">
               <button
@@ -226,31 +237,38 @@ export function WidgetStack({ window: osWindow }: { window?: any }) {
                   }
                   setTimerRunning(!timerRunning);
                 }}
-                className="px-4 py-2 bg-white/10 rounded-xl text-white text-xs font-medium hover:bg-white/20 transition-colors"
+                className={cn(
+                  "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 shadow-md",
+                  timerRunning 
+                    ? "bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]" 
+                    : timerSeconds === 0 
+                      ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:shadow-[0_0_20px_rgba(59,130,246,0.4)]" 
+                      : "bg-white/10 text-white hover:bg-white/20 border border-white/10 backdrop-blur-md"
+                )}
               >
                 {timerRunning ? 'Pause' : timerSeconds === 0 ? 'Start' : 'Resume'}
               </button>
               <button
                 onClick={() => setShowTimerInput(!showTimerInput)}
-                className="px-4 py-2 bg-white/10 rounded-xl text-white text-xs font-medium hover:bg-white/20 transition-colors"
+                className="px-4 py-2 bg-white/5 rounded-xl text-white/70 hover:text-white text-xs font-black uppercase tracking-widest border border-white/10 hover:bg-white/15 transition-all duration-300 backdrop-blur-md"
               >
-                Change<br />Timer
+                Edit
               </button>
             </div>
           </div>
           {showTimerInput && (
-            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/10">
-              <span className="text-white/60 text-xs">Minutes:</span>
+            <div className="flex items-center gap-4 mt-5 pt-5 border-t border-white/10">
+              <span className="text-white/50 text-[10px] font-black uppercase tracking-widest">Minutes:</span>
               <input
                 type="number"
                 value={timerInput}
                 onChange={(e) => setTimerInput(e.target.value)}
-                className="w-16 px-2 py-1 bg-white/10 rounded-lg text-white text-xs border border-white/20 focus:outline-none focus:ring-1 focus:ring-white/40"
+                className="w-20 px-3 py-2 bg-black/50 rounded-xl text-white text-sm font-bold border border-white/10 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-center shadow-inner"
                 min="1"
               />
               <button
-                onClick={() => { changeTimer(); setShowTimerInput(false); }}
-                className="px-3 py-1 bg-white/20 rounded-lg text-white text-xs font-medium hover:bg-white/30 transition-colors"
+                onClick={changeTimer}
+                className="px-5 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-[0_4px_15px_rgba(59,130,246,0.4)] hover:shadow-[0_4px_20px_rgba(59,130,246,0.6)] transition-all ml-auto"
               >
                 Set
               </button>

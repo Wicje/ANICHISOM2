@@ -33,7 +33,12 @@ export function OSModal({ open, onClose, title, children, maxWidth = 'max-w-md',
     const focusable = content.querySelectorAll<HTMLElement>(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     );
-    if (focusable.length > 0) {
+    
+    // First try to focus an element with autofocus
+    const autofocusElement = content.querySelector<HTMLElement>('[autofocus]');
+    if (autofocusElement) {
+      autofocusElement.focus();
+    } else if (focusable.length > 0) {
       focusable.item(0)?.focus();
     }
 

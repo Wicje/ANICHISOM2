@@ -46,7 +46,7 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
   }, [activeWindows]);
 
   const isAnyWindowMaximized = useMemo(
-    () => activeWindows.some((w) => w.isMaximized),
+    () => activeWindows.some((w) => w.isMaximized && !w.isMinimized),
     [activeWindows]
   );
 

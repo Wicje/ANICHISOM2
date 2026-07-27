@@ -622,9 +622,12 @@ function NewTabPage({
     e.preventDefault();
     if (!query) return;
     let finalUrl = query;
-    const isDomain = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/.test(query) || query.startsWith('http');
+    const isDomain = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/.test(query) || query.startsWith('http');
     if (isDomain) {
       if (!query.startsWith('http')) finalUrl = `https://${query}`;
+    } else if (query.toLowerCase().startsWith('wikipedia')) {
+      const q = query.replace(/^wikipedia\s*/i, '').trim();
+      finalUrl = q ? `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(q)}` : `https://en.wikipedia.org`;
     } else {
       const q = encodeURIComponent(query);
       if (searchEngine === 'google') finalUrl = `https://www.google.com/search?q=${q}`;
