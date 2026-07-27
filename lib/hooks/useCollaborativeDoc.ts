@@ -84,6 +84,7 @@ export function useCollaborativeDoc(config: CollaborativeDocConfig): Collaborati
   const providerRef = useRef<any>(null);
   const wsProviderRef = useRef<any>(null);
   const activeRef = useRef(true);
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const updateRoom = useCollabStatusStore((s) => s.updateRoom);
   const removeRoom = useCollabStatusStore((s) => s.removeRoom);
@@ -161,7 +162,7 @@ export function useCollaborativeDoc(config: CollaborativeDocConfig): Collaborati
       const provider = new IndexeddbPersistence(roomId, ydoc);
       providerRef.current = provider;
 
-      provider.on('synced', () => {
+      const handleSynced = () => {
         if (!activeRef.current) return;
         setSynced(true);
 
@@ -178,6 +179,17 @@ export function useCollaborativeDoc(config: CollaborativeDocConfig): Collaborati
         if (!hasData && config.onFirstSync) {
           config.onFirstSync(ydoc, types);
         }
+      };
+
+      syncTimeoutRef.current = setTimeout(() => {
+        if (!activeRef.current) return;
+        console.warn('[useCollaborativeDoc] IDB sync timed out — forcing synced state');
+        handleSynced();
+      }, 5000);
+
+      provider.on('synced', () => {
+        if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+        handleSynced();
       });
 
       // 4. UndoManager
@@ -365,6 +377,7 @@ export function useCollaborativeDoc(config: CollaborativeDocConfig): Collaborati
 
     return () => {
       activeRef.current = false;
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
       setSynced(false);
       setConnected(false);
       setPeerCount(0);

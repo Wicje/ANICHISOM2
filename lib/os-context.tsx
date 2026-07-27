@@ -162,7 +162,22 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
   // ─── Desktop state persistence (throttled) ────────────────────────
 
   useEffect(() => {
-    if (!currentUser || !isHydratedRef.current) return;
+    if (!isHydratedRef.current) return;
+
+    const flushSync = () => {
+      writeDomain('desktop', {
+        windows,
+        workspaceMode,
+        installedApps,
+        recentApps,
+        wallpaper,
+        themeColor,
+        fontFamily,
+        screenShader,
+      }).catch(() => {});
+    };
+
+    window.addEventListener('beforeunload', flushSync);
     
     const t = setTimeout(async () => {
       try {
@@ -177,24 +192,29 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
           screenShader,
         });
         
-        try {
-          await fetch('/api/workspaces/sync', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              desktopState: { windows, workspaceMode, installedApps, recentApps, wallpaper, themeColor, fontFamily, screenShader, lastUpdated: Date.now() }
-            }),
-          });
-        } catch {
-          // Silently fail if offline
+        if (currentUser) {
+          try {
+            await fetch('/api/workspaces/sync', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                desktopState: { windows, workspaceMode, installedApps, recentApps, wallpaper, themeColor, fontFamily, screenShader, lastUpdated: Date.now() }
+              }),
+            });
+          } catch {
+            // Silently fail if offline
+          }
         }
       } catch {
         // Silently fail
       }
     }, 2000);
     
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('beforeunload', flushSync);
+    };
   }, [windows, workspaceMode, installedApps, recentApps, currentUser, wallpaper, themeColor, fontFamily, screenShader]);
 
   // ─── Wrapper callbacks (preserving API compatibility) ──────────────
@@ -210,6 +230,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
   }, [authLogout, windowSetWindows]);
 
   const wipeSession = useCallback(async () => {
+    if (!window.confirm("Are you sure you want to wipe this session? This will permanently delete all offline documents and settings.")) return;
     await idbClear();
     localStorage.clear();
     window.location.reload();

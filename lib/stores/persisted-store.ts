@@ -19,18 +19,34 @@ import { mark, measure } from '@/lib/perf';
 const DEBOUNCE_MS = 2000;
 
 const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const pendingWrites = new Map<string, any>();
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    pendingWrites.forEach((data, domain) => {
+      // Fire-and-forget IDB write for anything pending (will queue the transaction sync)
+      writeDomain(domain, data).catch(() => {});
+    });
+  });
+}
 
 /**
  * Schedule a debounced write through the Context Layer.
  */
 function schedulePersist<T>(domain: string, data: T): void {
+  pendingWrites.set(domain, data);
+
   const existing = debounceTimers.get(domain);
   if (existing) clearTimeout(existing);
 
   debounceTimers.set(domain, setTimeout(() => {
-    writeDomain(domain, data).catch((e: unknown) => {
-      console.warn(`[PersistedStore:${domain}] Failed to persist:`, e);
-    });
+    const latestData = pendingWrites.get(domain);
+    if (latestData !== undefined) {
+      writeDomain(domain, latestData).catch((e: unknown) => {
+        console.warn(`[PersistedStore:${domain}] Failed to persist:`, e);
+      });
+      pendingWrites.delete(domain);
+    }
     debounceTimers.delete(domain);
   }, DEBOUNCE_MS));
 }

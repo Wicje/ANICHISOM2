@@ -18,7 +18,7 @@ export function ControlCenter({ onClose }: ControlCenterProps) {
   const recentNotifications = notifications.slice(0, 5);
 
   return (
-    <div className="absolute top-0 right-0 h-full w-80 glass-panel shadow-2xl z-[60] flex flex-col pointer-events-auto overflow-hidden animate-in slide-in-from-right">
+    <div className="absolute top-8 right-0 h-[calc(100%-2rem)] w-80 glass-panel shadow-2xl z-[265] flex flex-col pointer-events-auto overflow-hidden animate-in slide-in-from-right">
       <div className="p-4 flex justify-between items-center" style={{ borderBottom: '1px solid var(--os-border)' }}>
         <h3 className="font-medium text-sm" style={{ color: 'var(--os-text)' }}>Action Center</h3>
         <button onClick={onClose} style={{ color: 'var(--os-text-muted)' }}>✕</button>

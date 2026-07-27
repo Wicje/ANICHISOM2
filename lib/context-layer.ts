@@ -294,9 +294,13 @@ export async function processOfflineSyncQueue(): Promise<void> {
     for (const key of queue) {
       const blob = await readBlob(key);
       if (blob) {
-        // Pseudo-code for cloud upload
-        // const success = await uploadToSupabase(key, blob);
-        // if (!success) remaining.push(key);
+        const { getSupabase } = await import('@/lib/supabase');
+        const supabase = getSupabase();
+        const { error } = await supabase.storage.from('continua-blobs').upload(key, blob, { upsert: true });
+        if (error) {
+          console.warn(`[ContextLayer] Blob upload failed for ${key}:`, error);
+          remaining.push(key);
+        }
       }
     }
 

@@ -12,7 +12,7 @@ export function FocusOverlay() {
 
   return (
     <div
-      className="fixed inset-0 z-[9998] pointer-events-none"
+      className="fixed inset-0 z-[9998] pointer-events-auto cursor-pointer"
       onClick={toggle}
       style={{
         background: 'rgba(0,0,0,0.4)',

@@ -98,80 +98,119 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
           </button>
         </div>
 
-        {/* Music Player */}
-        <div className="flex items-center gap-5 shrink-0 group">
-          <div className="w-16 h-16 rounded-[22px] overflow-hidden bg-gradient-to-br from-gray-800 to-black relative ring-1 ring-white/15 shadow-xl group-hover:shadow-2xl group-hover:ring-white/30 transition-all duration-300">
-            {/* Animated Album Art Background */}
-            <div className={cn("absolute inset-0 bg-gradient-to-br from-indigo-500/40 via-purple-500/40 to-pink-500/40 opacity-70 transition-transform duration-1000", isPlaying ? "scale-110 rotate-3" : "scale-100 rotate-0")} />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Music className="w-6 h-6 text-white shadow-sm" />
-            </div>
-            {/* Live Waveform Indicator */}
-            {isPlaying && (
-              <div className="absolute bottom-2 left-2 flex gap-0.5 items-end h-3">
-                 {[1,2,3].map(i => (
-                   <motion.div key={i} animate={{ height: ['4px', '12px', '4px'] }} transition={{ repeat: Infinity, duration: 0.6 + (i * 0.2) }} className="w-1 bg-white rounded-t-sm opacity-80" />
-                 ))}
+        {/* Nook Tab: Music Player + Calendar */}
+        {activeTab === 'nook' && (
+          <>
+            <div className="flex items-center gap-5 shrink-0 group">
+              <div className="w-16 h-16 rounded-[22px] overflow-hidden bg-gradient-to-br from-gray-800 to-black relative ring-1 ring-white/15 shadow-xl group-hover:shadow-2xl group-hover:ring-white/30 transition-all duration-300">
+                <div className={cn("absolute inset-0 bg-gradient-to-br from-indigo-500/40 via-purple-500/40 to-pink-500/40 opacity-70 transition-transform duration-1000", isPlaying ? "scale-110 rotate-3" : "scale-100 rotate-0")} />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Music className="w-6 h-6 text-white shadow-sm" />
+                </div>
+                {isPlaying && (
+                  <div className="absolute bottom-2 left-2 flex gap-0.5 items-end h-3">
+                     {[1,2,3].map(i => (
+                       <motion.div key={i} animate={{ height: ['4px', '12px', '4px'] }} transition={{ repeat: Infinity, duration: 0.6 + (i * 0.2) }} className="w-1 bg-white rounded-t-sm opacity-80" />
+                     ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <div className="flex flex-col min-w-[140px] max-w-[180px]">
-            <span className="text-[15px] font-bold text-white tracking-wide truncate drop-shadow-sm">{trackTitle}</span>
-            <span className="text-[12px] font-medium text-white/50 truncate mt-0.5">{trackArtist}</span>
-          </div>
-          <div className="flex items-center gap-2 ml-2">
-            <button onClick={playPrev} className="p-2.5 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-all duration-200">
-              <SkipBack className="w-4 h-4 fill-current" />
-            </button>
-            <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="w-12 h-12 flex items-center justify-center rounded-full bg-white text-black hover:scale-105 transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
-            >
-              {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-1" />}
-            </button>
-            <button onClick={playNext} className="p-2.5 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-all duration-200">
-              <SkipForward className="w-4 h-4 fill-current" />
-            </button>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="w-px h-16 bg-gradient-to-b from-transparent via-white/10 to-transparent mx-2" />
-
-        {/* Calendar Widget */}
-        <div className="flex flex-col shrink-0 min-w-[160px]">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 uppercase tracking-widest">{now.toLocaleString('en', { month: 'short' })}</span>
-            <div className="flex items-center gap-1.5 text-white/40 bg-white/5 px-2 py-0.5 rounded-full ring-1 ring-white/5">
-              <Calendar className="w-3 h-3 text-blue-400/70" />
-              <span className="text-[10px] font-bold tracking-wider">{audioFiles.length} Tracks</span>
+              <div className="flex flex-col min-w-[140px] max-w-[180px]">
+                <span className="text-[15px] font-bold text-white tracking-wide truncate drop-shadow-sm">{trackTitle}</span>
+                <span className="text-[12px] font-medium text-white/50 truncate mt-0.5">{trackArtist}</span>
+                <span className="text-[10px] text-white/30 mt-1">{audioFiles.length} track{audioFiles.length !== 1 ? 's' : ''} available</span>
+              </div>
+              <div className="flex items-center gap-2 ml-2">
+                <button onClick={playPrev} className="p-2.5 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-all duration-200">
+                  <SkipBack className="w-4 h-4 fill-current" />
+                </button>
+                <button
+                  onClick={() => setIsPlaying(!isPlaying)}
+                  className="w-12 h-12 flex items-center justify-center rounded-full bg-white text-black hover:scale-105 transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                >
+                  {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-1" />}
+                </button>
+                <button onClick={playNext} className="p-2.5 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-all duration-200">
+                  <SkipForward className="w-4 h-4 fill-current" />
+                </button>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-1.5 justify-between">
-            {dates.map((d, i) => (
-              <div key={i} className="flex flex-col items-center gap-1">
-                <span
-                  className={cn(
-                    "text-[9px] font-bold tracking-widest",
-                    d === now.getDate() ? "text-blue-400" : "text-white/30"
-                  )}
-                >
-                  {days[i]}
-                </span>
-                <span
-                  className={cn(
-                    "text-xs font-bold transition-all duration-300 w-6 h-6 flex items-center justify-center rounded-full",
-                    d === now.getDate() 
-                      ? "bg-gradient-to-br from-blue-500 to-cyan-400 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)] ring-1 ring-white/20" 
-                      : "text-white/50 hover:bg-white/10 hover:text-white"
-                  )}
-                >
-                  {d}
+
+            {/* Divider */}
+            <div className="w-px h-16 bg-gradient-to-b from-transparent via-white/10 to-transparent mx-2" />
+
+            {/* Calendar Widget */}
+            <div className="flex flex-col shrink-0 min-w-[160px]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 uppercase tracking-widest">
+                  {now.toLocaleString('en', { month: 'long', year: 'numeric' })}
                 </span>
               </div>
-            ))}
+              <div className="flex items-center gap-1.5 justify-between">
+                {dates.map((d, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1">
+                    <span className={cn("text-[9px] font-bold tracking-widest", d === now.getDate() ? "text-blue-400" : "text-white/30")}>
+                      {days[i]}
+                    </span>
+                    <span className={cn(
+                      "text-xs font-bold transition-all duration-300 w-6 h-6 flex items-center justify-center rounded-full",
+                      d === now.getDate()
+                        ? "bg-gradient-to-br from-blue-500 to-cyan-400 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)] ring-1 ring-white/20"
+                        : "text-white/50 hover:bg-white/10 hover:text-white"
+                    )}>
+                      {d}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* System Tray — shown on 'tray' tab */}
+        {activeTab === 'tray' && (
+          <div className="flex items-center gap-4 min-w-[360px]">
+            <div className="flex flex-col gap-2 flex-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">System</span>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Wi-Fi', icon: '📶', active: true },
+                  { label: 'Bluetooth', icon: '🔵', active: false },
+                  { label: 'Do Not Disturb', icon: '🔕', active: false },
+                  { label: 'Dark Mode', icon: '🌙', active: true },
+                  { label: 'AirDrop', icon: '📡', active: false },
+                  { label: 'Night Shift', icon: '🌅', active: false },
+                ].map(({ label, icon, active }) => (
+                  <button
+                    key={label}
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-1 p-2 rounded-2xl text-[9px] font-semibold transition-all duration-200",
+                      active
+                        ? "bg-blue-500/30 text-white ring-1 ring-blue-400/40"
+                        : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/70"
+                    )}
+                  >
+                    <span className="text-base">{icon}</span>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="w-px h-20 bg-gradient-to-b from-transparent via-white/10 to-transparent mx-2" />
+            <div className="flex flex-col gap-3 min-w-[120px]">
+              <div className="flex flex-col gap-1">
+                <span className="text-[9px] text-white/30 font-bold uppercase tracking-widest">Brightness</span>
+                <input type="range" min="0" max="100" defaultValue="80"
+                  className="w-full h-1 rounded-full accent-white bg-white/10 cursor-pointer" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[9px] text-white/30 font-bold uppercase tracking-widest">Volume</span>
+                <input type="range" min="0" max="100" defaultValue="60"
+                  className="w-full h-1 rounded-full accent-white bg-white/10 cursor-pointer" />
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </motion.div>
     </div>
   );

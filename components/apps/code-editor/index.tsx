@@ -63,17 +63,24 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
       setCursorPosition({ line: e.position.lineNumber, column: e.position.column });
     });
 
-    // YJS Bindings — use Y.Text from useCollaborativeDoc
-    if (workspaceMode === 'agency' && collab.synced) {
+    setEditorReady(true);
+  };
+
+  useEffect(() => {
+    if (editorReady && workspaceMode === 'agency' && collab.synced && editorRef.current) {
        const yText = collab.sharedTypesRef.current.monaco;
        const wsProvider = collab.wsProviderRef.current;
        if (!yText || !wsProvider) return;
 
-       const binding = new MonacoBinding(yText, editor.getModel(), new Set([editor]), wsProvider.awareness);
+       if (bindingRef.current) {
+         try { bindingRef.current.destroy(); } catch {}
+         bindingRef.current = null;
+       }
+
+       const binding = new MonacoBinding(yText, editorRef.current.getModel(), new Set([editorRef.current]), wsProvider.awareness);
        bindingRef.current = binding;
     }
-    setEditorReady(true);
-  };
+  }, [editorReady, workspaceMode, collab.synced, collab.sharedTypesRef, collab.wsProviderRef]);
 
   // Cleanup: destroy MonacoBinding (Y.Doc + WS provider owned by useCollaborativeDoc)
   useEffect(() => {

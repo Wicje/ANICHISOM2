@@ -62,7 +62,8 @@ function sanitizeHTML(html: string): string {
 export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
   const { performanceMode, currentUser, workspaceMode, setWorkspaceMode } = useOS();
   const [activeTab, setActiveTab] = useState<AppType>((osWindow.data?.tab as AppType) || 'word');
-  const [wordEditor, setWordEditor] = useState<Editor | null>(null);
+  const wordEditorRef = useRef<Editor | null>(null);
+  const [wordToolbarTick, setWordToolbarTick] = useState(0);
   const sheetsDataRef = useRef<Record<string, string>>({});
   const fabricCanvasRef = useRef<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -72,6 +73,9 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const [activeSheetCell, setActiveSheetCell] = useState<string>('A1');
+  const [activeSlideIndex, setActiveSlideIndex] = useState<number>(0);
+  const [totalSlides, setTotalSlides] = useState<number>(1);
 
   const collab = useCollaborativeDoc({
     appPrefix: 'office',
@@ -80,6 +84,7 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
       { name: 'content', kind: 'XmlFragment' },
       { name: 'cells', kind: 'Map' },
       { name: 'canvas', kind: 'Map' },
+      { name: 'slides', kind: 'Array' },
     ],
     undoTrackingTypes: ['content', 'cells'],
   });
@@ -204,7 +209,7 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
   };
 
   // Safely reference the editor — null it out if destroyed to prevent commandManager crashes
-  const we = wordEditor && !wordEditor.isDestroyed ? wordEditor : null;
+  const we = wordEditorRef.current && !wordEditorRef.current.isDestroyed ? wordEditorRef.current : null;
 
   return (
     <div className="w-full h-full flex bg-white text-slate-800 font-sans shadow-2xl relative overflow-hidden">
@@ -388,7 +393,19 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
              <div className="flex items-center gap-2 w-full max-w-md">
                <div className="flex items-center gap-2 text-xs font-mono bg-slate-50 px-2 py-1 rounded border border-slate-200 flex-1">
                  <span className="text-slate-400">fx</span>
-                 <input type="text" className="bg-transparent outline-none flex-1 font-mono text-slate-700" placeholder="=SUM(A1:A10)" />
+                 <input 
+                   type="text" 
+                   className="bg-transparent outline-none flex-1 font-mono text-slate-700" 
+                   value={sheetsDataRef.current?.[activeSheetCell] || ''}
+                   onChange={(e) => {
+                      const cellsMap = collab.sharedTypesRef.current.cells;
+                      if (cellsMap) {
+                         cellsMap.set(activeSheetCell, e.target.value);
+                         setSaveStatus('unsaved');
+                      }
+                   }}
+                   placeholder="=SUM(A1:A10)" 
+                 />
                </div>
              </div>
            )}
@@ -416,9 +433,9 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
           transition={{ duration: 0.2 }}
           className="flex-1 relative z-10 overflow-hidden bg-slate-100"
         >
-          {activeTab === 'word' && <WordEditor performanceMode={performanceMode} workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} onEditorReady={setWordEditor} collab={collab} onDirty={() => setSaveStatus('unsaved')} />}
-          {activeTab === 'sheets' && <SheetsEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} dataRef={sheetsDataRef} collab={collab} onDirty={() => setSaveStatus('unsaved')} />}
-          {activeTab === 'slides' && <SlidesEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} canvasRef={fabricCanvasRef} collab={collab} onDirty={() => setSaveStatus('unsaved')} />}
+          {activeTab === 'word' && <WordEditor performanceMode={performanceMode} workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} onEditorReady={(editor) => { wordEditorRef.current = editor; setWordToolbarTick(t => t + 1); }} collab={collab} onDirty={() => setSaveStatus('unsaved')} />}
+          {activeTab === 'sheets' && <SheetsEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} dataRef={sheetsDataRef} collab={collab} onDirty={() => setSaveStatus('unsaved')} activeCell={activeSheetCell} setActiveCell={setActiveSheetCell} />}
+          {activeTab === 'slides' && <SlidesEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} canvasRef={fabricCanvasRef} collab={collab} onDirty={() => setSaveStatus('unsaved')} onSlideChange={(idx, total) => { setActiveSlideIndex(idx); setTotalSlides(total); }} />}
           {activeTab === 'pdf' && <PdfEditor initialUrl={osWindow.data?.url} />}
         </motion.div>
       </AnimatePresence>
@@ -434,8 +451,8 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
         </div>
         <div className="flex items-center gap-4">
            {activeTab === 'word' && <span>Word Processor Active</span>}
-           {activeTab === 'sheets' && <span>Cell: B4</span>}
-           {activeTab === 'slides' && <span>Slide 1 of 5</span>}
+           {activeTab === 'sheets' && <span>Cell: {activeSheetCell || 'A1'}</span>}
+           {activeTab === 'slides' && <span>Slide {activeSlideIndex + 1} of {totalSlides}</span>}
         </div>
       </div>
       </div>
@@ -466,7 +483,6 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser, on
     content: fragment ? undefined : defaultContent,
     immediatelyRender: !!fragment, // Create immediately once collab is ready
     onUpdate: ({ editor }) => {
-       onEditorReady(editor);
        onDirty?.();
     },
     onSelectionUpdate: ({ editor }) => {
@@ -504,9 +520,8 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser, on
   );
 }
 
-function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab, onDirty }: { workspaceMode: 'private' | 'agency', projectId: string, currentUser: any, dataRef: React.MutableRefObject<Record<string, string>>, collab: CollaborativeDocState, onDirty?: () => void }) {
+function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab, onDirty, activeCell, setActiveCell }: { workspaceMode: 'private' | 'agency', projectId: string, currentUser: any, dataRef: React.MutableRefObject<Record<string, string>>, collab: CollaborativeDocState, onDirty?: () => void, activeCell: string, setActiveCell: (c: string) => void }) {
   const [data, setData] = useState<Record<string, string>>({});
-  const [activeCell, setActiveCell] = useState<string | null>(null);
   const observeListenerRef = useRef<any>(null);
   const YRef = useRef<any>(null);
 
@@ -592,16 +607,26 @@ function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab, 
     };
   }, [collab.synced, collab.sharedTypesRef, dataRef]);
 
+  const pendingEditsRef = useRef<Array<{cell: string, value: string}>>([]);
+
   // Load Yjs module for direct Y.Map mutations
   useEffect(() => {
     import('yjs').then((mod) => {
       YRef.current = mod;
+      const cellsMap = collab.sharedTypesRef.current.cells;
+      if (cellsMap) {
+        pendingEditsRef.current.forEach(({ cell, value }) => cellsMap.set(cell, value));
+      }
+      pendingEditsRef.current = [];
     });
-  }, []);
+  }, [collab.sharedTypesRef]);
 
   const handleChange = (cell: string, value: string) => {
     const cellsMap = collab.sharedTypesRef.current.cells;
-    if (!cellsMap || !YRef.current) return;
+    if (!cellsMap || !YRef.current) {
+      pendingEditsRef.current.push({ cell, value });
+      return;
+    }
 
     cellsMap.set(cell, value);
     onDirty?.();
@@ -681,22 +706,49 @@ function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab, 
   );
 }
 
-function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab, onDirty }: { workspaceMode: 'private' | 'agency', projectId: string, currentUser: any, canvasRef: React.MutableRefObject<any>, collab: CollaborativeDocState, onDirty?: () => void }) {
+function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab, onDirty, onSlideChange }: { workspaceMode: 'private' | 'agency', projectId: string, currentUser: any, canvasRef: React.MutableRefObject<any>, collab: CollaborativeDocState, onDirty?: () => void, onSlideChange?: (idx: number, total: number) => void }) {
   const localCanvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
   const [loaded, setLoaded] = useState(false);
+  const [slideOrder, setSlideOrder] = useState<string[]>([]);
+  const [activeSlideId, setActiveSlideId] = useState<string | null>(null);
+  
+  useEffect(() => {
+     if (onSlideChange) {
+        onSlideChange(slideOrder.indexOf(activeSlideId || '') || 0, slideOrder.length || 1);
+     }
+  }, [activeSlideId, slideOrder.length]);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
   const isSyncingRef = useRef(false);
   const onDirtyRef = useRef(onDirty);
   useEffect(() => { onDirtyRef.current = onDirty; }, [onDirty]);
-  // Fabric canvas state is too complex for Yjs UndoManager to track granularly — keep snapshot undo/redo
+
   const undoStackRef = useRef<string[]>([]);
   const redoStackRef = useRef<string[]>([]);
   const previousStateRef = useRef<string>('');
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+
   const canvasObserverRef = useRef<any>(null);
-  const canvasMapRef = useRef<any>(null);
   const checkIntervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const activeSlideIdRef = useRef<string | null>(null);
+  activeSlideIdRef.current = activeSlideId;
+
+  // Track Fullscreen
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
+  const handlePresent = () => {
+    if (containerRef.current?.requestFullscreen) {
+       containerRef.current.requestFullscreen();
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -712,97 +764,79 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
       fabricCanvasRef.current = canvas;
       canvasRef.current = canvas;
 
-      const setupDefault = () => {
-         const title = new fabric.IText('Project "Edge"', {
-            left: 384,
-            top: 150,
-            originX: 'center',
-            originY: 'center',
-            fontFamily: 'sans-serif',
-            fontSize: 48,
-            fontWeight: 'bold',
-            fill: '#1e293b'
-         });
-         const subtitle = new fabric.IText('An infrastructure presentation explaining local-first architecture and node scaling.', {
-            left: 384,
-            top: 250,
-            originX: 'center',
-            originY: 'center',
-            fontFamily: 'sans-serif',
-            fontSize: 20,
-            fill: '#64748b',
-            textAlign: 'center'
-         });
-         canvas.add(title, subtitle);
-         canvas.renderAll();
+      const createDefaultSlideState = (isFirst: boolean) => {
+         const tempCanvas = new fabric.Canvas(null, { width: 768, height: 432, backgroundColor: '#ffffff' });
+         if (isFirst) {
+           const title = new fabric.IText('Project "Edge"', { left: 384, top: 150, originX: 'center', originY: 'center', fontFamily: 'sans-serif', fontSize: 48, fontWeight: 'bold', fill: '#1e293b' });
+           const subtitle = new fabric.IText('An infrastructure presentation\nexplaining local-first architecture and node scaling.', { left: 384, top: 250, originX: 'center', originY: 'center', fontFamily: 'sans-serif', fontSize: 20, fill: '#64748b', textAlign: 'center' });
+           tempCanvas.add(title, subtitle);
+         } else {
+           const title = new fabric.IText('New Slide', { left: 384, top: 216, originX: 'center', originY: 'center', fontFamily: 'sans-serif', fontSize: 48, fill: '#cbd5e1' });
+           tempCanvas.add(title);
+         }
+         return JSON.stringify(tempCanvas.toJSON());
       };
 
       const waitForSync = () => {
         if (!collab.synced || !active) return;
 
         const canvasMap = collab.sharedTypesRef.current.canvas;
-        canvasMapRef.current = canvasMap;
-        if (!canvasMap) {
-          setupDefault();
-          previousStateRef.current = JSON.stringify(canvas.toJSON());
-          setLoaded(true);
-          return;
-        }
+        if (!canvasMap) { setLoaded(true); return; }
 
-        const savedState = canvasMap.get('state');
-        if (savedState) {
-           try {
-             canvas.loadFromJSON(JSON.parse(savedState as string)).then(() => {
-                canvas.renderAll();
-                previousStateRef.current = JSON.stringify(canvas.toJSON());
-                setLoaded(true);
-             }).catch((err) => {
-                console.warn('loadFromJSON failed', err);
-                setupDefault();
-                previousStateRef.current = JSON.stringify(canvas.toJSON());
-                setLoaded(true);
-             });
-           } catch {
-             console.warn('Corrupt slide state, loading defaults');
-             setupDefault();
-             previousStateRef.current = JSON.stringify(canvas.toJSON());
-             setLoaded(true);
-           }
-        } else {
-           setupDefault();
-           previousStateRef.current = JSON.stringify(canvas.toJSON());
-           canvasMap.set('state', JSON.stringify(canvas.toJSON()));
-           setLoaded(true);
-        }
-
-        const observer = () => {
-          const remoteState = canvasMap.get('state') as string | undefined;
-          if (!remoteState || isSyncingRef.current) return;
-          if (canvas.getActiveObject()) return;
-
-          const currentStateStr = JSON.stringify(canvas.toJSON());
-          if (currentStateStr === remoteState) return;
-
-          isSyncingRef.current = true;
-          try {
-            canvas.loadFromJSON(JSON.parse(remoteState)).then(() => {
-              canvas.renderAll();
-              setTimeout(() => { isSyncingRef.current = false; }, 100);
-            }).catch((err) => {
-              console.warn('loadFromJSON sync failed', err);
-              isSyncingRef.current = false;
-            });
-          } catch {
-            isSyncingRef.current = false;
+        const initSlides = () => {
+          let order = canvasMap.get('slide_order');
+          if (!order) {
+            const firstId = 'slide-' + Date.now();
+            order = JSON.stringify([firstId]);
+            canvasMap.set('slide_order', order);
+            canvasMap.set(firstId, createDefaultSlideState(true));
+          }
+          const parsedOrder = JSON.parse(order as string);
+          setSlideOrder(parsedOrder);
+          
+          if (!activeSlideIdRef.current && parsedOrder.length > 0) {
+            setActiveSlideId(parsedOrder[0]);
           }
         };
+        initSlides();
+
+        const observer = (event: any) => {
+          const keys = event.keys;
+          if (keys.has('slide_order')) {
+            const newOrder = JSON.parse(canvasMap.get('slide_order') as string);
+            setSlideOrder(newOrder);
+            if (!newOrder.includes(activeSlideIdRef.current)) {
+               setActiveSlideId(newOrder.length > 0 ? newOrder[0] : null);
+            }
+          }
+          
+          if (activeSlideIdRef.current && keys.has(activeSlideIdRef.current)) {
+            const remoteState = canvasMap.get(activeSlideIdRef.current) as string | undefined;
+            if (!remoteState || isSyncingRef.current) return;
+            if (canvas.getActiveObject()) return; // Don't disrupt local editing
+
+            const currentStateStr = JSON.stringify(canvas.toJSON());
+            if (currentStateStr === remoteState) return;
+
+            isSyncingRef.current = true;
+            try {
+              canvas.loadFromJSON(JSON.parse(remoteState)).then(() => {
+                canvas.renderAll();
+                setTimeout(() => { isSyncingRef.current = false; }, 100);
+              }).catch(() => { isSyncingRef.current = false; });
+            } catch {
+              isSyncingRef.current = false;
+            }
+          }
+        };
+        
         canvasMap.observe(observer);
         canvasObserverRef.current = observer;
+        setLoaded(true);
       };
 
-      if (collab.synced) {
-        waitForSync();
-      } else {
+      if (collab.synced) waitForSync();
+      else {
         checkIntervalRef.current = setInterval(() => {
           if (collab.synced && active) {
             clearInterval(checkIntervalRef.current);
@@ -812,7 +846,7 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
       }
 
       const handleModify = () => {
-         if (isSyncingRef.current) return;
+         if (isSyncingRef.current || !activeSlideIdRef.current) return;
 
          undoStackRef.current.push(previousStateRef.current);
          redoStackRef.current = [];
@@ -820,16 +854,16 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
          setCanRedo(false);
 
          previousStateRef.current = JSON.stringify(canvas.toJSON());
-
          isSyncingRef.current = true;
+         
          const stateStr = JSON.stringify(canvas.toJSON());
          const canvasMap = collab.sharedTypesRef.current.canvas;
          if (canvasMap) {
-           canvasMap.set('state', stateStr);
+           canvasMap.set(activeSlideIdRef.current, stateStr);
          }
 
-          setTimeout(() => { isSyncingRef.current = false; }, 100);
-          onDirtyRef.current?.();
+         setTimeout(() => { isSyncingRef.current = false; }, 100);
+         onDirtyRef.current?.();
       };
 
       canvas.on('object:modified', handleModify);
@@ -840,24 +874,67 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
       active = false;
       canvasRef.current = null;
       if (checkIntervalRef.current) clearInterval(checkIntervalRef.current);
-      if (canvasObserverRef.current && canvasMapRef.current) {
-        canvasMapRef.current.unobserve(canvasObserverRef.current);
-        canvasObserverRef.current = null;
+      if (canvasObserverRef.current && collab.sharedTypesRef.current.canvas) {
+        collab.sharedTypesRef.current.canvas.unobserve(canvasObserverRef.current);
       }
-      if (fabricCanvasRef.current) {
-        fabricCanvasRef.current.dispose();
-      }
+      if (fabricCanvasRef.current) fabricCanvasRef.current.dispose();
     };
   }, [collab.synced, projectId]);
 
+  useEffect(() => {
+    if (!activeSlideId || !fabricCanvasRef.current || !collab.synced || !loaded) return;
+    const canvasMap = collab.sharedTypesRef.current.canvas;
+    if (!canvasMap) return;
+
+    const state = canvasMap.get(activeSlideId) as string | undefined;
+    if (state) {
+      isSyncingRef.current = true;
+      try {
+        fabricCanvasRef.current.loadFromJSON(JSON.parse(state)).then(() => {
+           fabricCanvasRef.current.renderAll();
+           previousStateRef.current = JSON.stringify(fabricCanvasRef.current.toJSON());
+           undoStackRef.current = [];
+           redoStackRef.current = [];
+           setCanUndo(false);
+           setCanRedo(false);
+           setTimeout(() => { isSyncingRef.current = false; }, 100);
+        }).catch(() => { isSyncingRef.current = false; });
+      } catch {
+        isSyncingRef.current = false;
+      }
+    }
+  }, [activeSlideId, loaded, projectId]);
+
+  const addSlide = () => {
+    const canvasMap = collab.sharedTypesRef.current.canvas;
+    if (!canvasMap) return;
+    const newId = 'slide-' + Date.now();
+    
+    // Default slide state
+    const defaultState = JSON.stringify({ version: "5.3.0", objects: [], background: "#ffffff" });
+    canvasMap.set(newId, defaultState);
+    
+    const newOrder = [...slideOrder, newId];
+    canvasMap.set('slide_order', JSON.stringify(newOrder));
+    setSlideOrder(newOrder);
+    setActiveSlideId(newId);
+  };
+
+  const deleteSlide = (id: string) => {
+    const canvasMap = collab.sharedTypesRef.current.canvas;
+    if (!canvasMap || slideOrder.length <= 1) return;
+    const newOrder = slideOrder.filter(s => s !== id);
+    canvasMap.set('slide_order', JSON.stringify(newOrder));
+    setSlideOrder(newOrder);
+    if (activeSlideId === id) setActiveSlideId(newOrder[0]);
+  };
+
   const handleSlidesUndo = () => {
     const canvas = fabricCanvasRef.current;
-    if (!canvas || undoStackRef.current.length === 0) return;
-
+    if (!canvas || undoStackRef.current.length === 0 || !activeSlideId) return;
     redoStackRef.current.push(previousStateRef.current);
     const prevState = undoStackRef.current.pop()!;
     previousStateRef.current = prevState;
-
     setCanUndo(undoStackRef.current.length > 0);
     setCanRedo(true);
 
@@ -865,24 +942,18 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
     try {
       canvas.loadFromJSON(JSON.parse(prevState)).then(() => {
         canvas.renderAll();
+        collab.sharedTypesRef.current.canvas.set(activeSlideId, prevState);
         setTimeout(() => { isSyncingRef.current = false; }, 100);
-      }).catch((err: unknown) => {
-        console.warn('loadFromJSON undo failed', err);
-        isSyncingRef.current = false;
-      });
-    } catch {
-      isSyncingRef.current = false;
-    }
+      }).catch(() => { isSyncingRef.current = false; });
+    } catch { isSyncingRef.current = false; }
   };
 
   const handleSlidesRedo = () => {
     const canvas = fabricCanvasRef.current;
-    if (!canvas || redoStackRef.current.length === 0) return;
-
+    if (!canvas || redoStackRef.current.length === 0 || !activeSlideId) return;
     undoStackRef.current.push(previousStateRef.current);
     const nextState = redoStackRef.current.pop()!;
     previousStateRef.current = nextState;
-
     setCanUndo(true);
     setCanRedo(redoStackRef.current.length > 0);
 
@@ -890,14 +961,10 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
     try {
       canvas.loadFromJSON(JSON.parse(nextState)).then(() => {
         canvas.renderAll();
+        collab.sharedTypesRef.current.canvas.set(activeSlideId, nextState);
         setTimeout(() => { isSyncingRef.current = false; }, 100);
-      }).catch((err: unknown) => {
-        console.warn('loadFromJSON redo failed', err);
-        isSyncingRef.current = false;
-      });
-    } catch {
-      isSyncingRef.current = false;
-    }
+      }).catch(() => { isSyncingRef.current = false; });
+    } catch { isSyncingRef.current = false; }
   };
 
   if (!collab.synced) return <div className="p-8 text-slate-500">Loading collaborative slides...</div>;
@@ -905,49 +972,80 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
   return (
     <div className="w-full h-full flex overflow-hidden">
       {/* Thumbnail Sidebar */}
-      <div className="w-48 bg-slate-50 border-r border-slate-200 flex flex-col overflow-y-auto p-2 gap-2">
-        {[1, 2, 3].map(s => (
-          <div key={s} className="flex gap-2">
-            <span className="text-[10px] font-bold text-slate-400 mt-1">{s}</span>
-            <div className={cn(
-              "w-full aspect-video bg-white border rounded shadow-sm flex items-center justify-center cursor-pointer",
-              s === 1 ? "border-amber-400 ring-1 ring-amber-400 focus:outline-none" : "border-slate-200"
-            )}>
-               <div className="flex flex-col items-center gap-1 w-full p-2">
-                  <div className="w-3/4 h-1.5 bg-slate-200 rounded" />
-                  <div className="w-1/2 h-1 bg-slate-100 rounded" />
-               </div>
+      {!isFullscreen && (
+        <div className="w-48 shrink-0 bg-slate-50 border-r border-slate-200 flex flex-col overflow-y-auto p-2 gap-2">
+          {slideOrder.map((s, idx) => (
+            <div key={s} className="flex gap-2 group relative">
+              <span className="text-[10px] font-bold text-slate-400 mt-1 w-3 text-right shrink-0">{idx + 1}</span>
+              <div 
+                onClick={() => setActiveSlideId(s)}
+                className={cn(
+                "flex-1 aspect-video bg-white border rounded shadow-sm flex items-center justify-center cursor-pointer transition-all",
+                activeSlideId === s ? "border-amber-400 ring-2 ring-amber-400 focus:outline-none" : "border-slate-200 hover:border-slate-300"
+              )}>
+                 <div className="text-[10px] text-slate-300 font-medium">Slide {idx + 1}</div>
+              </div>
+              <button onClick={() => deleteSlide(s)} className="absolute right-1 top-1 p-1 bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 hover:bg-red-600 transition-opacity">
+                <Trash2 className="w-3 h-3" />
+              </button>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+          <button onClick={addSlide} className="mt-2 w-full py-2 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded text-xs flex items-center justify-center gap-1 font-medium transition-colors">
+            <Plus className="w-3 h-3" /> Add Slide
+          </button>
+        </div>
+      )}
 
-      {/* Main Canvas */}
+      {/* Main Canvas Area */}
       <div
-        className="flex-1 overflow-auto bg-slate-100 flex flex-col items-center justify-center p-8 relative"
+        className={cn(
+          "flex-1 overflow-auto flex flex-col items-center justify-center relative",
+          isFullscreen ? "bg-black" : "bg-slate-100 p-8"
+        )}
         onKeyDown={(e) => {
           if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleSlidesUndo(); }
           if ((e.ctrlKey || e.metaKey) && (e.key === 'Z' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); handleSlidesRedo(); }
         }}
         tabIndex={0}
       >
-         {/* Undo/Redo toolbar */}
-         <div className="flex items-center gap-1 mb-4">
-           <button onClick={handleSlidesUndo} disabled={!canUndo} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors" title="Undo (Ctrl+Z)">
-             <Undo2 className="w-4 h-4 text-slate-600" />
-           </button>
-           <button onClick={handleSlidesRedo} disabled={!canRedo} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors" title="Redo (Ctrl+Shift+Z)">
-             <Redo2 className="w-4 h-4 text-slate-600" />
-           </button>
-         </div>
+         {/* Top bar */}
+         {!isFullscreen && (
+           <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
+             <div className="flex items-center gap-1">
+               <button onClick={handleSlidesUndo} disabled={!canUndo} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors bg-white shadow-sm border border-slate-200" title="Undo (Ctrl+Z)">
+                 <Undo2 className="w-4 h-4 text-slate-600" />
+               </button>
+               <button onClick={handleSlidesRedo} disabled={!canRedo} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors bg-white shadow-sm border border-slate-200" title="Redo (Ctrl+Shift+Z)">
+                 <Redo2 className="w-4 h-4 text-slate-600" />
+               </button>
+             </div>
+             
+             <button onClick={handlePresent} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded font-medium shadow-sm flex items-center gap-2 transition-colors">
+               <span className="text-sm">Present</span>
+             </button>
+           </div>
+         )}
 
          {!loaded && (
              <div className="absolute inset-0 flex items-center justify-center bg-slate-100/80 z-10">
                 <div className="text-slate-500 animate-pulse">Loading canvas engine...</div>
              </div>
          )}
-         <div className="shadow-2xl bg-white ring-1 ring-slate-200 flex items-center justify-center overflow-hidden">
-            <canvas ref={localCanvasRef} />
+         <div 
+            ref={containerRef}
+            className={cn(
+              "flex items-center justify-center overflow-hidden transition-all",
+              isFullscreen ? "w-screen h-screen bg-black" : "shadow-2xl bg-white ring-1 ring-slate-200"
+            )}
+         >
+            <div 
+              style={{
+                transform: isFullscreen ? `scale(${Math.min(window.innerWidth / 768, window.innerHeight / 432)})` : 'scale(1)',
+                transformOrigin: 'center center'
+              }}
+            >
+              <canvas ref={localCanvasRef} />
+            </div>
          </div>
       </div>
     </div>
@@ -956,6 +1054,72 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
 
 function PdfEditor({ initialUrl }: { initialUrl?: string }) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(initialUrl || null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pdfUrl || !containerRef.current) return;
+    
+    let active = true;
+    setLoading(true);
+    setError(null);
+    containerRef.current.innerHTML = ''; // Clear previous renders
+
+    const scriptId = 'pdfjs-script';
+    let script = document.getElementById(scriptId) as HTMLScriptElement;
+    
+    const renderPdf = async () => {
+      try {
+        const pdfjsLib = (window as any).pdfjsLib;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        
+        const loadingTask = pdfjsLib.getDocument(pdfUrl);
+        const pdf = await loadingTask.promise;
+        if (!active) return;
+        
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          if (!active) return;
+          
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          
+          if (!context) continue;
+          
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          canvas.className = "my-4 mx-auto block shadow-xl border border-neutral-300 bg-white max-w-full h-auto";
+          
+          containerRef.current?.appendChild(canvas);
+          await page.render({ canvasContext: context, viewport: viewport }).promise;
+        }
+        setLoading(false);
+      } catch (err: any) {
+        if (active) {
+           setError('Failed to load PDF. ' + err.message);
+           setLoading(false);
+        }
+      }
+    };
+
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+      script.onload = () => { if (active) renderPdf(); };
+      document.body.appendChild(script);
+    } else {
+      if ((window as any).pdfjsLib) {
+         renderPdf();
+      } else {
+         script.addEventListener('load', () => { if (active) renderPdf(); });
+      }
+    }
+
+    return () => { active = false; };
+  }, [pdfUrl]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -968,30 +1132,42 @@ function PdfEditor({ initialUrl }: { initialUrl?: string }) {
   };
 
   return (
-     <div className="w-full h-full bg-neutral-800 flex flex-col items-center justify-center overflow-auto">
+     <div className="w-full h-full bg-neutral-800 flex flex-col items-center justify-center overflow-hidden">
         {!pdfUrl ? (
-           <div className="bg-neutral-900 border border-neutral-700 rounded-xl p-12 flex flex-col items-center max-w-sm text-center">
+           <div className="bg-neutral-900 border border-neutral-700 rounded-xl p-12 flex flex-col items-center max-w-sm text-center shadow-lg">
              <FileCode className="w-12 h-12 text-blue-500 mb-4" />
              <h2 className="text-xl font-medium text-white mb-2">Open PDF Document</h2>
-             <p className="text-neutral-400 text-sm mb-6">Select a standard PDF file to read within the OS environment.</p>
-             <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors">
+             <p className="text-neutral-400 text-sm mb-6">Select a standard PDF file to read within the OS environment. (Cross-browser supported)</p>
+             <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors shadow">
                 Choose File
                 <input type="file" accept="application/pdf" className="hidden" onChange={handleFileUpload} />
              </label>
            </div>
         ) : (
            <div className="w-full h-full flex flex-col">
-             <div className="bg-neutral-900 p-2 flex shrink-0 items-center gap-2 border-b border-neutral-700">
+             <div className="bg-neutral-900 p-2 flex shrink-0 items-center gap-2 border-b border-neutral-700 shadow-md z-10">
                 <button 
                   onClick={() => setPdfUrl(null)} 
-                  className="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 rounded text-xs text-neutral-300 border border-neutral-600"
+                  className="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 rounded text-xs text-neutral-300 border border-neutral-600 transition-colors"
                 >
                   Close Document
                 </button>
              </div>
-             <iframe src={pdfUrl} className="w-full flex-1 border-none bg-white" title="PDF Viewer" />
+             <div className="flex-1 overflow-auto bg-neutral-200 relative">
+               {loading && (
+                 <div className="absolute inset-0 flex items-center justify-center text-neutral-500 animate-pulse font-medium">
+                   Rendering PDF...
+                 </div>
+               )}
+               {error && (
+                 <div className="absolute inset-0 flex items-center justify-center text-red-500 font-medium">
+                   {error}
+                 </div>
+               )}
+               <div ref={containerRef} className="min-h-full py-4 flex flex-col items-center" />
+             </div>
            </div>
         )}
      </div>
-  )
+  );
 }

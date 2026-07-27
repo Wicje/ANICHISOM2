@@ -110,10 +110,20 @@ export function MenuBar({
     <header role="menubar" aria-label="OS menu bar" className="h-8 flex items-center shrink-0 w-full glass-panel rounded-none border-x-0 border-t-0 z-[260] px-4 sticky top-0 text-[13px] font-medium contain-layout" style={{ color: 'var(--os-text)' }}>
       <div className="flex items-center gap-6">
         <div
-          className="font-bold flex items-center gap-2 cursor-pointer hover:scale-110 transition-transform"
+          className="font-bold flex items-center gap-2 cursor-pointer hover:scale-110 transition-transform select-none"
           onClick={() => setShowLaunchpad(!showLaunchpad)}
+          title="Launchpad"
         >
-          
+          <span
+            className="w-5 h-5 flex items-center justify-center rounded-md text-[13px] font-black"
+            style={{
+              background: 'linear-gradient(135deg, var(--os-primary) 0%, #06b6d4 100%)',
+              color: '#000',
+              boxShadow: '0 0 8px var(--os-primary-muted, rgba(16,244,160,0.3))',
+            }}
+          >
+            C
+          </span>
         </div>
         <div className="font-bold flex items-center cursor-default uppercase tracking-wider text-xs px-2 py-0.5 rounded gap-2" style={{ background: 'var(--os-hover)' }}>
           {currentUser.avatarUrl && (
@@ -295,11 +305,7 @@ export function MenuBar({
             onClick={() => setShowControlCenter(!showControlCenter)}
             style={{ color: 'var(--os-text)' }}
           >
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 flex items-center justify-center bg-red-500 text-white text-[8px] font-bold rounded-full border border-[var(--os-bg)] px-0.5 leading-none">
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
-            )}
+
             <OsClock />
           </button>
         </div>
