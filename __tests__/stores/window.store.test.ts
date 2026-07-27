@@ -113,8 +113,8 @@ describe('WindowStore', () => {
   });
 
   it('non-single-instance apps allow duplicates', () => {
-    useWindowStore.getState().openWindow('browser', 'First');
-    useWindowStore.getState().openWindow('browser', 'Second');
+    useWindowStore.getState().openWindow('code', 'First');
+    useWindowStore.getState().openWindow('code', 'Second');
     expect(useWindowStore.getState().windows).toHaveLength(2);
   });
 });

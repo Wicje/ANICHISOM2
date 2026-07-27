@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useFileStore } from '@/lib/stores/file.store';
 import { useOS, OSWindow } from '@/lib/os-context';
 import { Image as ImageIcon, Palette, Save, Type, Eye, Settings2, Monitor, User, Volume2, VolumeX, Shield, Keyboard, CloudRain, Coffee, Trees, Radio, Download, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -57,6 +58,7 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
   const [activeTab, setActiveTab] = useState<'appearance' | 'system' | 'account' | 'privacy'>('appearance');
   const [contextExporting, setContextExporting] = useState(false);
   const [contextImporting, setContextImporting] = useState(false);
+  const connectedSources = useFileStore(s => s.connectedSources);
   const [contextMessage, setContextMessage] = useState('');
 
   const animationsEnabled = useThemeStore((s) => s.animationsEnabled);
@@ -482,7 +484,11 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                       </div>
                       <div>
                         <h3 className="font-medium text-sm">Google Drive</h3>
-                        <p className="text-xs text-green-400 mt-1">Connected</p>
+                        {connectedSources.includes('google-drive') ? (
+                          <p className="text-xs text-green-400 mt-1">Connected</p>
+                        ) : (
+                          <p className="text-xs text-white/40 mt-1">Not Connected</p>
+                        )}
                       </div>
                     </div>
                     <button className="text-sm px-4 py-1.5 rounded-lg border border-white/20 hover:bg-white/10 transition-colors">Manage</button>
@@ -495,7 +501,11 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                       </div>
                       <div>
                         <h3 className="font-medium text-sm">Dropbox</h3>
-                        <p className="text-xs text-white/40 mt-1">Not Connected</p>
+                        {connectedSources.includes('dropbox') ? (
+                          <p className="text-xs text-green-400 mt-1">Connected</p>
+                        ) : (
+                          <p className="text-xs text-white/40 mt-1">Not Connected</p>
+                        )}
                       </div>
                     </div>
                     <button className="text-sm px-4 py-1.5 rounded-lg border border-blue-500/50 text-blue-400 hover:bg-blue-500/10 transition-colors">Connect</button>

@@ -476,9 +476,6 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
       const title = name;
       if (appId === 'media-player') {
         openWindow(appId, title, { fileUrl: file.content || file.id, mimeType: mime });
-      } else if (appId === 'moodboard') {
-        const payload = mime.startsWith('image/') ? { image: file.id } : mime.startsWith('video/') ? { video: file.id } : { url: file.id };
-        openWindow(appId, title, payload);
       } else if (appId === 'image-viewer') {
         openWindow(appId, title, { fileId: file.id, content: file.content });
       } else if (appId === 'pdf-reader') {
@@ -502,9 +499,6 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
     if (appId) {
       if (appId === 'media-player') {
         openWindow(appId, file.name, { fileUrl: downloadUrl, mimeType: mime });
-      } else if (appId === 'moodboard') {
-        const payload = mime.startsWith('image/') ? { image: downloadUrl } : mime.startsWith('video/') ? { video: downloadUrl } : { url: downloadUrl };
-        openWindow(appId, file.name, payload);
       } else if (appId === 'image-viewer') {
         openWindow(appId, file.name, { url: downloadUrl });
       } else if (appId === 'pdf-reader') {

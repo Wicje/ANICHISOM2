@@ -135,9 +135,9 @@ describe('FileStore', () => {
   });
 
   describe('Smart routing', () => {
-    it('should resolve image to moodboard', () => {
+    it('should resolve image to image viewer', () => {
       const { resolveSmartRoute } = useFileStore.getState();
-      expect(resolveSmartRoute('image/png', 'photo.png')).toBe('moodboard');
+      expect(resolveSmartRoute('image/png', 'photo.png')).toBe('image-viewer');
     });
 
     it('should resolve video to media player', () => {
