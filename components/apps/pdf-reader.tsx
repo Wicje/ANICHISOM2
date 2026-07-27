@@ -38,10 +38,10 @@ export function PdfReader({ window }: { window: OSWindow }) {
         </div>
 
         <div className="flex items-center gap-2 w-1/3 justify-end">
-          <button className="hover:bg-white/10 p-2 rounded-full transition-colors text-white/70 hover:text-white" title="Print">
+          <button onClick={() => { const iframe = document.querySelector('iframe[title="' + title + '"]'); if(iframe) (iframe as any).contentWindow?.print(); }} className="hover:bg-white/10 p-2 rounded-full transition-colors text-white/70 hover:text-white" title="Print">
             <Printer className="w-4 h-4" />
           </button>
-          <button className="hover:bg-white/10 p-2 rounded-full transition-colors text-white/70 hover:text-white" title="Download">
+          <button onClick={() => { if (pdfUrl) { const a = document.createElement('a'); a.href = pdfUrl; a.download = title; a.click(); }}} className="hover:bg-white/10 p-2 rounded-full transition-colors text-white/70 hover:text-white" title="Download">
             <Download className="w-4 h-4" />
           </button>
           <div className="w-px h-4 bg-white/20 mx-1" />
@@ -56,7 +56,13 @@ export function PdfReader({ window }: { window: OSWindow }) {
         {pdfUrl ? (
           <iframe 
              src={`${pdfUrl}#view=FitH`} 
-             className="w-full h-full rounded shadow-2xl bg-white" 
+             className="rounded shadow-2xl bg-white origin-top"
+            style={{
+              width: `${100 / (zoom / 100)}%`,
+              height: `${100 / (zoom / 100)}%`,
+              transform: `scale(${zoom / 100})`,
+              transformOrigin: 'top left',
+            }} 
              title={title}
           />
         ) : (

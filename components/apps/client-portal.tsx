@@ -22,9 +22,20 @@ interface PortalComment {
 }
 
 export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
+  const [storage] = useState(() => new StorageAdapter('client-portal', 'private'));
   const [activeTab, setActiveTab] = useState<PortalTab>('overview');
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<PortalComment[]>([]);
+
+  useEffect(() => {
+    storage.get('comments').then((saved) => {
+      if (saved) setComments(saved);
+    });
+  }, [storage]);
+
+  useEffect(() => {
+    if (comments.length > 0) storage.set('comments', comments);
+  }, [comments, storage]);
 
   const brands = useBrandStore((s) => Object.values(s.brands));
   const boards = useMoodboardStore((s) => Object.values(s.boards));
@@ -62,7 +73,7 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
       ...prev,
       {
         id: `c_${Date.now()}`,
-        author: 'Client',
+        author: 'Client', // TODO: sync with user
         text: newComment.trim(),
         timestamp: Date.now(),
         section: activeTab,
@@ -188,8 +199,8 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
                           <div className="text-[10px] font-bold truncate">{node.label || 'Untitled'}</div>
                           {node.reactions && (
                             <div className="flex gap-1 mt-1">
-                              {Object.entries(node.reactions).map(([emoji, count]) => (
-                                <span key={emoji} className="text-[9px] text-white/40">{emoji} {count}</span>
+                              {Object.entries(node.reactions).map(([emoji, users]) => (
+                                <span key={emoji} className="text-[9px] text-white/40">{emoji} {Array.isArray(users) ? users.length : users as number}</span>
                               ))}
                             </div>
                           )}
@@ -226,10 +237,10 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
                   ))}
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 flex gap-2">
-                  <button className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-xs font-bold rounded transition-colors flex items-center gap-1.5">
+                  <button onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Proposal Approved', description: 'Client approved the proposal for ' + campaign.name, type: 'success' }}))} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-xs font-bold rounded transition-colors flex items-center gap-1.5">
                     <CheckCircle2 className="w-3 h-3" /> Approve
                   </button>
-                  <button className="px-4 py-2 bg-white/5 hover:bg-white/10 text-xs font-bold rounded transition-colors border border-white/10">
+                  <button onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Changes Requested', description: 'Change request sent to the team', type: 'info' }}))} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-xs font-bold rounded transition-colors border border-white/10">
                     Request Changes
                   </button>
                 </div>

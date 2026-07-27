@@ -76,6 +76,8 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
   const [snapEnabled, setSnapEnabled] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [presentMode, setPresentMode] = useState(false);
+  const presentDivRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (presentMode) presentDivRef.current?.focus(); }, [presentMode]);
   const [presentIndex, setPresentIndex] = useState(0);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showCampaignLink, setShowCampaignLink] = useState<string | null>(null);

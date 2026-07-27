@@ -99,7 +99,7 @@ Tailor the phases, deliverables, and approach to this specific project scope and
           ),
         );
       } catch {
-        setPhases([]);
+        const lines = text.split('\n').filter(l => l.trim().length > 5).slice(0, 6); setPhases(lines);
       }
 
       setGenerated(true);
@@ -137,7 +137,7 @@ Tailor the phases, deliverables, and approach to this specific project scope and
       userId: currentUser?.id || 'anonymous',
       comment: `Sent Proposal to ${clientName}`,
     });
-    alert(`Proposal sent to ${clientName}!`);
+    window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Proposal Sent', description: `Proposal delivered to ${clientName}`, type: 'success' } }));
   };
 
   if (!isLoaded) return <div className="w-full h-full bg-[#111] flex items-center justify-center text-white/50 animate-pulse">Loading Proposal Engine...</div>;
@@ -224,7 +224,7 @@ Tailor the phases, deliverables, and approach to this specific project scope and
 
           {generated && (
             <div className="flex gap-2">
-              <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/70">
+              <button onClick={() => { const content = aiContent || projectScope; const blob = new Blob([`PROPOSAL FOR: ${clientName}\n\n${content}`], { type: 'text/plain' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Proposal-${clientName.replace(/\s+/g, '_')}.txt`; a.click(); }} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/70">
                 <Download className="w-4 h-4" />
               </button>
               <button onClick={handleSend} className="px-4 py-1.5 bg-blue-500 hover:bg-blue-400 text-white rounded-lg text-xs font-medium flex items-center gap-2 transition-colors shadow-lg">

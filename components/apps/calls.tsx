@@ -27,7 +27,7 @@ export function CallsApp({ window: osWindow }: { window: OSWindow }) {
   };
 
   const copyInviteLink = () => {
-    const link = `https://meet.google.com/new`;
+    const link = roomCode.trim() ? `https://meet.google.com/${roomCode.trim()}` : `https://meet.google.com/new`;
     navigator.clipboard.writeText(link).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

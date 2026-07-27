@@ -809,6 +809,18 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                     )}
                   </div>
                 ))}
+                
+                {/* Add External Storage Button */}
+                <button
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('os:notify', {
+                      detail: { title: 'Add External Storage', description: 'AWS S3, FTP, and WebDAV connectors are coming in the next update.', type: 'info' }
+                    }));
+                  }}
+                  className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[11px] font-medium border border-dashed border-white/20 text-white/50 hover:text-white/90 hover:bg-white/5 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add External Storage
+                </button>
               </div>
             </>
           ) : (

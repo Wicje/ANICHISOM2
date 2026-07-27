@@ -673,7 +673,7 @@ function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab, 
             </div>
             {cols.map(c => {
               const cellId = `${c}${r}`;
-              const rawValue = data[cellId] !== undefined ? data[cellId] : (r === 1 ? `Header ${c}` : r === 2 && c === 'A' ? '1250.00' : '');
+              const rawValue = data[cellId] !== undefined ? data[cellId] : '';
               
                let displayValue = rawValue;
                if (activeCell !== cellId && typeof rawValue === 'string' && rawValue.startsWith('=')) {

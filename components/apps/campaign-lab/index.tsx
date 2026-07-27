@@ -438,7 +438,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
           <div className="flex items-center gap-1 relative shrink-0">
             {/* Notifications */}
             {unreadCount > 0 && (
-              <button className="p-1 hover:bg-black/5 rounded relative" title={`${unreadCount} unread notifications`}>
+              <button onClick={() => alert('Notifications panel toggled')} className="p-1 hover:bg-black/5 rounded relative" title={`${unreadCount} unread notifications`}>
                 <Bell className="w-4 h-4 text-[#37352f]/70" />
                 <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full text-[8px] text-white font-bold flex items-center justify-center">
                   {unreadCount > 9 ? '9+' : unreadCount}
@@ -726,7 +726,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                   }}
                   className={cn("w-10 h-5 rounded-full relative transition-colors", activePage.shared ? "bg-blue-500" : "bg-black/20")}
                 >
-                  <div className={cn("w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm", activePage.shared ? "left-5.5" : "left-0.5")} />
+                  <div className={cn("w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm", activePage.shared ? "left-[22px]" : "left-0.5")} />
                 </button>
               </div>
 
@@ -757,7 +757,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                       value={`https://os.continuaos.com/c/${activePage.id}`}
                       className="text-xs w-full outline-none text-[#37352f]/60 bg-transparent px-1"
                     />
-                    <button className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded transition-colors" title="Copy Link">
+                    <button onClick={() => navigator.clipboard.writeText(`https://os.continuaos.com/c/${activePage.id}`)} className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded transition-colors" title="Copy Link">
                       <Copy className="w-3 h-3" />
                     </button>
                   </div>
@@ -832,7 +832,22 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                   <option value="editor">Can Edit</option>
                   <option value="admin">Full Access</option>
                 </select>
-                <button className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1">
+                <button onClick={() => {
+    const email = (document.getElementById('invite-email-input') as HTMLInputElement)?.value;
+    const permission = (document.getElementById('invite-permission-select') as HTMLSelectElement)?.value;
+    if (!email || !activePage) return;
+    updatePage(activePage.id, {
+      share: {
+        ...activePage.share || { shareLinks: [], invitedUsers: [] },
+        invitedUsers: [
+          ...(activePage.share?.invitedUsers || []),
+          { id: crypto.randomUUID(), name: email, email, permission: permission as any || 'viewer' },
+        ],
+      },
+    });
+    const el = document.getElementById('invite-email-input') as HTMLInputElement;
+    if (el) el.value = '';
+  }} className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1">
                   <Mail className="w-4 h-4" /> Invite
                 </button>
               </div>

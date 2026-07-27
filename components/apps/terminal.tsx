@@ -86,7 +86,7 @@ export function TerminalBox({ window }: { window: OSWindow }) {
 
       const vfs = vfsRef.current;
 
-      const PROMPT = () => `\x1b[36m${currentUser?.name || 'user'}\x1b[0m:\x1b[35m~\x1b[0m$ `;
+      const currentUserRef = useRef(currentUser); useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]); const PROMPT = () => `\x1b[36m${currentUserRef.current?.name || 'user'}\x1b[0m:\x1b[35m~\x1b[0m$ `;
 
       term.writeln('\x1b[1;36m╔══════════════════════════════════════════╗\x1b[0m');
       term.writeln('\x1b[1;36m║  ContinuaOS Terminal v2.0              ║\x1b[0m');

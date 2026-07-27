@@ -89,14 +89,14 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
       streamRef.current = displayStream;
       setStream(displayStream);
 
-      displayStream.getVideoTracks()[0]!.onended = () => {
+      displayStream.getVideoTracks()[0]?.addEventListener('ended', () => {
         const recording = isRecordingRef.current;
         if (recording) {
           stopRecording();
         }
         streamRef.current = null;
         setStream(null);
-      };
+      });
     } catch (err: any) {
       setError(err.message || 'Failed to get display media');
     }
@@ -177,7 +177,7 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
       };
 
       mediaRecorderRef.current = recorder;
-      recorder.start();
+      recorder.start(1000);
       isRecordingRef.current = true;
       setIsRecording(true);
       notify('Recording Started', { body: `Recording with ${mimeType.split(';')[0]}` });

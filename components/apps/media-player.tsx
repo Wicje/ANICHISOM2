@@ -73,7 +73,7 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
     // Only seed the playlist if it's empty and we have local files
     if (playlistArray.length === 0 && mediaFiles.length > 0) {
       for (const file of mediaFiles) {
-        playlistArray.push([JSON.stringify({ url: file.content || file.id, mimeType: file.mimeType, name: file.name })]);
+        playlistArray.push([{ url: file.content || file.id, mimeType: file.mimeType, name: file.name }]);
       }
     }
   }, [collab.synced, mediaFiles]);
@@ -227,11 +227,13 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
   }
 
   // Auto-select first if none provided but we have playlist
-  if (!currentFileUrl && mediaFiles.length > 0) {
-     setCurrentFileUrl(mediaFiles[0]!.content || mediaFiles[0]!.id);
-     setCurrentMimeType(mediaFiles[0]!.mimeType);
-     setCurrentTitle(mediaFiles[0]!.name);
-  }
+  useEffect(() => {
+    if (!currentFileUrl && mediaFiles.length > 0) {
+       setCurrentFileUrl(mediaFiles[0]!.content || mediaFiles[0]!.id);
+       setCurrentMimeType(mediaFiles[0]!.mimeType);
+       setCurrentTitle(mediaFiles[0]!.name);
+    }
+  }, [currentFileUrl, mediaFiles]);
 
   // Coverflow View
   if (viewMode === 'coverflow') {

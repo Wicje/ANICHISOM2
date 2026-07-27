@@ -381,4 +381,4 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
   setCoverPickerOpen: (open) => set({ coverPickerOpen: open }),
 }));
 
-withPersistence(useCampaignStore, 'campaign-state', ['pages', 'databaseStore', 'linkedDatabases', 'campaignShares', 'notifications']);
+withPersistence(useCampaignStore, 'campaign-state', ['databaseStore', 'linkedDatabases', 'campaignShares', 'notifications']);

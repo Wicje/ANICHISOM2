@@ -88,6 +88,17 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
 
   const isBookmarked = activeTab ? checkIsBookmarked(activeTab.url) : false;
 
+  function getSmartUrl(rawUrl: string): string {
+    if (rawUrl.includes('figma.com/file/') || rawUrl.includes('figma.com/design/')) {
+      return `https://www.figma.com/embed?embed_host=continuaos&url=${encodeURIComponent(rawUrl)}`;
+    }
+    const ytMatch = rawUrl.match(/youtube\.com\/watch\?v=([^&]+)/);
+    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+    const spMatch = rawUrl.match(/open\.spotify\.com\/(track|playlist|album)\/([^?]+)/);
+    if (spMatch) return `https://open.spotify.com/embed/${spMatch[1]}/${spMatch[2]}`;
+    return rawUrl;
+  }
+  
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputUrl) return;
@@ -105,7 +116,8 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
       else finalUrl = `https://www.bing.com/search?q=${q}`;
     }
     setLoading(true);
-    navigateTab(activeTabId, finalUrl, '');
+    const smartUrl = getSmartUrl(finalUrl);
+    navigateTab(activeTabId, smartUrl, '');
   };
 
 
@@ -196,6 +208,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   };
 
   const handleIframeError = (tabId: string) => {
+    setLoading(false);
     setBlockedTabs(prev => new Set([...prev, tabId]));
   };
 
@@ -513,7 +526,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                       src={tab.url.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(tab.url)}` : tab.url}
                       className="w-full h-full border-none bg-white absolute inset-0"
                       title={`Tab ${tab.id}`}
-                      sandbox="allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox"
+                      sandbox="allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox allow-same-origin"
                       onLoad={() => handleIframeLoad(tab.id)}
                       onError={() => handleIframeError(tab.id)}
                     />
@@ -539,13 +552,21 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
 
           {/* Split View Panel */}
           {splitView && (
-            <div className="w-1/2 border-l border-black/10 bg-slate-50 flex items-center justify-center">
-              <div className="text-center text-slate-400">
-                <Columns className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Select an app to view alongside</p>
-              </div>
+          <div className="w-1/2 border-l border-black/10 flex flex-col">
+            <div className="h-10 flex items-center gap-2 px-3 border-b border-black/10 bg-slate-50 shrink-0">
+              <form onSubmit={(e) => { e.preventDefault(); if (splitInputUrl) setSplitUrl(splitInputUrl.startsWith('http') ? splitInputUrl : `https://${splitInputUrl}`); }} className="flex-1 flex items-center gap-2 bg-white border border-black/10 px-3 py-1 rounded-full text-sm">
+                <Globe className="w-3 h-3 text-slate-400 shrink-0" />
+                <input value={splitInputUrl} onChange={e => setSplitInputUrl(e.target.value)} placeholder="Enter URL" className="flex-1 outline-none text-sm text-slate-700 bg-transparent" />
+              </form>
+              <button onClick={() => toggleSplitView()} className="p-1 rounded hover:bg-black/5 text-slate-400"><X className="w-3.5 h-3.5" /></button>
             </div>
-          )}
+            <iframe
+              src={splitUrl.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(splitUrl)}` : splitUrl}
+              className="flex-1 border-none bg-white"
+              sandbox="allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox allow-same-origin"
+            />
+          </div>
+        )}
         </div>
       </div>
 
