@@ -205,8 +205,13 @@ export async function writeBlob(key: string, data: Blob | ArrayBuffer): Promise<
       }
       return false; // Failed to write due to space
     }
-
     await idbSet(`${BLOB_PREFIX}${key}`, data);
+    
+    void queueBlobForSync(key);
+    if (typeof window !== 'undefined' && navigator.onLine) {
+      void processOfflineSyncQueue();
+    }
+    
     return true;
   } catch (e) {
     console.warn(`[ContextLayer] Blob write failed for ${key}:`, e);

@@ -256,6 +256,49 @@ app.prepare().then(async () => {
     });
   });
 
+  const proxyWss = new WebSocketServer({ noServer: true });
+  httpServer.on('upgrade', (req, socket, head) => {
+    const parsedUrl = parse(req.url || '', true);
+    if (parsedUrl.pathname === '/api/proxy/ws') {
+      const cookieHeader = req.headers.cookie || '';
+      const sessionMatch = cookieHeader.match(/continuaos_session=([^;]+)/);
+      const supabaseMatch = cookieHeader.match(/sb-[a-z0-9]+-auth-token=(eyJ[^;]+)/);
+      const hasSession = (sessionMatch?.[1] && resolveSession(sessionMatch[1])) || supabaseMatch;
+      
+      if (!hasSession && process.env.NODE_ENV === 'production') {
+        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+
+      const targetUrl = parsedUrl.query.url as string;
+      if (!targetUrl) {
+        socket.destroy();
+        return;
+      }
+      proxyWss.handleUpgrade(req, socket, head, (ws) => {
+        try {
+          const targetWs = new WebSocket(targetUrl);
+          ws.on('message', (msg) => {
+            if (targetWs.readyState === WebSocket.OPEN) targetWs.send(msg);
+          });
+          targetWs.on('open', () => {
+             // connection established
+          });
+          targetWs.on('message', (msg) => {
+            if (ws.readyState === WebSocket.OPEN) ws.send(msg);
+          });
+          ws.on('close', () => targetWs.close());
+          targetWs.on('close', () => ws.close());
+          targetWs.on('error', () => ws.close());
+          ws.on('error', () => targetWs.close());
+        } catch (e) {
+          ws.close();
+        }
+      });
+    }
+  });
+
   server.all(/.*/, (req, res) => {
     const parsedUrl = parse(req.url!, true);
     handle(req, res, parsedUrl);

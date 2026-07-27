@@ -231,6 +231,21 @@ const PROXY_SHIM = `<script>
     return origOpen.apply(this, arguments);
   };
 
+  // Patch WebSocket to proxy cross-origin WS connections
+  var origWebSocket = window.WebSocket;
+  window.WebSocket = function(url, protocols) {
+    if (typeof url === 'string' && !url.startsWith('ws://localhost') && !url.startsWith('wss://localhost') && !url.startsWith('/')) {
+      try {
+        var parsed = new URL(url, location.href);
+        if (parsed.origin !== location.origin) {
+          var wsProxyUrl = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/api/proxy/ws?url=' + encodeURIComponent(parsed.href);
+          return new origWebSocket(wsProxyUrl, protocols);
+        }
+      } catch(e) {}
+    }
+    return new origWebSocket(url, protocols);
+  };
+
   // Patch history.pushState/replaceState to keep proxy URL in sync
   var origPush = history.pushState;
   var origReplace = history.replaceState;
