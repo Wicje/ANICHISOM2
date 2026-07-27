@@ -13,6 +13,7 @@ import {
 import { writeBlob } from '@/lib/context-layer';
 import { FS } from '@/lib/fs';
 import { cn } from '@/lib/utils';
+import { isTauri } from '@/lib/platform';
 import { useCollaborativeDoc } from '@/lib/hooks/useCollaborativeDoc';
 import { SyncPromptBanner } from '../sync-prompt-banner';
 import { MoodboardExportService } from '@/lib/services/moodboard-export.service';
@@ -678,7 +679,14 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
           <div className="max-w-3xl max-h-[80vh] flex items-center justify-center">
             {node.type === 'image' && <BlobMedia content={node.content} type="image" className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl" />}
             {node.type === 'embed' && (
-              <iframe src={getEmbedDetails(node.content).url} className="w-[600px] h-[400px] border-none rounded-lg shadow-2xl" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" />
+              isTauri() ? (
+                React.createElement('webview', {
+                  src: getEmbedDetails(node.content).url,
+                  className: 'w-[600px] h-[400px] border-none rounded-lg shadow-2xl'
+                })
+              ) : (
+                <iframe src={getEmbedDetails(node.content).url} className="w-[600px] h-[400px] border-none rounded-lg shadow-2xl" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" />
+              )
             )}
             {node.type === 'text' && (
               <div className="bg-white rounded-xl p-8 shadow-2xl max-w-xl text-black text-lg whitespace-pre-wrap">{node.content}</div>

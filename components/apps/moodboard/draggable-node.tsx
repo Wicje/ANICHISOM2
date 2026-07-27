@@ -11,6 +11,7 @@ import type { BoardNode, BoardGroup, BoardTag } from './types';
 import { REACTION_EMOJIS, NODE_COLORS } from './types';
 import { getEmbedDetails } from './helpers';
 import { BlobMedia } from './blob-media';
+import { isTauri } from '@/lib/platform';
 
 export function DraggableNode({
   node, cameraScale, groups, tags, onDelete, onPositionChange, onContentChange,
@@ -175,12 +176,20 @@ export function DraggableNode({
 
       {node.type === 'embed' && (
         <div className="p-2" style={{ width: getEmbedDetails(node.content).w + 16, height: getEmbedDetails(node.content).h + 16 }}>
-          <iframe
-            src={getEmbedDetails(node.content).url}
-            className="w-full h-full border-none rounded pointer-events-auto"
-            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
-            onPointerDown={(e) => e.stopPropagation()}
-          />
+          {isTauri() ? (
+            React.createElement('webview', {
+              src: getEmbedDetails(node.content).url,
+              className: 'w-full h-full border-none rounded pointer-events-auto',
+              onPointerDown: (e: React.PointerEvent) => e.stopPropagation()
+            })
+          ) : (
+            <iframe
+              src={getEmbedDetails(node.content).url}
+              className="w-full h-full border-none rounded pointer-events-auto"
+              sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+              onPointerDown={(e) => e.stopPropagation()}
+            />
+          )}
         </div>
       )}
 

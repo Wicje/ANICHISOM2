@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BrowserClipService } from '@/lib/services/browser-clip.service';
+import { isTauri } from '@/lib/platform';
 
 // Sites known to block iframe embedding aggressively
 const KNOWN_BLOCKED_HOSTS = new Set([
@@ -520,18 +521,26 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                   />
                 ) : (
                   <>
-                    <iframe
-                      ref={(el) => {
-                        if (el) iframeRefs.current.set(tab.id, el);
-                        else iframeRefs.current.delete(tab.id);
-                      }}
-                      src={tab.url.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(tab.url)}` : tab.url}
-                      className="w-full h-full border-none bg-white absolute inset-0"
-                      title={`Tab ${tab.id}`}
-                      sandbox="allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox allow-same-origin"
-                      onLoad={() => handleIframeLoad(tab.id)}
-                      onError={() => handleIframeError(tab.id)}
-                    />
+                    {isTauri() ? (
+                      React.createElement('webview', {
+                        src: tab.url,
+                        className: 'w-full h-full border-none bg-white absolute inset-0',
+                        title: `Tab ${tab.id}`
+                      })
+                    ) : (
+                      <iframe
+                        ref={(el) => {
+                          if (el) iframeRefs.current.set(tab.id, el);
+                          else iframeRefs.current.delete(tab.id);
+                        }}
+                        src={tab.url.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(tab.url)}` : tab.url}
+                        className="w-full h-full border-none bg-white absolute inset-0"
+                        title={`Tab ${tab.id}`}
+                        sandbox="allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox allow-same-origin"
+                        onLoad={() => handleIframeLoad(tab.id)}
+                        onError={() => handleIframeError(tab.id)}
+                      />
+                    )}
                     {blockedTabs.has(tab.id) && (
                       <BlockedSiteFallback
                         url={tab.url}
@@ -562,11 +571,18 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
               </form>
               <button onClick={() => toggleSplitView()} className="p-1 rounded hover:bg-black/5 text-slate-400"><X className="w-3.5 h-3.5" /></button>
             </div>
-            <iframe
-              src={splitUrl.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(splitUrl)}` : splitUrl}
-              className="flex-1 border-none bg-white"
-              sandbox="allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox allow-same-origin"
-            />
+            {isTauri() ? (
+              React.createElement('webview', {
+                src: splitUrl,
+                className: 'flex-1 border-none bg-white'
+              })
+            ) : (
+              <iframe
+                src={splitUrl.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(splitUrl)}` : splitUrl}
+                className="flex-1 border-none bg-white"
+                sandbox="allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox allow-same-origin"
+              />
+            )}
           </div>
         )}
         </div>
