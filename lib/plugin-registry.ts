@@ -43,6 +43,7 @@ export interface PluginManifest {
   publishedAt?: number;
   updatedAt?: number;
   source: 'builtin' | 'local' | 'marketplace' | 'custom';
+  isDaemon?: boolean;            // true = runs headlessly in the background
 }
 
 export interface PluginInstallState {

@@ -20,6 +20,7 @@ import { Dock } from './dock';
 import { WindowSwitcher } from './window-switcher';
 import { DesktopIcons } from './desktop-icons';
 import { WidgetsLayer, Widget } from './widgets';
+import { DaemonManager } from './daemon-manager';
 import { LoginScreen } from '@/components/login-screen';
 import FeedbackWidget from '@/components/apps/feedback-widget';
 import { useOnboardingStore } from '@/lib/stores/onboarding.store';
@@ -834,6 +835,7 @@ export function Desktop() {
 
       <main className="flex-1 relative z-10 w-full h-full overflow-hidden pointer-events-none">
         <DesktopIcons />
+        <DaemonManager />
         <WidgetsLayer widgets={widgets} setWidgets={setWidgets} />
 
         {showSnapshots && <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--os-text-muted)' }} /></div>}><SnapshotsMenu onClose={() => setShowSnapshots(false)} /></Suspense>}

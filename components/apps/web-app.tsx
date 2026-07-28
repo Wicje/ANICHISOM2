@@ -33,11 +33,22 @@ export default function WebApp({ window: osWindow }: { window: any }) {
       setInitWait(false);
     }, 250);
 
+    const contextHandler = () => {
+      window.dispatchEvent(new CustomEvent('os:context-response', {
+        detail: {
+          appId: osWindow.appId,
+          context: `Web App Container viewing URL: ${url}\nExtension Active: ${extensionInstalled}`
+        }
+      }));
+    };
+    window.addEventListener('os:request-context', contextHandler);
+
     return () => {
       window.removeEventListener('continua-extension-ready', handler);
+      window.removeEventListener('os:request-context', contextHandler);
       clearTimeout(timer);
     };
-  }, []);
+  }, [url, extensionInstalled, osWindow.appId]);
 
   // For native-feeling PWAs, we strip X-Frame-Options via extension or Tauri natively.
   // If we are on web without extension, we attempt the proxy as fallback (though complex sites might break).

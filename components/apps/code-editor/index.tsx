@@ -89,6 +89,19 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
     };
   }, [roomId, workspaceMode]);
 
+  useEffect(() => {
+    const contextHandler = () => {
+      window.dispatchEvent(new CustomEvent('os:context-response', {
+        detail: {
+          appId: osWindow.appId,
+          context: `File: ${fileName}\nCode Snapshot:\n\`\`\`\n${code.substring(0, 500)}${code.length > 500 ? '\n... (truncated)' : ''}\n\`\`\``
+        }
+      }));
+    };
+    window.addEventListener('os:request-context', contextHandler);
+    return () => window.removeEventListener('os:request-context', contextHandler);
+  }, [osWindow.appId, fileName, code]);
+
   const handleDeploy = () => {
     setIsDeploying(true);
     setTimeout(() => {

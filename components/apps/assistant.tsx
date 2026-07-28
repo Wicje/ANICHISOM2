@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { OSWindow } from '@/lib/os-context';
 import { Sparkles, Send, Bot, User, Settings2, Loader2, AlertCircle, ChevronDown, Home, Bookmark, Zap, Layout } from 'lucide-react';
 import { useOS } from '@/lib/os-context';
+import { useWindowStore } from '@/lib/stores/window.store';
 import { StorageAdapter } from '@/lib/storage';
 import { APP_MANIFEST } from '@/lib/app-manifest';
 import {
@@ -129,7 +130,40 @@ export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
 
     try {
       const provider = getAiProvider(selectedProvider);
+      
+      const activeWindows = useWindowStore.getState().windows;
+      const windowContextStr = activeWindows.length > 0 
+        ? activeWindows.map(w => `- [${w.appId}] "${w.title}" ${w.isMinimized ? '(minimized)' : '(open)'} ${w.data?.url ? `(URL: ${w.data.url})` : ''}`).join('\n')
+        : 'No other apps currently open.';
+
+      // Broadcast deep-context request to all open apps
+      const gatherDeepContext = async (): Promise<string> => {
+        return new Promise((resolve) => {
+          const contexts: string[] = [];
+          const handler = (e: any) => {
+            if (e.detail?.appId && e.detail?.context) {
+              contexts.push(`--- Deep Context from ${e.detail.appId} ---\n${e.detail.context}`);
+            }
+          };
+          window.addEventListener('os:context-response', handler);
+          window.dispatchEvent(new CustomEvent('os:request-context'));
+          
+          setTimeout(() => {
+            window.removeEventListener('os:context-response', handler);
+            resolve(contexts.length > 0 ? contexts.join('\n\n') : 'No deep context provided by active apps.');
+          }, 350); // wait 350ms for apps to reply
+        });
+      };
+
+      const deepContextStr = await gatherDeepContext();
+
       const systemPrompt = `You are the ContinuaOS System Assistant. You help users operate their desktop environment.
+
+CURRENT WORKSPACE WINDOWS:
+${windowContextStr}
+
+APP DEEP CONTEXT (Content currently visible inside apps):
+${deepContextStr}
 
 Available apps the user can open (use the open command or suggest them):
 ${APP_LIST_FOR_AI}
@@ -138,7 +172,7 @@ You can help with:
 - Opening apps (terminal, files, browser, moodboard, campaign, code, settings, etc.)
 - Changing theme colors (blue, red, green, purple, or any hex color)
 - Toggling screen shaders (crt, night/warm, off)
-- Answering questions about the OS and apps
+- Answering questions about the OS and apps. If they ask what is open, use the context above.
 
 When a user asks to open an app, respond naturally like "Opening [app name] for you!" — the system handles the actual launch.`;
 
