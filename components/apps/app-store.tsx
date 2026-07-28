@@ -34,6 +34,12 @@ const STORE_APPS: Array<{ id: string; name: string; desc: string; icon: string; 
   { id: 'moodboard', name: 'Moodboard Pro', desc: 'Free-form canvas surpassing Milanote with reactions, connections, and voting.', icon: '🎨', category: 'creative', rating: 4.9 },
   { id: 'files', name: 'Files Bridge', desc: 'Google Drive, Dropbox, and local files in one unified manager.', icon: '📁', category: 'productivity', rating: 4.7 },
   { id: 'assistant', name: 'AI Assistant', desc: 'Connect to any AI model — Claude, Gemini, Qwen, OpenAI, local models.', icon: '🤖', category: 'productivity', rating: 4.8 },
+  // Native Web Apps (Ecosystem)
+  { id: 'figma', name: 'Figma', desc: 'Collaborative interface design tool. Runs natively in ContinuaOS.', icon: '🎨', category: 'creative', rating: 4.9 },
+  { id: 'notion', name: 'Notion', desc: 'All-in-one workspace for your notes, tasks, wikis.', icon: '📝', category: 'productivity', rating: 4.8 },
+  { id: 'spotify', name: 'Spotify', desc: 'Listen to music and podcasts while you work.', icon: '🎧', category: 'media', rating: 4.7 },
+  { id: 'discord', name: 'Discord', desc: 'Chat and voice communication.', icon: '💬', category: 'social', rating: 4.8 },
+  { id: 'vscode', name: 'VS Code Web', desc: 'Cloud-based code editor via StackBlitz.', icon: '💻', category: 'dev', rating: 4.9 },
 ];
 
 const ECOSYSTEM_PACKS: Array<{ id: string; name: string; desc: string; icon: string; category: string; rating: number }> = [

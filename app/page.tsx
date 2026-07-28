@@ -94,7 +94,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-2xl md:text-3xl font-bold mb-4" style={{ fontFamily: 'var(--font-display)', color: '#ffffff' }}>
-              Three layers. One workspace.
+              Four layers. One workspace.
             </h2>
             <p className="text-sm max-w-lg mx-auto" style={{ color: 'rgba(255,255,255,0.4)' }}>
               Continua is built on a protocol that owns your context. Not a collection of apps — an infrastructure layer.
@@ -123,6 +123,13 @@ export default function LandingPage() {
                 desc: 'Chrome extension captures context from Figma, Claude, Notion, and 16+ other tools. Reverse proxy loads any site inside the OS. Everything feeds into your context.',
                 color: '#F59E0B',
                 tags: ['Chrome Extension', 'Reverse Proxy', 'Figma API'],
+              },
+              {
+                layer: '04',
+                title: 'Dual-Target Architecture',
+                desc: 'Available anywhere. Run Continua directly in any browser tab, or download the native Tauri Desktop application for completely unrestricted browsing, native webviews, and system-level access.',
+                color: '#EC4899',
+                tags: ['Web Application', 'Tauri Native App', 'Rust Backend'],
               },
             ].map((item, i) => (
               <div key={i} className="flex gap-6 p-6 rounded-2xl transition-all" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>

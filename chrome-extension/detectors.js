@@ -8,7 +8,7 @@
 const DETECTORS = {
   // ─── Design Tools ───────────────────────────────────────────────────────
   figma: {
-    match: (url: string) => url.includes('figma.com'),
+    match: (url) => url.includes('figma.com'),
     extract: () => {
       const fileKey = window.location.pathname.match(/file\/([^/]+)/)?.[1] || '';
       const fileName = document.querySelector('[data-testid="file-name"]')?.textContent || document.title;
@@ -25,7 +25,7 @@ const DETECTORS = {
   },
 
   canva: {
-    match: (url: string) => url.includes('canva.com'),
+    match: (url) => url.includes('canva.com'),
     extract: () => ({
       tool: 'canva',
       designName: document.title.replace(' - Canva', ''),
@@ -35,7 +35,7 @@ const DETECTORS = {
 
   // ─── AI Tools ───────────────────────────────────────────────────────────
   claude: {
-    match: (url: string) => url.includes('claude.ai'),
+    match: (url) => url.includes('claude.ai'),
     extract: () => {
       const messages = document.querySelectorAll('[data-testid="message"]');
       const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
@@ -49,7 +49,7 @@ const DETECTORS = {
   },
 
   chatgpt: {
-    match: (url: string) => url.includes('chat.openai.com') || url.includes('chatgpt.com'),
+    match: (url) => url.includes('chat.openai.com') || url.includes('chatgpt.com'),
     extract: () => {
       const messages = document.querySelectorAll('[data-message-author-role]');
       return {
@@ -64,7 +64,7 @@ const DETECTORS = {
 
   // ─── Adobe ──────────────────────────────────────────────────────────────
   adobeExpress: {
-    match: (url: string) => url.includes('express.adobe.com'),
+    match: (url) => url.includes('express.adobe.com'),
     extract: () => ({
       tool: 'adobe-express',
       projectName: document.title.replace(' | Adobe Express', ''),
@@ -73,7 +73,7 @@ const DETECTORS = {
   },
 
   adobeLightroom: {
-    match: (url: string) => url.includes('lightroom.adobe.com'),
+    match: (url) => url.includes('lightroom.adobe.com'),
     extract: () => ({
       tool: 'adobe-lightroom',
       photoCount: document.querySelectorAll('[data-testid="photo-grid-item"]').length,
@@ -82,7 +82,7 @@ const DETECTORS = {
 
   // ─── Project Management ─────────────────────────────────────────────────
   notion: {
-    match: (url: string) => url.includes('notion.so'),
+    match: (url) => url.includes('notion.so'),
     extract: () => ({
       tool: 'notion',
       pageTitle: document.querySelector('.notion-page-content')?.textContent?.slice(0, 200) || document.title,
@@ -91,7 +91,7 @@ const DETECTORS = {
   },
 
   linear: {
-    match: (url: string) => url.includes('linear.app'),
+    match: (url) => url.includes('linear.app'),
     extract: () => {
       const issueId = window.location.pathname.match(/\/([A-Z]+-\d+)/)?.[1] || '';
       return {
@@ -103,7 +103,7 @@ const DETECTORS = {
   },
 
   github: {
-    match: (url: string) => url.includes('github.com'),
+    match: (url) => url.includes('github.com'),
     extract: () => {
       const pathParts = window.location.pathname.split('/').filter(Boolean);
       return {
@@ -119,7 +119,7 @@ const DETECTORS = {
 
   // ─── Social / Media ─────────────────────────────────────────────────────
   youtube: {
-    match: (url: string) => url.includes('youtube.com'),
+    match: (url) => url.includes('youtube.com'),
     extract: () => ({
       tool: 'youtube',
       videoTitle: document.querySelector('h1.ytd-video-primary-info-renderer')?.textContent || document.title,
@@ -129,7 +129,7 @@ const DETECTORS = {
   },
 
   instagram: {
-    match: (url: string) => url.includes('instagram.com'),
+    match: (url) => url.includes('instagram.com'),
     extract: () => ({
       tool: 'instagram',
       isPost: window.location.pathname.includes('/p/'),
@@ -140,7 +140,7 @@ const DETECTORS = {
   },
 
   twitter: {
-    match: (url: string) => url.includes('twitter.com') || url.includes('x.com'),
+    match: (url) => url.includes('twitter.com') || url.includes('x.com'),
     extract: () => ({
       tool: 'twitter',
       tweetText: document.querySelector('[data-testid="tweetText"]')?.textContent?.slice(0, 500) || '',
@@ -150,7 +150,7 @@ const DETECTORS = {
 
   // ─── Collaboration ──────────────────────────────────────────────────────
   miro: {
-    match: (url: string) => url.includes('miro.com'),
+    match: (url) => url.includes('miro.com'),
     extract: () => ({
       tool: 'miro',
       boardName: document.title.replace(' | Miro', ''),
@@ -158,7 +158,7 @@ const DETECTORS = {
   },
 
   googleDocs: {
-    match: (url: string) => url.includes('docs.google.com/document'),
+    match: (url) => url.includes('docs.google.com/document'),
     extract: () => ({
       tool: 'google-docs',
       docTitle: document.title.replace(' - Google Docs', ''),
@@ -167,7 +167,7 @@ const DETECTORS = {
   },
 
   googleSheets: {
-    match: (url: string) => url.includes('docs.google.com/spreadsheets'),
+    match: (url) => url.includes('docs.google.com/spreadsheets'),
     extract: () => ({
       tool: 'google-sheets',
       sheetTitle: document.title.replace(' - Google Sheets', ''),
@@ -175,7 +175,7 @@ const DETECTORS = {
   },
 
   googleSlides: {
-    match: (url: string) => url.includes('docs.google.com/presentation'),
+    match: (url) => url.includes('docs.google.com/presentation'),
     extract: () => ({
       tool: 'google-slides',
       presentationTitle: document.title.replace(' - Google Slides', ''),
@@ -184,7 +184,7 @@ const DETECTORS = {
 
   // ─── Development ────────────────────────────────────────────────────────
   vercel: {
-    match: (url: string) => url.includes('vercel.com'),
+    match: (url) => url.includes('vercel.com'),
     extract: () => ({
       tool: 'vercel',
       projectName: window.location.pathname.split('/').filter(Boolean).pop() || '',
@@ -192,7 +192,7 @@ const DETECTORS = {
   },
 
   netlify: {
-    match: (url: string) => url.includes('netlify.com'),
+    match: (url) => url.includes('netlify.com'),
     extract: () => ({
       tool: 'netlify',
       siteName: window.location.pathname.split('/').filter(Boolean).pop() || '',
@@ -200,7 +200,7 @@ const DETECTORS = {
   },
 
   stackblitz: {
-    match: (url: string) => url.includes('stackblitz.com'),
+    match: (url) => url.includes('stackblitz.com'),
     extract: () => ({
       tool: 'stackblitz',
       projectTitle: document.title,
@@ -208,7 +208,7 @@ const DETECTORS = {
   },
 
   codepen: {
-    match: (url: string) => url.includes('codepen.io'),
+    match: (url) => url.includes('codepen.io'),
     extract: () => ({
       tool: 'codepen',
       penTitle: document.title.replace(' - CodePen', ''),
@@ -219,7 +219,7 @@ const DETECTORS = {
 /**
  * Detect what tool the user is using and extract tool-specific context.
  */
-export function detectToolContext(url: string): Record<string, unknown> | null {
+export function detectToolContext(url): Record<string, unknown> | null {
   for (const [key, detector] of Object.entries(DETECTORS)) {
     if (detector.match(url)) {
       try {

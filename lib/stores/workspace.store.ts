@@ -20,10 +20,18 @@ export type Snapshot = {
   windows: any[];
 };
 
+export type CustomWebApp = {
+  id: string;
+  title: string;
+  url: string;
+  iconImage: string; // Favicon URL
+};
+
 type WorkspaceState = {
   workspaceMode: WorkspaceMode;
   activeWorkspace: number;
   installedApps: string[];
+  customWebApps: CustomWebApp[];
   recentApps: string[];
   snapshots: Snapshot[];
   workspaceId: string;
@@ -40,6 +48,7 @@ type WorkspaceState = {
   setMode: (mode: 'create' | 'review' | 'present') => void;
   emitEvent: (event: Omit<Event, 'id' | 'timestamp'>) => void;
   addRecentApp: (appId: string) => void;
+  addCustomWebApp: (app: CustomWebApp) => void;
   loadPersisted: () => Promise<void>;
 };
 
@@ -51,6 +60,7 @@ function persistWorkspace(state: WorkspaceState) {
       workspaceMode: state.workspaceMode,
       activeWorkspace: state.activeWorkspace,
       installedApps: state.installedApps,
+      customWebApps: state.customWebApps,
       recentApps: state.recentApps,
       snapshots: state.snapshots,
       workspaceId: state.workspaceId,
@@ -63,6 +73,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   workspaceMode: 'private',
   activeWorkspace: 0,
   installedApps: [],
+  customWebApps: [],
   recentApps: [],
   snapshots: [],
   workspaceId: 'personal',
@@ -81,7 +92,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
 
   uninstallApp: (appId) => {
-    set(s => ({ installedApps: s.installedApps.filter(id => id !== appId) }));
+    set(s => ({ installedApps: s.installedApps.filter(id => id !== appId), customWebApps: s.customWebApps.filter(app => app.id !== appId) }));
+    persistWorkspace(get());
+  },
+
+  addCustomWebApp: (app) => {
+    set(s => {
+      // Don't add if already exists
+      if (s.customWebApps.some(a => a.id === app.id)) return s;
+      return { 
+        customWebApps: [...s.customWebApps, app],
+        installedApps: [...s.installedApps, app.id] 
+      };
+    });
     persistWorkspace(get());
   },
 

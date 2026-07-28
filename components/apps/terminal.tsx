@@ -21,6 +21,8 @@ export function TerminalBox({ window }: { window: OSWindow }) {
   const historyIdxRef = useRef(-1);
   const currentLineRef = useRef('');
   const [ready, setReady] = useState(false);
+  const currentUserRef = useRef(currentUser);
+  useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
   useEffect(() => {
     historyRef.current = history;
@@ -86,7 +88,7 @@ export function TerminalBox({ window }: { window: OSWindow }) {
 
       const vfs = vfsRef.current;
 
-      const currentUserRef = useRef(currentUser); useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]); const PROMPT = () => `\x1b[36m${currentUserRef.current?.name || 'user'}\x1b[0m:\x1b[35m~\x1b[0m$ `;
+      const PROMPT = () => `\x1b[36m${currentUserRef.current?.name || 'user'}\x1b[0m:\x1b[35m~\x1b[0m$ `;
 
       term.writeln('\x1b[1;36m╔══════════════════════════════════════════╗\x1b[0m');
       term.writeln('\x1b[1;36m║  ContinuaOS Terminal v2.0              ║\x1b[0m');

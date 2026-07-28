@@ -27,6 +27,8 @@
     "@socket.io/redis-adapter": "^8.3.0",
     "@supabase/ssr": "^0.12.1",
     "@supabase/supabase-js": "^2.108.1",
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-fs": "^2.5.1",
     "@tiptap/extension-collaboration": "^3.27.2",
     "@tiptap/extension-font-family": "^3.27.2",
     "@tiptap/extension-text-style": "^3.27.2",

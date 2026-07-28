@@ -131,9 +131,7 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     const yNodes = collab.sharedTypesRef.current.nodes;
     if (!yNodes) return;
 
-    // Check if node already exists on canvas
-    const existing = Array.from(yNodes.values()).find((n: any) => n.content === content || n.content === rawContent);
-    if (existing) return;
+    // Removed deduplication check to allow importing the same file multiple times
 
     const newId = crypto.randomUUID();
     const winW = osWindow.width || 800;
@@ -272,6 +270,25 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     const newId = crypto.randomUUID();
     _updateYNode({ id: newId, type, x: centerCanvasX(), y: centerCanvasY(), content: url });
   }, [_updateYNode, centerCanvasX, centerCanvasY]);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    if (activeView !== 'grid' && activeView !== 'canvas') return;
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      for (const file of files) {
+        if (file.size > 50 * 1024 * 1024) { window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'File Too Large', message: 'Maximum file size is 50MB.' } })); continue; }
+        try { await FS.mkdir('Media'); } catch {}
+        const path = `Media/${file.name}`;
+        await FS.write(path, file);
+        const type = file.type.startsWith('video/') ? 'video' : 'image';
+        addImportedNode({ [type]: path, title: file.name });
+      }
+    } else {
+      const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+      if (url) processUrl(url);
+    }
+  }, [activeView, addImportedNode, processUrl]);
 
   const handleAddLink = useCallback(() => {
     setShowAddUrl(true);
@@ -680,10 +697,11 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
             {node.type === 'image' && <BlobMedia content={node.content} type="image" className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl" />}
             {node.type === 'embed' && (
               isTauri() ? (
-                React.createElement('webview', {
-                  src: getEmbedDetails(node.content).url,
-                  className: 'w-[600px] h-[400px] border-none rounded-lg shadow-2xl'
-                })
+                <iframe
+                  src={getEmbedDetails(node.content).url}
+                  className="w-[600px] h-[400px] border-none rounded-lg shadow-2xl"
+                  sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+                />
               ) : (
                 <iframe src={getEmbedDetails(node.content).url} className="w-[600px] h-[400px] border-none rounded-lg shadow-2xl" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" />
               )
@@ -719,6 +737,8 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
   if (activeView !== 'grid') {
     return (
       <div className="w-full h-full overflow-hidden relative font-sans outline-none" tabIndex={0}
+        onDrop={handleDrop}
+        onDragOver={(e) => e.preventDefault()}
         onKeyDown={(e) => {
           if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
           if ((e.ctrlKey || e.metaKey) && (e.key === 'Z' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
@@ -782,6 +802,8 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
         isPanning ? "cursor-grabbing" : mode === 'pan' ? "cursor-grab" : mode === 'connect' ? "cursor-crosshair" : mode === 'comment' ? "cursor-crosshair" : "cursor-default",
       )}
       onPaste={handlePaste}
+      onDrop={handleDrop}
+      onDragOver={(e) => e.preventDefault()}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}

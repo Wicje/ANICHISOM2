@@ -75,11 +75,13 @@ export function CallsApp({ window: osWindow }: { window: OSWindow }) {
         {/* Meet iframe */}
         <div className="flex-1 relative">
           {isTauri() ? (
-            React.createElement('webview', {
-              src: activeRoom.startsWith('continuaos-') ? 'https://meet.google.com/new' : `https://meet.google.com/${activeRoom}`,
-              className: 'w-full h-full border-none bg-black',
-              allow: 'camera; microphone; fullscreen; display-capture'
-            })
+            <iframe
+              src={activeRoom.startsWith('continuaos-') ? 'https://meet.google.com/new' : `https://meet.google.com/${activeRoom}`}
+              className="w-full h-full border-none bg-black"
+              allow="camera; microphone; fullscreen; display-capture"
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-modals"
+              title="Google Meet"
+            />
           ) : (
             <iframe
               ref={iframeRef}

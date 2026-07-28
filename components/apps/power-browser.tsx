@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useBrowserStore, PinnedApp } from '@/lib/stores/browser.store';
 import { useWindowStore } from '@/lib/stores/window.store';
 import { useThemeStore } from '@/lib/stores/theme.store';
+import { useWorkspaceStore } from '@/lib/stores/workspace.store';
 import {
   ArrowLeft, ArrowRight, RotateCw, Home, Lock, ExternalLink, Search,
   Maximize2, Minimize2, Download, Plus, X, Star, Bookmark, Trash2,
@@ -51,6 +52,7 @@ function isKnownBlocked(url: string): boolean {
 export function PowerBrowser({ window: osWindow }: { window: any }) {
   const { themeColor } = useThemeStore();
   const openWindow = useWindowStore((s) => s.openWindow);
+  const addCustomWebApp = useWorkspaceStore((s) => s.addCustomWebApp);
 
   const {
     pinnedApps, tabs, activeTabId, sidebarVisible, focusMode, splitView, splitViewTarget,
@@ -71,12 +73,22 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   const [searchEngine, setSearchEngine] = useState<'google' | 'duckduckgo' | 'bing'>('google');
   // Fallback state: tracks which tabs failed to load
   const [blockedTabs, setBlockedTabs] = useState<Set<string>>(new Set());
+  const [extensionInstalled, setExtensionInstalled] = useState(false);
   const iframeRefs = useRef<Map<string, HTMLIFrameElement>>(new Map());
 
   const activeTab = (tabs.find((t) => t.id === activeTabId) || tabs[0])!;
 
   useEffect(() => {
     loadPersisted();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).__CONTINUA_EXTENSION_ACTIVE__) {
+      setExtensionInstalled(true);
+    }
+    const handler = () => setExtensionInstalled(true);
+    window.addEventListener('continua-extension-ready', handler);
+    return () => window.removeEventListener('continua-extension-ready', handler);
   }, []);
 
   useEffect(() => {
@@ -216,7 +228,11 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   };
 
   const openExternal = (url: string) => {
-    window.open(url, '_blank', 'noopener,noreferrer');
+    const width = 1200;
+    const height = 800;
+    const left = (window.screen.width - width) / 2;
+    const top = (window.screen.height - height) / 2;
+    window.open(url, '_blank', `popup=yes,width=${width},height=${height},left=${left},top=${top}`);
   };
 
   return (
@@ -436,9 +452,30 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                       }
                     }}
                     className="hover:text-black hover:bg-black/5 rounded p-1.5 transition-colors"
-                    title="Pin this app"
+                    title="Pin this app inside Browser"
                   >
                     <Pin className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (activeTab) {
+                        const host = getHostname(activeTab.url);
+                        const id = `web-${host.replace(/[^a-zA-Z0-9]/g, '-')}-${Date.now()}`;
+                        addCustomWebApp({
+                          id,
+                          title: activeTab.title || host,
+                          url: activeTab.url,
+                          iconImage: `https://www.google.com/s2/favicons?domain=${host}&sz=128`,
+                        });
+                        window.dispatchEvent(new CustomEvent('os:notify', {
+                          detail: { title: 'Installed as App', description: `${activeTab.title || host} added to Launchpad`, type: 'success' },
+                        }));
+                      }
+                    }}
+                    className="hover:text-blue-600 hover:bg-blue-50 rounded p-1.5 transition-colors text-slate-500"
+                    title="Install as OS App"
+                  >
+                    <Download className="w-4 h-4" />
                   </button>
                   <button
                     onClick={toggleFocusMode}
@@ -522,18 +559,19 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                 ) : (
                   <>
                     {isTauri() ? (
-                      React.createElement('webview', {
-                        src: tab.url,
-                        className: 'w-full h-full border-none bg-white absolute inset-0',
-                        title: `Tab ${tab.id}`
-                      })
+                      <iframe
+                        src={tab.url}
+                        className="w-full h-full border-none bg-white absolute inset-0"
+                        title={`Tab ${tab.id}`}
+                        sandbox="allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox allow-same-origin"
+                      />
                     ) : (
                       <iframe
                         ref={(el) => {
                           if (el) iframeRefs.current.set(tab.id, el);
                           else iframeRefs.current.delete(tab.id);
                         }}
-                        src={tab.url.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(tab.url)}` : tab.url}
+                        src={extensionInstalled ? tab.url : (tab.url.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(tab.url)}` : tab.url)}
                         className="w-full h-full border-none bg-white absolute inset-0"
                         title={`Tab ${tab.id}`}
                         sandbox="allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox allow-same-origin"
@@ -572,13 +610,14 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
               <button onClick={() => toggleSplitView()} className="p-1 rounded hover:bg-black/5 text-slate-400"><X className="w-3.5 h-3.5" /></button>
             </div>
             {isTauri() ? (
-              React.createElement('webview', {
-                src: splitUrl,
-                className: 'flex-1 border-none bg-white'
-              })
+              <iframe
+                src={splitUrl}
+                className="flex-1 border-none bg-white"
+                sandbox="allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox allow-same-origin"
+              />
             ) : (
               <iframe
-                src={splitUrl.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(splitUrl)}` : splitUrl}
+                src={extensionInstalled ? splitUrl : (splitUrl.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(splitUrl)}` : splitUrl)}
                 className="flex-1 border-none bg-white"
                 sandbox="allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox allow-same-origin"
               />
@@ -748,7 +787,7 @@ function BlockedSiteFallback({
             className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
           >
             <ExternalLink className="w-4 h-4" />
-            Open in New Tab
+            Open as App Window
           </button>
           <button
             onClick={onTryProxy}

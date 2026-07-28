@@ -177,11 +177,12 @@ export function DraggableNode({
       {node.type === 'embed' && (
         <div className="p-2" style={{ width: getEmbedDetails(node.content).w + 16, height: getEmbedDetails(node.content).h + 16 }}>
           {isTauri() ? (
-            React.createElement('webview', {
-              src: getEmbedDetails(node.content).url,
-              className: 'w-full h-full border-none rounded pointer-events-auto',
-              onPointerDown: (e: React.PointerEvent) => e.stopPropagation()
-            })
+            <iframe
+              src={getEmbedDetails(node.content).url}
+              className="w-full h-full border-none rounded pointer-events-auto"
+              sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+              onPointerDown={(e) => e.stopPropagation()}
+            />
           ) : (
             <iframe
               src={getEmbedDetails(node.content).url}

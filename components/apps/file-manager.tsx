@@ -644,11 +644,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
     if (!importUrl.trim()) return;
     setImporting(true);
     try {
-      const res = await fetch('/api/proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: importUrl.trim() }),
-      });
+      const res = await fetch(`/api/proxy?url=${encodeURIComponent(importUrl.trim())}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const contentType = res.headers.get('content-type') || blob.type || 'application/octet-stream';

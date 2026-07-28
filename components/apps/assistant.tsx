@@ -152,9 +152,14 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
       });
 
       setMessages(prev => [...prev, { role: 'ai', text: response.text }]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('AI request failed:', error);
-      setMessages(prev => [...prev, { role: 'ai', text: 'Sorry, I encountered an error. Please try again.' }]);
+      const errorMessage = error?.message?.toLowerCase() || '';
+      if (errorMessage.includes('api key') || errorMessage.includes('unauthorized') || errorMessage.includes('401')) {
+         setMessages(prev => [...prev, { role: 'ai', text: 'It looks like my API key is missing or invalid. Please configure your Vercel Environment Variables (e.g., OPENAI_API_KEY) or check the Settings app.' }]);
+      } else {
+         setMessages(prev => [...prev, { role: 'ai', text: 'Sorry, I encountered an error while processing that request. Please try again or check your configuration.' }]);
+      }
     } finally {
       setIsStreaming(false);
     }

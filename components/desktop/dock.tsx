@@ -38,10 +38,28 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
   // Dock shows: pinned apps + currently open apps (deduplicated)
   const dockApps = useMemo(() => {
     const openAppIds = new Set(activeWindows.map(w => w.appId));
+    
+    // Standard pinned apps
     const pinned = PINNED_APPS
       .map(id => APP_MANIFEST.find(app => app.id === id))
       .filter(Boolean) as typeof APP_MANIFEST;
-    const openNotPinned = APP_MANIFEST.filter(app => openAppIds.has(app.id) && !PINNED_APPS.includes(app.id));
+      
+    // Format custom apps to match APP_MANIFEST type
+    const customAppsFormatted = useWorkspaceStore.getState().customWebApps.map(app => ({
+      id: app.id,
+      title: app.title,
+      iconImage: app.iconImage,
+      icon: Globe,
+      roles: ['user', 'admin'],
+      description: `Installed Web App: ${app.url}`,
+      url: app.url // attach URL for onClick
+    }));
+
+    const combinedManifest = [...APP_MANIFEST, ...customAppsFormatted];
+    
+    // Open apps that are not in the pinned list
+    const openNotPinned = combinedManifest.filter(app => openAppIds.has(app.id) && !PINNED_APPS.includes(app.id));
+    
     return [...pinned, ...openNotPinned];
   }, [activeWindows]);
 
@@ -114,7 +132,11 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
                       minimizeWindow(existingWindow.id);
                     }
                   } else {
-                    openWindow(app.id);
+                    if ((app as any).url) {
+                      openWindow('web-app', app.title, { url: (app as any).url });
+                    } else {
+                      openWindow(app.id);
+                    }
                   }
                 }}
                 className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 transform origin-bottom hover:scale-125 hover:mx-2"

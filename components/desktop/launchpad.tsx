@@ -7,7 +7,8 @@ import { useWindowActions } from '@/lib/hooks/use-window-actions';
 import { useWorkspaceStore } from '@/lib/stores/workspace.store';
 import { APP_MANIFEST } from '@/lib/app-manifest';
 import { getAllPlugins, isPluginActive } from '@/lib/plugin-registry';
-import { Search } from 'lucide-react';
+import { Search, Globe } from 'lucide-react';
+import { AppIcon } from '@/components/ui/app-icon';
 
 interface LaunchpadProps {
   onClose: () => void;
@@ -25,7 +26,20 @@ export function Launchpad({ onClose }: LaunchpadProps) {
 
   const filteredApps = useMemo(() => {
     const q = query.toLowerCase().trim();
-    return APP_MANIFEST.filter(app => {
+    
+    // Convert custom web apps to the same format as APP_MANIFEST entries
+    const customAppsFormatted = useWorkspaceStore.getState().customWebApps.map(app => ({
+      id: app.id,
+      title: app.title,
+      iconImage: app.iconImage,
+      icon: Globe, // Fallback lucide icon
+      roles: ['user', 'admin'],
+      description: `Installed Web App: ${app.url}`,
+    }));
+
+    const combinedApps = [...APP_MANIFEST, ...customAppsFormatted];
+
+    return combinedApps.filter(app => {
       if (!app.roles.includes(currentUser.role) && !isSuperUser) return false;
       if (q && !app.title.toLowerCase().includes(q) && !app.id.toLowerCase().includes(q) && !(app.description || '').toLowerCase().includes(q)) return false;
       return true;
@@ -57,13 +71,18 @@ export function Launchpad({ onClose }: LaunchpadProps) {
           <button
             key={app.id}
             onClick={() => {
-              openWindow(app.id);
+              if ((app as any).url) {
+                 // For custom web apps, we need to pass url
+                 openWindow('web-app', app.title, { url: (app as any).url });
+              } else {
+                 openWindow(app.id);
+              }
               onClose();
             }}
             className="flex flex-col items-center gap-2 group outline-none w-20"
           >
-            <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center group-hover:bg-white/25 transition-all duration-200 group-hover:scale-110 shadow-lg border border-white/10">
-              <app.icon className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+              <AppIcon appId={app.id} icon={app.icon} iconImage={app.iconImage} size={64} className="shadow-lg rounded-2xl border border-white/10" />
             </div>
             <span className="text-white text-xs font-medium drop-shadow-md text-center line-clamp-2 w-full px-1">{app.title}</span>
           </button>

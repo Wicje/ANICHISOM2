@@ -135,6 +135,9 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
           if (localData.installedApps) {
             localData.installedApps.forEach((id: string) => wsInstallApp(id));
           }
+          if ((localData as any).customWebApps) {
+            useWorkspaceStore.setState({ customWebApps: (localData as any).customWebApps });
+          }
           if (localData.recentApps) {
             useWorkspaceStore.setState({ recentApps: localData.recentApps });
           }

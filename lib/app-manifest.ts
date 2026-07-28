@@ -67,6 +67,12 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
   'notification-settings': () => import('@/components/settings/notification-settings'),
   'analytics': () => import('@/components/apps/analytics/dashboard'),
   'image-viewer': () => import('@/components/apps/image-viewer'),
+  'web-app': () => import('@/components/apps/web-app'),
+  'figma': () => import('@/components/apps/web-app'),
+  'notion': () => import('@/components/apps/web-app'),
+  'spotify': () => import('@/components/apps/web-app'),
+  'discord': () => import('@/components/apps/web-app'),
+  'vscode': () => import('@/components/apps/web-app'),
 };
 
 // SVG data URIs — brand-inspired distinctive app icons
@@ -210,6 +216,13 @@ export const APP_MANIFEST: AppManifestEntry[] = [
 
   // Admin Tools
   { id: 'analytics', component: null as any, icon: BarChart3, iconImage: ICO.analytics, title: 'Analytics', roles: ['admin'], isCore: false, category: 'admin', description: 'Real-time performance and usage analytics dashboard' },
+
+  // Native Web Apps (Ecosystem)
+  { id: 'figma', component: null as any, icon: Palette, title: 'Figma', roles: ['admin', 'filmmaker', 'designer', 'user'], isCore: false, category: 'creative', description: 'Collaborative interface design tool' },
+  { id: 'notion', component: null as any, icon: FileText, title: 'Notion', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'All-in-one workspace for your notes, tasks, wikis' },
+  { id: 'spotify', component: null as any, icon: Headphones, title: 'Spotify', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'media', description: 'Listen to music and podcasts' },
+  { id: 'discord', component: null as any, icon: MessageSquare, title: 'Discord', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'social', description: 'Chat and voice communication' },
+  { id: 'vscode', component: null as any, icon: Code, title: 'VS Code Web', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'dev', description: 'Cloud-based code editor via StackBlitz' },
 ];
 
 // Dynamic import resolver — handles both default and named exports

@@ -13,7 +13,7 @@ importScripts('detectors.js');
 
 // ─── Tab Context Capture ────────────────────────────────────────────────────
 
-async function captureTabContext(tabId: number) {
+async function captureTabContext(tabId) {
   try {
     const tab = await chrome.tabs.get(tabId);
     if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
@@ -21,13 +21,13 @@ async function captureTabContext(tabId: number) {
     }
 
     // Inject content script to extract DOM context + tool-specific context
-    let domContext: any = {};
+    let domContext = {};
     try {
       const results = await chrome.scripting.executeScript({
         target: { tabId },
-        func: (tabUrl: string) => {
+        func: (tabUrl) => {
           // Extract page metadata
-          const meta: Record<string, string> = {};
+          const meta = {};
           document.querySelectorAll('meta[name], meta[property]').forEach(el => {
             const key = el.getAttribute('name') || el.getAttribute('property');
             const value = el.getAttribute('content');
@@ -74,7 +74,7 @@ async function captureTabContext(tabId: number) {
     }
 
     // Inject tool-specific context detection
-    let toolContext: any = null;
+    let toolContext = null;
     try {
       const toolResults = await chrome.scripting.executeScript({
         target: { tabId },
@@ -179,7 +179,7 @@ async function captureTabContext(tabId: number) {
 
 // ─── Sync to Continua ───────────────────────────────────────────────────────
 
-async function syncContextToContinua(context: any) {
+async function syncContextToContinua(context) {
   try {
     // Store in chrome.storage for the popup to display
     const existing = await chrome.storage.local.get('continuaContext');
