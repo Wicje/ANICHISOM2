@@ -62,6 +62,11 @@ export function HeadlessDaemon({ pluginId, pluginUrl }: { pluginId: string, plug
             openWindow(args[0], args[1] || 'Daemon Window', args[2]);
             result = true;
             break;
+          case 'ui.setShader':
+            // we need to dispatch a custom event since setTheme/Shader isn't exported directly here without useOS
+            window.dispatchEvent(new CustomEvent('os:set-shader', { detail: { shader: args[0] } }));
+            result = true;
+            break;
           case 'auth.getCurrentUser':
             result = {
               id: currentUser?.id || 'unknown',

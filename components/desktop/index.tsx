@@ -456,6 +456,16 @@ export function Desktop() {
   }, [registryVersion]);
 
   // Visible windows with privacy filtering
+  useEffect(() => {
+    const handleSetShader = (e: any) => {
+      if (e.detail?.shader) {
+        useThemeStore.setState({ screenShader: e.detail.shader });
+      }
+    };
+    window.addEventListener('os:set-shader', handleSetShader);
+    return () => window.removeEventListener('os:set-shader', handleSetShader);
+  }, []);
+
   const visibleWindows = useMemo(() => {
     return windows.filter(w => {
       if (w.isMinimized) return false;

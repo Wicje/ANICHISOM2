@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Pomodoro Enforcer Daemon</title>
+</head>
+<body>
+  <script>
+    let focusMode = false;
+    let timerId = null;
+
+    // 25 minutes focus, 5 minutes break (in milliseconds)
+    const FOCUS_DURATION = 25 * 60 * 1000;
+    const BREAK_DURATION = 5 * 60 * 1000;
+
+    // For testing/demonstration, we use 10 seconds focus, 5 seconds break
+    // const FOCUS_DURATION = 10 * 1000;
+    // const BREAK_DURATION = 5 * 1000;
+
+    function rpc(method, args = []) {
+      window.parent.postMessage({
+        type: 'PLUGIN_RPC',
+        method: method,
+        args: args
+      }, '*');
+    }
+
+    function toggleMode() {
+      focusMode = !focusMode;
+      
+      if (focusMode) {
+        // Start Focus Mode
+        rpc('ui.showNotification', ['Pomodoro', 'Time to focus! Starting 25-minute work block.']);
+        rpc('ui.setShader', ['warm']); // Set night mode/warm shader
+        
+        timerId = setTimeout(toggleMode, FOCUS_DURATION);
+      } else {
+        // Start Break Mode
+        rpc('ui.showNotification', ['Pomodoro', 'Break time! 5 minutes to relax.']);
+        rpc('ui.setShader', ['off']); // Turn off shader
+        
+        timerId = setTimeout(toggleMode, BREAK_DURATION);
+      }
+    }
+
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+      if (data.type === 'INIT_CONTEXT') {
+        // Start the cycle
+        toggleMode();
+      }
+    });
+
+    window.parent.postMessage({ type: 'OS_READY' }, '*');
+  </script>
+</body>
+</html>

@@ -233,4 +233,22 @@ export function registerBuiltinPlugins(builtinAppIds: string[]): void {
       }
     }
   });
+
+  // Inject Pomodoro Daemon
+  if (!registry.has('pomodoro-daemon')) {
+    registerPlugin({
+      id: 'pomodoro-daemon',
+      name: 'Pomodoro Enforcer',
+      version: '1.0.0',
+      description: 'Background daemon that manages 25min focus blocks, silencing notifications and setting the night shader.',
+      author: 'ContinuaOS',
+      category: 'productivity',
+      permissions: ['ui:showNotification', 'ui:setShader'] as any,
+      runtime: 'iframe',
+      entryUrl: '/plugins/pomodoro.html',
+      source: 'builtin',
+      isDaemon: true,
+      roles: ['user', 'admin']
+    });
+  }
 }

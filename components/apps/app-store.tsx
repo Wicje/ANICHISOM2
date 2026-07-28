@@ -529,7 +529,12 @@ export function AppStoreApp({ window: osWindow }: { window: OSWindow }) {
                           )} />
                         </button>
                       )}
-                      <button onClick={() => openApp(appId)} className="text-xs text-white bg-blue-500 hover:bg-blue-600 px-3 py-1 rounded-md transition-colors">Open</button>
+                      {!item.isDaemon && (
+                        <button onClick={() => openApp(appId)} className="text-xs text-white bg-blue-500 hover:bg-blue-600 px-3 py-1 rounded-md transition-colors">Open</button>
+                      )}
+                      {item.isDaemon && (
+                        <span className="text-[10px] text-emerald-500/70 bg-emerald-500/10 px-2 py-1 rounded-md font-bold uppercase tracking-wider">Background Daemon</span>
+                      )}
                       <button onClick={() => setDetailView(appId)} className="text-xs text-white/40 hover:text-white bg-white/5 px-3 py-1 rounded-md transition-colors flex items-center gap-1">
                         <Shield className="w-3 h-3" /> Privacy
                       </button>
