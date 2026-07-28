@@ -71,9 +71,9 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   const [pinUrl, setPinUrl] = useState('');
   const [pinTitle, setPinTitle] = useState('');
   const [searchEngine, setSearchEngine] = useState<'google' | 'duckduckgo' | 'bing'>('google');
-  // Fallback state: tracks which tabs failed to load
   const [blockedTabs, setBlockedTabs] = useState<Set<string>>(new Set());
   const [extensionInstalled, setExtensionInstalled] = useState(false);
+  const [initWait, setInitWait] = useState(true);
   const iframeRefs = useRef<Map<string, HTMLIFrameElement>>(new Map());
 
   const activeTab = (tabs.find((t) => t.id === activeTabId) || tabs[0])!;
@@ -88,7 +88,16 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
     }
     const handler = () => setExtensionInstalled(true);
     window.addEventListener('continua-extension-ready', handler);
-    return () => window.removeEventListener('continua-extension-ready', handler);
+    
+    // Give the content script up to 250ms to inject before falling back to proxy
+    const timer = setTimeout(() => {
+      setInitWait(false);
+    }, 250);
+
+    return () => {
+      window.removeEventListener('continua-extension-ready', handler);
+      clearTimeout(timer);
+    };
   }, []);
 
   useEffect(() => {
@@ -566,18 +575,27 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                         sandbox="allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox allow-same-origin"
                       />
                     ) : (
-                      <iframe
-                        ref={(el) => {
-                          if (el) iframeRefs.current.set(tab.id, el);
-                          else iframeRefs.current.delete(tab.id);
-                        }}
-                        src={extensionInstalled ? tab.url : (tab.url.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(tab.url)}` : tab.url)}
-                        className="w-full h-full border-none bg-white absolute inset-0"
-                        title={`Tab ${tab.id}`}
-                        sandbox="allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox allow-same-origin"
-                        onLoad={() => handleIframeLoad(tab.id)}
-                        onError={() => handleIframeError(tab.id)}
-                      />
+                      <>
+                        {initWait ? (
+                          <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-50/80 backdrop-blur-sm">
+                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+                          </div>
+                        ) : (
+                          <iframe
+                            ref={(el) => {
+                              if (el) iframeRefs.current.set(tab.id, el);
+                              else iframeRefs.current.delete(tab.id);
+                            }}
+                            src={extensionInstalled ? tab.url : (tab.url.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(tab.url)}` : tab.url)}
+                            className="w-full h-full border-none bg-white absolute inset-0 z-0"
+                            style={{ isolation: 'isolate' }}
+                            title={`Tab ${tab.id}`}
+                            sandbox="allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox allow-same-origin"
+                            onLoad={() => handleIframeLoad(tab.id)}
+                            onError={() => handleIframeError(tab.id)}
+                          />
+                        )}
+                      </>
                     )}
                     {blockedTabs.has(tab.id) && (
                       <BlockedSiteFallback

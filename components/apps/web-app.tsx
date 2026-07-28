@@ -18,6 +18,7 @@ export default function WebApp({ window: osWindow }: { window: any }) {
   
   const [loading, setLoading] = useState(true);
   const [extensionInstalled, setExtensionInstalled] = useState(false);
+  const [initWait, setInitWait] = useState(true);
 
   useEffect(() => {
     // Check if the Continua Extension is active
@@ -26,7 +27,16 @@ export default function WebApp({ window: osWindow }: { window: any }) {
     }
     const handler = () => setExtensionInstalled(true);
     window.addEventListener('continua-extension-ready', handler);
-    return () => window.removeEventListener('continua-extension-ready', handler);
+    
+    // Give the content script up to 250ms to inject before falling back to proxy
+    const timer = setTimeout(() => {
+      setInitWait(false);
+    }, 250);
+
+    return () => {
+      window.removeEventListener('continua-extension-ready', handler);
+      clearTimeout(timer);
+    };
   }, []);
 
   // For native-feeling PWAs, we strip X-Frame-Options via extension or Tauri natively.
@@ -35,8 +45,17 @@ export default function WebApp({ window: osWindow }: { window: any }) {
     ? url 
     : (url.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(url)}` : url);
 
+  if (initWait && !extensionInstalled && !isTauri()) {
+    // Waiting for potential extension injection to prevent double-load
+    return (
+      <div className="w-full h-full relative bg-white flex flex-col items-center justify-center">
+         <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full h-full relative bg-white flex flex-col">
+    <div className="w-full h-full relative bg-white flex flex-col" style={{ zIndex: 1, isolation: 'isolate' }}>
       {loading && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-50/80 backdrop-blur-sm">
           <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
@@ -45,7 +64,7 @@ export default function WebApp({ window: osWindow }: { window: any }) {
       
       <iframe
         src={finalUrl}
-        className="w-full h-full flex-1 border-none bg-white"
+        className="w-full h-full flex-1 border-none bg-white relative z-0"
         title={osWindow.title}
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
         onLoad={() => setLoading(false)}
