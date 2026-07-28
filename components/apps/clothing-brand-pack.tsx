@@ -364,36 +364,58 @@ function DraftingTab() {
 function Prototype3DTab() {
   const [mode, setMode] = useState<'fit' | 'strain' | 'physics'>('fit');
   const [ready, setReady] = useState(false);
+  const [modelUrl, setModelUrl] = useState('https://modelviewer.dev/shared-assets/models/glTF-Sample-Models/2.0/Corset/glTF/Corset.gltf');
+  const [inputUrl, setInputUrl] = useState('');
+  
   useEffect(() => { import('@google/model-viewer').then(() => setReady(true)); }, []);
-  if (!ready) return <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Loading 3D viewer...</div>;
+  if (!ready) return <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Loading 3D Engine...</div>;
   
   return (
     <div className="flex flex-col h-full p-4 gap-4">
-       <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold tracking-tight">3D Virtual Fitting</h2>
-          <div className="flex bg-gray-100 p-1 rounded-lg">
-             {(['fit', 'strain', 'physics'] as const).map(m => (
-               <button 
-                 key={m} 
-                 onClick={() => setMode(m)} 
-                 className={cn("px-4 py-1.5 rounded-md text-sm font-bold capitalize transition-all", mode === m ? "bg-white shadow-sm text-black" : "text-gray-500 hover:text-black")}
-               >
-                 {m}
-               </button>
-             ))}
+       <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight flex items-center gap-2"><Cuboid className="w-5 h-5 text-blue-500" /> 3D Virtual Fitting</h2>
+            <p className="text-xs text-gray-500">Industry-standard drape and pattern simulation</p>
+          </div>
+          <div className="flex gap-4 items-center">
+             <form 
+               onSubmit={(e) => { e.preventDefault(); if (inputUrl) setModelUrl(inputUrl); }}
+               className="flex items-center gap-2"
+             >
+                <input 
+                  type="url" 
+                  placeholder="Enter custom .glb/.gltf URL" 
+                  value={inputUrl}
+                  onChange={e => setInputUrl(e.target.value)}
+                  className="text-xs px-3 py-1.5 border border-gray-300 rounded-md w-64 focus:outline-none focus:ring-1 focus:ring-black"
+                />
+                <button type="submit" className="text-xs bg-black text-white px-3 py-1.5 rounded-md hover:bg-gray-800">Load Model</button>
+             </form>
+             <div className="w-px h-6 bg-gray-300"></div>
+             <div className="flex bg-gray-100 p-1 rounded-lg">
+                {(['fit', 'strain', 'physics'] as const).map(m => (
+                  <button 
+                    key={m} 
+                    onClick={() => setMode(m)} 
+                    className={cn("px-4 py-1 rounded-md text-xs font-bold capitalize transition-all", mode === m ? "bg-white shadow-sm text-black" : "text-gray-500 hover:text-black")}
+                  >
+                    {m}
+                  </button>
+                ))}
+             </div>
           </div>
        </div>
        
-       <div className="flex-1 bg-[var(--os-surface)] rounded-xl overflow-hidden relative shadow-2xl border border-gray-800">
-          <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 bg-black/60 p-4 rounded-lg border border-white/10 backdrop-blur-md text-white">
-             <h3 className="text-emerald-400 font-bold uppercase tracking-widest text-xs flex items-center gap-2"><Cuboid className="w-3 h-3" /> Simulation Engine</h3>
-             <div className="text-xs text-white/70">Avatar: Female Standard US 6</div>
-             <div className="text-xs text-white/70">Fabric: Heavyweight French Terry (400GSM)</div>
-             <div className="text-xs text-white/70">Drape Accuracy: 98%</div>
+       <div className="flex-1 bg-[#f4f4f5] rounded-xl overflow-hidden relative shadow-inner border border-gray-300">
+          <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 bg-white/90 p-4 rounded-lg border border-gray-200 shadow-lg backdrop-blur-md">
+             <h3 className="text-blue-600 font-bold uppercase tracking-widest text-[10px] flex items-center gap-1"><Zap className="w-3 h-3" /> Simulation Engine Active</h3>
+             <div className="text-xs text-gray-700 font-medium">Avatar: Female Standard US 6</div>
+             <div className="text-xs text-gray-700 font-medium">Fabric: Heavyweight French Terry</div>
+             <div className="text-xs text-gray-700 font-medium">Drape Accuracy: 98.4%</div>
              
              {mode === 'strain' && (
-                <div className="mt-4 flex flex-col gap-1">
-                   <div className="text-[10px] font-bold text-white/50 uppercase">Strain Map Legend</div>
+                <div className="mt-4 flex flex-col gap-1 border-t border-gray-200 pt-3">
+                   <div className="text-[10px] font-bold text-gray-400 uppercase">Strain Map Legend</div>
                    <div className="flex items-center gap-2 text-xs"><div className="w-3 h-3 bg-red-500 rounded-full" /> High Tension</div>
                    <div className="flex items-center gap-2 text-xs"><div className="w-3 h-3 bg-yellow-400 rounded-full" /> Moderate</div>
                    <div className="flex items-center gap-2 text-xs"><div className="w-3 h-3 bg-blue-500 rounded-full" /> Relaxed</div>
@@ -403,18 +425,23 @@ function Prototype3DTab() {
           
           {/* @ts-ignore */}
           <model-viewer
-            src="https://modelviewer.dev/shared-assets/models/glTF-Sample-Models/2.0/Corset/glTF/Corset.gltf"
+            src={modelUrl}
             alt="3D Garment Prototype"
             auto-rotate
             camera-controls
-            shadow-intensity="1"
-            exposure={mode === 'strain' ? "0.5" : "1"}
+            ar
+            ar-modes="webxr scene-viewer quick-look"
+            shadow-intensity="1.5"
+            exposure={mode === 'strain' ? "0.6" : "1.2"}
             environment-image="neutral"
-            style={{ width: '100%', height: '100%', backgroundColor: mode === 'strain' ? 'var(--os-bg)' : 'var(--os-surface)' }}
+            style={{ width: '100%', height: '100%' }}
           >
              {mode === 'strain' && (
                <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-red-500/10 via-transparent to-transparent animate-pulse" />
              )}
+             <button slot="ar-button" className="absolute bottom-4 right-4 bg-black text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg hover:bg-gray-800 transition-colors">
+               View in AR (Mobile)
+             </button>
           {/* @ts-ignore */}
           </model-viewer>
        </div>
