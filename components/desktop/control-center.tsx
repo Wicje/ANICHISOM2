@@ -4,6 +4,7 @@ import React from 'react';
 import { useWindowStore } from '@/lib/stores/window.store';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useNotificationStore } from '@/lib/stores/notification.store';
+import { useSyncStore } from '@/lib/stores/sync.store';
 import { Zap, Brain, Cloud, ShieldCheck, Sun, Moon, Trash2 } from 'lucide-react';
 
 interface ControlCenterProps {
@@ -14,6 +15,7 @@ export function ControlCenter({ onClose }: ControlCenterProps) {
   const { openWindow } = useWindowStore();
   const { performanceMode, setPerformanceMode, colorMode, setColorMode } = useThemeStore();
   const { notifications, clearAll, markAllRead } = useNotificationStore();
+  const { isSyncing, connectedDevices, startSync, stopSync } = useSyncStore();
 
   const recentNotifications = notifications.slice(0, 5);
 
@@ -58,9 +60,23 @@ export function ControlCenter({ onClose }: ControlCenterProps) {
             <Brain className="w-5 h-5" />
             <span className="text-xs font-medium">AI Gateway</span>
           </button>
-          <button className="p-3 rounded-xl flex flex-col items-start gap-2 opacity-50 cursor-not-allowed" style={{ background: 'var(--os-hover)', color: 'var(--os-text-muted)' }}>
+          <button 
+            onClick={() => {
+              if (isSyncing) stopSync();
+              else {
+                const room = prompt('Enter a sync room ID (e.g. workspace-1):', 'workspace-1');
+                if (room) startSync(room);
+              }
+            }}
+            className="p-3 rounded-xl flex flex-col items-start gap-2 transition-colors relative" 
+            style={{ 
+              background: isSyncing ? '#3b82f6' : 'var(--os-hover)', 
+              color: isSyncing ? 'white' : 'var(--os-text-muted)' 
+            }}
+          >
             <Cloud className="w-5 h-5" />
-            <span className="text-xs font-medium">Cloud Sync</span>
+            <span className="text-xs font-medium">{isSyncing ? `Connected (${connectedDevices})` : 'Cloud Sync'}</span>
+            {isSyncing && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-white animate-pulse" />}
           </button>
         </div>
         <div>
