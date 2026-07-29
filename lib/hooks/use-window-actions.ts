@@ -11,8 +11,12 @@ export function useWindowActions() {
   const windows = useWindowStore((s) => s.windows);
   const highestZIndex = useWindowStore((s) => s.highestZIndex);
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
-  const openWindow = (appId: string, title?: string, data?: any) => 
-    useWindowStore.getState().openWindow(appId, title, data, activeWorkspace);
+  const openWindow = (appId: string, title?: string, data?: any) => {
+    import('@/lib/stores/memory.store').then(({ useMemoryStore }) => {
+      useMemoryStore.getState().logEvent('app_open', `Opened app: ${appId} ${title ? `(${title})` : ''}`);
+    });
+    return useWindowStore.getState().openWindow(appId, title, data, activeWorkspace);
+  };
   const closeWindow = useWindowStore((s) => s.closeWindow);
   const focusWindow = useWindowStore((s) => s.focusWindow);
   const minimizeWindow = useWindowStore((s) => s.minimizeWindow);
