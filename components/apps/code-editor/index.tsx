@@ -80,7 +80,7 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
        const binding = new MonacoBinding(yText, editorRef.current.getModel(), new Set([editorRef.current]), wsProvider.awareness);
        bindingRef.current = binding;
     }
-  }, [editorReady, workspaceMode, collab.synced, collab.sharedTypesRef, collab.wsProviderRef]);
+  }, [editorReady, workspaceMode, collab.synced, collab.connected]);
 
   // Cleanup: destroy MonacoBinding (Y.Doc + WS provider owned by useCollaborativeDoc)
   useEffect(() => {

@@ -78,6 +78,9 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
     }
   }, [collab.synced, mediaFiles]);
 
+  const mediaFilesRef = useRef(mediaFiles);
+  useEffect(() => { mediaFilesRef.current = mediaFiles; }, [mediaFiles]);
+
   // Observe Y.Array playlist for remote additions/removals
   useEffect(() => {
     if (!collab.synced) return;
@@ -88,9 +91,9 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
       // Rebuild mediaFiles from collaborative playlist + local files
       const remoteTracks: LocalFile[] = [];
       for (let i = 0; i < playlistArray.length; i++) {
-        const item = playlistArray.get(i) as string;
+        const item = playlistArray.get(i);
         try {
-          const parsed = JSON.parse(item);
+          const parsed = typeof item === 'string' ? JSON.parse(item) : item[0];
           remoteTracks.push({
             id: `remote-${i}`,
             name: parsed.name,
@@ -100,8 +103,8 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
         } catch {}
       }
       // Merge: local files first, then remote-only tracks
-      const localIds = new Set(mediaFiles.map(f => f.content || f.id));
-      const merged = [...mediaFiles, ...remoteTracks.filter(r => !localIds.has(r.content || r.id))];
+      const localIds = new Set(mediaFilesRef.current.map(f => f.content || f.id));
+      const merged = [...mediaFilesRef.current, ...remoteTracks.filter(r => !localIds.has(r.content || r.id))];
       setMediaFiles(merged);
     };
 

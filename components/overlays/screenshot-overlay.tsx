@@ -100,38 +100,99 @@ export function ScreenshotOverlay() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [active, cancel]);
 
+  const recordScreen = useCallback(async () => {
+    cancel(); // Close overlay before recording
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const filename = `Desktop/ScreenRecording-${timestamp}.webm`;
+        await FS.mkdir('Desktop');
+        await FS.write(filename, blob, 'video/webm');
+        window.dispatchEvent(new CustomEvent('os:notify', {
+          detail: { title: 'Recording Saved', description: `Saved to Desktop/ScreenRecording-${timestamp}.webm`, type: 'success' },
+        }));
+        window.dispatchEvent(new CustomEvent('os:refresh-desktop'));
+      };
+
+      mediaRecorder.start();
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Recording Started', description: `Screen recording is active. Stop sharing via your browser to finish.`, type: 'info' },
+      }));
+    } catch (err) {
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Recording Failed', description: String(err), type: 'error' },
+      }));
+    }
+  }, [cancel]);
+
   if (!active) return null;
 
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[10000] cursor-crosshair"
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
+      className="fixed inset-0 z-[10000]"
     >
       {/* Dim overlay */}
-      <div className="absolute inset-0 bg-black/30" />
+      <div 
+        className="absolute inset-0 bg-black/30 cursor-crosshair" 
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+      />
+      
       {/* Selection rectangle */}
       {rect && rect.w > 0 && rect.h > 0 && (
         <>
           <div
-            className="absolute border-2 border-blue-400 bg-blue-400/10"
-            style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}
+            className="absolute border-2 border-blue-400 bg-transparent pointer-events-none"
+            style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h, boxShadow: '0 0 0 9999px rgba(0,0,0,0.4)' }}
           />
           {/* Size indicator */}
           <div
-            className="absolute px-2 py-0.5 text-[10px] font-mono text-white bg-black/70 rounded"
+            className="absolute px-2 py-0.5 text-[10px] font-mono text-white bg-black/70 rounded pointer-events-none"
             style={{ left: rect.x, top: rect.y - 24 }}
           >
             {Math.round(rect.w)} × {Math.round(rect.h)}
           </div>
         </>
       )}
-      {/* Instructions */}
+      
+      {/* Toolbar */}
       {!rect || rect.w === 0 ? (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white text-sm font-medium bg-black/50 px-4 py-2 rounded-lg">
-          Drag to select region • Press Esc to cancel
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/80 p-2 rounded-xl border border-white/10 shadow-2xl animate-in slide-in-from-bottom-5">
+          <div className="px-4 text-xs font-medium text-white/70">Capture Mode</div>
+          <div className="w-px h-6 bg-white/20 mx-1"></div>
+          <button 
+            className="px-3 py-1.5 rounded-lg text-xs font-medium text-white hover:bg-white/20 transition-colors"
+            onClick={() => {
+              setRect({ x: 0, y: 0, w: window.innerWidth, h: window.innerHeight });
+              setTimeout(() => captureRegion({ x: 0, y: 0, w: window.innerWidth, h: window.innerHeight }), 50);
+            }}
+          >
+            Full Screen
+          </button>
+          <button 
+            className="px-3 py-1.5 rounded-lg text-xs font-medium text-white hover:bg-white/20 transition-colors"
+            onClick={recordScreen}
+          >
+            Record Video
+          </button>
+          <div className="w-px h-6 bg-white/20 mx-1"></div>
+          <button 
+            className="px-3 py-1.5 rounded-lg text-xs font-medium text-white/70 hover:bg-white/20 hover:text-white transition-colors"
+            onClick={cancel}
+          >
+            Cancel
+          </button>
         </div>
       ) : null}
     </div>

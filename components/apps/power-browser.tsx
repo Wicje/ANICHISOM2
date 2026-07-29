@@ -76,7 +76,13 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   const [initWait, setInitWait] = useState(true);
   const iframeRefs = useRef<Map<string, HTMLIFrameElement>>(new Map());
 
-  const activeTab = (tabs.find((t) => t.id === activeTabId) || tabs[0])!;
+  const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
+  if (!activeTab) return (
+    <div className="w-full h-full bg-[#f8fafc] dark:bg-[#1e293b] flex flex-col items-center justify-center">
+      <p className="text-sm opacity-50 mb-4">No tabs open.</p>
+      <button onClick={() => addTab()} className="px-4 py-2 bg-blue-500 text-white rounded font-medium">Open New Tab</button>
+    </div>
+  );
 
   useEffect(() => {
     loadPersisted();
@@ -104,6 +110,14 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (activeTab) setInputUrl(activeTab.url);
   }, [activeTab?.url, activeTabId]);
+
+  // Reset split URL when closed
+  useEffect(() => {
+    if (!splitView) {
+      setSplitUrl('https://duckduckgo.com/');
+      setSplitInputUrl('');
+    }
+  }, [splitView]);
 
   // Persist tabs on change
   useEffect(() => {
@@ -140,6 +154,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
       else finalUrl = `https://www.bing.com/search?q=${q}`;
     }
     setLoading(true);
+    setTimeout(() => setLoading(false), 10000); // safety fallback
     const smartUrl = getSmartUrl(finalUrl);
     navigateTab(activeTabId, smartUrl, '');
   };
@@ -175,6 +190,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   const reload = () => {
     if (!activeTab) return;
     setLoading(true);
+    setTimeout(() => setLoading(false), 10000); // safety fallback
     const current = activeTab.url;
     useBrowserStore.getState().updateTabUrl(activeTabId, '', '');
     setTimeout(() => {

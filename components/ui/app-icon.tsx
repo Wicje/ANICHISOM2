@@ -13,6 +13,8 @@ type AppIconProps = {
   className?: string;
   /** Alt text */
   alt?: string;
+  /** App ID for analytics / testing */
+  appId?: string;
 } & React.HTMLAttributes<HTMLDivElement>;
 
 /**

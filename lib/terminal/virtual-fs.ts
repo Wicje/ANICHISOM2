@@ -111,9 +111,9 @@ export class VirtualFS {
     }
   }
 
-  async write(path: string, content: string): Promise<void> {
+  async write(path: string, content: string | Blob, mimeType?: string): Promise<void> {
     const resolved = this.resolvePath(path);
-    await FS.write(resolved, content);
+    await FS.write(resolved, content, mimeType);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path: resolved } }));
     }

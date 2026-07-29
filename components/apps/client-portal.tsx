@@ -26,6 +26,7 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
   const [activeTab, setActiveTab] = useState<PortalTab>('overview');
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<PortalComment[]>([]);
+  const [proposalStatus, setProposalStatus] = useState('Pending Review');
 
   useEffect(() => {
     const saved = localStorage.getItem('client-portal-comments');
@@ -35,9 +36,7 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
   }, []);
 
   useEffect(() => {
-    if (comments.length > 0) {
-      localStorage.setItem('client-portal-comments', JSON.stringify(comments));
-    }
+    localStorage.setItem('client-portal-comments', JSON.stringify(comments));
   }, [comments]);
 
   const brands = useBrandStore((s) => Object.values(s.brands));
@@ -240,12 +239,18 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
                   ))}
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 flex gap-2">
-                  <button onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Proposal Approved', description: 'Client approved the proposal for ' + campaign.name, type: 'success' }}))} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-xs font-bold rounded transition-colors flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3 h-3" /> Approve
-                  </button>
-                  <button onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Changes Requested', description: 'Change request sent to the team', type: 'info' }}))} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-xs font-bold rounded transition-colors border border-white/10">
-                    Request Changes
-                  </button>
+                  {proposalStatus === 'Pending Review' ? (
+                    <>
+                      <button onClick={() => { setProposalStatus('Approved'); window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Proposal Approved', description: 'Client approved the proposal for ' + campaign.name, type: 'success' }})) }} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-xs font-bold rounded transition-colors flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3 h-3" /> Approve
+                      </button>
+                      <button onClick={() => { setProposalStatus('Changes Requested'); window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Changes Requested', description: 'Change request sent to the team', type: 'info' }})) }} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-xs font-bold rounded transition-colors border border-white/10">
+                        Request Changes
+                      </button>
+                    </>
+                  ) : (
+                    <div className="text-sm font-medium text-white/50">Status: {proposalStatus}</div>
+                  )}
                 </div>
               </div>
             </div>

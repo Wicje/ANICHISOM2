@@ -243,14 +243,42 @@ const commands: Record<string, (args: string[], flags: Record<string, string | b
     if (!args[0]) return { error: 'ai: missing prompt. Usage: ai <your question>' };
     const prompt = args.join(' ');
     try {
-      const { generateTerminalResponse } = await import('@/app/actions');
-      const result = await generateTerminalResponse(prompt);
-      if (result.success) {
-        return { output: result.text };
+      const { useAIStore } = await import('@/lib/stores/ai.store');
+      const store = useAIStore.getState();
+      if (!store.ready) {
+        return { error: `[ai] Edge AI is not ready. Status: ${store.progress}` };
       }
-      return { error: `[ai] ${result.error}` };
-    } catch {
-      return { error: '[ai] Failed to reach AI Gateway' };
+      const response = await store.query(prompt);
+      return { output: response };
+    } catch (e: any) {
+      return { error: `[ai] Failed to query Edge AI: ${e.message}` };
+    }
+  },
+
+  wget: async (args, flags, ctx) => {
+    if (!args[0]) return { error: 'wget: missing url operand. Usage: wget <url> [filename]' };
+    const url = args[0];
+    const filename = args[1] || url.split('/').pop()?.split('?')[0] || 'downloaded_file';
+    
+    try {
+      // Use ContinuaOS internal proxy to bypass CORS
+      const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      
+      const blob = await res.blob();
+      const contentType = res.headers.get('content-type') || 'application/octet-stream';
+      
+      const targetPath = ctx.vfs.getCwd() === '/' ? `Desktop/${filename}` : `${ctx.vfs.getCwd()}/${filename}`.replace('//', '/');
+      await ctx.vfs.write(targetPath, blob, contentType);
+      
+      // Notify the desktop to refresh if we saved it to Desktop
+      if (typeof window !== 'undefined' && targetPath.startsWith('Desktop/')) {
+        window.dispatchEvent(new CustomEvent('os:refresh-desktop'));
+      }
+      
+      return { output: `[wget] Downloaded to ${targetPath} (${ctx.vfs.formatSize(blob.size)})` };
+    } catch (e: any) {
+      return { error: `[wget] Failed to download: ${e.message}` };
     }
   },
 };

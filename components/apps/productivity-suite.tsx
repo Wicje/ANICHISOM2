@@ -62,8 +62,8 @@ function sanitizeHTML(html: string): string {
 export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
   const { performanceMode, currentUser, workspaceMode, setWorkspaceMode } = useOS();
   const [activeTab, setActiveTab] = useState<AppType>((osWindow.data?.tab as AppType) || 'word');
+  const canvasRef = useRef<any>(null);
   const wordEditorRef = useRef<Editor | null>(null);
-  const [wordToolbarTick, setWordToolbarTick] = useState(0);
   const sheetsDataRef = useRef<Record<string, string>>({});
   const fabricCanvasRef = useRef<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -335,59 +335,7 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
              <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Export" onClick={handleExport}><Download className="w-4 h-4" /></button>
            </div>
            
-           {activeTab === 'word' && (
-              <div className="flex items-center gap-2">
-                <select
-                  className="text-xs border border-slate-200 rounded px-2 py-1 outline-none bg-slate-50"
-                  value={
-                    we?.isActive('heading', { level: 1 }) ? 'h1'
-                    : we?.isActive('heading', { level: 2 }) ? 'h2'
-                    : 'normal'
-                  }
-                  onChange={(e) => {
-                    if (!we) return;
-                    const val = e.target.value;
-                    if (val === 'normal') {
-                      we.chain().focus().setParagraph().run();
-                    } else if (val === 'h1') {
-                      we.chain().focus().toggleHeading({ level: 1 }).run();
-                    } else if (val === 'h2') {
-                      we.chain().focus().toggleHeading({ level: 2 }).run();
-                    }
-                  }}
-                >
-                  <option value="normal">Normal Text</option>
-                  <option value="h1">Heading 1</option>
-                  <option value="h2">Heading 2</option>
-                </select>
-                <select
-                  className="text-xs border border-slate-200 rounded px-2 py-1 outline-none bg-slate-50"
-                  value={we?.getAttributes('textStyle').fontFamily || 'Inter'}
-                  onChange={(e) => {
-                    if (!we) return;
-                    we.chain().focus().setFontFamily(e.target.value).run();
-                  }}
-                >
-                  <option value="Inter">Inter</option>
-                  <option value="Space Grotesk">Space Grotesk</option>
-                  <option value="JetBrains Mono">JetBrains Mono</option>
-                </select>
-                <div className="flex items-center gap-1 px-2 border-l border-slate-200">
-                  <button
-                    className={cn("p-1 hover:bg-slate-100 rounded font-bold text-slate-700", we?.isActive('bold') && "bg-slate-200 text-blue-600")}
-                    onClick={() => we?.chain().focus().toggleBold().run()}
-                  >B</button>
-                  <button
-                    className={cn("p-1 hover:bg-slate-100 rounded italic text-slate-700", we?.isActive('italic') && "bg-slate-200 text-blue-600")}
-                    onClick={() => we?.chain().focus().toggleItalic().run()}
-                  >I</button>
-                  <button
-                    className={cn("p-1 hover:bg-slate-100 rounded underline text-slate-700", we?.isActive('underline') && "bg-slate-200 text-blue-600")}
-                    onClick={() => we?.chain().focus().toggleUnderline().run()}
-                  >U</button>
-                </div>
-              </div>
-            )}
+           {activeTab === 'word' && <WordToolbar editor={we} />}
 
            {activeTab === 'sheets' && (
              <div className="flex items-center gap-2 w-full max-w-md">
@@ -433,7 +381,7 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
           transition={{ duration: 0.2 }}
           className="flex-1 relative z-10 overflow-hidden bg-slate-100"
         >
-          {activeTab === 'word' && <WordEditor performanceMode={performanceMode} workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} onEditorReady={(editor) => { wordEditorRef.current = editor; setWordToolbarTick(t => t + 1); }} collab={collab} onDirty={() => setSaveStatus('unsaved')} />}
+          {activeTab === 'word' && <WordEditor performanceMode={performanceMode} workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} onEditorReady={(editor) => { wordEditorRef.current = editor; }} collab={collab} onDirty={() => setSaveStatus('unsaved')} />}
           {activeTab === 'sheets' && <SheetsEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} dataRef={sheetsDataRef} collab={collab} onDirty={() => setSaveStatus('unsaved')} activeCell={activeSheetCell} setActiveCell={setActiveSheetCell} />}
           {activeTab === 'slides' && <SlidesEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} canvasRef={fabricCanvasRef} collab={collab} onDirty={() => setSaveStatus('unsaved')} onSlideChange={(idx, total) => { setActiveSlideIndex(idx); setTotalSlides(total); }} />}
           {activeTab === 'pdf' && <PdfEditor initialUrl={osWindow.data?.url} />}
@@ -455,6 +403,71 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
            {activeTab === 'slides' && <span>Slide {activeSlideIndex + 1} of {totalSlides}</span>}
         </div>
       </div>
+      </div>
+    </div>
+  );
+}
+
+function WordToolbar({ editor }: { editor: Editor | null }) {
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!editor) return;
+    const update = () => setTick(t => t + 1);
+    editor.on('transaction', update);
+    return () => { editor.off('transaction', update); };
+  }, [editor]);
+
+  if (!editor) return null;
+
+  return (
+    <div className="flex items-center gap-2">
+      <select
+        className="text-xs border border-slate-200 rounded px-2 py-1 outline-none bg-slate-50"
+        value={
+          editor.isActive('heading', { level: 1 }) ? 'h1'
+          : editor.isActive('heading', { level: 2 }) ? 'h2'
+          : 'normal'
+        }
+        onChange={(e) => {
+          const val = e.target.value;
+          if (val === 'normal') {
+            editor.chain().focus().setParagraph().run();
+          } else if (val === 'h1') {
+            editor.chain().focus().toggleHeading({ level: 1 }).run();
+          } else if (val === 'h2') {
+            editor.chain().focus().toggleHeading({ level: 2 }).run();
+          }
+        }}
+      >
+        <option value="normal">Normal Text</option>
+        <option value="h1">Heading 1</option>
+        <option value="h2">Heading 2</option>
+      </select>
+      <select
+        className="text-xs border border-slate-200 rounded px-2 py-1 outline-none bg-slate-50"
+        value={editor.getAttributes('textStyle').fontFamily || 'Inter'}
+        onChange={(e) => {
+          editor.chain().focus().setFontFamily(e.target.value).run();
+        }}
+      >
+        <option value="Inter">Inter</option>
+        <option value="Space Grotesk">Space Grotesk</option>
+        <option value="JetBrains Mono">JetBrains Mono</option>
+      </select>
+      <div className="flex items-center gap-1 px-2 border-l border-slate-200">
+        <button
+          className={cn("p-1 hover:bg-slate-100 rounded font-bold text-slate-700", editor.isActive('bold') && "bg-slate-200 text-blue-600")}
+          onClick={() => editor.chain().focus().toggleBold().run()}
+        >B</button>
+        <button
+          className={cn("p-1 hover:bg-slate-100 rounded italic text-slate-700", editor.isActive('italic') && "bg-slate-200 text-blue-600")}
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+        >I</button>
+        <button
+          className={cn("p-1 hover:bg-slate-100 rounded underline text-slate-700", editor.isActive('underline') && "bg-slate-200 text-blue-600")}
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+        >U</button>
       </div>
     </div>
   );
@@ -484,9 +497,6 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser, on
     immediatelyRender: !!fragment, // Create immediately once collab is ready
     onUpdate: ({ editor }) => {
        onDirty?.();
-    },
-    onSelectionUpdate: ({ editor }) => {
-       onEditorReady(editor);
     },
   }, [extensions]); // Recreate editor when extensions change (collab sync triggers this)
 
@@ -765,16 +775,16 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
       canvasRef.current = canvas;
 
       const createDefaultSlideState = (isFirst: boolean) => {
-         const tempCanvas = new fabric.Canvas(document.createElement('canvas'), { width: 768, height: 432, backgroundColor: '#ffffff' });
-         if (isFirst) {
-           const title = new fabric.IText('Project "Edge"', { left: 384, top: 150, originX: 'center', originY: 'center', fontFamily: 'sans-serif', fontSize: 48, fontWeight: 'bold', fill: '#1e293b' });
-           const subtitle = new fabric.IText('An infrastructure presentation\nexplaining local-first architecture and node scaling.', { left: 384, top: 250, originX: 'center', originY: 'center', fontFamily: 'sans-serif', fontSize: 20, fill: '#64748b', textAlign: 'center' });
-           tempCanvas.add(title, subtitle);
-         } else {
-           const title = new fabric.IText('New Slide', { left: 384, top: 216, originX: 'center', originY: 'center', fontFamily: 'sans-serif', fontSize: 48, fill: '#cbd5e1' });
-           tempCanvas.add(title);
-         }
-         return JSON.stringify(tempCanvas.toJSON());
+         return JSON.stringify({
+           version: "5.3.0",
+           objects: isFirst ? [
+             { type: "i-text", text: "Project \"Edge\"", left: 384, top: 150, originX: "center", originY: "center", fontFamily: "sans-serif", fontSize: 48, fontWeight: "bold", fill: "#1e293b" },
+             { type: "i-text", text: "An infrastructure presentation\nexplaining local-first architecture and node scaling.", left: 384, top: 250, originX: "center", originY: "center", fontFamily: "sans-serif", fontSize: 20, fill: "#64748b", textAlign: "center" }
+           ] : [
+             { type: "i-text", text: "New Slide", left: 384, top: 216, originX: "center", originY: "center", fontFamily: "sans-serif", fontSize: 48, fill: "#cbd5e1" }
+           ],
+           background: "#ffffff"
+         });
       };
 
       const waitForSync = () => {
@@ -983,7 +993,19 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
                 "flex-1 aspect-video bg-white border rounded shadow-sm flex items-center justify-center cursor-pointer transition-all",
                 activeSlideId === s ? "border-amber-400 ring-2 ring-amber-400 focus:outline-none" : "border-slate-200 hover:border-slate-300"
               )}>
-                 <div className="text-[10px] text-slate-300 font-medium">Slide {idx + 1}</div>
+                 <div className="text-[10px] text-slate-400 font-medium text-center px-1 truncate w-full">
+                    {(() => {
+                      try {
+                        const stateStr = collab.sharedTypesRef.current.canvas?.get(s);
+                        if (!stateStr) return `Slide ${idx + 1}`;
+                        const data = JSON.parse(stateStr);
+                        const firstText = data.objects?.find((o: any) => o.type === 'i-text' || o.type === 'text');
+                        return firstText?.text || `Slide ${idx + 1}`;
+                      } catch {
+                        return `Slide ${idx + 1}`;
+                      }
+                    })()}
+                 </div>
               </div>
               <button onClick={() => deleteSlide(s)} className="absolute right-1 top-1 p-1 bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 hover:bg-red-600 transition-opacity">
                 <Trash2 className="w-3 h-3" />

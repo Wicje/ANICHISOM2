@@ -71,6 +71,7 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
   const setVolume = useThemeStore((s) => s.setVolume);
   const muted = useThemeStore((s) => s.muted);
   const setMuted = useThemeStore((s) => s.setMuted);
+  const ambientSound = useThemeStore((s) => s.ambientSound);
 
   const handleApplyCustom = () => {
     if (customUrl) {
@@ -423,8 +424,7 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                       { preset: 'cafe' as AmbientPreset, icon: Coffee, label: 'Cafe' },
                       { preset: 'forest' as AmbientPreset, icon: Trees, label: 'Forest' },
                     ]).map((item) => {
-                      const currentAmbient = useThemeStore((s) => s.ambientSound);
-                      const isActive = currentAmbient === item.preset;
+                      const isActive = ambientSound === item.preset;
                       return (
                         <button
                           key={item.preset}

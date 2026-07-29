@@ -13,6 +13,9 @@ import { useNotificationStore } from '@/lib/stores/notification.store';
 import { useFocusStore } from '@/lib/stores/focus.store';
 import { useScreenshotStore } from '@/lib/stores/screenshot.store';
 import { useClipboardUIStore } from '@/lib/stores/clipboard.store';
+import { useMemoryStore } from '@/lib/stores/memory.store';
+import { useAIStore } from '@/lib/stores/ai.store';
+import { cn } from '@/lib/utils';
 
 export function CommandPalette() {
   const { openWindow, windows, focusWindow, installedApps, currentUser } = useOS();
@@ -21,6 +24,8 @@ export function CommandPalette() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [clipboardText, setClipboardText] = useState('');
   const [localFiles, setLocalFiles] = useState<LocalFile[]>([]);
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -56,6 +61,7 @@ export function CommandPalette() {
         FS.readDir('').then(files => {
            setLocalFiles(files);
         }).catch(() => {});
+        setAiResponse(null);
      }
   }, [isOpen]);
 
@@ -224,21 +230,47 @@ export function CommandPalette() {
        });
     }
 
-    cmds.push({ 
-      id: 'search', 
-      name: `Search Google for "${query}"`, 
-      type: 'Web Search',
-      icon: Search, 
-      action: () => openWindow('browser', 'Google Search', { url: `https://www.google.com/search?q=${encodeURIComponent(query)}&igu=1`}), 
-      hideOnEmpty: true 
-    });
+    if (query.trim()) {
+      cmds.push({ 
+        id: 'search', 
+        name: `Search Google for "${query}"`, 
+        type: 'Web Search',
+        icon: Search, 
+        action: () => {
+          useMemoryStore.getState().logEvent('search', `Web search: ${query}`);
+          openWindow('browser', 'Google Search', { url: `https://www.google.com/search?q=${encodeURIComponent(query)}&igu=1`});
+        }, 
+        hideOnEmpty: true 
+      });
+
+      // Local AI Query Command
+      if (useAIStore.getState().ready) {
+        cmds.push({
+          id: 'ai-ask',
+          name: `Ask Edge AI: "${query}"`,
+          type: 'AI Assistant',
+          icon: Sparkles,
+          action: () => {
+            useMemoryStore.getState().logEvent('search', `AI Query: ${query}`);
+            setIsAiLoading(true);
+            setAiResponse('Thinking...');
+            // Stop closing palette
+            useAIStore.getState().query(query).then(res => {
+              setAiResponse(res);
+              setIsAiLoading(false);
+            });
+          },
+          hideOnEmpty: true
+        });
+      }
+    }
 
     return cmds;
   }, [allowedApps, windows, localFiles, clipboardText, query, openWindow, focusWindow]);
 
   const filtered = useMemo(() => commands.filter(c => {
     if (c.hideOnEmpty && !query) return false;
-    if (c.id === 'search' && query) return true;
+    if (c.id === 'search' || c.id === 'ai-ask') return true;
     return c.name.toLowerCase().includes(query.toLowerCase());
   }), [commands, query]);
 
@@ -264,9 +296,12 @@ export function CommandPalette() {
       setSelectedIndex(prev => Math.max(prev - 1, 0));
     } else if (e.key === 'Enter' && filtered.length > 0) {
       e.preventDefault();
-      filtered[selectedIndex]?.action();
-      setIsOpen(false);
-      setQuery('');
+      const cmd = filtered[selectedIndex];
+      cmd?.action();
+      if (cmd?.id !== 'ai-ask') {
+        setIsOpen(false);
+        setQuery('');
+      }
     }
   }, [filtered, selectedIndex]);
 
@@ -301,7 +336,15 @@ export function CommandPalette() {
         </div>
         
         <div ref={listRef} className="p-2 max-h-[300px] overflow-y-auto">
-          {filtered.length === 0 ? (
+          {aiResponse ? (
+            <div className="p-4 bg-black/10 m-2 rounded-xl text-sm" style={{ color: 'var(--os-text)' }}>
+              <div className="flex items-center gap-2 mb-2" style={{ color: 'var(--os-primary)' }}>
+                <Sparkles className={cn("w-4 h-4", isAiLoading && "animate-spin")} />
+                <span className="font-bold">Edge AI</span>
+              </div>
+              <div className="whitespace-pre-wrap">{aiResponse}</div>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="p-4 text-center font-mono text-sm" style={{ color: 'var(--os-text-muted)' }}>No commands found.</div>
           ) : (
             filtered.map((cmd, i) => {
@@ -311,8 +354,10 @@ export function CommandPalette() {
                   key={cmd.id}
                   onClick={() => {
                     cmd.action();
-                    setIsOpen(false);
-                    setQuery('');
+                    if (cmd.id !== 'ai-ask') {
+                      setIsOpen(false);
+                      setQuery('');
+                    }
                   }}
                   className="w-full flex items-center px-4 py-3 rounded-xl transition-colors text-left group"
                   style={{

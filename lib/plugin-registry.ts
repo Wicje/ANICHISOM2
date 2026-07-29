@@ -8,7 +8,7 @@
  * into the APPS dict at render time.
  */
 
-import type { ComponentType } from 'react';
+import React, { type ComponentType } from 'react';
 
 // ─── Manifest Types ────────────────────────────────────────────────────────
 
@@ -244,8 +244,26 @@ export function registerBuiltinPlugins(builtinAppIds: string[]): void {
       author: 'ContinuaOS',
       category: 'productivity',
       permissions: ['ui:showNotification', 'ui:setShader'] as any,
-      runtime: 'iframe',
-      entryUrl: '/plugins/pomodoro.html',
+      runtime: 'native',
+      component: React.lazy(() => import('@/components/apps/pomodoro-daemon').then(m => ({ default: m.PomodoroDaemon }))),
+      source: 'builtin',
+      isDaemon: true,
+      roles: ['user', 'admin']
+    });
+  }
+
+  // Inject Edge AI Daemon
+  if (!registry.has('edge-ai-daemon')) {
+    registerPlugin({
+      id: 'edge-ai-daemon',
+      name: 'Edge AI Assistant',
+      version: '1.0.0',
+      description: 'Background daemon running local LLM via WebGPU',
+      author: 'ContinuaOS',
+      category: 'productivity',
+      permissions: ['ai:query'] as any,
+      runtime: 'native',
+      component: React.lazy(() => import('@/components/apps/ai-daemon').then(m => ({ default: m.EdgeAIDaemon }))),
       source: 'builtin',
       isDaemon: true,
       roles: ['user', 'admin']

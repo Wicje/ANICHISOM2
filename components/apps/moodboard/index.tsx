@@ -285,10 +285,19 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
         addImportedNode({ [type]: path, title: file.name });
       }
     } else {
-      const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+      const uriList = e.dataTransfer.getData('text/uri-list');
+      const plainText = e.dataTransfer.getData('text/plain');
+      
+      if (uriList && plainText && /\.(png|jpe?g|gif|webp|svg|mp4|webm)$/i.test(plainText)) {
+        const type = /\.(mp4|webm)$/i.test(plainText) ? 'video' : 'image';
+        _updateYNode({ id: crypto.randomUUID(), type, x: centerCanvasX(), y: centerCanvasY(), content: uriList });
+        return;
+      }
+      
+      const url = uriList || plainText;
       if (url) processUrl(url);
     }
-  }, [activeView, addImportedNode, processUrl]);
+  }, [activeView, addImportedNode, processUrl, centerCanvasX, centerCanvasY, _updateYNode]);
 
   const handleAddLink = useCallback(() => {
     setShowAddUrl(true);

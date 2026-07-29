@@ -785,7 +785,10 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                       value={`https://os.continuaos.com/c/${activePage.id}`}
                       className="text-xs w-full outline-none text-[#37352f]/60 bg-transparent px-1"
                     />
-                    <button onClick={() => navigator.clipboard.writeText(`https://os.continuaos.com/c/${activePage.id}`)} className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded transition-colors" title="Copy Link">
+                    <button onClick={() => {
+                      navigator.clipboard.writeText(`https://os.continuaos.com/c/${activePage.id}`);
+                      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Link Copied', description: 'Share link copied to clipboard', type: 'success' }}));
+                    }} className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded transition-colors" title="Copy Link">
                       <Copy className="w-3 h-3" />
                     </button>
                   </div>
@@ -860,24 +863,25 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                   <option value="editor">Can Edit</option>
                   <option value="admin">Full Access</option>
                 </select>
-                <button onClick={() => {
-    const email = (document.getElementById('invite-email-input') as HTMLInputElement)?.value;
-    const permission = (document.getElementById('invite-permission-select') as HTMLSelectElement)?.value;
-    if (!email || !activePage) return;
-    updatePage(activePage.id, {
-      share: {
-        ...activePage.share || { shareLinks: [], invitedUsers: [], publicAccess: null },
-        invitedUsers: [
-          ...(activePage.share?.invitedUsers || []),
-          { userId: crypto.randomUUID(), name: email, permission: permission as any || 'viewer' },
-        ],
-      },
-    });
-    const el = document.getElementById('invite-email-input') as HTMLInputElement;
-    if (el) el.value = '';
-  }} className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1">
-                  <Mail className="w-4 h-4" /> Invite
-                </button>
+                  <button onClick={() => {
+                    const email = (document.getElementById('invite-email-input') as HTMLInputElement)?.value;
+                    const permission = (document.getElementById('invite-permission-select') as HTMLSelectElement)?.value;
+                    if (!email || !activePage) return;
+                    updatePage(activePage.id, {
+                      share: {
+                        ...activePage.share || { shareLinks: [], invitedUsers: [], publicAccess: null },
+                        invitedUsers: [
+                          ...(activePage.share?.invitedUsers || []),
+                          { userId: crypto.randomUUID(), name: email, permission: permission as any || 'viewer' },
+                        ],
+                      },
+                    });
+                    const el = document.getElementById('invite-email-input') as HTMLInputElement;
+                    if (el) el.value = '';
+                    window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Invite Sent', description: `Invite sent to ${email}`, type: 'success' }}));
+                  }} className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1">
+                    <Mail className="w-4 h-4" /> Invite
+                  </button>
               </div>
             </div>
 

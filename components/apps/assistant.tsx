@@ -44,7 +44,8 @@ export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
     { id: 2, text: 'Set up my creative workspace with Moodboard', done: false },
     { id: 3, text: 'Explore the Hardware Pack for 3D model viewing', done: false },
   ]);
-  const [mpInput, setMpInput] = useState('');
+  const [mpSearchInput, setMpSearchInput] = useState('');
+  const [mpFutureInput, setMpFutureInput] = useState('');
 
   useEffect(() => {
     // Initialize AI providers
@@ -258,9 +259,9 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
 
   // MindPalace handlers
   const addFutureCard = () => {
-    if (!mpInput.trim()) return;
-    setFutureCards(prev => [...prev, { id: Date.now(), text: mpInput, done: false }]);
-    setMpInput('');
+    if (!mpFutureInput.trim()) return;
+    setFutureCards(prev => [...prev, { id: Date.now(), text: mpFutureInput, done: false }]);
+    setMpFutureInput('');
   };
 
   const toggleFutureCard = (id: number) => {
@@ -317,13 +318,24 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
               <div className="w-full max-w-lg relative">
                 <input
                   type="text"
-                  value={mpInput}
-                  onChange={(e) => setMpInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && addFutureCard()}
+                  value={mpSearchInput}
+                  onChange={(e) => setMpSearchInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && mpSearchInput.trim()) {
+                      console.log('Search:', mpSearchInput);
+                      setMpSearchInput('');
+                    }
+                  }}
                   placeholder="Ask me anything about your data..."
                   className="w-full bg-white/5 border border-white/10 rounded-full py-3 pl-4 pr-12 text-sm outline-none focus:border-white/20 transition-colors"
                 />
-                <button onClick={addFutureCard} className="absolute right-2 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
+                <button 
+                  onClick={() => {
+                    console.log('Search:', mpSearchInput);
+                    setMpSearchInput('');
+                  }} 
+                  className="absolute right-2 top-1.5 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                >
                   <Send className="w-4 h-4" />
                 </button>
               </div>
@@ -371,8 +383,8 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
           <div className="p-3 border-t border-white/10">
             <input
               type="text"
-              value={mpInput}
-              onChange={(e) => setMpInput(e.target.value)}
+              value={mpFutureInput}
+              onChange={(e) => setMpFutureInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addFutureCard()}
               placeholder="Add a future task..."
               className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs outline-none focus:border-white/20 transition-colors"

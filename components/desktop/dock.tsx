@@ -6,7 +6,7 @@ import { useWindowStore } from '@/lib/stores/window.store';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useWorkspaceStore } from '@/lib/stores/workspace.store';
 import { useAuthStore } from '@/lib/stores/auth.store';
-import { Grid, Layers, Folder } from 'lucide-react';
+import { Grid, Layers, Folder, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNotificationStore } from '@/lib/stores/notification.store';
 import { APP_MANIFEST } from '@/lib/app-manifest';

@@ -183,9 +183,9 @@ export function useCollaborativeDoc(config: CollaborativeDocConfig): Collaborati
 
       syncTimeoutRef.current = setTimeout(() => {
         if (!activeRef.current) return;
-        console.warn('[useCollaborativeDoc] IDB sync timed out — forcing synced state');
+        console.warn('[useCollaborativeDoc] IDB sync timed out — forcing synced state (safari private mode)');
         handleSynced();
-      }, 5000);
+      }, 2000);
 
       provider.on('synced', () => {
         if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);

@@ -45,26 +45,28 @@ export function PdfReader({ window }: { window: OSWindow }) {
             <Download className="w-4 h-4" />
           </button>
           <div className="w-px h-4 bg-white/20 mx-1" />
-          <button className="hover:bg-white/10 p-2 rounded-full transition-colors text-white/70 hover:text-white" title="Fit to width">
+          <button onClick={() => setZoom(100)} className="hover:bg-white/10 p-2 rounded-full transition-colors text-white/70 hover:text-white" title="Fit to width">
             <Maximize className="w-4 h-4" />
           </button>
         </div>
       </div>
 
       {/* Reader Area */}
-      <div className="flex-1 overflow-auto custom-scrollbar flex justify-center bg-[#525659] p-4">
+      <div className="flex-1 overflow-hidden flex justify-center bg-[#525659] p-4">
         {pdfUrl ? (
-          <iframe 
-             src={`${pdfUrl}#view=FitH`} 
-             className="rounded shadow-2xl bg-white origin-top"
-            style={{
-              width: `${100 / (zoom / 100)}%`,
-              height: `${100 / (zoom / 100)}%`,
-              transform: `scale(${zoom / 100})`,
-              transformOrigin: 'top left',
-            }} 
-             title={title}
-          />
+          <div className="w-full h-full overflow-hidden flex justify-center">
+            <iframe 
+               src={`${pdfUrl}#view=FitH`} 
+               className="shadow-2xl bg-white origin-top"
+               style={{
+                 width: '100%',
+                 height: '100%',
+                 transform: `scale(${zoom / 100})`,
+                 transformOrigin: 'top center',
+               }} 
+               title={title}
+            />
+          </div>
         ) : (
           <div className="flex flex-col items-center justify-center text-white/40 gap-4">
             <FileText className="w-16 h-16 opacity-30" />

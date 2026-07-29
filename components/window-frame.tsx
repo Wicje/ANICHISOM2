@@ -149,6 +149,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
           height: isMaximized ? 'calc(100vh - 32px)' : currentHeight,
           x: isMaximized ? 0 : currentX,
           y: isMaximized ? 32 : currentY,
+          borderRadius: isMaximized ? '0px' : '0.75rem',
           transition: isResizing || !animationsEnabled ? { duration: 0 } : {
             type: "spring",
             stiffness: 300,
@@ -215,7 +216,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
       }}
       onPointerEnter={() => setIsHovered(true)}
       onPointerLeave={() => setIsHovered(false)}
-      className="absolute top-0 left-0 rounded-xl flex flex-col pointer-events-auto border transition-colors duration-200 overflow-hidden contain-window"
+      className="absolute top-0 left-0 flex flex-col pointer-events-auto border transition-colors duration-200 overflow-hidden contain-window"
     >
       {/* Reveal Light Effect */}
       {isHovered && performanceMode === 'heavy' && (
@@ -246,7 +247,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
 
       {/* Window Header */}
       <div 
-        className="h-8 flex items-center justify-between px-3 shrink-0 rounded-t-xl"
+        className={`h-8 flex items-center justify-between px-3 shrink-0 ${isMaximized ? 'rounded-none' : 'rounded-t-xl'}`}
         style={{ background: isActive ? 'var(--os-hover)' : 'transparent' }}
         onPointerDown={(e) => {
            focusWindow(id);

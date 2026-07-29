@@ -692,6 +692,7 @@ export function Desktop() {
             try {
               await FS.mkdir(`Desktop/${name}`);
               window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Folder Created', description: `Created "${name}" on Desktop`, type: 'success' } }));
+              window.dispatchEvent(new CustomEvent('os:refresh-desktop'));
               logActivity('file-save', 'Folder created', `Desktop/${name}`);
             } catch (err) {
               window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Error', description: 'Failed to create folder', type: 'error' } }));
@@ -718,6 +719,7 @@ export function Desktop() {
       try {
         await FS.write(`Desktop/${file.name}`, file, file.type);
         window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'File Saved', description: `${file.name} saved to Desktop`, type: 'success' } }));
+        window.dispatchEvent(new CustomEvent('os:refresh-desktop'));
         logActivity('file-save', 'File saved to Desktop', file.name);
       } catch (err) {
         console.error('File drop failed', err);
@@ -867,7 +869,11 @@ export function Desktop() {
                 </WindowFrame>
               );
             }
-            return <AppLoadingSkeleton key={`loading-${win.id}`} />;
+            return (
+              <WindowFrame key={`loading-${win.id}`} osWindow={win}>
+                <AppLoadingSkeleton />
+              </WindowFrame>
+            );
           }
           return (
             <MemoizedWindow

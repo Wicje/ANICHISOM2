@@ -28,10 +28,13 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
+  const timerRef = useRef<number | null>(null);
+  const recordingSecondsRef = useRef(0);
 
   const streamRef = useRef<MediaStream | null>(null);
   const isRecordingRef = useRef(false);
@@ -41,6 +44,10 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
   useEffect(() => { isRecordingRef.current = isRecording; }, [isRecording]);
 
   const stopRecording = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     const recorder = mediaRecorderRef.current;
     const recording = isRecordingRef.current;
     if (recorder && recording) {
@@ -92,7 +99,11 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
       displayStream.getVideoTracks()[0]?.addEventListener('ended', () => {
         const recording = isRecordingRef.current;
         if (recording) {
+          if (mediaRecorderRef.current?.state === 'recording') {
+            mediaRecorderRef.current.requestData();
+          }
           stopRecording();
+          window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Recording Interrupted', description: 'Screen share was stopped externally.', type: 'warning' }}));
         }
         streamRef.current = null;
         setStream(null);
@@ -180,6 +191,16 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
       recorder.start(1000);
       isRecordingRef.current = true;
       setIsRecording(true);
+      recordingSecondsRef.current = 0;
+      setRecordingSeconds(0);
+      timerRef.current = window.setInterval(() => {
+        recordingSecondsRef.current += 1;
+        setRecordingSeconds(recordingSecondsRef.current);
+        if (recordingSecondsRef.current >= 600) {
+          stopRecording();
+          window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Time Limit Reached', description: 'Maximum recording length (10m) reached.', type: 'warning' }}));
+        }
+      }, 1000);
       notify('Recording Started', { body: `Recording with ${mimeType.split(';')[0]}` });
     } catch (err: any) {
       setError('MediaRecorder failed: ' + err.message);
@@ -246,13 +267,16 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
           )}
           
           {isRecording && (
-            <button 
-              onClick={stopRecording}
-              className="flex items-center gap-2 bg-rose-500/20 hover:bg-rose-500/40 text-rose-500 px-4 py-1.5 rounded-md text-xs font-bold transition-colors border border-rose-500/30 animate-pulse"
-            >
-              <Square className="w-3 h-3 fill-rose-500" />
-              Stop Recording
-            </button>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-mono font-medium text-rose-500">{Math.floor(recordingSeconds / 60).toString().padStart(2, '0')}:{(recordingSeconds % 60).toString().padStart(2, '0')} / 10:00</span>
+              <button 
+                onClick={stopRecording}
+                className="flex items-center gap-2 bg-rose-500/20 hover:bg-rose-500/40 text-rose-500 px-4 py-1.5 rounded-md text-xs font-bold transition-colors border border-rose-500/30 animate-pulse"
+              >
+                <Square className="w-3 h-3 fill-rose-500" />
+                Stop Recording
+              </button>
+            </div>
           )}
         </div>
       </div>

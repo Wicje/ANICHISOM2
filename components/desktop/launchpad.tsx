@@ -82,7 +82,7 @@ export function Launchpad({ onClose }: LaunchpadProps) {
             className="flex flex-col items-center gap-2 group outline-none w-20"
           >
             <div className="w-16 h-16 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-              <AppIcon appId={app.id} icon={app.icon} iconImage={app.iconImage} size={64} className="shadow-lg rounded-2xl border border-white/10" />
+              <AppIcon appId={app.id} icon={app.icon} iconImage={app.iconImage} className="shadow-lg rounded-2xl border border-white/10" />
             </div>
             <span className="text-white text-xs font-medium drop-shadow-md text-center line-clamp-2 w-full px-1">{app.title}</span>
           </button>

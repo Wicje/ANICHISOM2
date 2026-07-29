@@ -1111,10 +1111,13 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                               e.stopPropagation();
                               if (isFolder) { e.preventDefault(); return; }
                               setDraggingFileId(file.id);
-                              e.dataTransfer.effectAllowed = 'move';
+                              e.dataTransfer.effectAllowed = 'copyMove';
                               e.dataTransfer.setData('text/plain', file.id);
+                              if (file.content) {
+                                e.dataTransfer.setData('text/uri-list', file.content);
+                              }
                             }}
-                            onDragEnd={() => { setDraggingFileId(null); setDropTargetId(null); dropTargetCounterRef.current.clear(); }}
+                            onDragEnd={(e) => { setDraggingFileId(null); setDropTargetId(null); dropTargetCounterRef.current.clear(); }}
                             onDragOver={(e) => {
                               if (isFolder && draggingFileId && draggingFileId !== file.id) {
                                 e.preventDefault();
@@ -1253,6 +1256,15 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                       e.preventDefault();
                       e.stopPropagation();
                       if (!file.isFolder) setCloudContextMenu({ x: e.clientX, y: e.clientY, file });
+                    }}
+                    draggable={!file.isFolder}
+                    onDragStart={(e) => {
+                      e.stopPropagation();
+                      if (file.isFolder) { e.preventDefault(); return; }
+                      e.dataTransfer.effectAllowed = 'copy';
+                      e.dataTransfer.setData('text/plain', file.id);
+                      const downloadUrl = `/api/storage/download/${selectedSource}/${encodeURIComponent(file.id)}`;
+                      e.dataTransfer.setData('text/uri-list', file.thumbnailUrl || downloadUrl);
                     }}
                     className="group flex flex-col items-center p-4 rounded-xl border border-transparent hover:bg-[var(--os-hover)] hover:border-[var(--os-border)] hover:shadow-xl transition-all cursor-pointer relative"
                   >

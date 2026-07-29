@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Music, Settings, Play, Pause, SkipBack, SkipForward, LayoutGrid, Wifi, Bluetooth, Moon, Sun, Monitor, Bell, Battery } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FS, LocalFile } from '@/lib/fs';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 export function NotchNook({ window: osWindow }: { window?: any }) {
   const [isPlaying, setIsPlaying] = useState(false);

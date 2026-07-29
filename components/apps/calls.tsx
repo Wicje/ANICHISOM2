@@ -83,14 +83,17 @@ export function CallsApp({ window: osWindow }: { window: OSWindow }) {
               title="Google Meet"
             />
           ) : (
-            <iframe
-              ref={iframeRef}
-              src={activeRoom.startsWith('continuaos-') ? 'https://meet.google.com/new' : `https://meet.google.com/${activeRoom}`}
-              className="w-full h-full border-none bg-black"
-              allow="camera; microphone; fullscreen; display-capture"
-              sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-modals"
-              title="Google Meet"
-            />
+            <div className="w-full h-full flex flex-col items-center justify-center gap-4 bg-[#111]">
+              <p className="text-white/60 text-sm">Google Meet can't embed directly in the web version.</p>
+              <a
+                href={activeRoom.startsWith('continuaos-') ? 'https://meet.google.com/new' : `https://meet.google.com/${activeRoom}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-6 py-3 bg-blue-500 hover:bg-blue-400 text-white rounded-xl font-medium flex items-center gap-2"
+              >
+                <ExternalLink className="w-4 h-4" /> Open in Google Meet
+              </a>
+            </div>
           )}
         </div>
       </div>

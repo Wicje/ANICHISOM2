@@ -264,6 +264,11 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
   }, [wsRestoreSnapshot, windowSetWindows]);
 
   const openWindow = useCallback((appId: string, title?: string, data?: any) => {
+    // Log to Memory Store
+    import('@/lib/stores/memory.store').then(m => {
+      m.useMemoryStore.getState().logEvent('app_open', `Opened ${appId}${title ? ` (${title})` : ''}`);
+    });
+
     wsAddRecentApp(appId);
     windowOpenWindow(appId, title, data, activeWorkspace);
   }, [windowOpenWindow, activeWorkspace]);
