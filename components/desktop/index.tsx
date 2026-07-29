@@ -47,6 +47,7 @@ const OnboardingWizard = React.lazy(() => import('@/components/apps/onboarding-w
 const FocusOverlay = React.lazy(() => import('@/components/overlays/focus-overlay').then(m => ({ default: m.FocusOverlay })));
 const ScreenshotOverlay = React.lazy(() => import('@/components/overlays/screenshot-overlay').then(m => ({ default: m.ScreenshotOverlay })));
 const ClipboardHistoryPanel = React.lazy(() => import('@/components/overlays/clipboard-history-panel').then(m => ({ default: m.ClipboardHistoryPanel })));
+const QuickLookOverlay = React.lazy(() => import('@/components/overlays/quick-look-overlay').then(m => ({ default: m.QuickLookOverlay })));
 type ContextMenuItem = import('./context-menu').ContextMenuItem;
 
 function AppLoadingSkeleton() {
@@ -939,6 +940,7 @@ export function Desktop() {
       <Suspense fallback={null}>
         <FocusOverlay />
         <ScreenshotOverlay />
+        <QuickLookOverlay />
         <ClipboardHistoryPanel />
       </Suspense>
 
