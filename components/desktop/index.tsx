@@ -184,7 +184,8 @@ export function Desktop() {
   const getAppPrivacy = usePrivacyStore((s) => s.getAppPrivacy);
   const { onboarding } = useOnboardingStore();
 
-  useDynamicWallpaper(true); // Enables time-of-day wallpaper
+  const dynamicWallpaper = useThemeStore((s) => s.dynamicWallpaper);
+  useDynamicWallpaper(dynamicWallpaper);
 
   const [isLocked, setIsLocked] = useState(false);
   const [showLaunchpad, setShowLaunchpad] = useState(false);

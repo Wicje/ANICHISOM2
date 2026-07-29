@@ -27,6 +27,7 @@ type ThemeState = {
   glassmorphism: boolean;
   aeroSnap: boolean;
   ambientSound: AmbientPreset;
+  dynamicWallpaper: boolean;
   setWallpaper: (url: string) => void;
   setThemeColor: (color: string) => void;
   setFontFamily: (font: string) => void;
@@ -39,6 +40,7 @@ type ThemeState = {
   setGlassmorphism: (enabled: boolean) => void;
   setAeroSnap: (enabled: boolean) => void;
   setAmbientSound: (preset: AmbientPreset) => void;
+  setDynamicWallpaper: (enabled: boolean) => void;
   hydrateAll: () => Promise<void>;
 };
 
@@ -55,6 +57,7 @@ const DEFAULTS = {
   glassmorphism: true,
   aeroSnap: true,
   ambientSound: 'off' as AmbientPreset,
+  dynamicWallpaper: true,
 };
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -63,7 +66,7 @@ function persistTheme(state: ThemeState) {
   if (typeof window === 'undefined') return;
   if (debounceTimer) clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
-    const { setWallpaper, setThemeColor, setFontFamily, setScreenShader, setPerformanceMode, setColorMode, setVolume, setMuted, setAnimationsEnabled, setGlassmorphism, setAeroSnap, setAmbientSound, hydrateAll, ...data } = state as any;
+    const { setWallpaper, setThemeColor, setFontFamily, setScreenShader, setPerformanceMode, setColorMode, setVolume, setMuted, setAnimationsEnabled, setGlassmorphism, setAeroSnap, setAmbientSound, setDynamicWallpaper, hydrateAll, ...data } = state as any;
     writeDomain(DOMAIN, data);
   }, 2000);
 }
@@ -95,6 +98,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   setGlassmorphism: (glassmorphism) => { set({ glassmorphism }); persistTheme({ ...get(), glassmorphism }); },
   setAeroSnap: (aeroSnap) => { set({ aeroSnap }); persistTheme({ ...get(), aeroSnap }); },
   setAmbientSound: (ambientSound) => { set({ ambientSound }); persistTheme({ ...get(), ambientSound }); },
+  setDynamicWallpaper: (dynamicWallpaper) => { set({ dynamicWallpaper }); persistTheme({ ...get(), dynamicWallpaper }); },
 
   hydrateAll: async () => {
     try {

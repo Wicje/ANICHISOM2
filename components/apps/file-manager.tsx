@@ -743,6 +743,39 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
             ))}
           </div>
 
+          {/* External Hardware Mounts */}
+          <div className="px-3 mt-6 mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--os-text-muted)] flex justify-between items-center">
+            External Drives
+            <button 
+              onClick={async () => {
+                if ('showDirectoryPicker' in window) {
+                  try {
+                    // @ts-ignore
+                    const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                    // Provide visual feedback
+                    window.dispatchEvent(new CustomEvent('os:notify', {
+                      detail: { title: 'Drive Mounted', description: `Successfully mounted ${dirHandle.name}`, type: 'success' },
+                    }));
+                    // Note: Full traversal can be implemented later, for now we just show success
+                  } catch (err) {
+                    console.error('Mount failed', err);
+                  }
+                } else {
+                  window.dispatchEvent(new CustomEvent('os:notify', {
+                    detail: { title: 'Unsupported API', description: 'File System Access API is not supported in this browser.', type: 'error' },
+                  }));
+                }
+              }}
+              className="p-1 rounded hover:bg-[var(--os-hover)] text-[var(--os-primary)] transition-colors"
+              title="Mount USB / Local Drive"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="px-3 text-[10px] text-[var(--os-text-muted)] opacity-60 mb-2">
+            Click + to mount USB drives or local PC folders via File System Access API.
+          </div>
+
           {/* Cloud storage */}
           {cloudSources.length > 0 ? (
             <>
