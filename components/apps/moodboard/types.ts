@@ -8,7 +8,7 @@ export type NodeComment = {
 
 export type BoardNode = {
   id: string;
-  type: 'image' | 'text' | 'video' | 'embed';
+  type: 'image' | 'text' | 'video' | 'embed' | 'figma' | 'github';
   x: number;
   y: number;
   width?: number;

@@ -34,15 +34,31 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
   const trackTitle = track?.name?.replace(/\.[^.]+$/, '') || 'No track loaded';
   const trackArtist = track ? 'Local File' : 'Add audio files to play';
 
+  const [spotifyToken, setSpotifyToken] = useState<string | null>(null);
+  const [spotifyTrack, setSpotifyTrack] = useState<any>(null);
+
   useEffect(() => {
-    if (!audioRef.current) return;
+    // If Spotify is connected, mock a currently playing song (or fetch from API)
+    if (spotifyToken) {
+      setSpotifyTrack({
+        title: 'Starboy',
+        artist: 'The Weeknd, Daft Punk',
+        cover: 'https://i.scdn.co/image/ab67616d0000b2734718e2b124f79258be7bc452'
+      });
+    } else {
+      setSpotifyTrack(null);
+    }
+  }, [spotifyToken]);
+
+  useEffect(() => {
+    if (!audioRef.current || spotifyToken) return; // Disable local audio if Spotify is active
     if (isPlaying && track?.content) {
       audioRef.current.src = track.content;
       audioRef.current.play().catch(() => {});
     } else {
       audioRef.current.pause();
     }
-  }, [isPlaying, currentTrack, track]);
+  }, [isPlaying, currentTrack, track, spotifyToken]);
 
   const playPrev = () => {
     if (audioFiles.length === 0) return;
@@ -90,11 +106,17 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
               className="flex items-center justify-between h-8"
             >
               <div className="flex items-center gap-3">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-inner">
-                  <Music className="w-3 h-3 text-white" />
+                <div className="w-6 h-6 rounded-full flex items-center justify-center shadow-inner overflow-hidden relative" style={{ background: spotifyTrack ? '#1db954' : 'linear-gradient(to bottom right, #6366f1, #a855f7)' }}>
+                  {spotifyTrack ? (
+                    <img src={spotifyTrack.cover} alt="Cover" className="absolute inset-0 w-full h-full object-cover" />
+                  ) : (
+                    <Music className="w-3 h-3 text-white relative z-10" />
+                  )}
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-semibold text-white/90 truncate max-w-[120px] leading-tight">{trackTitle}</span>
+                  <span className="text-xs font-semibold text-white/90 truncate max-w-[120px] leading-tight">
+                    {spotifyTrack ? spotifyTrack.title : trackTitle}
+                  </span>
                 </div>
               </div>
               <div className="flex items-center gap-4">
@@ -146,14 +168,27 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                 <>
                   <div className="flex items-center gap-5 shrink-0">
                     <div className="w-16 h-16 rounded-[20px] overflow-hidden bg-gradient-to-br from-indigo-900 to-black relative ring-1 ring-white/20 shadow-2xl group">
-                      <div className={cn("absolute inset-0 bg-gradient-to-br from-indigo-500/50 via-purple-500/50 to-pink-500/50 transition-transform duration-1000", isPlaying ? "scale-110 rotate-3" : "scale-100 rotate-0")} />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Music className="w-7 h-7 text-white shadow-lg" />
-                      </div>
+                      {spotifyTrack ? (
+                        <img src={spotifyTrack.cover} alt="Cover" className={cn("absolute inset-0 w-full h-full object-cover transition-transform duration-1000", isPlaying ? "scale-110" : "scale-100")} />
+                      ) : (
+                        <>
+                          <div className={cn("absolute inset-0 bg-gradient-to-br from-indigo-500/50 via-purple-500/50 to-pink-500/50 transition-transform duration-1000", isPlaying ? "scale-110 rotate-3" : "scale-100 rotate-0")} />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Music className="w-7 h-7 text-white shadow-lg" />
+                          </div>
+                        </>
+                      )}
                     </div>
                     <div className="flex flex-col min-w-[140px] max-w-[180px]">
-                      <span className="text-sm font-bold text-white tracking-wide truncate">{trackTitle}</span>
-                      <span className="text-xs font-medium text-white/50 truncate mt-0.5">{trackArtist}</span>
+                      <span className="text-sm font-bold text-white tracking-wide truncate">{spotifyTrack ? spotifyTrack.title : trackTitle}</span>
+                      <span className="text-xs font-medium text-white/50 truncate mt-0.5 flex items-center gap-1">
+                        {spotifyTrack ? (
+                           <>
+                             <svg className="w-3 h-3 text-[#1db954]" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.84.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15.001 10.62 18.66 12.84c.361.181.54.84.301 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.38 4.2-1.2 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.56.3z"/></svg>
+                             {spotifyTrack.artist}
+                           </>
+                        ) : trackArtist}
+                      </span>
                     </div>
                     <div className="flex items-center gap-3 ml-2">
                       <button onClick={playPrev} className="p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors">
@@ -207,16 +242,26 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                     {[
                       { label: 'Wi-Fi', icon: <Wifi className="w-4 h-4" />, active: true },
                       { label: 'Bluetooth', icon: <Bluetooth className="w-4 h-4" />, active: false },
-                      { label: 'Do Not Disturb', icon: <Bell className="w-4 h-4" />, active: false },
+                      { label: 'Spotify', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.84.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15.001 10.62 18.66 12.84c.361.181.54.84.301 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.38 4.2-1.2 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.56.3z"/></svg>, active: !!spotifyToken, onClick: () => {
+                        if (spotifyToken) setSpotifyToken(null);
+                        else {
+                          setSpotifyToken('mock_token_123');
+                          setIsPlaying(true);
+                          window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Spotify Connected', description: 'Listening to The Weeknd', type: 'success' } }));
+                        }
+                      } },
                       { label: 'Dark Mode', icon: <Moon className="w-4 h-4" />, active: true },
                       { label: 'AirDrop', icon: <Monitor className="w-4 h-4" />, active: false },
                       { label: 'Night Shift', icon: <Sun className="w-4 h-4" />, active: false },
-                    ].map(({ label, icon, active }) => (
+                    ].map(({ label, icon, active, onClick }) => (
                       <button
                         key={label}
+                        onClick={onClick}
                         className={cn(
                           "flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl text-[9px] font-bold transition-all duration-200",
-                          active
+                          active && label === 'Spotify'
+                            ? "bg-[#1db954]/20 text-[#1db954] ring-1 ring-[#1db954]/30 shadow-inner"
+                            : active
                             ? "bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/30 shadow-inner"
                             : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/70"
                         )}

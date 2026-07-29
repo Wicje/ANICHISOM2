@@ -266,6 +266,8 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
   const processUrl = useCallback((url: string) => {
     let type: BoardNode['type'] = 'embed';
     if (isImageUrl(url)) type = 'image';
+    else if (url.includes('figma.com/')) type = 'figma';
+    else if (url.includes('github.com/')) type = 'github';
     else if (url.includes('youtube.com/') || url.includes('youtu.be/') || url.includes('instagram.com/') || url.includes('pinterest.com/')) type = 'embed';
     const newId = crypto.randomUUID();
     _updateYNode({ id: newId, type, x: centerCanvasX(), y: centerCanvasY(), content: url });

@@ -601,18 +601,34 @@ export function Desktop() {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
     const handleNotchNookToggle = () => setShowNotchNook(prev => !prev);
     const handleWidgetStackToggle = () => setShowWidgetStack(prev => !prev);
+    
+    const handleIntent = (e: CustomEvent) => {
+      const { action, url } = e.detail;
+      if (action === 'clone_repo') {
+         openWindow('terminal');
+         setTimeout(() => {
+            const currentHistory = JSON.parse(localStorage.getItem('continuaos:terminal-history') || '[]');
+            currentHistory.push(`git clone ${url}`);
+            localStorage.setItem('continuaos:terminal-history', JSON.stringify(currentHistory));
+         }, 1000);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('os:toggle-notch-nook', handleNotchNookToggle);
     window.addEventListener('os:toggle-widget-stack', handleWidgetStackToggle);
+    window.addEventListener('os:intent', handleIntent as EventListener);
+
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('os:config-updated', handleConfigUpdate);
       window.removeEventListener('os:toggle-notch-nook', handleNotchNookToggle);
       window.removeEventListener('os:toggle-widget-stack', handleWidgetStackToggle);
+      window.removeEventListener('os:intent', handleIntent as EventListener);
     };
   }, [openWindow, closeWindow, minimizeWindow, focusWindow]);
 
