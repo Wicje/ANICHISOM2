@@ -1385,16 +1385,9 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
               </button>
               <button
                 onClick={() => {
-                  const compatible = useFileStore.getState().getCompatibleApps(contextMenu.file.mimeType || '', contextMenu.file.name);
-                  if (compatible.length > 1) {
-                    setOpenWithApps(compatible);
-                    setOpenWithFile(contextMenu.file);
-                    setShowOpenWith(true);
-                  } else if (compatible.length === 1) {
-                    handleFileOpen(contextMenu.file);
-                  } else {
-                    openWindow('code', contextMenu.file.name, { fileId: contextMenu.file.id, content: contextMenu.file.content });
-                  }
+                  setOpenWithFile(contextMenu.file);
+                  setShowOpenWith(true);
+                  setContextMenu(null);
                 }}
                 className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
               >
