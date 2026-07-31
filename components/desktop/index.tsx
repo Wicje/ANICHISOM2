@@ -512,6 +512,9 @@ export function Desktop() {
     window.addEventListener('click', handleGlobalClick, { capture: true });
     return () => window.removeEventListener('click', handleGlobalClick, { capture: true });
   }, []);
+
+  useEffect(() => {
+    let currentKeybinds: Record<string, string> = {
       'alt+t': 'open:terminal',
       'alt+f': 'open:files',
       'alt+b': 'open:browser',
