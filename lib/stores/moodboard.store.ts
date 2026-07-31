@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 // ─── Types ──────────────────────────────────────────────────
 export type MoodboardNodeType = 'image' | 'text' | 'video' | 'embed';
@@ -91,107 +92,126 @@ export type MoodboardState = {
 const makeId = (): string => crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 // ─── Store ──────────────────────────────────────────────────
-export const useMoodboardStore = create<MoodboardState>((set, get) => ({
-  // Boards
-  boards: [],
-  activeBoardId: null,
+export const useMoodboardStore = create<MoodboardState>()(
+  persist(
+    (set, get) => ({
+      // Boards
+      boards: [
+        {
+          id: 'default-board',
+          name: 'Main Vision Board',
+          description: 'Primary creative moodboard',
+          nodes: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }
+      ],
+      activeBoardId: 'default-board',
 
-  // Vote mode
-  voteMode: false,
-  voteIndex: 0,
-  voteResults: [],
+      // Vote mode
+      voteMode: false,
+      voteIndex: 0,
+      voteResults: [],
 
-  // Clip queue
-  clipQueue: [],
-  autoClipEnabled: true,
+      // Clip queue
+      clipQueue: [],
+      autoClipEnabled: true,
 
-  // ─── Board CRUD ──────────────────────────────────────────
-  addBoard: (name, description) => {
-    const board: MoodboardBoard = {
-      id: makeId(),
-      name,
-      description,
-      nodes: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    set(state => ({
-      boards: [...state.boards, board],
-      activeBoardId: board.id,
-    }));
-    return board;
-  },
+      // ─── Board CRUD ──────────────────────────────────────────
+      addBoard: (name, description) => {
+        const board: MoodboardBoard = {
+          id: makeId(),
+          name: name || 'Untitled Moodboard',
+          description: description || 'New moodboard canvas',
+          nodes: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        set(state => ({
+          boards: [...state.boards, board],
+          activeBoardId: board.id,
+        }));
+        return board;
+      },
 
-  updateBoard: (id, updates) => {
-    set(state => ({
-      boards: state.boards.map(b =>
-        b.id === id ? { ...b, ...updates, updatedAt: Date.now() } : b
-      ),
-    }));
-  },
+      updateBoard: (id, updates) => {
+        set(state => ({
+          boards: state.boards.map(b =>
+            b.id === id ? { ...b, ...updates, updatedAt: Date.now() } : b
+          ),
+        }));
+      },
 
-  deleteBoard: (id) => {
-    set(state => ({
-      boards: state.boards.filter(b => b.id !== id),
-      activeBoardId: state.activeBoardId === id ? null : state.activeBoardId,
-    }));
-  },
+      deleteBoard: (id) => {
+        set(state => {
+          const remaining = state.boards.filter(b => b.id !== id);
+          return {
+            boards: remaining,
+            activeBoardId: state.activeBoardId === id ? (remaining[0]?.id || null) : state.activeBoardId,
+          };
+        });
+      },
 
-  setActiveBoardId: (id) => set({ activeBoardId: id }),
+      setActiveBoardId: (id) => set({ activeBoardId: id }),
 
-  // ─── Campaign linking ───────────────────────────────────
-  linkBoardToCampaign: (boardId, campaignId) => {
-    get().updateBoard(boardId, { campaignId });
-  },
+      // ─── Campaign linking ───────────────────────────────────
+      linkBoardToCampaign: (boardId, campaignId) => {
+        get().updateBoard(boardId, { campaignId });
+      },
 
-  unlinkBoardFromCampaign: (boardId) => {
-    get().updateBoard(boardId, { campaignId: undefined });
-  },
+      unlinkBoardFromCampaign: (boardId) => {
+        get().updateBoard(boardId, { campaignId: undefined });
+      },
 
-  getBoardsForCampaign: (campaignId) => {
-    return get().boards.filter(b => b.campaignId === campaignId);
-  },
+      getBoardsForCampaign: (campaignId) => {
+        return get().boards.filter(b => b.campaignId === campaignId);
+      },
 
-  // ─── Voting ─────────────────────────────────────────────
-  startVote: () => set({ voteMode: true, voteIndex: 0, voteResults: [] }),
-  stopVote: () => set({ voteMode: false, voteIndex: 0 }),
+      // ─── Voting ─────────────────────────────────────────────
+      startVote: () => set({ voteMode: true, voteIndex: 0, voteResults: [] }),
+      stopVote: () => set({ voteMode: false, voteIndex: 0 }),
 
-  recordVote: (nodeId, approved) => {
-    const result: VoteResult = { nodeId, approved, timestamp: Date.now() };
-    set(state => ({
-      voteResults: [...state.voteResults, result],
-    }));
-  },
+      recordVote: (nodeId, approved) => {
+        const result: VoteResult = { nodeId, approved, timestamp: Date.now() };
+        set(state => ({
+          voteResults: [...state.voteResults, result],
+        }));
+      },
 
-  advanceVote: () => set(state => ({ voteIndex: state.voteIndex + 1 })),
+      advanceVote: () => set(state => ({ voteIndex: state.voteIndex + 1 })),
 
-  getApprovedNodes: () => {
-    return get().voteResults.filter(r => r.approved).map(r => r.nodeId);
-  },
+      getApprovedNodes: () => {
+        return get().voteResults.filter(r => r.approved).map(r => r.nodeId);
+      },
 
-  // ─── Clipping ───────────────────────────────────────────
-  addClip: (clip) => {
-    set(state => ({
-      clipQueue: [...state.clipQueue, clip],
-    }));
-    // Auto-process if enabled
-    if (get().autoClipEnabled) {
-      get().processClipQueue();
+      // ─── Clipping ───────────────────────────────────────────
+      addClip: (clip) => {
+        set(state => ({
+          clipQueue: [...state.clipQueue, clip],
+        }));
+        // Auto-process if enabled
+        if (get().autoClipEnabled) {
+          get().processClipQueue();
+        }
+      },
+
+      processClipQueue: () => {
+        const { clipQueue } = get();
+        if (clipQueue.length === 0) return null;
+        const [clip, ...rest] = clipQueue;
+        set({ clipQueue: rest });
+        return clip ?? null;
+      },
+
+      setAutoClip: (enabled) => set({ autoClipEnabled: enabled }),
+
+      getCurrentBoard: () => {
+        const { boards, activeBoardId } = get();
+        return boards.find(b => b.id === activeBoardId) || boards[0];
+      },
+    }),
+    {
+      name: 'continua-moodboards',
     }
-  },
-
-  processClipQueue: () => {
-    const { clipQueue } = get();
-    if (clipQueue.length === 0) return null;
-    const [clip, ...rest] = clipQueue;
-    set({ clipQueue: rest });
-    return clip ?? null;
-  },
-
-  setAutoClip: (enabled) => set({ autoClipEnabled: enabled }),
-
-  getCurrentBoard: () => {
-    const { boards, activeBoardId } = get();
-    return boards.find(b => b.id === activeBoardId);
-  },
-}));
+  )
+);

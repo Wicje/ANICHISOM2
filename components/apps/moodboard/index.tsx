@@ -8,7 +8,7 @@ import {
   ZoomIn, ZoomOut, Maximize, Download, Tag, Group, Minus, ArrowRight,
   Lock, Unlock, Palette, Eye, LayoutGrid, Pin, Star, Sparkles, Clock,
   ChevronDown, ChevronRight, Send, Filter, Presentation, Scissors, ExternalLink,
-  Image as ImageIcon
+  Image as ImageIcon, Save, Folder, FolderOpen
 } from 'lucide-react';
 import { writeBlob } from '@/lib/context-layer';
 import { FS } from '@/lib/fs';
@@ -18,6 +18,7 @@ import { useCollaborativeDoc } from '@/lib/hooks/useCollaborativeDoc';
 import { SyncPromptBanner } from '../sync-prompt-banner';
 import { MoodboardExportService } from '@/lib/services/moodboard-export.service';
 import { OSPrompt } from '@/components/ui/os-modal';
+import { useMoodboardStore } from '@/lib/stores/moodboard.store';
 
 import type { BoardNode, Comment, Connection, CanvasMode, BoardGroup, BoardTag } from './types';
 import { REACTION_EMOJIS, NODE_COLORS, GROUP_COLORS, TAG_COLORS, SNAP_GRID_SIZE } from './types';
@@ -36,7 +37,10 @@ import { useMoodboardClip } from '@/components/moodboard/hooks/useMoodboardClip'
 
 export function Moodboard({ window: osWindow }: { window: OSWindow }) {
   const { workspaceMode, openWindow } = useOS();
-  const projectId = osWindow.data?.projectId || osWindow.id;
+  const { boards, activeBoardId, addBoard, updateBoard, deleteBoard, setActiveBoardId } = useMoodboardStore();
+  const currentBoard = boards.find(b => b.id === activeBoardId) || boards[0];
+  const projectId = osWindow.data?.projectId || currentBoard?.id || 'default-board';
+  const [showBoardsMenu, setShowBoardsMenu] = useState(false);
 
   const collab = useCollaborativeDoc({
     appPrefix: 'moodboard',
@@ -981,6 +985,29 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
         </button>
         <div className="w-px h-5 bg-black/10" />
 
+        <button 
+          onClick={() => {
+            if (currentBoard) {
+              updateBoard(currentBoard.id, { nodes: nodes as any });
+              window.dispatchEvent(new CustomEvent('os:notify', {
+                detail: { title: 'Moodboard Saved', description: `Saved "${currentBoard.name}" to Continua Storage`, type: 'success' }
+              }));
+            }
+          }} 
+          className="px-2.5 h-7 rounded flex items-center gap-1.5 bg-emerald-50 text-emerald-700 font-bold text-xs hover:bg-emerald-100 transition-colors" 
+          title="Save Board State"
+        >
+          <Save className="w-3.5 h-3.5" /> Save
+        </button>
+
+        <button 
+          onClick={() => setShowBoardsMenu(!showBoardsMenu)} 
+          className="px-2.5 h-7 rounded flex items-center gap-1.5 bg-blue-50 text-blue-700 font-bold text-xs hover:bg-blue-100 transition-colors" 
+          title="Saved Boards Gallery"
+        >
+          <FolderOpen className="w-3.5 h-3.5" /> Boards ({boards.length})
+        </button>
+
         <button onClick={() => setShowExportMenu(!showExportMenu)} className="w-7 h-7 rounded flex items-center justify-center text-black/60 hover:bg-slate-100 transition-colors" title="Export">
           <Download className="w-3.5 h-3.5" />
         </button>
@@ -988,7 +1015,10 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
           <Presentation className="w-3.5 h-3.5" />
         </button>
         <button
-          onClick={() => openWindow('moodboard', 'New Moodboard', { projectId: crypto.randomUUID() })}
+          onClick={() => {
+            const newB = addBoard(`Moodboard ${boards.length + 1}`);
+            openWindow('moodboard', newB.name, { projectId: newB.id });
+          }}
           className="w-7 h-7 rounded flex items-center justify-center text-black hover:bg-blue-100 transition-colors" title="New Board"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -996,6 +1026,68 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
 
         <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*" onChange={handleFileUpload} />
       </div>
+
+      {/* Saved Boards Gallery Dropdown */}
+      {showBoardsMenu && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-slate-900 text-white shadow-2xl rounded-2xl border border-white/20 p-3 z-[400] w-80 backdrop-blur-xl" onPointerDown={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-2">
+            <span className="text-xs font-bold flex items-center gap-1.5">
+              <FolderOpen className="w-4 h-4 text-blue-400" /> Saved Moodboards
+            </span>
+            <button
+              onClick={() => {
+                const name = prompt('Board Name:', `Moodboard ${boards.length + 1}`);
+                if (name) {
+                  const b = addBoard(name);
+                  setShowBoardsMenu(false);
+                  openWindow('moodboard', b.name, { projectId: b.id });
+                }
+              }}
+              className="px-2 py-1 bg-blue-600 hover:bg-blue-500 rounded text-[11px] font-bold text-white transition-colors flex items-center gap-1"
+            >
+              <Plus className="w-3 h-3" /> New
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto pr-1">
+            {boards.map((b) => (
+              <div
+                key={b.id}
+                onClick={() => {
+                  setActiveBoardId(b.id);
+                  setShowBoardsMenu(false);
+                  openWindow('moodboard', b.name, { projectId: b.id });
+                }}
+                className={cn(
+                  "p-2.5 rounded-xl border text-left cursor-pointer transition-all flex items-center justify-between group",
+                  activeBoardId === b.id ? "bg-blue-600/30 border-blue-500/50 text-blue-200" : "bg-white/5 border-white/10 hover:bg-white/10 text-slate-200"
+                )}
+              >
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold truncate max-w-[170px]">{b.name}</span>
+                  <span className="text-[10px] opacity-60">
+                    {b.nodes?.length || 0} items • {new Date(b.updatedAt || Date.now()).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {boards.length > 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteBoard(b.id);
+                      }}
+                      className="p-1 hover:bg-red-500/20 text-red-400 rounded transition-colors"
+                      title="Delete Board"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Export menu dropdown */}
       {showExportMenu && (
