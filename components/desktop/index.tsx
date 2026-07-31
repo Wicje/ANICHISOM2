@@ -747,12 +747,15 @@ export function Desktop() {
     }
   }, []);
 
-  // Install onboarding-selected apps once user is authenticated
+  // Install onboarding-selected apps once user is authenticated (only on initial onboarding completion)
   const onboardingAppsInstalledRef = React.useRef(false);
 
   useEffect(() => {
-    if (onboarding.completed && currentUser && !onboardingAppsInstalledRef.current) {
+    if (typeof window === 'undefined') return;
+    const hasBooted = sessionStorage.getItem('continuaos_apps_installed');
+    if (onboarding.completed && currentUser && !onboardingAppsInstalledRef.current && !hasBooted) {
       onboardingAppsInstalledRef.current = true;
+      sessionStorage.setItem('continuaos_apps_installed', 'true');
       const appsToInstall = onboarding.selectedApps;
       if (appsToInstall.length > 0) {
         appsToInstall.forEach((appId) => {
