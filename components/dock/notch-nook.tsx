@@ -37,23 +37,24 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
   const trackArtist = track ? 'Local File' : 'Add audio files to play';
 
   const [spotifyToken, setSpotifyToken] = useState<string | null>(null);
-  const [spotifyTrack, setSpotifyTrack] = useState<any>(null);
+  const openSpotifyApp = () => {
+    try {
+      const { useWindowStore } = require('@/lib/stores/window.store');
+      useWindowStore.getState().openWindow('spotify', 'Spotify Player');
+    } catch {}
+  };
 
   useEffect(() => {
-    // If Spotify is connected, mock a currently playing song (or fetch from API)
-    if (spotifyToken) {
-      setSpotifyTrack({
-        title: 'Starboy',
-        artist: 'The Weeknd, Daft Punk',
-        cover: 'https://i.scdn.co/image/ab67616d0000b2734718e2b124f79258be7bc452'
-      });
-    } else {
-      setSpotifyTrack(null);
-    }
-  }, [spotifyToken]);
+    // Default active track or Spotify session
+    setSpotifyTrack({
+      title: 'Starboy',
+      artist: 'The Weeknd, Daft Punk',
+      cover: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=300&auto=format&fit=crop',
+    });
+  }, []);
 
   useEffect(() => {
-    if (!audioRef.current || spotifyToken) return; // Disable local audio if Spotify is active
+    if (!audioRef.current || spotifyToken) return;
     if (isPlaying && track?.content) {
       audioRef.current.src = track.content;
       audioRef.current.play().catch(() => {});

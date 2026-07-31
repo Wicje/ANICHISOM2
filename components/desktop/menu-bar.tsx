@@ -69,29 +69,23 @@ function OsClock() {
 }
 
 function OsSyncStatus() {
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [online, setOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
-    const syncTimer = setInterval(() => {
-      setIsSyncing(true);
-      timeout = setTimeout(() => setIsSyncing(false), 2000);
-    }, 15000);
+    const onOnline = () => setOnline(true);
+    const onOffline = () => setOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
     return () => {
-      clearInterval(syncTimer);
-      if (timeout) clearTimeout(timeout);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
     };
   }, []);
 
-  return isSyncing ? (
-    <div className="flex items-center gap-1.5" style={{ color: 'var(--os-primary)' }}>
-      <RefreshCw className="w-3 h-3 animate-spin" />
-      <span className="hidden sm:inline text-xs">Syncing to Cloud...</span>
-    </div>
-  ) : (
-    <div className="flex items-center gap-1.5 transition-colors cursor-default" style={{ color: 'var(--os-text-muted)' }}>
-      <Cloud className="w-4 h-4" />
-      <span className="hidden sm:inline text-xs">Synced</span>
+  return (
+    <div className="flex items-center gap-1.5 cursor-default select-none" style={{ color: online ? '#10b981' : 'var(--os-text-muted)' }}>
+      <span className={cn("w-2 h-2 rounded-full", online ? "bg-emerald-400 shadow-[0_0_6px_#10b981]" : "bg-slate-400")} />
+      <span className="hidden sm:inline text-xs font-medium">{online ? 'Online' : 'Offline'}</span>
     </div>
   );
 }
@@ -206,22 +200,6 @@ export function MenuBar({
 
           <div className="pl-4" style={{ borderLeft: '1px solid var(--os-border)' }}>
             <WorkspaceSelector />
-          </div>
-
-          <div className="flex items-center gap-2 ml-4 pl-4" style={{ borderLeft: '1px solid var(--os-border)' }}>
-            {[0, 1, 2].map(ws => (
-              <button
-                key={ws}
-                onClick={() => setActiveWorkspace(ws)}
-                className="px-2 py-0.5 rounded text-xs transition-colors"
-                style={{
-                  background: activeWorkspace === ws ? 'var(--os-hover)' : 'transparent',
-                  color: activeWorkspace === ws ? 'var(--os-text)' : 'var(--os-text-muted)',
-                }}
-              >
-                Desktop {ws + 1}
-              </button>
-            ))}
           </div>
 
           <div className="flex items-center ml-4 pl-4" style={{ borderLeft: '1px solid var(--os-border)' }}>

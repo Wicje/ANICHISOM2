@@ -493,7 +493,25 @@ export function Desktop() {
   highestZIndexRef.current = highestZIndex;
 
   useEffect(() => {
-    let currentKeybinds: Record<string, string> = {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      // Play audio on button, link, icon or desktop home click
+      if (
+        target.tagName === 'BUTTON' ||
+        target.tagName === 'A' ||
+        target.closest('button') ||
+        target.closest('a') ||
+        target.closest('[role="button"]') ||
+        target.classList.contains('desktop-home') ||
+        target.id === 'desktop-wallpaper'
+      ) {
+        import('@/lib/sound').then(({ playClickSound }) => playClickSound('click'));
+      }
+    };
+    window.addEventListener('click', handleGlobalClick, { capture: true });
+    return () => window.removeEventListener('click', handleGlobalClick, { capture: true });
+  }, []);
       'alt+t': 'open:terminal',
       'alt+f': 'open:files',
       'alt+b': 'open:browser',
