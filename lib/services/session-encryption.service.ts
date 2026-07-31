@@ -70,7 +70,7 @@ export async function initSessionKeyRandom(): Promise<void> {
     if (cachedKey) {
       try {
         const raw = base64ToUint8(cachedKey);
-        masterKey = await crypto.subtle.importKey('raw', raw, 'AES-GCM', true, ['encrypt', 'decrypt']);
+        masterKey = await crypto.subtle.importKey('raw', raw.buffer as ArrayBuffer, 'AES-GCM', true, ['encrypt', 'decrypt']);
         isUnlocked = true;
         return;
       } catch {}

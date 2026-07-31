@@ -72,7 +72,7 @@ export class SyncQueue {
     });
 
     this.schedulePersist();
-    this.scheduleProcess(0); // process immediately
+    this.triggerProcessing(); // process immediately
   }
 
   /**
