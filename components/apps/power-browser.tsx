@@ -9,7 +9,7 @@ import {
   ArrowLeft, ArrowRight, RotateCw, Home, Lock, ExternalLink, Search,
   Maximize2, Minimize2, Download, Plus, X, Star, Bookmark, Trash2,
   Pin, PinOff, PanelLeftClose, PanelLeftOpen, Columns, GripVertical, Scissors,
-  Globe, AlertTriangle
+  Globe, AlertTriangle, Zap, ShieldAlert, Check
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BrowserClipService } from '@/lib/services/browser-clip.service';
