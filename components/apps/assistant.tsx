@@ -65,7 +65,7 @@ export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
         const providerObj = getAiProvider(defaultProvider);
         if (providerObj) {
           const pModels = await providerObj.listModels();
-          if (pModels.length > 0) {
+          if (pModels.length > 0 && pModels[0]) {
             setSelectedModel(pModels[0].id);
           }
         }
