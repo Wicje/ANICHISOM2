@@ -156,9 +156,49 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2, delay: 0.1 }}
-              className="flex items-center gap-6"
+              transition={{ duration: 0.15 }}
+              className="flex flex-col gap-4 text-white"
             >
+              {/* Notch Header with Nook / Tray Tabs & Settings Gear (ref_ui1.jpg inspired) */}
+              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                <div className="flex items-center gap-2 bg-white/10 p-1 rounded-xl">
+                  <button 
+                    onClick={() => setActiveTab('nook')} 
+                    className={cn("px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5", activeTab === 'nook' ? "bg-white text-black shadow-md" : "text-white/60 hover:text-white")}
+                  >
+                    <span>💡</span> Nook
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('tray')} 
+                    className={cn("px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5", activeTab === 'tray' ? "bg-white text-black shadow-md" : "text-white/60 hover:text-white")}
+                  >
+                    <span>📁</span> Tray
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={openSpotifyApp}
+                    className="w-7 h-7 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 flex items-center justify-center transition-colors"
+                    title="Open Spotify Web App"
+                  >
+                    <Music className="w-3.5 h-3.5" />
+                  </button>
+                  <button 
+                    onClick={() => {
+                      try {
+                        const { useWindowStore } = require('@/lib/stores/window.store');
+                        useWindowStore.getState().openWindow('settings', 'Settings');
+                      } catch {}
+                    }}
+                    className="w-7 h-7 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 flex items-center justify-center transition-colors"
+                    title="Notch Settings"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-6">
               {/* Tab indicators */}
               <div className="flex flex-col gap-2 shrink-0 bg-white/5 p-1 rounded-full ring-1 ring-white/10">
                 <button

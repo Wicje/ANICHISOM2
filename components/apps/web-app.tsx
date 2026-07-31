@@ -64,6 +64,86 @@ export default function WebApp({ window: osWindow }: { window: any }) {
     );
   }
 
+  if (osWindow.appId === 'spotify' && spotifyView === 'card') {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-neutral-900 via-stone-900 to-zinc-950 relative overflow-hidden select-none">
+        {/* Background Ambient Glow */}
+        <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/40 via-transparent to-transparent pointer-events-none" />
+
+        {/* High-Art Glassmorphism Card (ref_spotify.jpg inspired) */}
+        <div className="w-80 h-96 rounded-[32px] bg-neutral-900/80 border border-white/15 shadow-2xl p-5 flex flex-col justify-between relative backdrop-blur-2xl text-white">
+          
+          {/* Top Info Bar */}
+          <div className="flex items-center justify-between z-10">
+            <div className="flex items-center gap-2 bg-white/10 px-2.5 py-1 rounded-full border border-white/10">
+              <div className="w-5 h-5 rounded-full bg-slate-700 overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=100&auto=format&fit=crop" alt="avatar" className="w-full h-full object-cover" />
+              </div>
+              <span className="text-xs font-bold tracking-wide">Terence Howard</span>
+              <span className="text-[10px] text-white/50">@terenceh</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button onClick={() => setLiked(!liked)} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                <span className={liked ? "text-rose-500" : "text-white/60"}>❤️</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Center Album Art */}
+          <div className="absolute inset-x-5 top-16 bottom-24 rounded-2xl overflow-hidden shadow-2xl group">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img 
+              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop" 
+              alt="Track Cover" 
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+          </div>
+
+          {/* Bottom Audio Controls */}
+          <div className="z-10 flex flex-col gap-3">
+            {/* Progress Slider */}
+            <div className="flex flex-col gap-1">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={progress}
+                onChange={(e) => setProgress(Number(e.target.value))}
+                className="w-full h-1 bg-white/20 rounded-full appearance-none outline-none accent-white cursor-pointer"
+              />
+              <div className="flex justify-between text-[10px] text-white/60 font-mono">
+                <span>0:52</span>
+                <span>-1:21</span>
+              </div>
+            </div>
+
+            {/* Play / Pause / Skip */}
+            <div className="flex items-center justify-center gap-6">
+              <button className="text-white/70 hover:text-white transition-colors">⏮️</button>
+              <button 
+                onClick={() => setIsPlaying(!isPlaying)}
+                className="w-12 h-12 rounded-full bg-white text-black font-bold flex items-center justify-center shadow-lg hover:scale-105 transition-transform"
+              >
+                {isPlaying ? '⏸️' : '▶️'}
+              </button>
+              <button className="text-white/70 hover:text-white transition-colors">⏭️</button>
+            </div>
+          </div>
+        </div>
+
+        <button 
+          onClick={() => setSpotifyView('web')} 
+          className="mt-4 text-xs font-bold text-emerald-400 hover:underline cursor-pointer z-10"
+        >
+          Switch to Full Spotify Web Player ↗
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full relative bg-white flex flex-col" style={{ zIndex: 1, isolation: 'isolate' }}>
       {loading && (

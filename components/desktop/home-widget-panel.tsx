@@ -51,7 +51,101 @@ export function HomeWidgetPanel({ className }: ControlCenterProps) {
   };
 
   return (
-    <div className={cn("w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1a2a4a] to-[#0a1525] font-sans overflow-hidden p-6", className)}>
+    <div className={cn("w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#1a2a4a] to-[#0a1525] font-sans overflow-hidden p-6 gap-6", className)}>
+      {/* Calendar & Timezone Widget Stack (ref_calendar.jpg inspired) */}
+      <div className="flex flex-col md:flex-row gap-4 w-full max-w-2xl bg-neutral-900/90 border border-white/15 shadow-2xl rounded-[32px] p-5 backdrop-blur-2xl text-white select-none">
+        
+        {/* Left Calendar Grid */}
+        <div className="w-full md:w-52 bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
+          <div className="flex justify-between items-center text-xs font-bold">
+            <span className="text-sm font-black">June</span>
+            <span className="text-[10px] text-white/50">2026</span>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-white/40">
+            <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-white/80">
+            <span className="opacity-30">31</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+            <span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span>
+            <span className="w-6 h-6 rounded-full bg-rose-500 text-white font-bold flex items-center justify-center mx-auto shadow-md">14</span>
+            <span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span>
+            <span>21</span><span>22</span><span>23</span><span>24</span><span>25</span><span>26</span><span>27</span>
+            <span>28</span><span>29</span><span>30</span>
+          </div>
+        </div>
+
+        {/* Right Dashboard Stack */}
+        <div className="flex-1 flex flex-col gap-4">
+          
+          {/* Top Row: Timezones & Next Meeting */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Timezones */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-white/40 flex items-center gap-1">
+                <Clock className="w-3 h-3" /> Timezones
+              </span>
+              <div className="flex justify-between items-center">
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold">Prague, CZ</span>
+                  <span className="text-[9px] text-emerald-400 font-bold">LOCAL</span>
+                </div>
+                <span className="text-xs font-mono font-bold">02:02 PM</span>
+              </div>
+              <div className="flex justify-between items-center border-t border-white/10 pt-1.5">
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold">New York, US</span>
+                  <span className="text-[9px] text-white/40 font-mono">-7H</span>
+                </div>
+                <span className="text-xs font-mono font-bold text-white/60">06:02 PM</span>
+              </div>
+            </div>
+
+            {/* Next Meeting */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <div className="flex -space-x-1.5 overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=60&auto=format&fit=crop" alt="avatar" className="w-5 h-5 rounded-full border border-black object-cover" />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=60&auto=format&fit=crop" alt="avatar" className="w-5 h-5 rounded-full border border-black object-cover" />
+                </div>
+                <span className="text-[10px] text-white/50 font-bold">13 members</span>
+              </div>
+              <div>
+                <span className="text-xs text-white/60 leading-tight block">Next Meeting</span>
+                <span className="text-base font-black text-white">in 00:19 min</span>
+              </div>
+              <button 
+                onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Recording Started', description: 'Meeting audio recording active', type: 'info' } }))}
+                className="w-full py-1 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+              >
+                <span>🔴</span> Start recording
+              </button>
+            </div>
+          </div>
+
+          {/* Bottom Row: Today's Agenda */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col gap-1">
+              <span className="text-[9px] font-bold text-white/40 uppercase">Today</span>
+              <span className="text-xs font-bold text-white">Grid Systems</span>
+              <span className="text-xs font-mono font-bold text-emerald-400">03:30 PM - 04:00 PM</span>
+              <span className="text-[9px] text-white/40 mt-1">Time left 5h 39 min</span>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col gap-1">
+              <span className="text-[9px] font-bold text-white/40 uppercase">Today</span>
+              <span className="text-xs font-bold text-white">Web Typography</span>
+              <span className="text-xs font-mono font-bold text-cyan-400">05:10 PM - 06:20 PM</span>
+              <span className="text-[9px] text-white/40 mt-1">Time left 7h 29 min</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
       <div className="grid grid-cols-4 gap-3 max-w-lg w-full">
         {/* WiFi */}
         <button

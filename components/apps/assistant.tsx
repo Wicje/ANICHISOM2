@@ -18,9 +18,67 @@ const APP_LIST_FOR_AI = APP_MANIFEST.map(a => `${a.id}: ${a.title} — ${a.descr
 
 const INITIAL_MESSAGE: { role: 'ai'; text: string } = { role: 'ai', text: 'Hello! I am your OS System Assistant. I can open apps, change themes, toggle shaders, or answer questions using Claude, Gemini, Qwen, or other AI models. What can I do for you?' };
 
-type ViewMode = 'chat' | 'mindpalace';
-
 export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
+  const [isVoiceActive, setIsVoiceActive] = useState(false);
+
+  return (
+    <div className="w-full h-full flex flex-col bg-slate-950 text-white relative font-sans overflow-hidden">
+      
+      {/* Top Floating AI Voice Bar (ref_ui2.jpg inspired) */}
+      <div className="p-3 border-b border-white/10 bg-slate-900/80 backdrop-blur-xl flex items-center justify-between gap-4 select-none">
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => openWindow('terminal')} 
+            className="w-10 h-10 rounded-2xl bg-neutral-900 border border-white/20 flex items-center justify-center text-emerald-400 font-mono font-bold shadow-lg hover:scale-105 transition-transform"
+            title="Open System Terminal"
+          >
+            &gt;_
+          </button>
+        </div>
+
+        {/* Dynamic Voice Equalizer Wave Pill */}
+        <div className="flex-1 max-w-sm h-12 bg-neutral-900/90 border border-white/15 rounded-full px-4 flex items-center justify-between shadow-2xl relative">
+          <button 
+            onClick={() => setIsVoiceActive(!isVoiceActive)} 
+            className={cn("w-7 h-7 rounded-full flex items-center justify-center transition-colors", isVoiceActive ? "bg-rose-500/20 text-rose-400 border border-rose-500/40" : "bg-white/10 text-white/60 hover:bg-white/20")}
+            title="Voice Mic Input"
+          >
+            🎙️
+          </button>
+
+          {/* Equalizer Wave Bubbles */}
+          <div className="flex items-center gap-1">
+            {[14, 24, 38, 24, 14].map((h, i) => (
+              <div 
+                key={i} 
+                className={cn("w-3.5 bg-white rounded-full transition-all duration-300", isVoiceActive && "animate-pulse")} 
+                style={{ height: isVoiceActive ? `${h}px` : '10px' }} 
+              />
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-lg bg-black text-white border border-white/20 flex items-center justify-center text-[10px] font-black">
+              ✨
+            </span>
+            <button 
+              onClick={() => setIsVoiceActive(false)} 
+              className="w-7 h-7 rounded-full bg-rose-500/20 hover:bg-rose-500/40 text-rose-400 font-bold text-xs flex items-center justify-center transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setShowSettings(!showSettings)} 
+            className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold transition-colors flex items-center gap-1.5"
+          >
+            <Settings2 className="w-3.5 h-3.5" /> Models
+          </button>
+        </div>
+      </div>
   const { openWindow, setThemeColor, setScreenShader, notify, workspaceMode } = useOS();
   const storage = useMemo(() => new StorageAdapter('assistant', workspaceMode), [workspaceMode]);
   const [input, setInput] = useState('');
