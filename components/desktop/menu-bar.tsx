@@ -20,7 +20,6 @@ import { usePomodoroStore } from '@/lib/stores/pomodoro.store';
 function OsClock() {
   const [time, setTime] = useState(new Date());
   const [mounted, setMounted] = useState(false);
-  const { isActive, timeLeft, mode, startFocus, stop } = usePomodoroStore();
 
   useEffect(() => {
     setMounted(true);
@@ -30,41 +29,8 @@ function OsClock() {
 
   if (!mounted) return null;
 
-  const formatPomodoroTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
-  };
-
   return (
-    <div className="flex items-center gap-3">
-      {isActive && (
-        <div 
-          className="flex items-center gap-1.5 px-2 py-0.5 rounded text-xs cursor-pointer font-bold transition-all"
-          onClick={(e) => { e.stopPropagation(); stop(); }}
-          style={{ 
-            background: mode === 'focus' ? 'var(--os-error, #ef4444)' : 'var(--os-primary, #10b981)',
-            color: '#fff',
-            boxShadow: `0 0 8px ${mode === 'focus' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)'}`
-          }}
-          title={mode === 'focus' ? 'Click to stop Focus Mode' : 'Click to end Break'}
-        >
-          <span className="animate-pulse">{mode === 'focus' ? '🎯' : '☕'}</span>
-          <span>{formatPomodoroTime(timeLeft)}</span>
-        </div>
-      )}
-      {!isActive && (
-        <div 
-          className="text-[10px] uppercase font-bold tracking-widest text-slate-400 hover:text-slate-200 cursor-pointer px-1 transition-colors"
-          onClick={(e) => { e.stopPropagation(); startFocus(); }}
-          title="Start Pomodoro Focus Session"
-        >
-          FOCUS
-        </div>
-      )}
-      <div className="border-l border-white/10 h-4 mx-1"></div>
-      <span className="tabular-nums">{format(time, 'EEE MMM d  h:mm a')}</span>
-    </div>
+    <span className="tabular-nums font-semibold">{format(time, 'EEE MMM d  h:mm a')}</span>
   );
 }
 
@@ -209,10 +175,6 @@ export function MenuBar({
             </div>
           </div>
 
-          <div className="pl-4" style={{ borderLeft: '1px solid var(--os-border)' }}>
-            <WorkspaceSelector />
-          </div>
-
           <div className="flex items-center ml-4 pl-4" style={{ borderLeft: '1px solid var(--os-border)' }}>
             <button
               onClick={() => window.dispatchEvent(new CustomEvent('os:open-spotlight'))}
@@ -271,28 +233,7 @@ export function MenuBar({
           <PresenceIndicator />
         </div>
         <div className="flex items-center gap-4 pr-4" style={{ borderRight: '1px solid var(--os-border)' }}>
-          <button
-            onClick={() => setPerformanceMode(performanceMode === 'heavy' ? 'light' : 'heavy')}
-            className="flex items-center gap-1.5 transition-colors cursor-pointer text-xs group px-2 py-1 rounded"
-            title={performanceMode === 'light' ? "Light Mode Active" : "Heavy Mode Active"}
-            style={{
-              color: performanceMode === 'light' ? '#f59e0b' : 'var(--os-text-muted)',
-              background: performanceMode === 'light' ? 'rgba(245, 158, 11, 0.1)' : 'transparent',
-            }}
-          >
-            {performanceMode === 'light' ? <ZapOff className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline font-medium tracking-wide">
-              {performanceMode === 'light' ? 'Light' : 'Heavy'}
-            </span>
-          </button>
           <OsSyncStatus />
-          <div className="group relative flex items-center justify-center">
-            <ShieldCheck className="w-4 h-4 hover:opacity-100 cursor-pointer transition-colors" style={{ opacity: 0.7 }} />
-            <div className="absolute top-full right-0 mt-2 scale-0 group-hover:scale-100 transition-transform px-3 py-2 glass-panel text-xs font-medium rounded shadow-xl whitespace-nowrap z-[100]" style={{ color: 'var(--os-text)' }}>
-              <div className="font-bold mb-1" style={{ color: '#10b981' }}>Sandboxed Environment</div>
-              <div style={{ color: 'var(--os-text-muted)' }}>Apps are isolated & secure.</div>
-            </div>
-          </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative flex items-center">

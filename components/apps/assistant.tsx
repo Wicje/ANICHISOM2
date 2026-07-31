@@ -18,6 +18,8 @@ const APP_LIST_FOR_AI = APP_MANIFEST.map(a => `${a.id}: ${a.title} — ${a.descr
 
 const INITIAL_MESSAGE: { role: 'ai'; text: string } = { role: 'ai', text: 'Hello! I am your OS System Assistant. I can open apps, change themes, toggle shaders, or answer questions using Claude, Gemini, Qwen, or other AI models. What can I do for you?' };
 
+type ViewMode = 'chat' | 'mindpalace';
+
 export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
   const { openWindow, setThemeColor, setScreenShader, notify, workspaceMode } = useOS();
   const storage = useMemo(() => new StorageAdapter('assistant', workspaceMode), [workspaceMode]);

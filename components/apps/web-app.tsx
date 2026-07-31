@@ -19,6 +19,10 @@ export default function WebApp({ window: osWindow }: { window: any }) {
   const [loading, setLoading] = useState(true);
   const [extensionInstalled, setExtensionInstalled] = useState(false);
   const [initWait, setInitWait] = useState(true);
+  const [spotifyView, setSpotifyView] = useState<'card' | 'web'>('card');
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(35);
+  const [liked, setLiked] = useState(true);
 
   useEffect(() => {
     // Check if the Continua Extension is active

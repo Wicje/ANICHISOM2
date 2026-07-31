@@ -113,13 +113,37 @@ export function ControlCenter({ onClose }: { onClose: () => void }) {
             {dnd ? <Moon className="w-6 h-6 fill-indigo-400" /> : <Moon className="w-6 h-6" />}
             <span className="text-xs font-bold">Do Not Disturb</span>
           </button>
-          <div className="bg-white/10 rounded-2xl p-3 flex items-center justify-between border border-white/5 cursor-pointer hover:bg-white/20">
-             <div className="flex flex-col">
-               <span className="text-xs font-bold">Focus</span>
-               <span className="text-[10px] text-white/50">Personal</span>
+          <button 
+            onClick={() => {
+              try {
+                const { usePomodoroStore } = require('@/lib/stores/pomodoro.store');
+                const store = usePomodoroStore.getState();
+                if (store.isActive) store.stop();
+                else store.startFocus();
+              } catch {}
+            }}
+            className="bg-white/10 rounded-2xl p-3 flex items-center justify-between border border-white/5 cursor-pointer hover:bg-white/20 transition-colors w-full"
+          >
+             <div className="flex flex-col text-left">
+               <span className="text-xs font-bold">Focus Mode</span>
+               <span className="text-[10px] text-white/50">Pomodoro Timer</span>
              </div>
-             <Focus className="w-4 h-4 text-white/70" />
-          </div>
+             <Focus className="w-4 h-4 text-emerald-400" />
+          </button>
+
+          {/* Light / Heavy Mode Toggle */}
+          <button 
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Theme Updated', description: 'Performance & Shader mode updated', type: 'info' } }));
+            }}
+            className="bg-white/10 rounded-2xl p-3 flex items-center justify-between border border-white/5 cursor-pointer hover:bg-white/20 transition-colors w-full"
+          >
+             <div className="flex flex-col text-left">
+               <span className="text-xs font-bold">Performance Mode</span>
+               <span className="text-[10px] text-amber-400 font-semibold">Light / Heavy</span>
+             </div>
+             <Sun className="w-4 h-4 text-amber-400" />
+          </button>
         </div>
       </div>
 
