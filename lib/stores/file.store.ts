@@ -231,9 +231,16 @@ export const useFileStore = create<FileState>((set, get) => ({
   },
 
   // Smart routing
-  addSmartRoute: (route) => set(state => ({
-    smartRoutes: [...state.smartRoutes, route],
-  })),
+  addSmartRoute: (route) => {
+    // Prevent catch-all wildcards from hijacking all file imports to moodboard
+    if ((route.pattern === '*' || route.pattern === '*/*' || route.pattern === 'application/octet-stream') && route.appId === 'moodboard') {
+      return;
+    }
+    set(state => {
+      const filtered = state.smartRoutes.filter(r => r.pattern !== route.pattern);
+      return { smartRoutes: [route, ...filtered] };
+    });
+  },
 
   removeSmartRoute: (pattern) => set(state => ({
     smartRoutes: state.smartRoutes.filter(r => r.pattern !== pattern),
@@ -241,7 +248,11 @@ export const useFileStore = create<FileState>((set, get) => ({
 
   resolveSmartRoute: (mimeType, fileName) => {
     const { smartRoutes } = get();
-    for (const route of smartRoutes) {
+    // Sanitize smartRoutes to remove any corrupted moodboard catch-all wildcards
+    const safeRoutes = smartRoutes.filter(r => 
+      !(r.appId === 'moodboard' && (r.pattern === '*' || r.pattern === '*/*' || r.pattern === 'application/octet-stream'))
+    );
+    for (const route of safeRoutes) {
       if (matchesPattern(route.pattern, mimeType, fileName)) {
         return route.appId;
       }
