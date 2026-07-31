@@ -235,3 +235,5 @@ export function AppStoreApp() {
     </div>
   );
 }
+
+export default AppStoreApp;

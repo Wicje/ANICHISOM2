@@ -34,6 +34,7 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
   campaign: () => import('@/components/apps/campaign-lab'),
   settings: () => import('@/components/apps/settings'),
   store: () => import('@/components/apps/app-store'),
+  'app-store': () => import('@/components/apps/app-store'),
   'plugin-sandbox': () => import('@/components/apps/plugin-sandbox'),
   'admin': () => import('@/components/apps/admin-panel'),
   'color-picker': () => import('@/components/apps/color-picker'),
