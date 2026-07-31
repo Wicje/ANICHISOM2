@@ -32,6 +32,7 @@ import { CanvasView } from '@/components/moodboard/views/canvas-view';
 import { MoodboardTimelineView } from '@/components/moodboard/views/timeline-view';
 import { SamurAIView } from '@/components/moodboard/views/samurai-view';
 import { AssetPreview } from '@/components/moodboard/views/asset-preview';
+import { useMoodboardClip } from '@/components/moodboard/hooks/useMoodboardClip';
 
 export function Moodboard({ window: osWindow }: { window: OSWindow }) {
   const { workspaceMode, openWindow } = useOS();
@@ -190,16 +191,7 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
   }, [osWindow.data?.url, osWindow.data?.image, osWindow.data?.video, osWindow.data?.content, collab.synced, addImportedNode, osWindow.title]);
 
   // Handle custom clip events (e.g. from Power Browser)
-  useEffect(() => {
-    const handleClip = (e: CustomEvent) => {
-      const { url, title, image, video } = e.detail || {};
-      if (url || image || video) {
-        addImportedNode({ url, image, video, title });
-      }
-    };
-    window.addEventListener('os:clip-to-moodboard', handleClip as EventListener);
-    return () => window.removeEventListener('os:clip-to-moodboard', handleClip as EventListener);
-  }, [addImportedNode]);
+  useMoodboardClip(addImportedNode);
 
   useEffect(() => {
     const container = containerRef.current;
