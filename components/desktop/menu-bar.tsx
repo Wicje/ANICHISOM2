@@ -138,7 +138,16 @@ export function MenuBar({
     return () => document.removeEventListener('click', close);
   }, [openMenu]);
 
-  if (!currentUser) return null;
+  const [showWifiMenu, setShowWifiMenu] = useState(false);
+  const [activeWifi, setActiveWifi] = useState('Continua_Studio_5G');
+  const [wifiEnabled, setWifiEnabled] = useState(true);
+
+  const wifiNetworks = [
+    { ssid: 'Continua_Studio_5G', signal: '100%', secured: true },
+    { ssid: 'Fiber_Ultra_Guest', signal: '85%', secured: true },
+    { ssid: 'Home_Lab_Mesh', signal: '70%', secured: true },
+    { ssid: 'Direct_5G_Hotspot', signal: '60%', secured: false },
+  ];
 
   return (
     <header role="menubar" aria-label="OS menu bar" className="h-8 flex items-center shrink-0 w-full glass-panel rounded-none border-x-0 border-t-0 z-[260] px-4 sticky top-0 text-[13px] font-medium contain-layout" style={{ color: 'var(--os-text)' }}>
@@ -204,13 +213,13 @@ export function MenuBar({
 
           <div className="flex items-center ml-4 pl-4" style={{ borderLeft: '1px solid var(--os-border)' }}>
             <button
-              onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-              className="flex items-center gap-2 px-2 py-1 rounded transition-colors cursor-pointer"
+              onClick={() => window.dispatchEvent(new CustomEvent('os:open-spotlight'))}
+              className="flex items-center gap-2 px-2.5 py-1 rounded transition-colors cursor-pointer hover:bg-white/10"
               style={{ background: 'var(--os-hover)', color: 'var(--os-text-muted)' }}
               title="Search (Cmd+K)"
             >
               <Search className="w-3.5 h-3.5" />
-              <span className="text-xs opacity-50 font-mono">⌘K</span>
+              <span className="text-xs opacity-70 font-mono">⌘K</span>
             </button>
           </div>
 
@@ -284,11 +293,67 @@ export function MenuBar({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {network && (
-            <div className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-widest" style={{ color: 'var(--os-text-muted)' }} title={`Network: ${network.effectiveType}`}>
+          <div className="relative flex items-center">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowWifiMenu(!showWifiMenu); }}
+              className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md hover:bg-white/10 transition-colors cursor-pointer"
+              style={{ color: wifiEnabled ? '#10b981' : 'var(--os-text-muted)' }}
+              title={`Wi-Fi: ${wifiEnabled ? activeWifi : 'Off'}`}
+            >
               <Wifi className="w-3.5 h-3.5" />
-            </div>
-          )}
+              <span className="hidden md:inline font-mono opacity-80 max-w-[100px] truncate">{wifiEnabled ? activeWifi : 'Off'}</span>
+            </button>
+
+            {showWifiMenu && (
+              <div 
+                className="absolute top-full right-0 mt-2 w-64 glass-panel border border-white/20 rounded-2xl shadow-2xl p-3 z-[400] flex flex-col gap-2 backdrop-blur-2xl text-slate-100"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                  <span className="text-xs font-bold flex items-center gap-1.5">
+                    <Wifi className="w-3.5 h-3.5 text-emerald-400" /> Wi-Fi Connections
+                  </span>
+                  <button
+                    onClick={() => setWifiEnabled(!wifiEnabled)}
+                    className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase transition-colors", wifiEnabled ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : "bg-slate-700 text-slate-400")}
+                  >
+                    {wifiEnabled ? 'On' : 'Off'}
+                  </button>
+                </div>
+
+                {wifiEnabled ? (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 px-1">Known Networks</span>
+                    {wifiNetworks.map((net) => (
+                      <button
+                        key={net.ssid}
+                        onClick={() => {
+                          setActiveWifi(net.ssid);
+                          setShowWifiMenu(false);
+                          window.dispatchEvent(new CustomEvent('os:notify', {
+                            detail: { title: 'Wi-Fi Network Switch', description: `Switched to ${net.ssid}`, type: 'success' }
+                          }));
+                        }}
+                        className={cn(
+                          "flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs transition-colors text-left",
+                          activeWifi === net.ssid ? "bg-blue-600/30 text-blue-300 font-bold border border-blue-500/40" : "hover:bg-white/10 text-slate-200"
+                        )}
+                      >
+                        <span className="truncate max-w-[140px]">{net.ssid}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] opacity-60 font-mono">{net.signal}</span>
+                          {activeWifi === net.ssid && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs text-slate-400 italic py-2 text-center">Wi-Fi is turned off</span>
+                )}
+              </div>
+            )}
+          </div>
+
           {battery && (
             <div className="flex items-center gap-1 text-xs" style={{ color: 'var(--os-text-muted)' }} title={`Battery: ${Math.round(battery.level * 100)}%`}>
               {Math.round(battery.level * 100)}%
@@ -307,14 +372,6 @@ export function MenuBar({
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
-          </button>
-          <button
-            className="cursor-pointer transition-colors focus:outline-none"
-            onClick={() => window.dispatchEvent(new CustomEvent('os:open-spotlight'))}
-            title="Global Search (Cmd/Ctrl + K)"
-            style={{ color: 'var(--os-text-muted)' }}
-          >
-            <Search className="w-4 h-4" />
           </button>
           <div className="group relative flex items-center justify-center">
             <Power onClick={() => logout()} className="w-4 h-4 cursor-pointer transition-colors" style={{ color: 'var(--os-error)', opacity: 0.8 }} />

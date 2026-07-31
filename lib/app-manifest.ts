@@ -155,6 +155,8 @@ const ICO = {
   ziklag: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='26' fill='%231a1a2e'/%3E%3Crect x='28' y='32' width='64' height='56' rx='4' stroke='%2300ff88' stroke-width='3' fill='none'/%3E%3Cpath d='M48 50l8 8-8 8' stroke='%2300ff88' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cline x1='62' y1='66' x2='78' y2='66' stroke='%2300ff88' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E",
   // Analytics — chart/performance style
   analytics: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cdefs%3E%3ClinearGradient id='a' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%2322c55e'/%3E%3Cstop offset='100%25' stop-color='%2316a34a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='120' height='120' rx='26' fill='url(%23a)'/%3E%3Cpath d='M28 80l20-20 16 10 28-34' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='28' cy='80' r='4' fill='%23fff'/%3E%3Ccircle cx='48' cy='60' r='4' fill='%23fff'/%3E%3Ccircle cx='64' cy='70' r='4' fill='%23fff'/%3E%3Ccircle cx='92' cy='36' r='4' fill='%23fff'/%3E%3C/svg%3E",
+  // Spotify — Green icon with waves
+  spotify: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='26' fill='%231db954'/%3E%3Cpath d='M34 46c20-6 40-4 54 4M38 62c16-5 32-3 44 3M42 76c12-3 24-1 32 3' stroke='%23000' stroke-width='7' fill='none' stroke-linecap='round'/%3E%3C/svg%3E",
 };
 
 // Static metadata — loaded eagerly (tiny)
@@ -222,7 +224,7 @@ export const APP_MANIFEST: AppManifestEntry[] = [
   // Native Web Apps (Ecosystem)
   { id: 'figma', component: null as any, icon: Palette, title: 'Figma', roles: ['admin', 'filmmaker', 'designer', 'user'], isCore: false, category: 'creative', description: 'Collaborative interface design tool' },
   { id: 'notion', component: null as any, icon: FileText, title: 'Notion', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'All-in-one workspace for your notes, tasks, wikis' },
-  { id: 'spotify', component: null as any, icon: Headphones, title: 'Spotify', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'media', description: 'Listen to music and podcasts' },
+  { id: 'spotify', component: null as any, icon: Headphones, iconImage: ICO.spotify, title: 'Spotify', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'media', description: 'Listen to music and podcasts via Spotify Web Player' },
   { id: 'discord', component: null as any, icon: MessageSquare, title: 'Discord', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'social', description: 'Chat and voice communication' },
   { id: 'vscode', component: null as any, icon: Code, title: 'VS Code Web', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'dev', description: 'Cloud-based code editor via StackBlitz' },
 ];
