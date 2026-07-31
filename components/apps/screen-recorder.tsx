@@ -89,10 +89,18 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
   const startShare = async () => {
     try {
       setError(null);
-      const displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { displaySurface: 'monitor' },
-        audio: true
-      });
+      let displayStream: MediaStream;
+      try {
+        displayStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { displaySurface: 'monitor' },
+          audio: true
+        });
+      } catch {
+        displayStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { displaySurface: 'monitor' },
+          audio: false
+        });
+      }
       streamRef.current = displayStream;
       setStream(displayStream);
 

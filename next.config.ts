@@ -16,16 +16,10 @@ const withPWA = withPWAInit({
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   experimental: {
     optimizePackageImports: ['lucide-react', 'date-fns', 'motion/react'],
   },
   productionBrowserSourceMaps: false,
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   // Allow access to remote image placeholder.
   images: {
     remotePatterns: [
@@ -50,7 +44,7 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(self), geolocation=(), interest-cohort=()',
+            value: 'camera=(self), microphone=(self), display-capture=(self), geolocation=()',
           },
         ],
       },

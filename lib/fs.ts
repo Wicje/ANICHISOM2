@@ -30,7 +30,10 @@ function revokeObjectUrlsUnderPath(path: string): void {
 }
 
 if (typeof window !== 'undefined') {
-  const cleanup = () => {
+  const cleanup = (e?: PageTransitionEvent | Event) => {
+    if (e && 'persisted' in e && (e as PageTransitionEvent).persisted) {
+      return; // Skip cleanup when entering BFCache
+    }
     for (const url of objectUrlsByKey.values()) {
       URL.revokeObjectURL(url);
     }
@@ -39,11 +42,9 @@ if (typeof window !== 'undefined') {
 
   const previousCleanup = (window as any).__continuaos_fs_url_cleanup;
   if (previousCleanup) {
-    window.removeEventListener('pagehide', previousCleanup);
     window.removeEventListener('beforeunload', previousCleanup);
   }
 
-  window.addEventListener('pagehide', cleanup);
   window.addEventListener('beforeunload', cleanup);
   (window as any).__continuaos_fs_url_cleanup = cleanup;
 }

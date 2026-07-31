@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 // ─── Types ──────────────────────────────────────────────────
 export type FileSource = 'opfs' | 'google-drive' | 'dropbox' | 'onedrive' | 'local-folder';
@@ -232,8 +233,8 @@ export const useFileStore = create<FileState>((set, get) => ({
 
   // Smart routing
   addSmartRoute: (route) => {
-    // Prevent catch-all wildcards from hijacking all file imports to moodboard
-    if ((route.pattern === '*' || route.pattern === '*/*' || route.pattern === 'application/octet-stream') && route.appId === 'moodboard') {
+    // Quarantine moodboard from non-extension pattern hijacking (e.g. image/* or wildcard)
+    if (route.appId === 'moodboard' && !route.pattern.startsWith('*.')) {
       return;
     }
     set(state => {
@@ -248,9 +249,9 @@ export const useFileStore = create<FileState>((set, get) => ({
 
   resolveSmartRoute: (mimeType, fileName) => {
     const { smartRoutes } = get();
-    // Sanitize smartRoutes to remove any corrupted moodboard catch-all wildcards
+    // Quarantine any non-extension moodboard route
     const safeRoutes = smartRoutes.filter(r => 
-      !(r.appId === 'moodboard' && (r.pattern === '*' || r.pattern === '*/*' || r.pattern === 'application/octet-stream'))
+      !(r.appId === 'moodboard' && !r.pattern.startsWith('*.'))
     );
     for (const route of safeRoutes) {
       if (matchesPattern(route.pattern, mimeType, fileName)) {

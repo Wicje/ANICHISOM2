@@ -43,15 +43,18 @@ const DEFAULT_TITLES: Record<string, string> = {
   'app-store': 'ContinuaOS App Store',
 };
 
+import { useWorkspaceStore } from '@/lib/stores/workspace.store';
+
 const SINGLE_INSTANCE_APPS = ['terminal', 'files', 'settings', 'store', 'campaign', 'admin', 'moodboard', 'image-viewer', 'browser', 'hardware-manager', 'virtual-display-manager', 'app-store'];
 
 export const useWindowStore = create<WindowState>((set, get) => ({
   windows: [],
   highestZIndex: 10,
 
-  openWindow: (appId, title, data, activeWorkspace = 0) => {
+  openWindow: (appId, title, data, activeWorkspace) => {
     mark('window:open');
     const { windows, highestZIndex } = get();
+    const currentWorkspace = activeWorkspace ?? (useWorkspaceStore.getState ? useWorkspaceStore.getState().activeWorkspace : 0);
 
     const newId = `${appId}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const windowTitle = title || DEFAULT_TITLES[appId] || 'App';
@@ -59,23 +62,18 @@ export const useWindowStore = create<WindowState>((set, get) => ({
 
     // Prevent duplicate instances for single-instance apps
     const existing = SINGLE_INSTANCE_APPS.includes(appId)
-      ? windows.find((w) => w.appId === appId && w.workspace === activeWorkspace)
+      ? windows.find((w) => w.appId === appId && (w.workspace ?? 0) === currentWorkspace)
       : null;
 
     if (existing) {
       set({
         highestZIndex: nextZ,
         windows: windows.map((w) =>
-          w.appId === appId && w.workspace === activeWorkspace
+          w.appId === appId && (w.workspace ?? 0) === currentWorkspace
             ? { ...w, zIndex: nextZ, isMinimized: false, data: data ? { ...w.data, ...data } : w.data }
             : w
         ),
       });
-      if (appId === 'moodboard' && (data?.url || data?.image || data?.video)) {
-        window.dispatchEvent(new CustomEvent('os:clip-to-moodboard', {
-          detail: { url: data.url, image: data.image, video: data.video, title: title || 'Imported File' },
-        }));
-      }
       return;
     }
 
@@ -92,7 +90,7 @@ export const useWindowStore = create<WindowState>((set, get) => ({
       x: 100 + offset,
       y: 100 + offset,
       data,
-      workspace: activeWorkspace,
+      workspace: currentWorkspace,
     };
 
     set({ highestZIndex: nextZ, windows: [...windows, newWindow] });

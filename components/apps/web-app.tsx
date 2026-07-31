@@ -11,7 +11,7 @@ export default function WebApp({ window: osWindow }: { window: any }) {
     notion: 'https://notion.so',
     spotify: 'https://open.spotify.com',
     discord: 'https://discord.com/app',
-    vscode: 'https://stackblitz.com',
+    vscode: 'https://vscode.dev',
   };
 
   const url = data?.url || PREDEFINED_URLS[osWindow.appId] || 'https://duckduckgo.com';
@@ -52,15 +52,14 @@ export default function WebApp({ window: osWindow }: { window: any }) {
 
   // For native-feeling PWAs, we strip X-Frame-Options via extension or Tauri natively.
   // If we are on web without extension, we attempt the proxy as fallback (though complex sites might break).
-  const finalUrl = extensionInstalled || isTauri() 
-    ? url 
-    : (url.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(url)}` : url);
+  const isProxied = !extensionInstalled && !isTauri() && url.startsWith('http');
+  const finalUrl = isProxied ? `/api/proxy?url=${encodeURIComponent(url)}` : url;
 
   if (initWait && !extensionInstalled && !isTauri()) {
-    // Waiting for potential extension injection to prevent double-load
     return (
-      <div className="w-full h-full relative bg-white flex flex-col items-center justify-center">
-         <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      <div className="w-full h-full relative bg-slate-900 text-slate-100 flex flex-col items-center justify-center font-sans p-6 gap-3">
+        <Loader2 className="w-7 h-7 text-indigo-400 animate-spin" />
+        <span className="text-xs font-medium text-slate-400">Initializing app view...</span>
       </div>
     );
   }
@@ -68,8 +67,8 @@ export default function WebApp({ window: osWindow }: { window: any }) {
   return (
     <div className="w-full h-full relative bg-white flex flex-col" style={{ zIndex: 1, isolation: 'isolate' }}>
       {loading && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-50/80 backdrop-blur-sm">
-          <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm text-slate-200">
+          <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
         </div>
       )}
       
@@ -77,7 +76,7 @@ export default function WebApp({ window: osWindow }: { window: any }) {
         src={finalUrl}
         className="w-full h-full flex-1 border-none bg-white relative z-0"
         title={osWindow.title}
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
+        sandbox={isProxied ? "allow-scripts allow-forms allow-popups allow-modals allow-downloads" : "allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"}
         onLoad={() => setLoading(false)}
         onError={() => setLoading(false)}
       />

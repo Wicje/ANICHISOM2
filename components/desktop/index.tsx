@@ -752,10 +752,10 @@ export function Desktop() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const hasBooted = sessionStorage.getItem('continuaos_apps_installed');
+    const hasBooted = localStorage.getItem('continuaos_onboarding_apps_installed');
     if (onboarding.completed && currentUser && !onboardingAppsInstalledRef.current && !hasBooted) {
       onboardingAppsInstalledRef.current = true;
-      sessionStorage.setItem('continuaos_apps_installed', 'true');
+      localStorage.setItem('continuaos_onboarding_apps_installed', 'true');
       const appsToInstall = onboarding.selectedApps;
       if (appsToInstall.length > 0) {
         appsToInstall.forEach((appId) => {

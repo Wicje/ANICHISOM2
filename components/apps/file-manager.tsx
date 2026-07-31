@@ -509,7 +509,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
         openWindow(appId, file.name, { url: downloadUrl });
       }
     } else {
-      openWindow('power-browser', file.name, { url: downloadUrl });
+      openWindow('code', file.name, { url: downloadUrl });
     }
   };
 
@@ -641,12 +641,17 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
     }));
   };
 
-  // Import file from URL
+  // Import raw file directly from URL (bypassing HTML proxy rewriter)
   const handleImportFromUrl = async () => {
     if (!importUrl.trim()) return;
     setImporting(true);
     try {
-      const res = await fetch(`/api/proxy?url=${encodeURIComponent(importUrl.trim())}`);
+      let res: Response;
+      try {
+        res = await fetch(importUrl.trim());
+      } catch {
+        res = await fetch(`/api/proxy?url=${encodeURIComponent(importUrl.trim())}`);
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const contentType = res.headers.get('content-type') || blob.type || 'application/octet-stream';

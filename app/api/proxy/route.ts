@@ -392,14 +392,28 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      response = await fetch(currentUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-        },
+      const reqHeaders: Record<string, string> = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      };
+      
+      const authHeader = request.headers.get('authorization');
+      if (authHeader) reqHeaders['Authorization'] = authHeader;
+      const targetCookie = request.headers.get('x-target-cookie');
+      if (targetCookie) reqHeaders['Cookie'] = targetCookie;
+
+      const currentMethod = (i === 0) ? request.method : ((response?.status === 307 || response?.status === 308) ? request.method : 'GET');
+      const fetchOpts: RequestInit = {
+        method: currentMethod,
+        headers: reqHeaders,
         redirect: 'manual',
-      });
+      };
+      if (currentMethod !== 'GET' && currentMethod !== 'HEAD' && i === 0) {
+        try { fetchOpts.body = await request.clone().arrayBuffer(); } catch {}
+      }
+
+      response = await fetch(currentUrl, fetchOpts);
 
       // If not a redirect, break and use this response
       if (response.status < 300 || response.status >= 400) break;
@@ -431,10 +445,9 @@ export async function GET(request: NextRequest) {
     if (contentType.includes('text/html')) {
       let html = await response.text();
 
-      // Check for common block responses (sites returning auth walls or error pages)
       const isLikelyBlocked = html.includes('X-Frame-Options') ||
-        html.includes('frame-ancestors') && html.includes("'none'") ||
-        response.headers.get('x-frame-options');
+        (html.includes('frame-ancestors') && html.includes("'none'")) ||
+        !!response.headers.get('x-frame-options');
 
       html = rewriteUrls(html, finalUrl);
 
@@ -443,6 +456,7 @@ export async function GET(request: NextRequest) {
         'Content-Security-Policy': buildProxyCSP(proxiedOrigin),
         'Access-Control-Allow-Origin': '*',
         'X-Proxy-Final-Url': finalUrl,
+        'X-Proxy-Frame-Stripped': isLikelyBlocked ? 'true' : 'false',
       };
 
       return new NextResponse(html, { headers });
@@ -475,9 +489,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // JS
+    // JS — rewrite relative fetches and URL endpoints
     if (contentType.includes('javascript') || contentType.includes('application/x-javascript')) {
-      const js = await response.text();
+      let js = await response.text();
+      js = js.replace(
+        /fetch\(["'](https?:\/\/[^"']+)["']/gi,
+        (_, u) => `fetch("${PROXY_BASE}?url=${encodeURIComponent(u)}"`
+      );
       return new NextResponse(js, {
         headers: {
           'Content-Type': contentType,

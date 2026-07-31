@@ -119,13 +119,18 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
   const wsLoadPersisted = useWorkspaceStore((s) => s.loadPersisted);
   const wsAddRecentApp = useWorkspaceStore((s) => s.addRecentApp);
 
-  // ─── Session check on mount ───────────────────────────────────────
+  // ─── Session check & hydration on user change ────────────────────
+  const prevUserRef = useRef<string | null>(null);
 
   useEffect(() => {
     wsLoadPersisted();
 
-    // Desktop's useEffect calls useAuthStore.checkSession() which handles
-    // auth state. We only need to hydrate desktop state when user becomes available.
+    const currentUserId = currentUser?.id || null;
+    if (prevUserRef.current !== currentUserId) {
+      isHydratedRef.current = false;
+      prevUserRef.current = currentUserId;
+    }
+
     const hydrateDesktopState = async () => {
       if (!isHydratedRef.current) {
         const localData = await readDomain<{ windows?: any[]; workspaceMode?: string; installedApps?: string[]; recentApps?: string[]; wallpaper?: string; themeColor?: string; fontFamily?: string; screenShader?: string }>('desktop');
@@ -162,13 +167,13 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     hydrateDesktopState();
   }, [currentUser]);
 
-  // ─── Desktop state persistence (throttled) ────────────────────────
+  // ─── Desktop state persistence (throttled + sync unload mirror) ───
 
   useEffect(() => {
     if (!isHydratedRef.current) return;
 
     const flushSync = () => {
-      writeDomain('desktop', {
+      const payload = {
         windows,
         workspaceMode,
         installedApps,
@@ -177,7 +182,11 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
         themeColor,
         fontFamily,
         screenShader,
-      }).catch(() => {});
+      };
+      try {
+        localStorage.setItem('continuaos_desktop_sync', JSON.stringify(payload));
+      } catch {}
+      writeDomain('desktop', payload).catch(() => {});
     };
 
     window.addEventListener('beforeunload', flushSync);
