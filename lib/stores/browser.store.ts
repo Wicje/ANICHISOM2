@@ -254,6 +254,18 @@ export const useBrowserStore = create<BrowserState>((set, get) => ({
         set(updates);
         persistBrowser(get());
       }
+    const currentTabs = get().tabs;
+    if (!currentTabs || currentTabs.length === 0) {
+      set({
+        tabs: [{
+          id: '1',
+          url: 'https://duckduckgo.com/',
+          title: 'DuckDuckGo',
+          history: ['https://duckduckgo.com/'],
+          historyIndex: 0,
+        }],
+        activeTabId: '1',
+      });
     }
     set({ _loaded: true });
   },

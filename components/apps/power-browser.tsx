@@ -83,6 +83,22 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
     loadPersisted();
   }, []);
 
+  if (!activeTab) {
+    return (
+      <div className="w-full h-full bg-slate-950 text-slate-100 flex flex-col items-center justify-center font-sans p-6">
+        <Globe className="w-12 h-12 text-indigo-400 mb-3 opacity-80" />
+        <h3 className="text-base font-bold text-white mb-1">No Tabs Open</h3>
+        <p className="text-xs text-slate-400 mb-5">Open a new tab to start browsing the web.</p>
+        <button
+          onClick={() => addTab()}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-lg transition-all"
+        >
+          <Plus className="w-4 h-4" /> Open New Tab
+        </button>
+      </div>
+    );
+  }
+
   useEffect(() => {
     if (typeof window !== 'undefined' && ((window as any).__CONTINUA_EXTENSION_ACTIVE__ || document.getElementById('continua-extension-marker'))) {
       setExtensionInstalled(true);
