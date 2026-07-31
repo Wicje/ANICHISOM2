@@ -70,8 +70,53 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
 
   if (!currentUser) return null;
 
+  const [taskQuery, setTaskQuery] = React.useState('');
+
   return (
-    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[260] w-[80vw] h-20 flex flex-col items-center justify-end pointer-events-none group/dock">
+    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[260] w-[90vw] md:w-[70vw] lg:w-[50vw] flex flex-col items-center justify-end pointer-events-none group/dock">
+      
+      {/* Floating Intent & Teaching Pill (Video Inspired) */}
+      <div className={cn(
+        "mb-2.5 flex items-center justify-between gap-3 px-4 py-2 bg-slate-900/90 border border-white/20 shadow-2xl rounded-full pointer-events-auto backdrop-blur-2xl transition-all duration-300 w-full max-w-xl",
+        isAnyWindowMaximized ? "opacity-0 translate-y-10 group-hover/dock:opacity-100 group-hover/dock:translate-y-0" : "opacity-100 translate-y-0"
+      )}>
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-300 shrink-0">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="truncate max-w-[120px]">{currentUser.name}&apos;s workspace</span>
+        </div>
+
+        <form 
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (taskQuery.trim()) {
+              window.dispatchEvent(new CustomEvent('os:open-spotlight', { detail: { query: taskQuery } }));
+              setTaskQuery('');
+            }
+          }}
+          className="flex-1 flex items-center gap-2 bg-white/10 rounded-full px-3 py-1 border border-white/10 focus-within:border-emerald-400/60 transition-colors"
+        >
+          <input
+            type="text"
+            value={taskQuery}
+            onChange={(e) => setTaskQuery(e.target.value)}
+            placeholder="Describe your task..."
+            className="w-full bg-transparent text-xs text-white placeholder:text-white/40 outline-none"
+          />
+        </form>
+
+        <button
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('os:notify', {
+              detail: { title: 'Teaching Mode Active', description: 'Click any window to record workflow actions', type: 'info' }
+            }));
+            window.dispatchEvent(new CustomEvent('os:open-spotlight'));
+          }}
+          className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs rounded-full shadow-lg transition-all flex items-center gap-1 shrink-0"
+        >
+          <span>🪄</span> Teach
+        </button>
+      </div>
+
       <nav 
         role="toolbar" 
         aria-label="Application dock" 

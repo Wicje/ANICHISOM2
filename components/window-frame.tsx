@@ -216,7 +216,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
       }}
       onPointerEnter={() => setIsHovered(true)}
       onPointerLeave={() => setIsHovered(false)}
-      className="absolute top-0 left-0 flex flex-col pointer-events-auto border transition-colors duration-200 overflow-hidden contain-window"
+      className="absolute top-0 left-0 flex flex-col pointer-events-auto border transition-colors duration-200 overflow-hidden contain-window rounded-3xl"
     >
       {/* Reveal Light Effect */}
       {isHovered && performanceMode === 'heavy' && (
@@ -231,23 +231,23 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
       
       {/* Window glass background */}
       <div
-        className="absolute inset-0 -z-10"
+        className="absolute inset-0 -z-10 rounded-3xl"
         style={{
           background: isActive ? 'var(--os-glass-bg)' : 'var(--os-glass-bg)',
           backdropFilter: glassmorphism && performanceMode === 'heavy'
             ? (isActive ? 'blur(50px) saturate(200%)' : 'blur(40px) saturate(180%)')
             : 'none',
-          borderColor: isActive ? 'var(--os-glass-border)' : 'var(--os-border)',
+          borderColor: isActive ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.1)',
           borderWidth: '1px',
           borderStyle: 'solid',
-          boxShadow: isActive ? activeShadow : inactiveShadow,
-          borderRadius: 'inherit',
+          boxShadow: isActive ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)' : inactiveShadow,
+          borderRadius: '1.5rem',
         }}
       />
 
       {/* Window Header */}
       <div 
-        className={`h-8 flex items-center justify-between px-3 shrink-0 ${isMaximized ? 'rounded-none' : 'rounded-t-xl'}`}
+        className={`h-9 flex items-center justify-between px-3.5 shrink-0 ${isMaximized ? 'rounded-none' : 'rounded-t-3xl'}`}
         style={{ background: isActive ? 'var(--os-hover)' : 'transparent' }}
         onPointerDown={(e) => {
            focusWindow(id);
