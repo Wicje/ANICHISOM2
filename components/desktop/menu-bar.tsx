@@ -126,6 +126,7 @@ export function MenuBar({
   wipeSession,
 }: MenuBarProps) {
   const currentUser = useAuthStore((s) => s.currentUser);
+  const openWindow = useWindowStore((s) => s.openWindow);
   const workspaceMode = useWorkspaceStore((s) => s.workspaceMode);
   const setWorkspaceMode = useWorkspaceStore((s) => s.setWorkspaceMode);
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
