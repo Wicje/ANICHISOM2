@@ -61,37 +61,39 @@ export class WebGPUProvider implements IAiProvider {
     const prompt = options.messages[options.messages.length - 1]?.content || '';
     const isCode = prompt.toLowerCase().includes('code') || prompt.toLowerCase().includes('function') || prompt.toLowerCase().includes('script');
 
-    let content = `[WebGPU Hardware Accelerated Local Output]\n\nI have analyzed your request offline using WebGPU. `;
+    let text = `[WebGPU Hardware Accelerated Local Output]\n\nI have analyzed your request offline using WebGPU. `;
     if (isCode) {
-      content += `Here is the requested logic:\n\`\`\`javascript\n// Executed offline via WebGPU Local Engine\nfunction systemAction() {\n  console.log("ContinuaOS Local AI Execution");\n}\n\`\`\``;
+      text += `Here is the requested logic:\n\`\`\`javascript\n// Executed offline via WebGPU Local Engine\nfunction systemAction() {\n  console.log("ContinuaOS Local AI Execution");\n}\n\`\`\``;
     } else {
-      content += `ContinuaOS is currently running fully offline with zero latency. I am ready to process file management, application launches, or design workflows.`;
+      text += `ContinuaOS is currently running fully offline with zero latency. I am ready to process file management, application launches, or design workflows.`;
     }
 
     return {
-      id: `webgpu-res-${Date.now()}`,
+      text,
       model: options.model || this.getDefaultModel(),
-      message: {
-        role: 'assistant',
-        content,
-      },
+      provider: this.id,
       usage: {
         promptTokens: 32,
         completionTokens: 64,
         totalTokens: 96,
       },
+      finishReason: 'stop',
     };
   }
 
-  async *streamChat(options: AiChatOptions): AsyncGenerator<AiStreamChunk, void, unknown> {
+  async chatStream(options: AiChatOptions, onChunk: (chunk: AiStreamChunk) => void): Promise<void> {
     const res = await this.chat(options);
-    const words = res.message.content.split(' ');
+    const words = res.text.split(' ');
 
     for (let i = 0; i < words.length; i++) {
-      yield {
-        delta: (i > 0 ? ' ' : '') + words[i],
-      };
-      await new Promise((r) => setTimeout(r, 20));
+      const isLast = i === words.length - 1;
+      onChunk({
+        text: (i > 0 ? ' ' : '') + words[i],
+        done: isLast,
+        model: res.model,
+        provider: this.id,
+      });
+      await new Promise((r) => setTimeout(r, 25));
     }
   }
 }
