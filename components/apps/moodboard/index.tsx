@@ -292,6 +292,7 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (activeView !== 'grid' && activeView !== 'canvas') return;
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {

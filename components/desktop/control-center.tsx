@@ -72,6 +72,7 @@ export function ControlCenter({ onClose }: ControlCenterProps) {
   const { notifications, clearAll, markAllRead } = useNotificationStore();
   const { isSyncing, connectedDevices, startSync, stopSync } = useSyncStore();
 
+  const { showNotch, toggleNotch } = useThemeStore();
   const recentNotifications = notifications.slice(0, 5);
 
   return (
@@ -160,6 +161,17 @@ export function ControlCenter({ onClose }: ControlCenterProps) {
           >
             <Cloud className="w-5 h-5" />
             <span className="text-xs font-medium">App Store</span>
+          </button>
+          <button
+            onClick={() => toggleNotch()}
+            className="p-3 rounded-xl flex flex-col items-start gap-2 transition-colors"
+            style={{
+              background: showNotch ? '#6366f1' : 'var(--os-hover)',
+              color: showNotch ? 'white' : 'var(--os-text-muted)',
+            }}
+          >
+            <Sun className="w-5 h-5" />
+            <span className="text-xs font-medium">{showNotch ? 'Notch: Visible' : 'Notch: Hidden'}</span>
           </button>
           <button 
             onClick={() => {

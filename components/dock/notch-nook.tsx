@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Music, Settings, Play, Pause, SkipBack, SkipForward, LayoutGrid, Wifi, Bluetooth, Moon, Sun, Monitor, Bell, Battery } from 'lucide-react';
+import { Music, Settings, Play, Pause, SkipBack, SkipForward, LayoutGrid, Wifi, Bluetooth, Moon, Sun, Monitor, Bell, Battery, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FS, LocalFile } from '@/lib/fs';
+import { useThemeStore } from '@/lib/stores/theme.store';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function NotchNook({ window: osWindow }: { window?: any }) {
+  const setShowNotch = useThemeStore((s) => s.setShowNotch);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioFiles, setAudioFiles] = useState<LocalFile[]>([]);
   const [currentTrack, setCurrentTrack] = useState(0);
@@ -127,9 +129,22 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                     ))}
                   </div>
                 )}
-                <div className="flex gap-2 text-white/40">
+                <div className="flex gap-2 text-white/40 items-center">
                   <Battery className="w-4 h-4" />
                   <Wifi className="w-4 h-4" />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowNotch(false);
+                      window.dispatchEvent(new CustomEvent('os:notify', {
+                        detail: { title: 'Notch Hidden', description: 'You can re-enable the notch anytime from Control Center or Settings.', type: 'info' },
+                      }));
+                    }}
+                    className="p-1 rounded hover:bg-white/10 hover:text-white transition-colors ml-1"
+                    title="Hide Notch (Re-enable from Control Center)"
+                  >
+                    <EyeOff className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             </motion.div>

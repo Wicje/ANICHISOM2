@@ -28,6 +28,7 @@ type ThemeState = {
   aeroSnap: boolean;
   ambientSound: AmbientPreset;
   dynamicWallpaper: boolean;
+  showNotch: boolean;
   setWallpaper: (url: string) => void;
   setThemeColor: (color: string) => void;
   setFontFamily: (font: string) => void;
@@ -41,6 +42,8 @@ type ThemeState = {
   setAeroSnap: (enabled: boolean) => void;
   setAmbientSound: (preset: AmbientPreset) => void;
   setDynamicWallpaper: (enabled: boolean) => void;
+  setShowNotch: (show: boolean) => void;
+  toggleNotch: () => void;
   hydrateAll: () => Promise<void>;
 };
 
@@ -58,6 +61,7 @@ const DEFAULTS = {
   aeroSnap: true,
   ambientSound: 'off' as AmbientPreset,
   dynamicWallpaper: true,
+  showNotch: true,
 };
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -99,6 +103,8 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   setAeroSnap: (aeroSnap) => { set({ aeroSnap }); persistTheme({ ...get(), aeroSnap }); },
   setAmbientSound: (ambientSound) => { set({ ambientSound }); persistTheme({ ...get(), ambientSound }); },
   setDynamicWallpaper: (dynamicWallpaper) => { set({ dynamicWallpaper }); persistTheme({ ...get(), dynamicWallpaper }); },
+  setShowNotch: (showNotch) => { set({ showNotch }); persistTheme({ ...get(), showNotch }); },
+  toggleNotch: () => { const next = !get().showNotch; set({ showNotch: next }); persistTheme({ ...get(), showNotch: next }); },
 
   hydrateAll: async () => {
     try {
