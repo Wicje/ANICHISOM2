@@ -65,9 +65,16 @@ export function ScreenshotOverlay() {
           const filename = `Desktop/Screenshot-${timestamp}.png`;
           await FS.mkdir('Desktop');
           await FS.write(filename, blob, 'image/png');
+          try {
+            if ('ClipboardItem' in window && navigator.clipboard) {
+              await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+            }
+          } catch { /* ignore clipboard permission restrictions */ }
+
           window.dispatchEvent(new CustomEvent('os:notify', {
-            detail: { title: 'Screenshot Saved', description: `Saved to Desktop/Screenshot-${timestamp}.png`, type: 'success' },
+            detail: { title: 'Screenshot Saved', description: `Saved to Desktop/Screenshot-${timestamp}.png & copied to clipboard`, type: 'success' },
           }));
+          window.dispatchEvent(new CustomEvent('os:refresh-desktop'));
           window.dispatchEvent(new CustomEvent('os:activity', {
             detail: { type: 'file-save', title: 'Screenshot captured', detail: filename },
           }));

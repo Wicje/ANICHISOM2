@@ -80,7 +80,7 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
   });
 
   return (
-    <div className="w-full flex justify-center pointer-events-none -mt-4 pt-4"
+    <div className="w-full flex justify-center pointer-events-none pt-0"
          onMouseEnter={() => setIsExpanded(true)}
          onMouseLeave={() => setIsExpanded(false)}>
       <audio ref={audioRef} onEnded={playNext} />
@@ -91,8 +91,8 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
         animate={{ y: 0, scale: 1, opacity: 1 }}
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
         className={cn(
-          "bg-black/95 backdrop-blur-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.1),0_0_0_1px_rgba(255,255,255,0.05)] origin-top pointer-events-auto transition-all overflow-hidden",
-          isExpanded ? "rounded-[40px] px-6 py-5 w-[640px]" : "rounded-full px-4 py-2 w-[320px] cursor-pointer"
+          "bg-black backdrop-blur-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.1)] origin-top pointer-events-auto transition-all overflow-hidden",
+          isExpanded ? "rounded-[40px] px-6 py-5 w-[640px] mt-2" : "rounded-b-[16px] px-4 py-1.5 w-[320px] cursor-pointer h-[32px]"
         )}
       >
         <AnimatePresence mode="wait">

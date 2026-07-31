@@ -139,6 +139,28 @@ export function ControlCenter({ onClose }: ControlCenterProps) {
             <Brain className="w-5 h-5" />
             <span className="text-xs font-medium">AI Gateway</span>
           </button>
+          <button
+            onClick={() => {
+              onClose();
+              openWindow('hardware-manager', 'Hardware Subsystem');
+            }}
+            className="p-3 rounded-xl flex flex-col items-start gap-2 transition-colors"
+            style={{ background: '#0284c7', color: 'white' }}
+          >
+            <ShieldCheck className="w-5 h-5" />
+            <span className="text-xs font-medium">Hardware Manager</span>
+          </button>
+          <button
+            onClick={() => {
+              onClose();
+              openWindow('app-store', 'ContinuaOS App Store');
+            }}
+            className="p-3 rounded-xl flex flex-col items-start gap-2 transition-colors"
+            style={{ background: '#8b5cf6', color: 'white' }}
+          >
+            <Cloud className="w-5 h-5" />
+            <span className="text-xs font-medium">App Store</span>
+          </button>
           <button 
             onClick={() => {
               if (isSyncing) stopSync();

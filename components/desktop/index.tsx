@@ -910,11 +910,11 @@ export function Desktop() {
       {showSwitcher && <WindowSwitcher switcherIndex={switcherIndex} />}
       {showLaunchpad && <Suspense fallback={<CardSkeleton />}><Launchpad onClose={() => setShowLaunchpad(false)} /></Suspense>}
       {showMissionControl && <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--os-text-muted)' }} /></div>}><MissionControl onClose={() => setShowMissionControl(false)} /></Suspense>}
-      {showNotchNook && (
-        <div className="absolute top-8 left-1/2 -translate-x-1/2 z-[270] pointer-events-auto">
-          <Suspense fallback={<div className="flex items-center justify-center p-4"><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--os-text-muted)' }} /></div>}><NotchNook /></Suspense>
-        </div>
-      )}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 z-[300] pointer-events-auto">
+        <Suspense fallback={<div className="flex items-center justify-center p-4"><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--os-text-muted)' }} /></div>}>
+          <NotchNook />
+        </Suspense>
+      </div>
       {showWidgetStack && (
         <div className="absolute top-12 right-4 z-[300]">
           <Suspense fallback={<div className="flex items-center justify-center p-4"><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--os-text-muted)' }} /></div>}><WidgetStack /></Suspense>

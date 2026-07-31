@@ -10,6 +10,8 @@ import {
 import { cn } from '@/lib/utils';
 import { FS, LocalFile } from '@/lib/fs';
 import { useFileStore } from '@/lib/stores/file.store';
+import { hardwareManager } from '@/lib/hardware';
+import { OpenWithModal } from '@/components/overlays/open-with-modal';
 import { SyncPromptBanner } from './sync-prompt-banner';
 import { OSPrompt, OSConfirm, OSModal } from '@/components/ui/os-modal';
 
@@ -949,6 +951,10 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                    <Upload className="w-4 h-4" /> Upload
                 </button>
 
+                <button onClick={async () => { await hardwareManager.mountLocalDirectory(); fetchFiles(); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--os-hover)] hover:bg-[var(--os-active)] rounded-md text-sm font-medium transition-colors" title="Mount External Drive / Folder">
+                   <HardDrive className="w-4 h-4 text-emerald-400" /> Mount Drive
+                </button>
+
                 <button onClick={() => setShowImportUrl(!showImportUrl)} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--os-hover)] hover:bg-[var(--os-active)] rounded-md text-sm font-medium transition-colors" title="Import from URL">
                    <Cloud className="w-4 h-4" /> Import URL
                 </button>
@@ -1529,25 +1535,14 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
       />
 
       {/* Open With Modal */}
-      <OSModal open={showOpenWith} onClose={() => setShowOpenWith(false)} title="Open With">
-        <div className="space-y-1">
-          {openWithApps.map(app => (
-            <button
-              key={app.appId}
-              onClick={() => {
-                if (openWithFile) {
-                  openWindow(app.appId, openWithFile.name, { fileId: openWithFile.id, content: openWithFile.content });
-                }
-                setShowOpenWith(false);
-              }}
-              className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-[var(--os-hover)] transition-colors"
-              style={{ color: 'var(--os-text)' }}
-            >
-              {app.label}
-            </button>
-          ))}
-        </div>
-      </OSModal>
+      {showOpenWith && openWithFile && (
+        <OpenWithModal
+          filePath={openWithFile.name}
+          fileName={openWithFile.name}
+          mimeType={openWithFile.mimeType || 'application/octet-stream'}
+          onClose={() => setShowOpenWith(false)}
+        />
+      )}
     </div>
   );
 }

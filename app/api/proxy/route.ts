@@ -459,7 +459,7 @@ export async function GET(request: NextRequest) {
       return new NextResponse(css, {
         headers: {
           'Content-Type': contentType,
-          'Access-Control-Allow-Origin': proxiedOrigin,
+          'Access-Control-Allow-Origin': '*',
         },
       });
     }
@@ -470,7 +470,7 @@ export async function GET(request: NextRequest) {
       return new NextResponse(js, {
         headers: {
           'Content-Type': contentType,
-          'Access-Control-Allow-Origin': proxiedOrigin,
+          'Access-Control-Allow-Origin': '*',
         },
       });
     }
@@ -481,7 +481,7 @@ export async function GET(request: NextRequest) {
       return new NextResponse(json, {
         headers: {
           'Content-Type': contentType,
-          'Access-Control-Allow-Origin': proxiedOrigin,
+          'Access-Control-Allow-Origin': '*',
         },
       });
     }
@@ -491,7 +491,7 @@ export async function GET(request: NextRequest) {
       return new NextResponse(response.body, {
         headers: {
           'Content-Type': contentType,
-          'Access-Control-Allow-Origin': proxiedOrigin,
+          'Access-Control-Allow-Origin': '*',
           'Cache-Control': 'public, max-age=3600',
         },
       });
@@ -500,7 +500,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(body, {
       headers: {
         'Content-Type': contentType,
-        'Access-Control-Allow-Origin': proxiedOrigin,
+        'Access-Control-Allow-Origin': '*',
         'Cache-Control': 'public, max-age=3600',
       },
     });
@@ -569,7 +569,7 @@ export async function POST(request: NextRequest) {
         headers: {
           'Content-Type': 'text/html; charset=utf-8',
           'Content-Security-Policy': buildProxyCSP(proxiedOrigin),
-          'Access-Control-Allow-Origin': proxiedOrigin,
+          'Access-Control-Allow-Origin': '*',
         },
       });
     }
@@ -579,7 +579,7 @@ export async function POST(request: NextRequest) {
       return new NextResponse(response.body, {
         headers: {
           'Content-Type': respContentType,
-          'Access-Control-Allow-Origin': proxiedOrigin,
+          'Access-Control-Allow-Origin': '*',
           'Cache-Control': 'public, max-age=3600',
         },
       });
@@ -589,7 +589,7 @@ export async function POST(request: NextRequest) {
     return new NextResponse(respBody, {
       headers: {
         'Content-Type': respContentType,
-        'Access-Control-Allow-Origin': proxiedOrigin,
+        'Access-Control-Allow-Origin': '*',
       },
     });
   } catch (error: unknown) {

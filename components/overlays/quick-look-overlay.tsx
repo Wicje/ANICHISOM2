@@ -72,28 +72,13 @@ export function QuickLookOverlay() {
 
     const loadContent = async () => {
       try {
-        if (activeFile.source === 'opfs') {
-          const raw = await FS.readFile(activeFile.path);
+        const file = await FS.read(activeFile.path);
+        if (file) {
           if (activeFile.mimeType.startsWith('image/') || activeFile.mimeType.startsWith('video/')) {
-            const url = URL.createObjectURL(new Blob([raw], { type: activeFile.mimeType }));
-            setBlobUrl(url);
+            setBlobUrl(file.content as string);
           } else {
-            const text = new TextDecoder().decode(raw as Uint8Array);
-            setContent(text);
+            setContent(file.content as string);
           }
-        } else if (activeFile.source === 'local-folder') {
-           const local = LocalFile.get(activeFile.path);
-           if (local) {
-             const handle = local.handle as FileSystemFileHandle;
-             const fileData = await handle.getFile();
-             if (activeFile.mimeType.startsWith('image/') || activeFile.mimeType.startsWith('video/')) {
-                const url = URL.createObjectURL(fileData);
-                setBlobUrl(url);
-             } else {
-                const text = await fileData.text();
-                setContent(text);
-             }
-           }
         }
       } catch (err) {
         console.error('QuickLook error:', err);
@@ -106,7 +91,7 @@ export function QuickLookOverlay() {
   const handleOpenApp = () => {
     if (!activeFile) return;
     const appId = resolveSmartRoute(activeFile.mimeType, activeFile.name) || 'code';
-    openWindow(appId, { fileId: activeFile.id });
+    openWindow(appId, activeFile.name, { fileId: activeFile.id });
     setActiveFile(null);
   };
 

@@ -119,9 +119,9 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
     };
   }, [collab.synced, collab.sharedTypesRef]);
 
-  const addImportedNode = useCallback(async (data: { url?: string; image?: string; video?: string; title?: string }) => {
+  const addImportedNode = useCallback(async (data: { url?: string; image?: string; video?: string; title?: string; content?: any }) => {
     if (!collab.synced) return;
-    const rawContent = data.image || data.video || data.url;
+    const rawContent = data.image || data.video || data.url || (typeof data.content === 'string' ? data.content : 'imported-file');
     if (!rawContent) return;
 
     let content = rawContent;
@@ -141,7 +141,9 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
 
     const isImage = isImageUrl(rawContent) || isImageUrl(content) || !!data.image;
     const isVideo = rawContent.match(/\.(mp4|webm|ogg)$/i) || !!data.video;
-    const nodeType = isImage ? 'image' : (isVideo ? 'video' : 'embed');
+    let nodeType: BoardNode['type'] = isImage ? 'image' : (isVideo ? 'video' : 'embed');
+    if (data.url && data.url.includes('figma.com')) nodeType = 'figma';
+    if (data.url && data.url.includes('github.com')) nodeType = 'github';
 
     const newNode = {
       id: newId,
@@ -167,10 +169,25 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
 
   // Handle window data imports (e.g. from Files app)
   useEffect(() => {
-    if (collab.synced && (osWindow.data?.url || osWindow.data?.image || osWindow.data?.video)) {
-      addImportedNode({ url: osWindow.data.url, image: osWindow.data.image, video: osWindow.data.video, title: osWindow.title });
+    if (collab.synced && (osWindow.data?.url || osWindow.data?.image || osWindow.data?.video || osWindow.data?.content)) {
+      const isFile = !!osWindow.data?.content;
+      // If content is a Blob or URL string, pass it down
+      const dataStr = typeof osWindow.data?.content === 'string' ? osWindow.data?.content : undefined;
+      // Heuristic: If it has figma in the title or content, treat as figma embed url
+      let url = osWindow.data?.url;
+      if (isFile && dataStr && (dataStr.includes('figma.com') || osWindow.title?.endsWith('.figma'))) {
+        url = dataStr;
+      }
+      
+      addImportedNode({ 
+        url: url, 
+        image: osWindow.data?.image, 
+        video: osWindow.data?.video, 
+        title: osWindow.title,
+        content: osWindow.data?.content 
+      });
     }
-  }, [osWindow.data?.url, osWindow.data?.image, osWindow.data?.video, collab.synced, addImportedNode, osWindow.title]);
+  }, [osWindow.data?.url, osWindow.data?.image, osWindow.data?.video, osWindow.data?.content, collab.synced, addImportedNode, osWindow.title]);
 
   // Handle custom clip events (e.g. from Power Browser)
   useEffect(() => {

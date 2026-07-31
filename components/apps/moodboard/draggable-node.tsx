@@ -201,6 +201,7 @@ export function DraggableNode({
             src={`https://www.figma.com/embed?embed_host=continua&url=${encodeURIComponent(node.content)}`}
             allowFullScreen
             onPointerDown={(e) => e.stopPropagation()}
+            sandbox="allow-scripts allow-same-origin allow-presentation"
           />
         </div>
       )}
