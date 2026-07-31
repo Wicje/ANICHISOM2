@@ -198,6 +198,17 @@ function rewriteUrls(html: string, baseUrl: string): string {
 // Patches browser APIs so SPA navigation and API calls route through the proxy
 const PROXY_SHIM = `<script>
 (function() {
+  try {
+    Object.defineProperty(window, 'top', {
+      get: function() { return window.self; },
+      configurable: true
+    });
+    Object.defineProperty(window, 'parent', {
+      get: function() { return window.self; },
+      configurable: true
+    });
+  } catch(e) {}
+
   var PROXY_BASE = '${PROXY_BASE}';
   var TARGET_HOST = ''; // Set dynamically
 

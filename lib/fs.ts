@@ -154,7 +154,18 @@ export const FS = {
     
     // IndexedDB Fallback
     const file = await get(`file_${path}`);
-    return file || null;
+    if (!file) return null;
+    if (file.content instanceof Blob) {
+      const mime = file.mimeType || file.content.type || inferMimeType(file.name);
+      let content = '';
+      if (mime.startsWith('image/') || mime.startsWith('video/') || mime.includes('pdf') || mime.includes('octet-stream')) {
+        content = rememberObjectUrl(`read:${path}`, file.content);
+      } else {
+        content = await file.content.text();
+      }
+      return { ...file, content, mimeType: mime };
+    }
+    return file;
   },
 
   // Write a file to OPFS or IndexedDB
@@ -200,19 +211,17 @@ export const FS = {
       console.warn(`OPFS write failed for ${path}, falling back to IndexedDB`, e);
     }
     
-    // IndexedDB Fallback (Does not support massive Blobs efficiently without crashing)
-    let stringContent = typeof content === 'string' ? content : '';
-    if (content instanceof Blob && !stringContent) {
-       stringContent = 'blob:unsupported-in-idb'; // Avoid RAM crash on legacy
-    }
-
+    // IndexedDB Fallback — natively supports storing Blob objects and text strings
     await set(`file_${path}`, {
       id: path,
       name: path.split('/').pop() || 'unknown',
-      content: stringContent,
+      content: content, // Store Blob or string directly
       mimeType: resolvedMime,
       size: typeof content === 'string' ? content.length : content.size,
     });
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path } }));
+    }
   },
 
   // Create a directory in OPFS
