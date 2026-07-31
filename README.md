@@ -2,7 +2,19 @@
 
 ContinuaOS is a browser-based, local-first operating system designed to eliminate machine-switching and context-switching friction. Built for creators, founders, developers, and operators running multiple ventures, ContinuaOS lets you open your workspace on any device, close it, and reopen it on another—restoring windows, apps, files, and sessions exactly where you left off.
 
-It replaces 5-10 separate productivity, design, and development tools with one unified, beautiful desktop workspace.
+It replaces 5-10 separate productivity, design, and development tools with one unified, state-of-the-art desktop workspace.
+
+---
+
+## ✨ Key Features & Next-Iteration Architecture
+
+* **🖥️ Multi-Monitor & Satellite Display Sync**: Spawn satellite windows (`window.open('?display=2')`) and route applications across displays with real-time `BroadcastChannel` window synchronization.
+* **🔌 Hardware & Peripheral Subsystem**: WebUSB, Web Bluetooth, and File System Access API drivers to mount host C: drives, external hard drives, USB devices, and pair wireless headsets.
+* **🛍️ ContinuaOS App Store & PWA Manager**: Discover, install, uninstall, and launch PWAs and web integrations (Figma, GitHub, Notion, Spotify, VS Code Web, Linear, Canva, Slack).
+* **🐚 WebAssembly Linux Terminal Engine**: Run real Linux commands (`neofetch`, `htop`, `python`, `node`, `curl`, `ping`, `uname`, `uptime`, `env`) powered by WebAssembly.
+* **🤖 Offline WebGPU Local AI Engine**: 100% offline, zero-latency local LLM text generation using `navigator.gpu` without external API keys.
+* **🎵 MacBook NotchNook & Action Center**: Physical notch anchored to `top-0` with expandable Spotify mini-player, AirDrop P2P discovery, Wi-Fi, Bluetooth, Night Shift blue-light filter, and display/sound sliders. Toggle notch visibility anytime.
+* **📁 Smart "Open With..." Launcher**: Assign custom default applications per extension/MIME pattern with persistent smart route rules.
 
 ---
 
@@ -114,21 +126,21 @@ docker-compose -f docker-compose.self-hosted.yml up --build -d
 ```
 ╔═══════════════════════════════════════════════════════════╗
 ║  LAYER 3 — ECOSYSTEM (Venture Packs & App Store Apps)     ║
-║  [Creative Pack]  [Developer Pack]  [Hardware BOM Pack]   ║
+║  [Figma]  [GitHub]  [Notion]  [Spotify]  [VS Code Web]    ║
 ╠═══════════════════════════════════════════════════════════╣
-║  LAYER 2 — CORE APPS (Built-in Web Workspace Tools)       ║
-║  [Power Browser]  [Campaign Lab]  [Moodboard]  [Monaco]   ║
+║  LAYER 2 — CORE APPS & HARDWARE (Built-in Workspace)      ║
+║  [Multi-Monitor]  [Hardware Subsystem]  [WASM Terminal]  ║
 ╠═══════════════════════════════════════════════════════════╣
 ║  LAYER 1 — THE ENGINE (State, storage, security, sync)    ║
-║  IndexedDB (Local Files) ↔ Yjs Docs ↔ Supabase Postgres   ║
+║  IndexedDB / OPFS ↔ Yjs Docs ↔ WebGPU Local LLM           ║
 ║  Tauri IPC Sandboxing (Figma & Notion Frame Isolation)   ║
 ╚═══════════════════════════════════════════════════════════╝
 ```
 
-*   **Local-First Context Layer**: All user assets, system configs, and offline files are managed via a client-side database (IndexedDB/OPFS).
-*   **Encrypted Secrets**: Custom cloud integration tokens (Google Drive, Dropbox) are encrypted at rest (AES-256-CBC) before syncing to Supabase.
-*   **Window-Level Sandboxing**: Fatal app crashes are caught by isolated React `<ErrorBoundary>` containers inside `WindowFrame.tsx`, leaving the core OS runtime active and intact.
-*   **Storage Quota Management**: Prevents browser crashes by querying `navigator.storage.estimate()` before saving massive files offline.
+* **Local-First Context Layer**: All user assets, system configs, and offline files are managed via a client-side database (IndexedDB/OPFS).
+* **Encrypted Secrets**: Custom cloud integration tokens (Google Drive, Dropbox) are encrypted at rest (AES-256-CBC) before syncing to Supabase.
+* **Window-Level Sandboxing**: Fatal app crashes are caught by isolated React `<ErrorBoundary>` containers inside `WindowFrame.tsx`, leaving the core OS runtime active and intact.
+* **Storage Quota Management**: Prevents browser crashes by querying `navigator.storage.estimate()` before saving massive files offline.
 
 ---
 
@@ -144,10 +156,11 @@ npx playwright test
 
 ---
 
-## 📝 Configuration Directory
+## 📝 Documentation & Audit Reports
 
 | File | Purpose |
 |---|---|
+| [AUDIT.md](file:///home/zk3/workstation/experiments/ANICHISOM2/AUDIT.md) | Full architectural assessment, security model, and next-iteration roadmap |
 | [SETUP.md](file:///home/zk3/workstation/experiments/ANICHISOM2/SETUP.md) | In-depth credential configuration (Stripe, Resend, OAuth) |
 | [ARCHITECTURE.md](file:///home/zk3/workstation/experiments/ANICHISOM2/ARCHITECTURE.md) | Technical deep dive on layout systems & event state logs |
 | [VISION.md](file:///home/zk3/workstation/experiments/ANICHISOM2/VISION.md) | Product vision, business plan, and roadmap |
