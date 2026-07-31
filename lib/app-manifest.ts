@@ -44,6 +44,7 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
   'screen-recorder': () => import('@/components/apps/screen-recorder'),
   'media-player': () => import('@/components/apps/media-player'),
   'hardware-manager': () => import('@/components/apps/hardware-manager'),
+  'virtual-display-manager': () => import('@/components/apps/virtual-display-manager'),
   'asset-pipeline': () => import('@/components/apps/asset-pipeline'),
   'config-manager': () => import('@/components/apps/config-manager'),
   'side-gigs': () => import('@/components/apps/side-gigs-pack'),

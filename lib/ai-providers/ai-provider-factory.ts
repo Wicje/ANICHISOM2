@@ -16,6 +16,7 @@ import { OpenAIProvider } from './openai-provider';
 import { ClaudeProvider } from './claude-provider';
 import { QwenProvider } from './qwen-provider';
 import { LocalProvider } from './local-provider';
+import { WebGPUProvider } from './webgpu-provider';
 
 type ProviderConstructor = new (...args: any[]) => IAiProvider;
 
@@ -28,6 +29,7 @@ providerRegistry.set('openai', OpenAIProvider);
 providerRegistry.set('claude', ClaudeProvider);
 providerRegistry.set('qwen', QwenProvider);
 providerRegistry.set('local', LocalProvider);
+providerRegistry.set('webgpu', WebGPUProvider);
 
 /**
  * Register a custom AI provider (for plugins/extensions)

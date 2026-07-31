@@ -39,10 +39,11 @@ const DEFAULT_TITLES: Record<string, string> = {
   'code': 'Code Editor',
   'campaign': 'Campaign Lab',
   'hardware-manager': 'Hardware & Peripheral Subsystem',
+  'virtual-display-manager': 'Multi-Monitor Display Manager',
   'app-store': 'ContinuaOS App Store',
 };
 
-const SINGLE_INSTANCE_APPS = ['terminal', 'files', 'settings', 'store', 'campaign', 'admin', 'moodboard', 'image-viewer', 'browser', 'hardware-manager', 'app-store'];
+const SINGLE_INSTANCE_APPS = ['terminal', 'files', 'settings', 'store', 'campaign', 'admin', 'moodboard', 'image-viewer', 'browser', 'hardware-manager', 'virtual-display-manager', 'app-store'];
 
 export const useWindowStore = create<WindowState>((set, get) => ({
   windows: [],

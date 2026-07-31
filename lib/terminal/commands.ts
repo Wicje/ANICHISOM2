@@ -1,4 +1,5 @@
 import { VirtualFS, VFSEntry } from './virtual-fs';
+import { wasmTerminalEngine } from '@/lib/wasm-terminal';
 
 export type CommandResult = {
   output?: string;
@@ -309,11 +310,17 @@ export async function execute(input: string, ctx: CommandContext): Promise<Comma
   if (!cmd) return { output: '' };
 
   const handler = commands[cmd];
-  if (!handler) {
-    return { error: `command not found: ${cmd}. Type "help" for available commands.` };
+  if (handler) {
+    return handler(args, flags, ctx);
   }
 
-  return handler(args, flags, ctx);
+  // Fallback to WebAssembly Linux Engine
+  const wasmRes = await wasmTerminalEngine.executeCommand(input);
+  if (wasmRes.exitCode !== -1) {
+    return { output: wasmRes.output };
+  }
+
+  return { error: `command not found: ${cmd}. Type "help" for available commands.` };
 }
 
 export { VirtualFS };
