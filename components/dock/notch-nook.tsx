@@ -37,6 +37,7 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
   const trackArtist = track ? 'Local File' : 'Add audio files to play';
 
   const [spotifyToken, setSpotifyToken] = useState<string | null>(null);
+  const [spotifyTrack, setSpotifyTrack] = useState<any>(null);
   const openSpotifyApp = () => {
     try {
       const { useWindowStore } = require('@/lib/stores/window.store');
