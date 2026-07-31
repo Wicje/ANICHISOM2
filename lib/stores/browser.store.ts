@@ -254,6 +254,7 @@ export const useBrowserStore = create<BrowserState>((set, get) => ({
         set(updates);
         persistBrowser(get());
       }
+    }
     const currentTabs = get().tabs;
     if (!currentTabs || currentTabs.length === 0) {
       set({
