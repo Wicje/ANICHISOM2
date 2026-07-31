@@ -27,7 +27,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://localhost/*", "*://*.vercel.app/*"],
+      "matches": ["*://localhost/*", "*://127.0.0.1/*", "*://*.vercel.app/*", "<all_urls>"],
       "js": ["content.js"],
       "run_at": "document_start"
     }

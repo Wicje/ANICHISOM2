@@ -73,23 +73,18 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   const [searchEngine, setSearchEngine] = useState<'google' | 'duckduckgo' | 'bing'>('google');
   const [blockedTabs, setBlockedTabs] = useState<Set<string>>(new Set());
   const [extensionInstalled, setExtensionInstalled] = useState(false);
+  const [showExtensionModal, setShowExtensionModal] = useState(false);
   const [initWait, setInitWait] = useState(true);
   const iframeRefs = useRef<Map<string, HTMLIFrameElement>>(new Map());
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
-  if (!activeTab) return (
-    <div className="w-full h-full bg-[#f8fafc] dark:bg-[#1e293b] flex flex-col items-center justify-center">
-      <p className="text-sm opacity-50 mb-4">No tabs open.</p>
-      <button onClick={() => addTab()} className="px-4 py-2 bg-blue-500 text-white rounded font-medium">Open New Tab</button>
-    </div>
-  );
 
   useEffect(() => {
     loadPersisted();
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).__CONTINUA_EXTENSION_ACTIVE__) {
+    if (typeof window !== 'undefined' && ((window as any).__CONTINUA_EXTENSION_ACTIVE__ || document.getElementById('continua-extension-marker'))) {
       setExtensionInstalled(true);
     }
     const handler = () => setExtensionInstalled(true);
@@ -516,27 +511,40 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                   >
                     <Columns className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={() => {
-                      if (activeTab) {
-                        BrowserClipService.clipPage({
-                          url: activeTab.url,
-                          title: activeTab.title,
-                          source: 'power-browser',
-                        });
-                        openWindow('moodboard', 'Moodboard Canvas');
-                        window.dispatchEvent(new CustomEvent('os:notify', {
-                          detail: { title: 'Clipped to Moodboard', description: `${activeTab.title || 'Page'} added to Canvas`, type: 'success' },
-                        }));
-                      }
-                    }}
-                    className="hover:text-black hover:bg-rose-50 rounded p-1.5 transition-colors text-rose-500"
-                    title="Clip to Moodboard"
-                  >
-                    <Scissors className="w-4 h-4" />
-                  </button>
+                    <button
+                      onClick={() => setShowExtensionModal(true)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold border transition-all",
+                        extensionInstalled
+                          ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/20"
+                          : "bg-amber-500/10 text-amber-600 border-amber-500/30 hover:bg-amber-500/20 animate-pulse"
+                      )}
+                      title={extensionInstalled ? "Continua Extension Active (Bypassing X-Frame-Options)" : "Continua Extension Offline (Click to Install)"}
+                    >
+                      <Zap className={cn("w-3.5 h-3.5", extensionInstalled ? "fill-emerald-500 text-emerald-500" : "fill-amber-500 text-amber-500")} />
+                      <span className="hidden sm:inline">{extensionInstalled ? 'Bridge Active' : 'Enable Extension'}</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (activeTab) {
+                          BrowserClipService.clipPage({
+                            url: activeTab.url,
+                            title: activeTab.title,
+                            source: 'power-browser',
+                          });
+                          openWindow('moodboard', 'Moodboard Canvas');
+                          window.dispatchEvent(new CustomEvent('os:notify', {
+                            detail: { title: 'Clipped to Moodboard', description: `${activeTab.title || 'Page'} added to Canvas`, type: 'success' },
+                          }));
+                        }
+                      }}
+                      className="hover:text-black hover:bg-rose-50 rounded p-1.5 transition-colors text-rose-500"
+                      title="Clip to Moodboard"
+                    >
+                      <Scissors className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-              </div>
               {loading && (
                 <div className="h-0.5 w-full overflow-hidden" style={{ background: 'var(--os-border)' }}>
                   <div
@@ -617,6 +625,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                       <BlockedSiteFallback
                         url={tab.url}
                         onOpenExternal={openExternal}
+                        onOpenExtensionModal={() => setShowExtensionModal(true)}
                         onTryProxy={() => {
                           setBlockedTabs(prev => {
                             const next = new Set(prev);
@@ -706,6 +715,12 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
           </div>
         </div>
       )}
+
+      <ExtensionGuideModal
+        isOpen={showExtensionModal}
+        onClose={() => setShowExtensionModal(false)}
+        extensionInstalled={extensionInstalled}
+      />
     </div>
   );
 }
@@ -793,46 +808,166 @@ function BlockedSiteFallback({
   url,
   onOpenExternal,
   onTryProxy,
+  onOpenExtensionModal,
 }: {
   url: string;
   onOpenExternal: (url: string) => void;
   onTryProxy: () => void;
+  onOpenExtensionModal?: () => void;
 }) {
   const hostname = getHostname(url);
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-8 max-w-md w-full mx-4 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto mb-5">
-          <AlertTriangle className="w-8 h-8 text-amber-500" />
+        <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center mx-auto mb-5">
+          <ShieldAlert className="w-8 h-8 text-indigo-600" />
         </div>
         <h3 className="text-xl font-semibold text-slate-800 mb-2">
-          This site blocks embedding
+          Site Embedding Protected
         </h3>
         <p className="text-sm text-slate-500 mb-1">
-          <span className="font-medium text-slate-700">{hostname}</span> doesn&apos;t allow
-          loading inside the browser for security reasons.
+          <span className="font-medium text-slate-700">{hostname}</span> requires header stripping via the Continua Chrome Extension.
         </p>
         <p className="text-xs text-slate-400 mb-6">
-          This is a restriction set by the website, not by ContinuaOS.
+          Install the 1-click Continua Extension to bypass X-Frame-Options and load any website natively inside ContinuaOS.
         </p>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
+          {onOpenExtensionModal && (
+            <button
+              onClick={onOpenExtensionModal}
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-indigo-500/20"
+            >
+              <Zap className="w-4 h-4 fill-white" />
+              Enable Continua Extension (15s Setup)
+            </button>
+          )}
           <button
             onClick={() => onOpenExternal(url)}
-            className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
+            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-xl transition-colors"
           >
             <ExternalLink className="w-4 h-4" />
             Open as App Window
           </button>
           <button
             onClick={onTryProxy}
-            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-xl transition-colors"
+            className="flex items-center justify-center gap-2 w-full px-4 py-2 text-slate-500 hover:text-slate-700 text-xs font-medium transition-colors"
           >
-            <RotateCw className="w-4 h-4" />
-            Try Loading Again
+            <RotateCw className="w-3.5 h-3.5" />
+            Try Loading Fallback Proxy
           </button>
           <div className="text-[10px] text-slate-400 mt-1">
             {url.length > 60 ? url.substring(0, 60) + '...' : url}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ExtensionGuideModal({
+  isOpen,
+  onClose,
+  extensionInstalled,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  extensionInstalled: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+  const folderPath = 'chrome-extension';
+
+  if (!isOpen) return null;
+
+  const handleCopyPath = () => {
+    navigator.clipboard.writeText(folderPath);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-slate-900 text-slate-100 rounded-2xl border border-slate-800 shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="px-6 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+              <Zap className="w-5 h-5 fill-indigo-400" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-white">Continua Context Bridge Extension</h3>
+              <p className="text-xs text-slate-400">Unlock native iframe embedding for Google, GitHub & YouTube</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {extensionInstalled ? (
+            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3 text-emerald-400">
+              <Check className="w-6 h-6 shrink-0" />
+              <div>
+                <h4 className="font-bold text-sm text-emerald-300">Extension is Active & Connected</h4>
+                <p className="text-xs text-emerald-400/80">X-Frame-Options and CSP headers are automatically stripped for all web origins.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs leading-relaxed">
+                Modern sites (Google, Notion, Figma) set security headers blocking standard iframe embeds. The Continua extension removes these headers in real time.
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">1</div>
+                  <div className="text-xs text-slate-300">
+                    Open <code className="px-1.5 py-0.5 bg-slate-800 rounded text-amber-400 font-mono">chrome://extensions</code> in Chrome, Brave, or Edge.
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">2</div>
+                  <div className="text-xs text-slate-300">
+                    Turn ON <strong className="text-white">Developer mode</strong> in the top right corner.
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">3</div>
+                  <div className="text-xs text-slate-300 space-y-2">
+                    <p>Click <strong className="text-white">Load unpacked</strong> and select the extension folder:</p>
+                    <div className="flex items-center gap-2 p-2 bg-slate-950 border border-slate-800 rounded-lg">
+                      <code className="font-mono text-xs text-indigo-300 flex-1">{folderPath}</code>
+                      <button
+                        onClick={handleCopyPath}
+                        className="px-2.5 py-1 text-[11px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors"
+                      >
+                        {copied ? 'Copied!' : 'Copy Path'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/50 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs">
+            <span className={cn("w-2 h-2 rounded-full animate-pulse", extensionInstalled ? "bg-emerald-400" : "bg-amber-400")} />
+            <span className="text-slate-400">
+              Status: <strong className={extensionInstalled ? "text-emerald-400" : "text-amber-400"}>{extensionInstalled ? 'Active' : 'Not Detected'}</strong>
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-semibold bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>
