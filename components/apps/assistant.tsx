@@ -19,66 +19,6 @@ const APP_LIST_FOR_AI = APP_MANIFEST.map(a => `${a.id}: ${a.title} — ${a.descr
 const INITIAL_MESSAGE: { role: 'ai'; text: string } = { role: 'ai', text: 'Hello! I am your OS System Assistant. I can open apps, change themes, toggle shaders, or answer questions using Claude, Gemini, Qwen, or other AI models. What can I do for you?' };
 
 export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
-  const [isVoiceActive, setIsVoiceActive] = useState(false);
-
-  return (
-    <div className="w-full h-full flex flex-col bg-slate-950 text-white relative font-sans overflow-hidden">
-      
-      {/* Top Floating AI Voice Bar (ref_ui2.jpg inspired) */}
-      <div className="p-3 border-b border-white/10 bg-slate-900/80 backdrop-blur-xl flex items-center justify-between gap-4 select-none">
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => openWindow('terminal')} 
-            className="w-10 h-10 rounded-2xl bg-neutral-900 border border-white/20 flex items-center justify-center text-emerald-400 font-mono font-bold shadow-lg hover:scale-105 transition-transform"
-            title="Open System Terminal"
-          >
-            &gt;_
-          </button>
-        </div>
-
-        {/* Dynamic Voice Equalizer Wave Pill */}
-        <div className="flex-1 max-w-sm h-12 bg-neutral-900/90 border border-white/15 rounded-full px-4 flex items-center justify-between shadow-2xl relative">
-          <button 
-            onClick={() => setIsVoiceActive(!isVoiceActive)} 
-            className={cn("w-7 h-7 rounded-full flex items-center justify-center transition-colors", isVoiceActive ? "bg-rose-500/20 text-rose-400 border border-rose-500/40" : "bg-white/10 text-white/60 hover:bg-white/20")}
-            title="Voice Mic Input"
-          >
-            🎙️
-          </button>
-
-          {/* Equalizer Wave Bubbles */}
-          <div className="flex items-center gap-1">
-            {[14, 24, 38, 24, 14].map((h, i) => (
-              <div 
-                key={i} 
-                className={cn("w-3.5 bg-white rounded-full transition-all duration-300", isVoiceActive && "animate-pulse")} 
-                style={{ height: isVoiceActive ? `${h}px` : '10px' }} 
-              />
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-lg bg-black text-white border border-white/20 flex items-center justify-center text-[10px] font-black">
-              ✨
-            </span>
-            <button 
-              onClick={() => setIsVoiceActive(false)} 
-              className="w-7 h-7 rounded-full bg-rose-500/20 hover:bg-rose-500/40 text-rose-400 font-bold text-xs flex items-center justify-center transition-colors"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setShowSettings(!showSettings)} 
-            className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold transition-colors flex items-center gap-1.5"
-          >
-            <Settings2 className="w-3.5 h-3.5" /> Models
-          </button>
-        </div>
-      </div>
   const { openWindow, setThemeColor, setScreenShader, notify, workspaceMode } = useOS();
   const storage = useMemo(() => new StorageAdapter('assistant', workspaceMode), [workspaceMode]);
   const [input, setInput] = useState('');
@@ -91,6 +31,7 @@ export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
   const [availableModels, setAvailableModels] = useState<AiModelInfo[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
+  const [isVoiceActive, setIsVoiceActive] = useState(false);
 
   // View mode: 'chat' (default) or 'mindpalace'
   const [viewMode, setViewMode] = useState<ViewMode>('chat');
@@ -98,9 +39,8 @@ export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
   // MindPalace state
   const [mpTab, setMpTab] = useState<'home' | 'remember' | 'settings'>('home');
   const [futureCards, setFutureCards] = useState([
-    { id: 1, text: 'Learn to use the Campaign Lab for marketing workflows', done: false },
+    { id: 1, text: 'Brainstorm brand direction for client presentation', done: true },
     { id: 2, text: 'Set up my creative workspace with Moodboard', done: false },
-    { id: 3, text: 'Explore the Hardware Pack for 3D model viewing', done: false },
   ]);
   const [mpSearchInput, setMpSearchInput] = useState('');
   const [mpFutureInput, setMpFutureInput] = useState('');
@@ -120,16 +60,17 @@ export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
         const defaultProvider = getDefaultProviderId();
         setSelectedProvider(defaultProvider);
 
-        if (models.length > 0) {
-          const defaultModel = models[0]!.id;
-          setSelectedModel(defaultModel);
+        const providerObj = getAiProvider(defaultProvider);
+        if (providerObj) {
+          const pModels = await providerObj.getAvailableModels();
+          if (pModels.length > 0) {
+            setSelectedModel(pModels[0].id);
+          }
         }
-      } catch (error) {
-        console.error('[Assistant] Failed to initialize AI providers:', error);
-        notify('Assistant', { body: 'Failed to load AI providers' });
+      } catch (err) {
+        console.error('Failed to initialize AI providers:', err);
       }
     };
-
     initProviders();
 
     // Load chat history
@@ -457,13 +398,50 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
   return (
     <div className="flex flex-col w-full h-full bg-[#111] text-white font-sans overflow-hidden">
       
-      {/* Header */}
-      <div className="h-16 border-b border-white/10 bg-black/50 flex items-center justify-between px-4 shrink-0 gap-4">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shadow-[0_0_15px_rgba(139,92,246,0.5)] shrink-0">
-             <Sparkles className="w-4 h-4 text-white" />
+      {/* Header with ChatGPT AI Voice Bar (ref_ui2.jpg inspired) */}
+      <div className="p-3 border-b border-white/10 bg-slate-900/90 backdrop-blur-xl flex items-center justify-between gap-3 shrink-0 select-none">
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => openWindow('terminal')} 
+            className="w-9 h-9 rounded-xl bg-neutral-900 border border-white/20 flex items-center justify-center text-emerald-400 font-mono font-bold text-xs shadow-md hover:scale-105 transition-transform"
+            title="Open System Terminal"
+          >
+            &gt;_
+          </button>
+        </div>
+
+        {/* Dynamic Voice Equalizer Wave Pill */}
+        <div className="flex-1 max-w-xs h-10 bg-neutral-900/90 border border-white/15 rounded-full px-3 flex items-center justify-between shadow-xl relative">
+          <button 
+            onClick={() => setIsVoiceActive(!isVoiceActive)} 
+            className={cn("w-6 h-6 rounded-full flex items-center justify-center text-xs transition-colors", isVoiceActive ? "bg-rose-500/20 text-rose-400 border border-rose-500/40" : "bg-white/10 text-white/60 hover:bg-white/20")}
+            title="Voice Mic Input"
+          >
+            🎙️
+          </button>
+
+          {/* Equalizer Wave Bubbles */}
+          <div className="flex items-center gap-1">
+            {[10, 18, 28, 18, 10].map((h, i) => (
+              <div 
+                key={i} 
+                className={cn("w-2.5 bg-white rounded-full transition-all duration-300", isVoiceActive && "animate-pulse")} 
+                style={{ height: isVoiceActive ? `${h}px` : '8px' }} 
+              />
+            ))}
           </div>
-          <span className="font-bold text-sm tracking-wide">System AI</span>
+
+          <div className="flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded-md bg-black text-white border border-white/20 flex items-center justify-center text-[9px] font-black">
+              ✨
+            </span>
+            <button 
+              onClick={() => setIsVoiceActive(false)} 
+              className="w-5 h-5 rounded-full bg-rose-500/20 hover:bg-rose-500/40 text-rose-400 font-bold text-[10px] flex items-center justify-center transition-colors"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Provider & Model Selector */}

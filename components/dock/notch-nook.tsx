@@ -198,7 +198,6 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                   </button>
                 </div>
               </div>
-              <div className="flex items-center gap-6">
               {/* Tab indicators */}
               <div className="flex flex-col gap-2 shrink-0 bg-white/5 p-1 rounded-full ring-1 ring-white/10">
                 <button
