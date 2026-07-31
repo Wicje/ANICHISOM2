@@ -91,7 +91,7 @@ export async function requireSession(request: NextRequest): Promise<SessionResul
   return {
     ok: true,
     userId: user.id,
-    userRole: (user.user_metadata as any)?.role || 'filmmaker',
+    userRole: (user.user_metadata as any)?.role || 'user',
   };
 }
 
@@ -112,12 +112,12 @@ export function checkRouteRateLimit(
   userId?: string
 ): NextResponse | null {
   const config = RATE_LIMITS[limitKey];
-  // Parse rightmost IP from x-forwarded-for (original client behind trusted proxy).
-  // On Vercel, this header is set by infrastructure and cannot be spoofed by clients.
+  // Prioritize trusted Vercel headers x-vercel-forwarded-for / x-real-ip
+  const vercelIp = request.headers.get('x-vercel-forwarded-for') || request.headers.get('x-real-ip');
   const forwardedFor = request.headers.get('x-forwarded-for');
-  const clientIp = forwardedFor
-    ? forwardedFor.split(',').pop()?.trim() || 'unknown'
-    : request.headers.get('x-client-ip') || 'unknown';
+  const clientIp = vercelIp || (forwardedFor
+    ? forwardedFor.split(',')[0]?.trim() || 'unknown'
+    : request.headers.get('x-client-ip') || 'unknown');
   const key = userId ? `${limitKey}:${userId}` : `${limitKey}:${clientIp}`;
   const result = checkRateLimit(key, config.max, config.windowMs);
 

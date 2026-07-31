@@ -71,8 +71,8 @@ class HardwareManagerService {
       window.dispatchEvent(
         new CustomEvent('os:notify', {
           detail: {
-            title: 'USB Device Mounted',
-            description: `Successfully attached ${dev.name}`,
+            title: 'USB Device Connected',
+            description: `Successfully paired ${dev.name}`,
             type: 'success',
           },
         })
@@ -113,11 +113,24 @@ class HardwareManagerService {
         id: `bt-${device.id || Date.now()}`,
         name: device.name || 'Bluetooth Peripheral',
         type: 'bluetooth',
-        status: 'connected',
-        details: 'GATT Connected | Active Wireless Stream',
+        status: 'pairing',
+        details: 'Connecting to GATT Server...',
       };
 
       this.devices.set(dev.id, dev);
+      this.notify();
+
+      if (device.gatt) {
+        try {
+          await device.gatt.connect();
+          dev.status = 'connected';
+          dev.details = 'GATT Server Connected | Active Wireless Stream';
+        } catch {
+          dev.status = 'disconnected';
+          dev.details = 'GATT Connection Failed';
+        }
+        this.notify();
+      }
       this.notify();
 
       window.dispatchEvent(

@@ -63,8 +63,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await supabase.auth.signOut();
     } catch { /* ignore */ }
     writeDomain(AUTH_DOMAIN, null);
-    localStorage.removeItem('continuaos_terminal_history');
-    localStorage.removeItem('continuaos_fs_current_path');
+    try {
+      const { clear } = await import('idb-keyval');
+      await clear();
+    } catch {}
+    const keysToRemove = [
+      'continuaos_terminal_history',
+      'continuaos_fs_current_path',
+      'continuaos_desktop_sync',
+      'continuaos_onboarding_apps_installed',
+      'continuaos_os_user_cache',
+      'continua-auth',
+      'continua-desktop',
+      'continua-workspace',
+      'continua-browser',
+    ];
+    keysToRemove.forEach((k) => {
+      try { localStorage.removeItem(k); } catch {}
+    });
     window.location.reload();
   },
 

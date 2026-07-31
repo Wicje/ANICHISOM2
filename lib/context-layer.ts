@@ -27,11 +27,23 @@ interface ContextLayerConfig {
   deviceId: string;
 }
 
+function getPersistentDeviceId(): string {
+  if (typeof window !== 'undefined') {
+    let stored = localStorage.getItem('continuaos_device_id');
+    if (!stored) {
+      stored = typeof crypto !== 'undefined' ? crypto.randomUUID().slice(0, 8) : 'device-' + Math.random().toString(36).substring(2, 6);
+      try { localStorage.setItem('continuaos_device_id', stored); } catch {}
+    }
+    return stored;
+  }
+  return 'unknown';
+}
+
 const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let config: ContextLayerConfig = {
   mode: 'private',
   userId: null,
-  deviceId: typeof crypto !== 'undefined' ? crypto.randomUUID().slice(0, 8) : 'unknown',
+  deviceId: getPersistentDeviceId(),
 };
 
 // ─── Offline Awareness ─────────────────────────────────────────
@@ -90,6 +102,11 @@ export async function writeDomain<T>(domain: string, data: T): Promise<void> {
     await idbSet(`${STORAGE_PREFIX}${domain}`, data);
   } catch (e) {
     console.warn(`[ContextLayer] Write failed for ${domain}:`, e);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('os:sync-error', {
+        detail: { domain, error: String(e) }
+      }));
+    }
   }
 
   measure(`ctx:write:${domain}`);

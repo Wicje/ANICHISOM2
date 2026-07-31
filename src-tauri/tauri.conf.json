@@ -13,14 +13,15 @@
     "windows": [
       {
         "title": "Continua OS",
-        "width": 800,
-        "height": 600,
+        "width": 1280,
+        "height": 800,
+        "maximized": true,
         "resizable": true,
         "fullscreen": false
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self' ipc: http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; frame-src *"
     }
   },
   "bundle": {

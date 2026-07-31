@@ -88,7 +88,14 @@ function persistBrowser(state: BrowserState) {
   persistTimer = setTimeout(() => {
     writeDomain(DOMAIN, {
       pinnedApps: state.pinnedApps,
-      tabs: state.tabs.map(t => ({ id: t.id, url: t.url, title: t.title, pinnedAppId: t.pinnedAppId })),
+      tabs: state.tabs.map(t => ({
+        id: t.id,
+        url: t.url,
+        title: t.title,
+        pinnedAppId: t.pinnedAppId,
+        history: t.history || [t.url],
+        historyIndex: t.historyIndex ?? 0,
+      })),
       bookmarks: state.bookmarks,
     });
   }, 2000);

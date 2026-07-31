@@ -62,10 +62,36 @@ export async function initSessionEncryption(passphrase: string): Promise<void> {
 
 /**
  * Initialize from a random key (for non-passphrase flows).
+ * Persists key bytes in sessionStorage so encrypted data survives tab reload.
  */
 export async function initSessionKeyRandom(): Promise<void> {
-  masterKey = await generateKey();
+  if (typeof window !== 'undefined') {
+    const cachedKey = sessionStorage.getItem('continuaos_session_random_key');
+    if (cachedKey) {
+      try {
+        const raw = base64ToUint8(cachedKey);
+        masterKey = await crypto.subtle.importKey('raw', raw, 'AES-GCM', true, ['encrypt', 'decrypt']);
+        isUnlocked = true;
+        return;
+      } catch {}
+    }
+  }
+
+  // Generate exportable key for sessionStorage mirroring
+  const key = await crypto.subtle.generateKey(
+    { name: 'AES-GCM', length: 256 },
+    true,
+    ['encrypt', 'decrypt'],
+  );
+  masterKey = key;
   isUnlocked = true;
+
+  if (typeof window !== 'undefined') {
+    try {
+      const exported = await crypto.subtle.exportKey('raw', key);
+      sessionStorage.setItem('continuaos_session_random_key', uint8ToBase64(new Uint8Array(exported)));
+    } catch {}
+  }
 }
 
 /**

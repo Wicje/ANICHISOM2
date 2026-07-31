@@ -134,7 +134,7 @@ export interface PasswordHash {
  */
 export async function hashPassword(
   password: string,
-  iterations = 100_000,
+  iterations = 600_000,
 ): Promise<PasswordHash> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const encoder = new TextEncoder();
@@ -163,6 +163,16 @@ export async function hashPassword(
     salt: bufferToBase64(salt.buffer as ArrayBuffer),
     iterations,
   };
+}
+
+// Constant-time compare function (timing safe)
+function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a[i]! ^ b[i]!;
+  }
+  return diff === 0;
 }
 
 /**
@@ -194,7 +204,9 @@ export async function verifyPassword(
     256,
   );
 
-  return bufferToBase64(bits) === stored.hash;
+  const calculated = new Uint8Array(bits);
+  const expected = new Uint8Array(base64ToBuffer(stored.hash));
+  return timingSafeEqual(calculated, expected);
 }
 
 // ─── Utility ──────────────────────────────────────────────────────────────

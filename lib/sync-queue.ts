@@ -39,7 +39,9 @@ export class SyncQueue {
   private pendingPersistMutations = 0;
 
   constructor() {
-    this.loadFromIndexedDB();
+    if (typeof window !== 'undefined') {
+      this.loadFromIndexedDB();
+    }
   }
 
   /**
@@ -53,6 +55,11 @@ export class SyncQueue {
       const oldestId = Array.from(this.queue.keys())[0];
       if (oldestId) {
         this.queue.delete(oldestId);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('os:sync-dropped', {
+            detail: { count: 1, lastDroppedId: oldestId }
+          }));
+        }
       }
     }
 
@@ -65,7 +72,7 @@ export class SyncQueue {
     });
 
     this.schedulePersist();
-    this.triggerProcessing();
+    this.scheduleProcess(0); // process immediately
   }
 
   /**

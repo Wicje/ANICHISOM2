@@ -117,13 +117,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     persistWorkspace(get());
   },
 
-  restoreSnapshot: (id) => get().snapshots.find(s => s.id === id) || null,
+  restoreSnapshot: (id) => {
+    const snapshot = get().snapshots.find(s => s.id === id) || null;
+    if (snapshot) {
+      const { useWindowStore } = require('./window.store');
+      useWindowStore.getState().setWindows(snapshot.windows);
+    }
+    return snapshot;
+  },
   setWorkspaceId: (workspaceId) => { set({ workspaceId }); persistWorkspace(get()); },
   setWorkspaces: (workspaces) => set({ workspaces }),
   setMode: (mode) => { set({ mode }); persistWorkspace(get()); },
 
   emitEvent: (eventData) => {
-    const event: Event = { ...eventData, id: crypto.randomUUID(), timestamp: new Date() };
+    const { getContextLayerConfig } = require('../context-layer');
+    if (getContextLayerConfig().mode !== 'agency') return;
+    const event: Event = { ...eventData, id: crypto.randomUUID(), timestamp: Date.now() as any };
     syncQueue.enqueue(event);
   },
 

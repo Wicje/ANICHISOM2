@@ -5,7 +5,12 @@
  * syncs it to the Continua workspace via the Context Layer API.
  */
 
-const CONTINUA_URL = 'http://localhost:3000'; // Will be configurable
+let CONTINUA_URL = 'http://localhost:3000';
+if (typeof chrome !== 'undefined' && chrome.storage?.sync) {
+  chrome.storage.sync.get(['continuaUrl'], (result) => {
+    if (result.continuaUrl) CONTINUA_URL = result.continuaUrl;
+  });
+}
 const SYNC_INTERVAL = 30000; // Sync every 30 seconds
 
 // Tool-specific context detectors (loaded from detectors.js via importScripts)
@@ -42,13 +47,15 @@ async function captureTabContext(tabId) {
           // Extract selected text
           const selection = window.getSelection()?.toString()?.slice(0, 500) || '';
 
-          // Extract page colors (computed from key elements)
-          const colors = new Set<string>();
-          document.querySelectorAll('*').forEach(el => {
-            const style = window.getComputedStyle(el);
-            if (style.color && style.color !== 'rgb(0, 0, 0)') colors.add(style.color);
-            if (style.backgroundColor && style.backgroundColor !== 'rgba(0, 0, 0, 0)') colors.add(style.backgroundColor);
-          });
+          // Extract page colors (computed from key elements, capped to top 100)
+          const colors = new Set();
+          Array.from(document.querySelectorAll('body, header, nav, main, section, footer, button, a, h1, h2, h3'))
+            .slice(0, 100)
+            .forEach(el => {
+              const style = window.getComputedStyle(el);
+              if (style.color && style.color !== 'rgb(0, 0, 0)') colors.add(style.color);
+              if (style.backgroundColor && style.backgroundColor !== 'rgba(0, 0, 0, 0)') colors.add(style.backgroundColor);
+            });
 
           return {
             title: document.title,
