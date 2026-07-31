@@ -15,7 +15,7 @@ interface ControlCenterProps {
 
 export function HomeWidgetPanel({ className }: ControlCenterProps) {
   const { volume, setVolume, colorMode, setColorMode, screenShader, setScreenShader } = useThemeStore();
-  const { isActive: focusActive, toggleFocus } = useFocusStore();
+  const { enabled: focusActive, toggle: toggleFocus } = useFocusStore();
   
   const [brightness, setBrightnessState] = useState(80);
   const [weather, setWeather] = useState<{ temp: number; desc: string; icon: string }>({ temp: 72, desc: 'Sunny', icon: '☀️' });

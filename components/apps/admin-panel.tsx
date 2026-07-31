@@ -7,7 +7,7 @@ import { ShieldCheck, UserCheck, UserX, Key, RefreshCw, Loader2, AppWindow, Plus
 import { cn } from '@/lib/utils';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from 'recharts';
 
-export function AdminPanel({ window }: { window: OSWindow }) {
+export function AdminPanel({ window: osWindow }: { window: OSWindow }) {
   const { currentUser } = useOS();
   const [activeTab, setActiveTab] = useState<'dashboard'|'users'|'apps'|'invites'|'marketplace'>('dashboard');
   

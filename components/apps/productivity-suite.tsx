@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
 import { FileText, Grid, Presentation, FileCode, Printer, Share2, Save, X, Type, Image as ImageIcon, Download, Plus, Trash2, Pencil, Copy, PanelLeft, Undo2, Redo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
