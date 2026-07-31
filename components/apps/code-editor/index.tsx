@@ -67,20 +67,22 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
   };
 
   useEffect(() => {
-    if (editorReady && workspaceMode === 'agency' && collab.synced && editorRef.current) {
-       const yText = collab.sharedTypesRef.current.monaco;
+    if (editorReady && editorRef.current && (workspaceMode === 'agency' || collab.synced)) {
+       const yText = collab.sharedTypesRef.current?.monaco;
        const wsProvider = collab.wsProviderRef.current;
-       if (!yText || !wsProvider) return;
+       if (!yText) return;
 
        if (bindingRef.current) {
          try { bindingRef.current.destroy(); } catch {}
          bindingRef.current = null;
        }
 
-       const binding = new MonacoBinding(yText, editorRef.current.getModel(), new Set([editorRef.current]), wsProvider.awareness);
-       bindingRef.current = binding;
+       if (wsProvider) {
+         const binding = new MonacoBinding(yText, editorRef.current.getModel(), new Set([editorRef.current]), wsProvider.awareness);
+         bindingRef.current = binding;
+       }
     }
-  }, [editorReady, workspaceMode, collab.synced, collab.connected]);
+  }, [editorReady, workspaceMode, collab.synced, collab.connected, roomId]);
 
   // Cleanup: destroy MonacoBinding (Y.Doc + WS provider owned by useCollaborativeDoc)
   useEffect(() => {

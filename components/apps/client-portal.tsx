@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useBrandStore, BrandGuidelines } from '@/lib/stores/brand.store';
 import { useMoodboardStore, MoodboardBoard } from '@/lib/stores/moodboard.store';
 import { useCampaignStore } from '@/lib/stores/campaign.store';
+import { useAuthStore } from '@/lib/stores/auth.store';
 
 type PortalTab = 'overview' | 'moodboard' | 'proposals' | 'brand' | 'comments';
 
@@ -28,19 +29,25 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
   const [comments, setComments] = useState<PortalComment[]>([]);
   const [proposalStatus, setProposalStatus] = useState('Pending Review');
 
-  useEffect(() => {
-    const saved = localStorage.getItem('client-portal-comments');
-    if (saved) {
-      try { setComments(JSON.parse(saved)); } catch (e) {}
-    }
-  }, []);
+  const projectId = osWindow.data?.projectId || 'global';
+  const storageKey = `client-portal-comments-${projectId}`;
 
   useEffect(() => {
-    localStorage.setItem('client-portal-comments', JSON.stringify(comments));
-  }, [comments]);
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try { setComments(JSON.parse(saved)); } catch (e) {}
+    } else {
+      setComments([]);
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify(comments));
+  }, [comments, storageKey]);
 
   const brands = useBrandStore((s) => Object.values(s.brands));
   const boards = useMoodboardStore((s) => Object.values(s.boards));
+  const currentUser = useAuthStore((s) => s.currentUser);
   const { pages, getCampaignPages } = useCampaignStore();
   const linkedBrand = brands[0] || null;
   const linkedBoard = boards[0] || null;
@@ -75,7 +82,7 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
       ...prev,
       {
         id: `c_${Date.now()}`,
-        author: 'Client', // TODO: sync with user
+        author: currentUser?.name || 'Client',
         text: newComment.trim(),
         timestamp: Date.now(),
         section: activeTab,

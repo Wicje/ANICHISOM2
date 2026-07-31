@@ -97,7 +97,10 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
   };
 
   const applyWatermark = async () => {
-     if(images.length === 0) return alert('No images imported to watermark!');
+     if(images.length === 0) {
+       window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'No Images', description: 'No images imported to watermark!', type: 'error' } }));
+       return;
+     }
      setIsWatermarking(true);
      
      for (const img of images) {
@@ -142,7 +145,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
      
      await loadImages();
      setIsWatermarking(false);
-     alert('Batch watermarking complete! New files saved with WM_ prefix.');
+     window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Watermark Complete', description: 'Batch watermarking complete! New files saved with WM_ prefix.', type: 'success' } }));
   };
   
   return (
@@ -316,7 +319,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                                  title="Copy Link"
                                  onClick={() => {
                                     navigator.clipboard.writeText(`https://delivery.continuaos.com/g/${gallery.id}`);
-                                    alert('Delivery link copied to clipboard!');
+                                    window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Link Copied', description: 'Delivery link copied to clipboard!', type: 'success' } }));
                                  }}
                                >
                                   <Copy className="w-4 h-4" />

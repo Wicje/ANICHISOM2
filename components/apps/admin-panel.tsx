@@ -83,10 +83,10 @@ export function AdminPanel({ window }: { window: OSWindow }) {
       if (json.ok) {
         fetchSubmissions();
       } else {
-        alert(json.error || 'Failed to review');
+        window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Review Failed', description: json.error || 'Failed to review', type: 'error' } }));
       }
     } catch (e: any) {
-      alert('Error: ' + e.message);
+      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Review Error', description: e.message, type: 'error' } }));
     }
   };
 
@@ -106,12 +106,14 @@ export function AdminPanel({ window }: { window: OSWindow }) {
       if (json.success) {
         fetchInvites();
         const newCodes = json.data?.codes?.map((c: any) => c.code).join(', ') || '';
-        if (newCodes) alert(`Generated codes:\n${newCodes}`);
+        if (newCodes) {
+          window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Invite Codes Generated', description: `Codes: ${newCodes}`, type: 'success' } }));
+        }
       } else {
-        alert(json.error || 'Failed to generate codes');
+        window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Generation Failed', description: json.error || 'Failed to generate codes', type: 'error' } }));
       }
     } catch (e: any) {
-      alert('Error: ' + e.message);
+      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Generation Error', description: e.message, type: 'error' } }));
     } finally {
       setGenerating(false);
     }
@@ -179,9 +181,9 @@ export function AdminPanel({ window }: { window: OSWindow }) {
   const handleResetPassword = async (email: string) => {
     try {
       await getSupabase().auth.resetPasswordForEmail(email);
-      alert(`Password reset email sent to ${email}`);
+      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Password Reset', description: `Password reset email sent to ${email}`, type: 'success' } }));
     } catch (e: any) {
-      alert(`Error sending reset email: ${e.message}`);
+      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Reset Error', description: e.message, type: 'error' } }));
     }
   };
 
@@ -201,7 +203,7 @@ export function AdminPanel({ window }: { window: OSWindow }) {
         ownerId: currentUser.id
       }, { onConflict: 'id' });
     } catch (e: any) {
-      alert('Error adding app: ' + e.message);
+      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Add App Error', description: e.message, type: 'error' } }));
     }
   };
 
@@ -210,7 +212,7 @@ export function AdminPanel({ window }: { window: OSWindow }) {
     try {
       await getSupabase().from('apps').delete().eq('id', id);
     } catch(e: any) {
-      alert('Error deleting app: ' + e.message);
+      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Delete App Error', description: e.message, type: 'error' } }));
     }
   };
 

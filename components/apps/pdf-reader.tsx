@@ -54,15 +54,16 @@ export function PdfReader({ window }: { window: OSWindow }) {
       {/* Reader Area */}
       <div className="flex-1 overflow-hidden flex justify-center bg-[#525659] p-4">
         {pdfUrl ? (
-          <div className="w-full h-full overflow-hidden flex justify-center">
+          <div className="w-full h-full overflow-auto flex justify-center">
             <iframe 
                src={`${pdfUrl}#view=FitH`} 
-               className="shadow-2xl bg-white origin-top"
+               className="shadow-2xl bg-white transition-all duration-200"
                style={{
-                 width: '100%',
-                 height: '100%',
-                 transform: `scale(${zoom / 100})`,
-                 transformOrigin: 'top center',
+                 width: `${zoom}%`,
+                 height: `${zoom}%`,
+                 minHeight: '100%',
+                 border: 'none',
+                 flexShrink: 0,
                }} 
                title={title}
             />

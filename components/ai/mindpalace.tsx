@@ -22,7 +22,9 @@ function FutureCard({ text, variant = 'default' }: FutureCardProps) {
 }
 
 export function MindPalaceAI() {
-  const [input, setInput] = useState('');
+  const [homeInput, setHomeInput] = useState('');
+  const [rememberInput, setRememberInput] = useState('');
+  const [futureInput, setFutureInput] = useState('');
   const [activeTab, setActiveTab] = useState<'home' | 'remember' | 'settings'>('home');
 
   return (
@@ -89,9 +91,9 @@ export function MindPalaceAI() {
               <div className="flex-1 relative">
                 <input
                   type="text"
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  placeholder=""
+                  value={activeTab === 'home' ? homeInput : rememberInput}
+                  onChange={e => activeTab === 'home' ? setHomeInput(e.target.value) : setRememberInput(e.target.value)}
+                  placeholder={activeTab === 'home' ? "Ask your data anything..." : "Search saved memories & insights..."}
                   className="w-full bg-transparent border-b border-white/20 pb-3 text-white outline-none focus:border-orange-500 transition-colors text-lg"
                 />
               </div>

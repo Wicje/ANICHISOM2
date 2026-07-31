@@ -466,7 +466,13 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
           <div className="flex items-center gap-1 relative shrink-0">
             {/* Notifications */}
             {unreadCount > 0 && (
-              <button onClick={() => alert('Notifications panel toggled')} className="p-1 hover:bg-black/5 rounded relative" title={`${unreadCount} unread notifications`}>
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('os:notify', {
+                  detail: { title: 'Campaign Notifications', description: `${unreadCount} unread notification(s) on this project`, type: 'info' }
+                }))}
+                className="p-1 hover:bg-black/5 rounded relative cursor-pointer"
+                title={`${unreadCount} unread notifications`}
+              >
                 <Bell className="w-4 h-4 text-[#37352f]/70" />
                 <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full text-[8px] text-white font-bold flex items-center justify-center">
                   {unreadCount > 9 ? '9+' : unreadCount}

@@ -65,6 +65,7 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
   const canvasRef = useRef<any>(null);
   const wordEditorRef = useRef<Editor | null>(null);
   const sheetsDataRef = useRef<Record<string, string>>({});
+  const slidesPresenterRef = useRef<(() => void) | null>(null);
   const fabricCanvasRef = useRef<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [docList, setDocList] = useState<DocMeta[]>([]);
@@ -360,7 +361,10 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
 
           {activeTab === 'slides' && (
             <div className="flex items-center gap-2">
-               <button className="flex items-center gap-1 text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1 rounded transition-colors font-medium">
+               <button
+                 onClick={() => slidesPresenterRef.current?.()}
+                 className="flex items-center gap-1 text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1 rounded transition-colors font-medium cursor-pointer"
+               >
                  <Presentation className="w-3.5 h-3.5" /> Present
                </button>
                <div className="w-px h-4 bg-slate-200 mx-2" />
@@ -383,7 +387,7 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
         >
           {activeTab === 'word' && <WordEditor performanceMode={performanceMode} workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} onEditorReady={(editor) => { wordEditorRef.current = editor; }} collab={collab} onDirty={() => setSaveStatus('unsaved')} />}
           {activeTab === 'sheets' && <SheetsEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} dataRef={sheetsDataRef} collab={collab} onDirty={() => setSaveStatus('unsaved')} activeCell={activeSheetCell} setActiveCell={setActiveSheetCell} />}
-          {activeTab === 'slides' && <SlidesEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} canvasRef={fabricCanvasRef} collab={collab} onDirty={() => setSaveStatus('unsaved')} onSlideChange={(idx, total) => { setActiveSlideIndex(idx); setTotalSlides(total); }} />}
+          {activeTab === 'slides' && <SlidesEditor workspaceMode={workspaceMode} projectId={projectId} currentUser={currentUser} canvasRef={fabricCanvasRef} collab={collab} onDirty={() => setSaveStatus('unsaved')} onPresentRef={(fn) => { slidesPresenterRef.current = fn; }} onSlideChange={(idx, total) => { setActiveSlideIndex(idx); setTotalSlides(total); }} />}
           {activeTab === 'pdf' && <PdfEditor initialUrl={osWindow.data?.url} />}
         </motion.div>
       </AnimatePresence>
@@ -716,7 +720,7 @@ function SheetsEditor({ workspaceMode, projectId, currentUser, dataRef, collab, 
   );
 }
 
-function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab, onDirty, onSlideChange }: { workspaceMode: 'private' | 'agency', projectId: string, currentUser: any, canvasRef: React.MutableRefObject<any>, collab: CollaborativeDocState, onDirty?: () => void, onSlideChange?: (idx: number, total: number) => void }) {
+function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab, onDirty, onPresentRef, onSlideChange }: { workspaceMode: 'private' | 'agency', projectId: string, currentUser: any, canvasRef: React.MutableRefObject<any>, collab: CollaborativeDocState, onDirty?: () => void, onPresentRef?: (fn: () => void) => void, onSlideChange?: (idx: number, total: number) => void }) {
   const localCanvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -747,18 +751,22 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
   const activeSlideIdRef = useRef<string | null>(null);
   activeSlideIdRef.current = activeSlideId;
 
+  const handlePresent = useCallback(() => {
+    if (containerRef.current?.requestFullscreen) {
+       containerRef.current.requestFullscreen();
+    }
+  }, []);
+
+  useEffect(() => {
+    onPresentRef?.(handlePresent);
+  }, [onPresentRef, handlePresent]);
+
   // Track Fullscreen
   useEffect(() => {
     const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', onFsChange);
     return () => document.removeEventListener('fullscreenchange', onFsChange);
   }, []);
-
-  const handlePresent = () => {
-    if (containerRef.current?.requestFullscreen) {
-       containerRef.current.requestFullscreen();
-    }
-  };
 
   useEffect(() => {
     let active = true;
