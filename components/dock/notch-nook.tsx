@@ -252,22 +252,74 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
               )}
 
               {activeTab === 'tray' && (
-                <div className="flex items-center gap-4 min-w-[360px] w-full">
+                <div className="flex items-center gap-4 min-w-[380px] w-full">
                   <div className="grid grid-cols-3 gap-2 flex-1">
                     {[
-                      { label: 'Wi-Fi', icon: <Wifi className="w-4 h-4" />, active: true },
-                      { label: 'Bluetooth', icon: <Bluetooth className="w-4 h-4" />, active: false },
-                      { label: 'Spotify', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.84.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15.001 10.62 18.66 12.84c.361.181.54.84.301 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.38 4.2-1.2 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.56.3z"/></svg>, active: !!spotifyToken, onClick: () => {
-                        if (spotifyToken) setSpotifyToken(null);
-                        else {
-                          setSpotifyToken('mock_token_123');
-                          setIsPlaying(true);
-                          window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Spotify Connected', description: 'Listening to The Weeknd', type: 'success' } }));
+                      {
+                        label: 'Wi-Fi',
+                        icon: <Wifi className="w-4 h-4" />,
+                        active: typeof navigator !== 'undefined' ? navigator.onLine : true,
+                        onClick: () => {
+                          window.dispatchEvent(new CustomEvent('os:notify', {
+                            detail: { title: 'Network Status', description: navigator.onLine ? 'Connected to High-Speed Wi-Fi' : 'Offline Mode Active', type: 'info' }
+                          }));
                         }
-                      } },
-                      { label: 'Dark Mode', icon: <Moon className="w-4 h-4" />, active: true },
-                      { label: 'AirDrop', icon: <Monitor className="w-4 h-4" />, active: false },
-                      { label: 'Night Shift', icon: <Sun className="w-4 h-4" />, active: false },
+                      },
+                      {
+                        label: 'Bluetooth',
+                        icon: <Bluetooth className="w-4 h-4" />,
+                        active: true,
+                        onClick: async () => {
+                          const { hardwareManager } = await import('@/lib/hardware');
+                          await hardwareManager.requestBluetoothDevice();
+                        }
+                      },
+                      {
+                        label: 'Spotify',
+                        icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.84.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15.001 10.62 18.66 12.84c.361.181.54.84.301 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.38 4.2-1.2 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.56.3z"/></svg>,
+                        active: !!spotifyToken,
+                        onClick: () => {
+                          if (spotifyToken) setSpotifyToken(null);
+                          else {
+                            setSpotifyToken('mock_token_123');
+                            setIsPlaying(true);
+                            window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Spotify Connected', description: 'Listening to Audio Stream', type: 'success' } }));
+                          }
+                        }
+                      },
+                      {
+                        label: useThemeStore.getState().colorMode === 'dark' ? 'Dark Mode' : 'Light Mode',
+                        icon: <Moon className="w-4 h-4" />,
+                        active: useThemeStore.getState().colorMode === 'dark',
+                        onClick: () => {
+                          const curr = useThemeStore.getState().colorMode;
+                          useThemeStore.getState().setColorMode(curr === 'dark' ? 'light' : 'dark');
+                        }
+                      },
+                      {
+                        label: 'AirDrop',
+                        icon: <Monitor className="w-4 h-4" />,
+                        active: true,
+                        onClick: async () => {
+                          window.dispatchEvent(new CustomEvent('os:notify', {
+                            detail: { title: 'AirDrop P2P Discovery', description: 'Scanning local WebRTC peers for instant file transfer...', type: 'info' }
+                          }));
+                          const { virtualDisplayManager } = await import('@/lib/virtual-display');
+                          virtualDisplayManager.spawnSecondaryDisplay();
+                        }
+                      },
+                      {
+                        label: 'Night Shift',
+                        icon: <Sun className="w-4 h-4" />,
+                        active: useThemeStore.getState().screenShader === 'amber-warm',
+                        onClick: () => {
+                          const curr = useThemeStore.getState().screenShader;
+                          useThemeStore.getState().setScreenShader(curr === 'amber-warm' ? 'none' : 'amber-warm');
+                          window.dispatchEvent(new CustomEvent('os:notify', {
+                            detail: { title: 'Night Shift', description: curr === 'amber-warm' ? 'Disabled warm screen filter' : 'Enabled warm blue-light screen filter', type: 'info' }
+                          }));
+                        }
+                      },
                     ].map(({ label, icon, active, onClick }) => (
                       <button
                         key={label}
@@ -287,16 +339,32 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                     ))}
                   </div>
                   <div className="w-px h-20 bg-white/10 mx-2" />
-                  <div className="flex flex-col gap-4 min-w-[120px]">
+                  <div className="flex flex-col gap-4 min-w-[130px]">
                     <div className="flex flex-col gap-1.5">
                       <span className="text-[9px] text-white/40 font-bold uppercase tracking-widest flex items-center gap-1"><Sun className="w-3 h-3"/> Display</span>
-                      <input type="range" min="0" max="100" defaultValue="80"
-                        className="w-full h-1.5 rounded-full accent-indigo-400 bg-white/10" />
+                      <input
+                        type="range"
+                        min="20"
+                        max="100"
+                        defaultValue="80"
+                        onChange={(e) => {
+                          if (typeof document !== 'undefined') {
+                            document.documentElement.style.filter = `brightness(${e.target.value}%)`;
+                          }
+                        }}
+                        className="w-full h-1.5 rounded-full accent-indigo-400 bg-white/10"
+                      />
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <span className="text-[9px] text-white/40 font-bold uppercase tracking-widest flex items-center gap-1"><Music className="w-3 h-3"/> Sound</span>
-                      <input type="range" min="0" max="100" defaultValue="60"
-                        className="w-full h-1.5 rounded-full accent-indigo-400 bg-white/10" />
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={useThemeStore.getState().volume}
+                        onChange={(e) => useThemeStore.getState().setVolume(Number(e.target.value))}
+                        className="w-full h-1.5 rounded-full accent-indigo-400 bg-white/10"
+                      />
                     </div>
                   </div>
                 </div>
