@@ -52,24 +52,24 @@ export function TerminalBox({ window }: { window: OSWindow }) {
         cursorStyle: 'bar',
         theme: {
           background: 'transparent',
-          foreground: '#d4d4d4',
-          cursor: '#d4d4d4',
-          selectionBackground: 'rgba(38, 79, 120, 0.5)',
+          foreground: '#e2e8f0',
+          cursor: '#10F4A0',
+          selectionBackground: 'rgba(16, 244, 160, 0.25)',
           black: '#0a0a0a',
-          red: '#f14c4c',
-          green: '#6a9955',
-          yellow: '#dcdcaa',
-          blue: '#569cd6',
-          magenta: '#c586c0',
-          cyan: '#4ec9b0',
-          white: '#d4d4d4',
-          brightBlack: '#666666',
-          brightRed: '#f14c4c',
-          brightGreen: '#6a9955',
-          brightYellow: '#dcdcaa',
-          brightBlue: '#569cd6',
-          brightMagenta: '#c586c0',
-          brightCyan: '#4ec9b0',
+          red: '#ff5555',
+          green: '#10F4A0',
+          yellow: '#f1fa8c',
+          blue: '#00f0ff',
+          magenta: '#bd93f9',
+          cyan: '#00f0ff',
+          white: '#f8f8f2',
+          brightBlack: '#6272a4',
+          brightRed: '#ff6e6e',
+          brightGreen: '#10F4A0',
+          brightYellow: '#ffffa5',
+          brightBlue: '#66f3ff',
+          brightMagenta: '#d6acff',
+          brightCyan: '#66f3ff',
           brightWhite: '#ffffff',
         },
         allowTransparency: true,
@@ -271,8 +271,8 @@ export function TerminalBox({ window }: { window: OSWindow }) {
   }, []);
 
   return (
-    <div className="w-full h-full bg-[#0a0b10]/85 backdrop-blur-3xl border border-white/12 flex flex-col overflow-hidden shadow-2xl">
-      <div ref={termRef} className="flex-1 p-2" />
+    <div className="w-full h-full bg-[#05070d]/65 backdrop-blur-3xl border border-white/15 flex flex-col overflow-hidden shadow-2xl relative group">
+      <div ref={termRef} className="flex-1 p-3" />
     </div>
   );
 }
