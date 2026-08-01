@@ -53,11 +53,23 @@ export async function GET(
       storeOAuthState(connectResult.state, userId, provider);
     }
 
-    return apiOk({
+    const response = apiOk({
       authUrl: connectResult.authUrl,
       state: connectResult.state,
       provider,
     });
+
+    if (connectResult.state) {
+      response.cookies.set(`oauth_state_${provider}`, connectResult.state, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 600, // 10 minutes
+        path: '/',
+      });
+    }
+
+    return response;
   } catch (error) {
     console.error('[storage/connect] Error:', error);
     return apiInternal();

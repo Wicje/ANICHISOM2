@@ -55,6 +55,10 @@ class HardwareManagerService {
 
     try {
       const device = await nav.usb.requestDevice({ filters: [] });
+      // Mask PII device serial number (Issue 72)
+      const rawSerial = device.serialNumber || '';
+      const maskedSerial = rawSerial.length > 4 ? `***${rawSerial.slice(-4)}` : (rawSerial ? '****' : 'N/A');
+
       const dev: ConnectedDevice = {
         id: `usb-${device.vendorId}-${device.productId}-${Date.now()}`,
         name: device.productName || `USB Device (${device.vendorId}:${device.productId})`,
@@ -62,7 +66,7 @@ class HardwareManagerService {
         vendorId: device.vendorId,
         productId: device.productId,
         status: 'connected',
-        details: `Manufacturer: ${device.manufacturerName || 'Generic'} | Serial: ${device.serialNumber || 'N/A'}`,
+        details: `Manufacturer: ${device.manufacturerName || 'Generic'} | Serial: ${maskedSerial}`,
       };
 
       this.devices.set(dev.id, dev);

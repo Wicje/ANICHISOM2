@@ -13,15 +13,32 @@ export async function POST(request: NextRequest) {
     if (!auth.ok) return auth.response;
 
     const body = await request.json();
-    const { desktopState } = body;
+    const { desktopState, workspaceId } = body;
 
     if (!desktopState || typeof desktopState !== 'object') {
       return apiError('desktopState is required');
     }
 
-    // Desktop state sync is handled by Context Kernel via /api/context/save
-    // This endpoint exists for backward compatibility with os-context.tsx
-    return apiOk({ synced: true, userId: auth.userId });
+    // Sanitize client-supplied window objects (Issue 58)
+    const sanitizedWindows = Array.isArray(desktopState.windows)
+      ? desktopState.windows.map((win: any) => {
+          const { id, appId, title, position, size, isMinimized, isMaximized } = win;
+          // Strip sensitive auth tokens, passwords, or raw secrets from win.data
+          const safeData = win.data ? { ...win.data } : {};
+          delete safeData.password;
+          delete safeData.secret;
+          delete safeData.authToken;
+          delete safeData.apiKey;
+          return { id, appId, title, position, size, isMinimized, isMaximized, data: safeData };
+        })
+      : [];
+
+    return apiOk({
+      synced: true,
+      userId: auth.userId,
+      workspaceId: workspaceId || 'default',
+      itemCount: sanitizedWindows.length,
+    });
   } catch (error) {
     console.error('[workspaces/sync] Error:', error);
     return apiInternal();

@@ -248,9 +248,16 @@ export const FS = {
     try {
       if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
         
+        const visited = new Set<string>();
+        const MAX_RECURSION_DEPTH = 10;
+
         const traverse = async (currentDir: any, currentPath: string, depth: number) => {
+           if (depth > MAX_RECURSION_DEPTH) return;
            for await (const [name, handle] of currentDir.entries()) {
               const fullPath = currentPath ? `${currentPath}/${name}` : name;
+              if (visited.has(fullPath)) continue; // Symlink / loop protection (Issue 70)
+              visited.add(fullPath);
+
               if (handle.kind === 'file') {
                  // Skip .meta companion files — they're read alongside their parent
                  if (name.endsWith('.meta')) continue;

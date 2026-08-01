@@ -64,11 +64,18 @@ export async function GET(
     }
 
     // Validate OAuth state (CSRF protection)
-    if (state) {
-      const stateData = validateOAuthState(state);
-      if (!stateData) {
-        return makeResultPage(provider, false, undefined, 'Invalid or expired OAuth state. Please try connecting again.');
-      }
+    if (!state) {
+      return makeResultPage(provider, false, undefined, 'Missing OAuth state parameter (CSRF protection failed)');
+    }
+
+    const stateData = validateOAuthState(state);
+    if (!stateData) {
+      return makeResultPage(provider, false, undefined, 'Invalid or expired OAuth state. Please try connecting again.');
+    }
+
+    const cookieState = request.cookies.get(`oauth_state_${provider}`)?.value;
+    if (cookieState && cookieState !== state) {
+      return makeResultPage(provider, false, undefined, 'OAuth state cookie mismatch (CSRF detection)');
     }
 
     // Validate session via Supabase

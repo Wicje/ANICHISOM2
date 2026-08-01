@@ -250,8 +250,11 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
         className={`h-9 flex items-center justify-between px-3.5 shrink-0 ${isMaximized ? 'rounded-none' : 'rounded-t-3xl'}`}
         style={{ background: isActive ? 'var(--os-hover)' : 'transparent' }}
         onPointerDown={(e) => {
-           focusWindow(id);
-           dragControls.start(e);
+           if (!id) return;
+           try {
+             focusWindow(id);
+             dragControls.start(e);
+           } catch { /* handle window closed mid-drag gracefully (Issue 61) */ }
         }}
         onDoubleClick={() => maximizeWindow(id)}
       >

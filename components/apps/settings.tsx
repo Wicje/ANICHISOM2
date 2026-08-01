@@ -97,7 +97,9 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `continuaos-context-${new Date().toISOString().split('T')[0]}.json`;
+      // Sanitize export filename against directory traversal (Issue 64)
+      const safeDate = new Date().toISOString().split('T')[0].replace(/[^a-zA-Z0-9-]/g, '');
+      a.download = `continuaos-context-${safeDate}.json`;
       a.click();
       URL.revokeObjectURL(url);
       setContextMessage('Context exported successfully');

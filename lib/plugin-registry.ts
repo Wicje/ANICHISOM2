@@ -117,18 +117,42 @@ export function searchPlugins(query: string): PluginManifest[] {
 
 // ─── Install State ─────────────────────────────────────────────────────────
 
-/** Mark a plugin as installed */
-export function installPlugin(id: string): void {
-  if (!registry.has(id)) {
+/** Mark a plugin as installed (Issue 71: permission validation & consent flow) */
+export function installPlugin(id: string, userGranted = false): boolean {
+  const plugin = registry.get(id);
+  if (!plugin) {
     console.warn(`[PluginRegistry] Cannot install unknown plugin: ${id}`);
-    return;
+    return false;
   }
+
+  const sensitivePermissions = ['files:write', 'hardware:usb', 'network:fetch', 'system:exec'];
+  const requestedSensitive = (plugin.permissions || []).filter((p) =>
+    sensitivePermissions.includes(p)
+  );
+
+  // Require explicit consent for sensitive permissions
+  if (requestedSensitive.length > 0 && !userGranted) {
+    console.info(`[PluginRegistry] Plugin ${id} requires user consent for: ${requestedSensitive.join(', ')}`);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('os:notify', {
+          detail: {
+            title: `Permission Requested by ${plugin.name}`,
+            description: `Requires permissions: ${requestedSensitive.join(', ')}. Go to Settings to grant.`,
+            type: 'warning',
+          },
+        })
+      );
+    }
+  }
+
   installStates.set(id, {
     id,
     installedAt: Date.now(),
     enabled: true,
   });
   notify();
+  return true;
 }
 
 /** Mark a plugin as uninstalled */

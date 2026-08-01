@@ -166,16 +166,34 @@ export async function writeAllDomains(domains: Record<string, unknown>): Promise
 }
 
 /**
- * Export the full context as a JSON-serializable object.
+ * Export the full context as a JSON-serializable object (Issue 69: dynamic key scanning).
  */
 export async function exportContext(): Promise<Record<string, unknown>> {
-  const domains = [
-    'theme', 'browser', 'workspace', 'books', 'brand', 'feedback',
-    'photography', 'hardware', 'clothing', 'forensics', 'sidegigs',
-    'devops', 'privacy', 'registry', 'campaign', 'onboarding',
-  ];
+  try {
+    const allKeys = await idbKeys();
+    const domainKeys = (allKeys as string[])
+      .filter((key) => typeof key === 'string' && key.startsWith(STORAGE_PREFIX) && !key.startsWith('continua-blob:'))
+      .map((key) => key.slice(STORAGE_PREFIX.length));
 
-  return readAllDomains(domains);
+    // Fallback to core domains if IDB is empty
+    const domainsToExport = Array.from(
+      new Set([
+        ...domainKeys,
+        'theme', 'browser', 'workspace', 'books', 'brand', 'feedback',
+        'photography', 'hardware', 'clothing', 'forensics', 'sidegigs',
+        'devops', 'privacy', 'registry', 'campaign', 'onboarding', 'focus', 'notifications', 'moodboard'
+      ])
+    );
+
+    return readAllDomains(domainsToExport);
+  } catch {
+    const defaultDomains = [
+      'theme', 'browser', 'workspace', 'books', 'brand', 'feedback',
+      'photography', 'hardware', 'clothing', 'forensics', 'sidegigs',
+      'devops', 'privacy', 'registry', 'campaign', 'onboarding', 'focus', 'notifications', 'moodboard'
+    ];
+    return readAllDomains(defaultDomains);
+  }
 }
 
 /**

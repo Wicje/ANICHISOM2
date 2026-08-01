@@ -97,11 +97,26 @@ export function TerminalBox({ window }: { window: OSWindow }) {
       term.writeln('');
       term.write(PROMPT());
 
-      // Handle ANSI escape sequences from output (convert \x1b[Xm to terminal colors)
+      // Chunked non-blocking output writing to prevent main-thread freeze on large outputs (Issue 62)
       const writeOutput = (text: string) => {
         const lines = text.split('\n');
-        for (const line of lines) {
-          term.writeln(line);
+        if (lines.length > 300) {
+          let idx = 0;
+          const CHUNK_SIZE = 100;
+          function writeChunk() {
+            const end = Math.min(idx + CHUNK_SIZE, lines.length);
+            for (; idx < end; idx++) {
+              term.writeln(lines[idx]);
+            }
+            if (idx < lines.length) {
+              requestAnimationFrame(writeChunk);
+            }
+          }
+          writeChunk();
+        } else {
+          for (const line of lines) {
+            term.writeln(line);
+          }
         }
       };
 

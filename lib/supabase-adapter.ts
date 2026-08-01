@@ -159,7 +159,7 @@ export const workspaceAdapter = {
     }
   },
 
-  async update(workspaceId: string, updates: Partial<Workspace>): Promise<void> {
+  async update(workspaceId: string, updates: Partial<Workspace>, expectedLastUpdated?: Date): Promise<void> {
     try {
       const payload: Record<string, unknown> = { ...updates, updated_at: new Date().toISOString() };
       if (updates.members) {
@@ -168,7 +168,11 @@ export const workspaceAdapter = {
           joined_at: m.joinedAt instanceof Date ? m.joinedAt.toISOString() : m.joinedAt,
         }));
       }
-      await client().from('workspaces').update(payload).eq('id', workspaceId);
+      let query = client().from('workspaces').update(payload).eq('id', workspaceId);
+      if (expectedLastUpdated) {
+        query = query.lte('updated_at', expectedLastUpdated.toISOString());
+      }
+      await query;
     } catch (error) {
       console.error('[v0] Failed to update workspace:', error);
       throw error;

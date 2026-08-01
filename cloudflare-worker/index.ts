@@ -13,7 +13,29 @@ interface Env {
   PROXY_PATH: string;
   RATE_LIMIT_MAX: string;
   RATE_LIMIT_WINDOW_SECONDS: string;
-  // RATE_LIMITS?: KVNamespace; // Optional KV for distributed rate limiting
+  SUPABASE_URL?: string;
+  SUPABASE_ANON_KEY?: string;
+}
+
+/**
+ * Enforce Supabase RLS in Cloudflare Worker (Issue 57)
+ * Never use SUPABASE_SERVICE_ROLE_KEY; forward user Authorization Bearer JWT.
+ */
+export function getAuthenticatedSupabaseClient(authHeader: string | null, env: Env) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    throw new Error('Unauthorized: missing or invalid Bearer token');
+  }
+  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+    throw new Error('Supabase client unconfigured in worker environment');
+  }
+  // User JWT is forwarded so Row-Level Security rules apply strictly to auth.uid()
+  return {
+    headers: {
+      apikey: env.SUPABASE_ANON_KEY,
+      Authorization: authHeader,
+    },
+    url: env.SUPABASE_URL,
+  };
 }
 
 // ─── SSRF Protection ────────────────────────────────────────────────────────
@@ -50,6 +72,19 @@ function isPrivateUrl(urlStr: string): boolean {
     for (const range of PRIVATE_IP_RANGES) {
       if (range.test(hostname)) return true;
     }
+    
+    // Block internal application path prefixes (Issue 67)
+    const lowerPath = parsed.pathname.toLowerCase();
+    if (
+      lowerPath.startsWith('/api/internal') ||
+      lowerPath.startsWith('/_next/data') ||
+      lowerPath.startsWith('/_next/static') ||
+      lowerPath.includes('.env') ||
+      lowerPath.includes('/api/storage/callback')
+    ) {
+      return true;
+    }
+
     return false;
   } catch {
     return true;
