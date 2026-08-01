@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { OSWindow } from '@/lib/os-context';
-import { Sparkles, Send, Bot, User, Settings2, Loader2, AlertCircle, ChevronDown, Home, Bookmark, Zap, Layout } from 'lucide-react';
+import { Sparkles, Send, Bot, User, Settings2, Loader2, AlertCircle, ChevronDown, Home, Bookmark, Zap, Layout, Mic, X } from 'lucide-react';
 import { useOS } from '@/lib/os-context';
 import { useWindowStore } from '@/lib/stores/window.store';
 import { StorageAdapter } from '@/lib/storage';

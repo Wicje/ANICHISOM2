@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Heart, SkipBack, Pause, Play, SkipForward, ExternalLink } from 'lucide-react';
 import { isTauri } from '@/lib/platform';
+import { cn } from '@/lib/utils';
 
 export default function WebApp({ window: osWindow }: { window: any }) {
   const { data } = osWindow;
