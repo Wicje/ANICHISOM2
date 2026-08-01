@@ -35,13 +35,21 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+const DEFAULT_GUEST_USER: OSUser = {
+  id: 'guest-user',
+  name: 'Continua User',
+  role: 'admin',
+  avatarUrl: '/images/avatar_cyber.jpg',
+};
+
 export const useAuthStore = create<AuthState>((set, get) => ({
-  currentUser: null,
+  currentUser: DEFAULT_GUEST_USER,
   sessionChecked: false,
 
   setCurrentUser: (user) => {
-    set({ currentUser: user });
-    if (user) writeDomain(AUTH_DOMAIN, user);
+    const nextUser = user || DEFAULT_GUEST_USER;
+    set({ currentUser: nextUser });
+    writeDomain(AUTH_DOMAIN, nextUser);
   },
 
   logout: async () => {
@@ -52,8 +60,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (e) {
       console.error('Logout error:', e);
     }
-    set({ currentUser: null });
-    writeDomain(AUTH_DOMAIN, null);
+    set({ currentUser: DEFAULT_GUEST_USER });
+    writeDomain(AUTH_DOMAIN, DEFAULT_GUEST_USER);
   },
 
   wipeSession: async () => {
@@ -95,15 +103,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     if (cachedUser) {
       set({ currentUser: cachedUser, sessionChecked: true });
+    } else {
+      set({ currentUser: DEFAULT_GUEST_USER, sessionChecked: true });
     }
 
-    // 2. Background: validate with Supabase, update if changed
+    // 2. Background: validate with Supabase, update if logged in
     try {
       const { createClient } = await import('@/utils/supabase/client');
       const supabase = createClient();
       const { data: { user } } = await withTimeout(
         supabase.auth.getUser(),
-        8000
+        5000
       );
 
       if (user) {
@@ -111,22 +121,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           id: user.id,
           name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
           role: (user.user_metadata?.role as OSRole) || 'user',
-          avatarUrl: user.user_metadata?.avatar_url,
+          avatarUrl: user.user_metadata?.avatar_url || cachedUser?.avatarUrl || '/images/avatar_cyber.jpg',
         };
         set({ currentUser: osUser, sessionChecked: true });
         writeDomain(AUTH_DOMAIN, osUser);
-      } else {
-        if (!cachedUser) {
-          set({ currentUser: null, sessionChecked: true });
-        }
-        writeDomain(AUTH_DOMAIN, null);
-        if (cachedUser) {
-          set({ currentUser: null, sessionChecked: true });
-        }
       }
     } catch {
-      if (!cachedUser) {
-        set({ currentUser: null, sessionChecked: true });
+      // Fall back to cached user or default guest user
+      if (!get().currentUser) {
+        set({ currentUser: cachedUser || DEFAULT_GUEST_USER, sessionChecked: true });
       }
     }
   },
