@@ -231,8 +231,8 @@ export function AppStoreApp() {
                 </button>
               )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
