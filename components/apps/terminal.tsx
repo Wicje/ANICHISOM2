@@ -89,9 +89,9 @@ export function TerminalBox({ window }: { window: OSWindow }) {
       vfsRef.current = new VirtualFS();
 
       const PROMPT = () => {
-        const cwd = vfsRef.current.cwd;
+        const cwd = vfsRef.current.getCwd();
         const displayCwd = cwd === '/' ? '~' : cwd.replace(/^\/home\/user/, '~');
-        return `\x1b[1;32m${currentUserRef.current?.username || 'continua'}\x1b[0m:\x1b[1;34m${displayCwd}\x1b[0m$ `;
+        return `\x1b[1;32m${currentUserRef.current?.name || 'continua'}\x1b[0m:\x1b[1;34m${displayCwd}\x1b[0m$ `;
       };
 
       term.writeln('\x1b[1;36m╔══════════════════════════════════════════╗\x1b[0m');
@@ -215,20 +215,21 @@ export function TerminalBox({ window }: { window: OSWindow }) {
               term.write(PROMPT() + inputBuffer);
             }
           } else {
-            const children = vfsRef.current.readDir(vfsRef.current.cwd);
-            const matches = children.filter(c => c.name.startsWith(lastToken));
-            if (matches.length === 1) {
-              const item = matches[0];
-              const suffix = item.isDir ? '/' : ' ';
-              const newParts = [...parts.slice(0, -1), item.name + suffix];
-              const newCmd = newParts.join(' ');
-              term.write('\x1b[2K\r' + PROMPT() + newCmd);
-              inputBuffer = newCmd;
-            } else if (matches.length > 1) {
-              term.writeln('');
-              term.writeln(matches.map(m => m.isDir ? m.name + '/' : m.name).join('  '));
-              term.write(PROMPT() + inputBuffer);
-            }
+            vfsRef.current.ls().then((children: any[]) => {
+              const matches = children.filter((c: any) => c.name.startsWith(lastToken));
+              if (matches.length === 1) {
+                const item = matches[0];
+                const suffix = item.isDir ? '/' : ' ';
+                const newParts = [...parts.slice(0, -1), item.name + suffix];
+                const newCmd = newParts.join(' ');
+                term.write('\x1b[2K\r' + PROMPT() + newCmd);
+                inputBuffer = newCmd;
+              } else if (matches.length > 1) {
+                term.writeln('');
+                term.writeln(matches.map((m: any) => m.isDir ? m.name + '/' : m.name).join('  '));
+                term.write(PROMPT() + inputBuffer);
+              }
+            });
           }
         } else if (ev.ctrlKey && ev.key === 'c') {
           term.writeln('^C');
