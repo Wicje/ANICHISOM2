@@ -18,12 +18,12 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#05070d] text-slate-100 font-sans selection:bg-cyan-500/30 selection:text-cyan-200 overflow-x-hidden">
-      {/* Ambient Radial Mesh Glows */}
+    <div className="min-h-screen bg-[#05070d] text-slate-100 font-sans selection:bg-emerald-500/30 selection:text-emerald-200 overflow-x-hidden">
+      {/* Ambient Radial Mesh Glows — Pure Continua Emerald Green & Electric Cyan */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-b from-cyan-500/20 via-indigo-500/10 to-transparent rounded-full blur-[120px] opacity-70" />
-        <div className="absolute top-[40%] -left-40 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[140px] opacity-50" />
-        <div className="absolute top-[70%] -right-40 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[140px] opacity-50" />
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-b from-[#10F4A0]/20 via-cyan-500/10 to-transparent rounded-full blur-[120px] opacity-70" />
+        <div className="absolute top-[40%] -left-40 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[140px] opacity-50" />
+        <div className="absolute top-[70%] -right-40 w-[600px] h-[600px] bg-[#10F4A0]/10 rounded-full blur-[140px] opacity-50" />
       </div>
 
       {/* ─── Nav ─── */}
@@ -33,9 +33,9 @@ export default function LandingPage() {
           : 'bg-transparent border-b border-transparent'
       }`}>
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-cyan-500 to-indigo-600 p-0.5 shadow-lg shadow-cyan-500/20 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-[#10F4A0] to-cyan-500 p-0.5 shadow-lg shadow-[#10F4A0]/20 flex items-center justify-center">
             <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-300 font-black text-base">C</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#10F4A0] to-cyan-300 font-black text-base">C</span>
             </div>
           </div>
           <span className="text-white font-bold text-base tracking-tight font-display">ContinuaOS</span>
@@ -47,7 +47,7 @@ export default function LandingPage() {
           </Link>
           <Link 
             href="/os" 
-            className="px-5 py-2 rounded-full text-xs font-bold bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-lg shadow-cyan-500/25 hover:brightness-110 active:scale-95 transition-all flex items-center gap-2"
+            className="px-5 py-2 rounded-full text-xs font-bold bg-gradient-to-r from-[#10F4A0] to-cyan-500 text-slate-950 shadow-lg shadow-[#10F4A0]/25 hover:brightness-110 active:scale-95 transition-all flex items-center gap-2"
           >
             <span>Launch Web OS</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -58,15 +58,15 @@ export default function LandingPage() {
       {/* ─── Hero Section ─── */}
       <section className="relative pt-36 pb-20 px-6 max-w-6xl mx-auto z-10 flex flex-col items-center text-center">
         {/* Floating Pill Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8 bg-white/[0.04] border border-cyan-500/30 backdrop-blur-xl shadow-lg shadow-cyan-500/5 animate-fade-in">
-          <Sparkles className="w-4 h-4 text-cyan-400" />
-          <span className="text-xs font-bold tracking-wide text-cyan-300 uppercase">Persistent Context Layer & Offline-First Web OS</span>
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8 bg-white/[0.04] border border-[#10F4A0]/30 backdrop-blur-xl shadow-lg shadow-[#10F4A0]/5 animate-fade-in">
+          <Sparkles className="w-4 h-4 text-[#10F4A0]" />
+          <span className="text-xs font-bold tracking-wide text-[#10F4A0] uppercase">Persistent Context Layer & Offline-First Web OS</span>
         </div>
 
         {/* Hero Title */}
         <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.08] text-white max-w-4xl mb-6">
           Pick up exactly where you left off. <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-indigo-300 to-purple-400">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#10F4A0] via-cyan-300 to-teal-400">
             Never start from scratch.
           </span>
         </h1>
@@ -80,9 +80,9 @@ export default function LandingPage() {
         <div className="flex flex-wrap items-center justify-center gap-4 mb-16">
           <Link 
             href="/os" 
-            className="px-8 py-4 rounded-2xl font-bold text-sm bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-xl shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2.5"
+            className="px-8 py-4 rounded-2xl font-bold text-sm bg-gradient-to-r from-[#10F4A0] to-cyan-500 text-slate-950 shadow-xl shadow-[#10F4A0]/25 hover:shadow-[#10F4A0]/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2.5"
           >
-            <Play className="w-4 h-4 fill-white" />
+            <Play className="w-4 h-4 fill-slate-950" />
             <span>Launch Web OS Now</span>
           </Link>
           <Link 
@@ -93,9 +93,9 @@ export default function LandingPage() {
           </Link>
         </div>
 
-        {/* OS Interface Hero Mockup (Pinterest Reference Style) */}
+        {/* OS Interface Hero Mockup */}
         <div className="w-full rounded-3xl p-3 sm:p-4 bg-gradient-to-b from-white/15 to-white/5 border border-white/15 backdrop-blur-3xl shadow-2xl relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 via-transparent to-indigo-500/10 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-[#10F4A0]/10 via-transparent to-cyan-500/10 pointer-events-none" />
           
           {/* OS Window Header Simulation */}
           <div className="h-10 bg-black/40 rounded-t-2xl border-b border-white/10 px-4 flex items-center justify-between select-none">
@@ -113,19 +113,19 @@ export default function LandingPage() {
           {/* Desktop Preview Banner */}
           <div className="relative aspect-[16/9] w-full rounded-b-2xl bg-[#090b14] overflow-hidden flex items-center justify-center p-6 border border-white/5">
             {/* Background Graphic Grid */}
-            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:24px_24px]" />
+            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#10F4A0_1px,transparent_1px)] [background-size:24px_24px]" />
             
             {/* Floating Glass App Cards Preview */}
             <div className="relative z-10 grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-4xl">
               {[
                 { name: 'Terminal', icon: Terminal, color: 'from-emerald-500 to-teal-700', desc: 'Real bash & WASM filesystem' },
                 { name: 'Power Browser', icon: Globe, color: 'from-cyan-500 to-blue-700', desc: 'Iframe & proxy tab sessions' },
-                { name: 'Moodboard', icon: Palette, color: 'from-orange-500 to-amber-700', desc: 'Canvas & color palettes' },
-                { name: 'Security Admin', icon: Shield, color: 'from-rose-500 to-red-800', desc: 'RLS & encrypted sync' },
+                { name: 'Moodboard', icon: Palette, color: 'from-teal-500 to-emerald-700', desc: 'Canvas & color palettes' },
+                { name: 'Security Admin', icon: Shield, color: 'from-emerald-600 to-cyan-800', desc: 'RLS & encrypted sync' },
               ].map((app, idx) => (
                 <div 
                   key={idx} 
-                  className="p-5 rounded-2xl bg-white/[0.04] backdrop-blur-2xl border border-white/12 hover:border-cyan-400/40 transition-all duration-300 flex flex-col items-center text-center shadow-xl group/card"
+                  className="p-5 rounded-2xl bg-white/[0.04] backdrop-blur-2xl border border-white/12 hover:border-[#10F4A0]/40 transition-all duration-300 flex flex-col items-center text-center shadow-xl group/card"
                 >
                   <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${app.color} flex items-center justify-center shadow-lg mb-3 group-hover/card:scale-110 transition-transform`}>
                     <app.icon className="w-6 h-6 text-white" />
@@ -157,8 +157,8 @@ export default function LandingPage() {
               title: 'Context Layer',
               desc: 'Persists workspace state, active tabs, themes, and window coordinates across reboots.',
               icon: Layers,
-              gradient: 'from-cyan-500/20 to-blue-500/10',
-              accent: 'text-cyan-400',
+              gradient: 'from-[#10F4A0]/20 to-teal-500/10',
+              accent: 'text-[#10F4A0]',
             },
             {
               step: '02',
@@ -173,16 +173,16 @@ export default function LandingPage() {
               title: 'Cloudflare Workers',
               desc: 'Enforces Supabase RLS policies and JWT authentication proxies at the edge.',
               icon: Cpu,
-              gradient: 'from-indigo-500/20 to-purple-500/10',
-              accent: 'text-indigo-400',
+              gradient: 'from-cyan-500/20 to-blue-500/10',
+              accent: 'text-cyan-400',
             },
             {
               step: '04',
               title: 'Tauri & Web Native',
               desc: 'Dual-target architecture: run directly in any web browser or native desktop app.',
               icon: Monitor,
-              gradient: 'from-rose-500/20 to-pink-500/10',
-              accent: 'text-rose-400',
+              gradient: 'from-teal-500/20 to-emerald-500/10',
+              accent: 'text-teal-300',
             },
           ].map((pillar, idx) => (
             <div 
@@ -206,7 +206,7 @@ export default function LandingPage() {
 
       {/* ─── Footer CTA ─── */}
       <section className="py-24 px-6 text-center z-10 relative">
-        <div className="max-w-3xl mx-auto rounded-3xl p-12 bg-gradient-to-r from-cyan-500/10 via-indigo-500/10 to-purple-500/10 border border-white/15 backdrop-blur-3xl shadow-2xl">
+        <div className="max-w-3xl mx-auto rounded-3xl p-12 bg-gradient-to-r from-[#10F4A0]/10 via-cyan-500/10 to-teal-500/10 border border-white/15 backdrop-blur-3xl shadow-2xl">
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-4">
             Ready to experience ContinuaOS?
           </h2>
@@ -215,7 +215,7 @@ export default function LandingPage() {
           </p>
           <Link 
             href="/os" 
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-bold text-sm bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-xl shadow-cyan-500/25 hover:brightness-110 active:scale-95 transition-all"
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-bold text-sm bg-gradient-to-r from-[#10F4A0] to-cyan-500 text-slate-950 shadow-xl shadow-[#10F4A0]/25 hover:brightness-110 active:scale-95 transition-all"
           >
             <span>Launch Desktop Web OS</span>
             <ArrowRight className="w-4 h-4" />
