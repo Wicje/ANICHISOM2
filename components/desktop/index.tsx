@@ -48,6 +48,12 @@ const FocusOverlay = React.lazy(() => import('@/components/overlays/focus-overla
 const ScreenshotOverlay = React.lazy(() => import('@/components/overlays/screenshot-overlay').then(m => ({ default: m.ScreenshotOverlay })));
 const ClipboardHistoryPanel = React.lazy(() => import('@/components/overlays/clipboard-history-panel').then(m => ({ default: m.ClipboardHistoryPanel })));
 const QuickLookOverlay = React.lazy(() => import('@/components/overlays/quick-look-overlay').then(m => ({ default: m.QuickLookOverlay })));
+
+import { DynamicHUD } from './dynamic-hud';
+import { SpatialStage } from './spatial-stage';
+import { TimeMachine } from './time-machine';
+import { AudioVisualizer } from './audio-visualizer';
+import { AirDropModal } from './airdrop-modal';
 type ContextMenuItem = import('./context-menu').ContextMenuItem;
 
 function AppLoadingSkeleton() {
@@ -197,6 +203,26 @@ export function Desktop() {
   const [showSwitcher, setShowSwitcher] = useState(false);
   const [switcherIndex, setSwitcherIndex] = useState(0);
   const [showSnapshots, setShowSnapshots] = useState(false);
+  const [showSpatialStage, setShowSpatialStage] = useState(false);
+  const [showTimeMachine, setShowTimeMachine] = useState(false);
+  const [showAirDrop, setShowAirDrop] = useState(false);
+
+  useEffect(() => {
+    const handleSpatial = () => setShowSpatialStage(prev => !prev);
+    const handleTimeMachine = () => setShowTimeMachine(prev => !prev);
+    const handleAirDrop = () => setShowAirDrop(prev => !prev);
+
+    window.addEventListener('os:open-spatial', handleSpatial);
+    window.addEventListener('os:open-timemachine', handleTimeMachine);
+    window.addEventListener('os:open-airdrop', handleAirDrop);
+
+    return () => {
+      window.removeEventListener('os:open-spatial', handleSpatial);
+      window.removeEventListener('os:open-timemachine', handleTimeMachine);
+      window.removeEventListener('os:open-airdrop', handleAirDrop);
+    };
+  }, []);
+
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
   const [widgets, setWidgets] = useState<Widget[]>([
     { id: 'w1', type: 'notes', x: 40, y: 80, content: 'Finish the new brand guidelines by Friday.' }
@@ -987,6 +1013,13 @@ export function Desktop() {
         <QuickLookOverlay />
         <ClipboardHistoryPanel />
       </Suspense>
+
+      {/* New Overlay & System Features */}
+      <DynamicHUD />
+      <AudioVisualizer />
+      <SpatialStage isOpen={showSpatialStage} onClose={() => setShowSpatialStage(false)} />
+      <TimeMachine isOpen={showTimeMachine} onClose={() => setShowTimeMachine(false)} />
+      <AirDropModal isOpen={showAirDrop} onClose={() => setShowAirDrop(false)} />
 
       <Toaster
         position="bottom-right"

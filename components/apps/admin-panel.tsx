@@ -130,8 +130,17 @@ export function AdminPanel({ window: osWindow }: { window: OSWindow }) {
         }
       }
 
-      setInvites(prev => [...createdCodes, ...prev]);
-      fetchInvites();
+      // Persist created codes locally so they never disappear (Issue fix)
+      let existingLocal: any[] = [];
+      try {
+        existingLocal = JSON.parse(localStorage.getItem('continuaos_invites_cache') || '[]');
+      } catch {}
+      const updatedLocal = [...createdCodes, ...existingLocal];
+      try {
+        localStorage.setItem('continuaos_invites_cache', JSON.stringify(updatedLocal));
+      } catch {}
+
+      setInvites(updatedLocal);
 
       const newCodesStr = createdCodes.map((c: any) => c.code).join(', ');
       window.dispatchEvent(new CustomEvent('os:notify', { 
