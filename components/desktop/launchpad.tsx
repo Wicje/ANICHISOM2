@@ -97,7 +97,7 @@ export function Launchpad({ onClose }: LaunchpadProps) {
         {filteredApps.length > 0 && (
           <div>
             {query && <h3 className="text-white/50 text-xs font-bold uppercase tracking-widest mb-4">Applications</h3>}
-            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-x-4 gap-y-8">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 gap-x-6 gap-y-10">
               {filteredApps.map(app => (
                 <button
                   key={app.id}
@@ -109,12 +109,17 @@ export function Launchpad({ onClose }: LaunchpadProps) {
                     }
                     onClose();
                   }}
-                  className="flex flex-col items-center gap-2 group outline-none w-20 mx-auto"
+                  className="flex flex-col items-center gap-3 group outline-none w-24 mx-auto"
                 >
-                  <div className="w-16 h-16 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                    <AppIcon appId={app.id} icon={app.icon} iconImage={app.iconImage} className="shadow-lg rounded-2xl border border-white/10" />
+                  <div className="w-20 h-20 sm:w-22 sm:h-22 flex items-center justify-center group-hover:scale-110 transition-all duration-200">
+                    <AppIcon 
+                      appId={app.id} 
+                      icon={app.icon} 
+                      iconImage={app.iconImage} 
+                      className="w-full h-full shadow-2xl rounded-3xl border border-white/15 p-2 bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-xl" 
+                    />
                   </div>
-                  <span className="text-white text-xs font-medium drop-shadow-md text-center line-clamp-2 w-full px-1">{app.title}</span>
+                  <span className="text-white/90 group-hover:text-white text-xs font-semibold drop-shadow-md text-center line-clamp-2 w-full px-1 tracking-tight">{app.title}</span>
                 </button>
               ))}
             </div>

@@ -71,19 +71,19 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
   if (!currentUser) return null;
 
   return (
-    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[260] w-[80vw] h-20 flex flex-col items-center justify-end pointer-events-none group/dock">
+    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[260] w-[90vw] max-w-6xl h-24 flex flex-col items-center justify-end pointer-events-none group/dock">
       <nav 
         role="toolbar" 
         aria-label="Application dock" 
         className={cn(
-          "flex items-end gap-3 px-3 py-2 glass-panel rounded-3xl shadow-2xl pointer-events-auto contain-layout relative mb-3 transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
-          isAnyWindowMaximized ? "translate-y-24 group-hover/dock:translate-y-0" : "translate-y-0"
+          "flex items-end gap-3.5 px-4 py-3 glass-panel rounded-3xl shadow-2xl pointer-events-auto contain-layout relative mb-3 transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] border border-white/15 bg-neutral-950/75 backdrop-blur-2xl",
+          isAnyWindowMaximized ? "translate-y-28 group-hover/dock:translate-y-0" : "translate-y-0"
         )}
       >
         {/* Green accent line at top of dock */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-[2px] rounded-full bg-[var(--os-primary)] opacity-60" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-[2px] rounded-full bg-[var(--os-primary)] opacity-80" />
         {unreadCount > 0 && (
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[var(--os-bg)]" />
+          <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-rose-500 rounded-full border-2 border-[var(--os-bg)] animate-pulse" />
         )}
         <div className="relative group flex flex-col items-center justify-end">
           <button
@@ -92,13 +92,13 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
               if (!prev) setShowMissionControl(false);
               return !prev;
             })}
-            className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 transform origin-bottom hover:scale-125 hover:mx-2"
-            style={{ background: 'var(--os-hover)' }}
+            className="flex flex-col items-center justify-center w-16 h-16 sm:w-18 sm:h-18 rounded-2xl transition-all duration-300 transform origin-bottom hover:scale-125 hover:mx-2 p-2.5 shadow-xl bg-white/5 hover:bg-white/15 border border-white/10"
           >
-            <Grid className="w-7 h-7" style={{ color: 'var(--os-text)' }} aria-hidden="true" />
+            <Grid className="w-9 h-9 text-white/90" aria-hidden="true" />
           </button>
-          <div role="tooltip" className="absolute -top-12 scale-0 group-hover:scale-100 transition-transform px-3 py-1 glass-panel text-xs font-medium rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50" style={{ color: 'var(--os-text)' }}>Launchpad</div>
+          <div role="tooltip" className="absolute -top-14 scale-0 group-hover:scale-100 transition-transform px-3 py-1.5 glass-panel text-xs font-semibold rounded-xl shadow-xl pointer-events-none whitespace-nowrap z-50 text-white">Launchpad</div>
         </div>
+
         <div className="relative group flex flex-col items-center justify-end">
           <button
             aria-label="Mission Control"
@@ -106,14 +106,14 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
               if (!prev) setShowLaunchpad(false);
               return !prev;
             })}
-            className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 transform origin-bottom hover:scale-125 hover:mx-2"
-            style={{ background: 'var(--os-hover)' }}
+            className="flex flex-col items-center justify-center w-16 h-16 sm:w-18 sm:h-18 rounded-2xl transition-all duration-300 transform origin-bottom hover:scale-125 hover:mx-2 p-2.5 shadow-xl bg-white/5 hover:bg-white/15 border border-white/10"
           >
-            <Layers className="w-7 h-7" style={{ color: 'var(--os-text)' }} aria-hidden="true" />
+            <Layers className="w-9 h-9 text-white/90" aria-hidden="true" />
           </button>
-          <div role="tooltip" className="absolute -top-12 scale-0 group-hover:scale-100 transition-transform px-3 py-1 glass-panel text-xs font-medium rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50" style={{ color: 'var(--os-text)' }}>Mission Control</div>
+          <div role="tooltip" className="absolute -top-14 scale-0 group-hover:scale-100 transition-transform px-3 py-1.5 glass-panel text-xs font-semibold rounded-xl shadow-xl pointer-events-none whitespace-nowrap z-50 text-white">Mission Control</div>
         </div>
-        <div className="w-px h-10 mx-1" style={{ background: 'var(--os-border)' }}></div>
+
+        <div className="w-px h-12 mx-1.5 bg-white/15" />
 
         {dockApps.map(app => {
           const isOpen = activeWindows.some(w => w.appId === app.id);
@@ -139,17 +139,17 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
                     }
                   }
                 }}
-                className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 transform origin-bottom hover:scale-125 hover:mx-2"
-                style={{
-                  background: isOpen ? 'var(--os-active)' : 'var(--os-hover)',
-                }}
+                className={cn(
+                  "flex flex-col items-center justify-center w-16 h-16 sm:w-18 sm:h-18 rounded-2xl transition-all duration-300 transform origin-bottom hover:scale-125 hover:mx-2 p-2 shadow-xl border border-white/10",
+                  isOpen ? "bg-white/15 border-cyan-400/40" : "bg-white/5 hover:bg-white/15"
+                )}
               >
-                <AppIcon icon={app.icon} iconImage={app.iconImage} className="w-7 h-7" aria-hidden="true" />
+                <AppIcon icon={app.icon} iconImage={app.iconImage} className="w-12 h-12 sm:w-14 sm:h-14 drop-shadow-xl" aria-hidden="true" />
               </button>
               {isOpen && (
-                <span aria-hidden="true" className="absolute -bottom-1.5 w-1 h-1 rounded-full shadow-sm" style={{ background: 'var(--os-text)' }} />
+                <span aria-hidden="true" className="absolute -bottom-2 w-1.5 h-1.5 rounded-full bg-[#10F4A0] shadow-sm shadow-[#10F4A0]/50" />
               )}
-              <div role="tooltip" className="absolute -top-12 scale-0 group-hover:scale-100 transition-transform px-3 py-1 glass-panel text-xs font-medium rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50" style={{ color: 'var(--os-text)' }}>
+              <div role="tooltip" className="absolute -top-14 scale-0 group-hover:scale-100 transition-transform px-3 py-1.5 glass-panel text-xs font-semibold rounded-xl shadow-xl pointer-events-none whitespace-nowrap z-50 text-white">
                 {app.title}
               </div>
             </div>
