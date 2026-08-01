@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { 
   Sparkles, Terminal, FolderOpen, Globe, Palette, Shield, Zap, 
   Layers, Lock, Cpu, ArrowRight, Play, CheckCircle2, Layout, Monitor, HardDrive,
-  Activity, Command, Code2, Database, ShieldCheck, ExternalLink, RefreshCw, ChevronRight
+  Activity, Command, Code2, Database, ShieldCheck, ExternalLink, RefreshCw, ChevronRight,
+  Sparkle
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -19,78 +20,84 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#030408] text-slate-100 font-sans selection:bg-[#10F4A0]/30 selection:text-[#10F4A0] overflow-x-hidden">
-      {/* ─── Ambient Glow Lighting ─── */}
+    <div className="min-h-screen bg-[#030407] text-slate-100 font-sans selection:bg-[#10F4A0]/30 selection:text-[#10F4A0] overflow-x-hidden antialiased">
+      {/* ─── Ambient Glow Mesh Spotlights ─── */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-[#10F4A0]/15 via-cyan-500/10 to-transparent rounded-full blur-[140px] opacity-70" />
-        <div className="absolute top-[30%] -left-60 w-[700px] h-[700px] bg-teal-500/10 rounded-full blur-[160px] opacity-50" />
-        <div className="absolute top-[60%] -right-60 w-[700px] h-[700px] bg-[#10F4A0]/10 rounded-full blur-[160px] opacity-50" />
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[1100px] h-[650px] bg-gradient-to-b from-[#10F4A0]/20 via-cyan-500/12 to-transparent rounded-full blur-[150px] opacity-80" />
+        <div className="absolute top-[35%] -left-80 w-[750px] h-[750px] bg-teal-500/10 rounded-full blur-[180px] opacity-60" />
+        <div className="absolute top-[65%] -right-80 w-[750px] h-[750px] bg-[#10F4A0]/12 rounded-full blur-[180px] opacity-60" />
       </div>
 
-      {/* ─── Floating Top Glass Navbar ─── */}
-      <nav className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100vw-2rem)] max-w-5xl px-6 py-3 rounded-full transition-all duration-300 ${
-        scrollY > 30 
-          ? 'bg-[#060812]/80 backdrop-blur-2xl border border-white/12 shadow-2xl shadow-black/80' 
-          : 'bg-white/[0.03] backdrop-blur-xl border border-white/10 shadow-lg'
-      }`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#10F4A0] to-cyan-400 p-0.5 shadow-lg shadow-[#10F4A0]/20 flex items-center justify-center">
-              <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#10F4A0] to-cyan-300 font-black text-sm">C</span>
+      {/* ─── Pixel-Perfect Floating Glass Top Navbar ─── */}
+      <header className="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-[calc(100vw-2.5rem)] max-w-5xl">
+        <div className={`px-5 py-3 rounded-full transition-all duration-300 ${
+          scrollY > 20 
+            ? 'bg-[#060812]/80 backdrop-blur-2xl border border-white/15 shadow-2xl shadow-black/90' 
+            : 'bg-white/[0.04] backdrop-blur-xl border border-white/10 shadow-xl'
+        }`}>
+          <div className="flex items-center justify-between">
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-3 group">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#10F4A0] via-cyan-400 to-teal-300 p-0.5 shadow-lg shadow-[#10F4A0]/25 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <div className="w-full h-full bg-[#05070d] rounded-[10px] flex items-center justify-center">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#10F4A0] to-cyan-300 font-black text-sm">C</span>
+                </div>
               </div>
+              <span className="text-white font-black text-sm tracking-tight font-display">ContinuaOS</span>
+            </Link>
+
+            {/* Navigation Links */}
+            <nav className="hidden md:flex items-center gap-7 text-xs font-semibold text-white/60">
+              <a href="#overview" className="hover:text-white transition-colors">Overview</a>
+              <a href="#features" className="hover:text-white transition-colors">Features</a>
+              <a href="#protocol" className="hover:text-white transition-colors">Protocol</a>
+              <a href="#bento" className="hover:text-white transition-colors">Bento Grid</a>
+              <a href="#ecosystem" className="hover:text-white transition-colors">Ecosystem</a>
+            </nav>
+
+            {/* Right Action CTA */}
+            <div className="flex items-center gap-3">
+              <Link href="/waitlist" className="text-xs font-semibold text-white/70 hover:text-white transition-colors hidden sm:block">
+                Waitlist Access
+              </Link>
+              <Link 
+                href="/os" 
+                className="px-4 py-2 rounded-full text-xs font-bold bg-gradient-to-r from-[#10F4A0] to-cyan-400 text-slate-950 shadow-lg shadow-[#10F4A0]/25 hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5"
+              >
+                <span>Launch Web OS</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
-            <span className="text-white font-bold text-sm tracking-tight font-display">ContinuaOS</span>
-          </div>
-
-          <div className="hidden md:flex items-center gap-8 text-xs font-semibold text-white/60">
-            <a href="#features" className="hover:text-white transition-colors">Features</a>
-            <a href="#architecture" className="hover:text-white transition-colors">Architecture</a>
-            <a href="#bento" className="hover:text-white transition-colors">Protocol</a>
-            <a href="#ecosystem" className="hover:text-white transition-colors">Ecosystem</a>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Link href="/waitlist" className="text-xs font-semibold text-white/60 hover:text-white transition-colors hidden sm:block">
-              Waitlist
-            </Link>
-            <Link 
-              href="/os" 
-              className="px-4 py-2 rounded-full text-xs font-bold bg-gradient-to-r from-[#10F4A0] to-cyan-400 text-slate-950 shadow-lg shadow-[#10F4A0]/20 hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5"
-            >
-              <span>Launch Web OS</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
           </div>
         </div>
-      </nav>
+      </header>
 
       {/* ─── Hero Section ─── */}
-      <section className="relative pt-36 sm:pt-44 pb-20 px-6 max-w-7xl mx-auto z-10 flex flex-col items-center text-center">
-        {/* Floating Pill Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8 bg-white/[0.04] border border-[#10F4A0]/30 backdrop-blur-2xl shadow-xl shadow-[#10F4A0]/5 animate-fade-in">
-          <div className="w-2 h-2 rounded-full bg-[#10F4A0] animate-pulse" />
-          <span className="text-xs font-bold tracking-wider text-[#10F4A0] uppercase font-mono">ContinuaOS 2.4 · Living State Engine</span>
+      <section id="overview" className="relative pt-36 sm:pt-44 pb-20 px-6 max-w-7xl mx-auto z-10 flex flex-col items-center text-center">
+        {/* Pixel-Perfect Intro Badge */}
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8 bg-white/[0.04] border border-[#10F4A0]/40 backdrop-blur-2xl shadow-xl shadow-[#10F4A0]/10 animate-fade-in">
+          <Sparkle className="w-3.5 h-3.5 text-[#10F4A0] fill-[#10F4A0]" />
+          <span className="text-xs font-bold tracking-widest text-[#10F4A0] uppercase font-mono">INTRODUCING CONTINUAOS 2.4</span>
         </div>
 
         {/* Massive Headline */}
-        <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[1.05] text-white max-w-5xl mb-8">
-          Pick up exactly where you left off. <br />
+        <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[1.04] text-white max-w-5xl mb-8">
+          The Next-Gen Web OS & <br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#10F4A0] via-cyan-300 to-teal-300">
-            Never lose your context.
+            Living Context Protocol
           </span>
         </h1>
 
         {/* Subtitle */}
-        <p className="text-base sm:text-xl text-white/60 max-w-3xl leading-relaxed mb-10 font-normal">
-          An offline-first, glassmorphic Web OS that persists your open browser tabs, WASM terminal sessions, design moodboards, and brand assets across all devices.
+        <p className="text-base sm:text-xl text-white/65 max-w-3xl leading-relaxed mb-10 font-normal">
+          An offline-first, glassmorphic Web OS that persists your open browser tabs, WASM terminal sessions, design moodboards, and brand assets across all devices. Zero state loss.
         </p>
 
-        {/* Primary CTA Buttons */}
+        {/* Hero CTAs */}
         <div className="flex flex-wrap items-center justify-center gap-4 mb-16">
           <Link 
             href="/os" 
-            className="px-9 py-4 rounded-2xl font-extrabold text-sm bg-gradient-to-r from-[#10F4A0] to-cyan-400 text-slate-950 shadow-2xl shadow-[#10F4A0]/30 hover:shadow-[#10F4A0]/50 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2.5"
+            className="px-9 py-4 rounded-2xl font-extrabold text-sm bg-gradient-to-r from-[#10F4A0] via-cyan-400 to-teal-300 text-slate-950 shadow-2xl shadow-[#10F4A0]/30 hover:shadow-[#10F4A0]/50 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2.5"
           >
             <Play className="w-4 h-4 fill-slate-950" />
             <span>Launch Web OS Desktop</span>
@@ -103,25 +110,25 @@ export default function LandingPage() {
           </Link>
         </div>
 
-        {/* ─── Interactive 3D Showcase Frame ─── */}
+        {/* ─── Pixel-Perfect 3D Hero Mockup Container ─── */}
         <div className="w-full max-w-5xl rounded-3xl p-3 sm:p-5 bg-gradient-to-b from-white/20 via-white/5 to-transparent border border-white/20 backdrop-blur-3xl shadow-2xl shadow-black relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-tr from-[#10F4A0]/10 via-transparent to-cyan-500/10 pointer-events-none" />
           
-          {/* Interactive Window Control Tabs */}
-          <div className="h-12 bg-slate-950/80 rounded-t-2xl border-b border-white/10 px-4 flex items-center justify-between select-none overflow-x-auto">
+          {/* Top Window Control Header */}
+          <div className="h-12 bg-slate-950/90 rounded-t-2xl border-b border-white/10 px-4 flex items-center justify-between select-none overflow-x-auto">
             <div className="flex items-center gap-2 shrink-0">
               <div className="w-3 h-3 rounded-full bg-rose-500/80" />
               <div className="w-3 h-3 rounded-full bg-amber-500/80" />
               <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
             </div>
 
-            {/* Interactive Preview Switcher Tabs */}
+            {/* Interactive Tab Selector */}
             <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10">
               {[
                 { id: 'desktop', label: 'OS Desktop', icon: Layout },
                 { id: 'terminal', label: 'WASM Terminal', icon: Terminal },
                 { id: 'moodboard', label: 'Moodboard Canvas', icon: Palette },
-                { id: 'security', label: 'Security Admin', icon: ShieldCheck },
+                { id: 'security', label: 'Security Edge', icon: ShieldCheck },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -139,31 +146,29 @@ export default function LandingPage() {
             </div>
 
             <div className="hidden sm:flex items-center gap-2 text-[10px] font-mono font-bold text-white/40 uppercase">
-              <span>Status: Live</span>
+              <span>Active Session</span>
               <div className="w-2 h-2 rounded-full bg-[#10F4A0] animate-pulse" />
             </div>
           </div>
 
-          {/* Interactive Screen Display Body with Real 3D Visual Asset */}
+          {/* 3D Display Frame with Real Render & Glass Overlays */}
           <div className="relative aspect-[16/9] w-full rounded-b-2xl bg-[#080a14] overflow-hidden flex items-center justify-center border border-white/5 group">
-            {/* Background 3D Render Image */}
             <img 
               src="/images/hero_3d.jpg" 
-              alt="ContinuaOS 3D Desktop UI" 
-              className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-700"
+              alt="ContinuaOS 3D Desktop" 
+              className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-700" 
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#030408] via-transparent to-black/40" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#030407] via-transparent to-black/40" />
 
-            {/* Overlaid Tab Interactive Preview Banner */}
+            {/* Overlay Glass Cards */}
             <div className="relative z-10 w-full h-full p-6 flex flex-col justify-between pointer-events-none">
               <div className="flex items-center justify-between">
-                <div className="px-3 py-1 rounded-full bg-slate-950/80 backdrop-blur-xl border border-white/15 text-xs font-mono text-[#10F4A0] flex items-center gap-2 shadow-xl">
+                <div className="px-3.5 py-1.5 rounded-full bg-slate-950/90 backdrop-blur-2xl border border-white/15 text-xs font-mono text-[#10F4A0] flex items-center gap-2 shadow-2xl">
                   <div className="w-2 h-2 rounded-full bg-[#10F4A0] animate-pulse" />
-                  <span>3D Living State Active</span>
+                  <span>Living State Engine · Active</span>
                 </div>
               </div>
 
-              {/* Tab 1: OS Desktop View overlay badge */}
               {activeTab === 'desktop' && (
                 <div className="p-4 rounded-2xl bg-slate-950/90 backdrop-blur-2xl border border-white/15 max-w-sm ml-auto shadow-2xl animate-in fade-in duration-300">
                   <div className="text-xs font-bold text-white mb-1 flex items-center gap-2">
@@ -174,7 +179,6 @@ export default function LandingPage() {
                 </div>
               )}
 
-              {/* Tab 2: Terminal View overlay badge */}
               {activeTab === 'terminal' && (
                 <div className="p-4 rounded-2xl bg-slate-950/90 backdrop-blur-2xl border border-emerald-500/30 max-w-sm ml-auto shadow-2xl animate-in fade-in duration-300">
                   <div className="text-xs font-mono font-bold text-[#10F4A0] mb-1 flex items-center gap-2">
@@ -185,7 +189,6 @@ export default function LandingPage() {
                 </div>
               )}
 
-              {/* Tab 3: Moodboard View overlay badge */}
               {activeTab === 'moodboard' && (
                 <div className="p-4 rounded-2xl bg-slate-950/90 backdrop-blur-2xl border border-cyan-500/30 max-w-sm ml-auto shadow-2xl animate-in fade-in duration-300">
                   <div className="text-xs font-bold text-cyan-300 mb-1 flex items-center gap-2">
@@ -196,7 +199,6 @@ export default function LandingPage() {
                 </div>
               )}
 
-              {/* Tab 4: Security View overlay badge */}
               {activeTab === 'security' && (
                 <div className="p-4 rounded-2xl bg-slate-950/90 backdrop-blur-2xl border border-emerald-400/30 max-w-sm ml-auto shadow-2xl animate-in fade-in duration-300">
                   <div className="text-xs font-bold text-emerald-400 mb-1 flex items-center gap-2">
@@ -211,34 +213,33 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── Bento Grid Architecture Showcase ─── */}
+      {/* ─── Bento Grid Section (Matching Reference Image) ─── */}
       <section id="bento" className="py-24 px-6 max-w-7xl mx-auto z-10 relative">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 bg-white/[0.04] border border-cyan-500/30 text-xs font-bold text-cyan-300 uppercase font-mono">
-            Architectural Excellence
+            BENTO ARCHITECTURE
           </div>
           <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
             Built like infrastructure. Styled like magic.
           </h2>
         </div>
 
-        {/* 3D Bento Grid Layout with High-Res Images */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Bento Card 1 (Large 2-column with 3D Context Image) */}
+          {/* Card 1: Context Kernel Protocol (2 Columns, 3D Render) */}
           <div className="md:col-span-2 rounded-3xl bg-slate-950 border border-white/15 overflow-hidden shadow-2xl relative group flex flex-col justify-between min-h-[380px]">
             <img 
               src="/images/context_3d.jpg" 
               alt="3D Context Protocol" 
               className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-700" 
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#030408] via-[#030408]/60 to-transparent z-0" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#030407] via-[#030407]/60 to-transparent z-0" />
             
             <div className="relative z-10 p-8">
               <div className="w-12 h-12 rounded-2xl bg-[#10F4A0]/15 border border-[#10F4A0]/30 backdrop-blur-xl flex items-center justify-center text-[#10F4A0] mb-6">
                 <Layers className="w-6 h-6" />
               </div>
               <h3 className="text-3xl font-black text-white mb-3 tracking-tight">Context Kernel Protocol</h3>
-              <p className="text-sm text-white/75 leading-relaxed max-w-xl">
+              <p className="text-sm text-white/80 leading-relaxed max-w-xl">
                 Stores your entire desktop environment as domain-keyed records (theme, layout, open tabs, active tools, brand tokens). When you reopen ContinuaOS, everything recovers instantly without page refreshes.
               </p>
             </div>
@@ -250,7 +251,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Bento Card 2 (Performance Metrics) */}
+          {/* Card 2: Performance Latency */}
           <div className="p-8 rounded-3xl bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/15 backdrop-blur-3xl shadow-2xl flex flex-col justify-between group hover:border-cyan-400/40 transition-all duration-300">
             <div>
               <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-300 mb-6">
@@ -266,7 +267,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Bento Card 3 (Security Edge) */}
+          {/* Card 3: Cloudflare Security */}
           <div className="p-8 rounded-3xl bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/15 backdrop-blur-3xl shadow-2xl flex flex-col justify-between group hover:border-emerald-400/40 transition-all duration-300">
             <div>
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-6">
@@ -283,21 +284,21 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Bento Card 4 (Dual Target Architecture with 3D Image) */}
+          {/* Card 4: Dual Target Architecture (2 Columns, 3D Render) */}
           <div className="md:col-span-2 rounded-3xl bg-slate-950 border border-white/15 overflow-hidden shadow-2xl relative group flex flex-col justify-between min-h-[380px]">
             <img 
               src="/images/dual_arch.jpg" 
               alt="3D Dual Target Architecture" 
               className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-700" 
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#030408] via-[#030408]/60 to-transparent z-0" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#030407] via-[#030407]/60 to-transparent z-0" />
 
             <div className="relative z-10 p-8">
               <div className="w-12 h-12 rounded-2xl bg-teal-500/15 border border-teal-500/30 backdrop-blur-xl flex items-center justify-center text-teal-300 mb-6">
                 <Monitor className="w-6 h-6" />
               </div>
               <h3 className="text-3xl font-black text-white mb-3 tracking-tight">Dual Target Runtime: Web & Tauri Desktop</h3>
-              <p className="text-sm text-white/75 leading-relaxed max-w-xl">
+              <p className="text-sm text-white/80 leading-relaxed max-w-xl">
                 Run directly in any web browser without installation, or download the native Tauri Desktop application for system webviews, native filesystem bindings, and desktop performance.
               </p>
             </div>
@@ -316,7 +317,7 @@ export default function LandingPage() {
 
       {/* ─── Ecosystem Marquee Pills ─── */}
       <section id="ecosystem" className="py-24 px-6 text-center z-10 relative">
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-4">
+        <h2 className="text-2xl sm:text-4xl font-extrabold text-white mb-4">
           Captures context from your favorite tools
         </h2>
         <p className="text-xs sm:text-sm text-white/50 max-w-lg mx-auto mb-10">
@@ -325,7 +326,7 @@ export default function LandingPage() {
 
         <div className="flex flex-wrap justify-center gap-3 max-w-4xl mx-auto">
           {['Figma', 'Notion', 'Claude', 'GitHub', 'Linear', 'Spotify', 'Canva', 'ChatGPT', 'YouTube', 'Framer', 'VS Code', 'Miro'].map((tool, idx) => (
-            <div key={idx} className="px-5 py-2.5 rounded-full bg-white/[0.04] border border-white/12 backdrop-blur-xl text-xs font-semibold text-white/80 hover:text-white hover:border-[#10F4A0]/40 transition-all cursor-default">
+            <div key={idx} className="px-5 py-2.5 rounded-full bg-white/[0.04] border border-white/12 backdrop-blur-xl text-xs font-semibold text-white/80 hover:text-white hover:border-[#10F4A0]/40 transition-all cursor-default shadow-lg">
               {tool}
             </div>
           ))}
