@@ -121,27 +121,43 @@ export function MenuBar({
     <header role="menubar" aria-label="OS menu bar" className="h-8 flex items-center shrink-0 w-full glass-panel rounded-none border-x-0 border-t-0 z-[260] px-4 sticky top-0 text-[13px] font-medium contain-layout" style={{ color: 'var(--os-text)' }}>
       <div className="flex items-center gap-6">
         <div
-          className="font-bold flex items-center gap-2 cursor-pointer hover:scale-110 transition-transform select-none"
+          className="font-bold flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform select-none"
           onClick={() => setShowLaunchpad(!showLaunchpad)}
-          title="Launchpad"
+          title="Launchpad / App Launcher"
         >
-          <span
-            className="w-5 h-5 flex items-center justify-center rounded-md text-[13px] font-black"
-            style={{
-              background: 'linear-gradient(135deg, var(--os-primary) 0%, #06b6d4 100%)',
-              color: '#000',
-              boxShadow: '0 0 8px var(--os-primary-muted, rgba(16,244,160,0.3))',
-            }}
-          >
-            C
-          </span>
-        </div>
-        <div className="font-bold flex items-center cursor-default uppercase tracking-wider text-xs px-2 py-0.5 rounded gap-2" style={{ background: 'var(--os-hover)' }}>
-          {currentUser.avatarUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img loading="lazy" src={currentUser.avatarUrl} alt="avatar" className="w-4 h-4 rounded-full" referrerPolicy="no-referrer" />
+          {currentUser?.avatarUrl ? (
+            <img 
+              src={currentUser.avatarUrl} 
+              alt="User Avatar" 
+              className="w-6 h-6 rounded-lg object-cover border border-[#10F4A0]/50 shadow-md shadow-[#10F4A0]/20" 
+            />
+          ) : (
+            <span
+              className="w-6 h-6 flex items-center justify-center rounded-lg text-[13px] font-black"
+              style={{
+                background: 'linear-gradient(135deg, var(--os-primary) 0%, #06b6d4 100%)',
+                color: '#000',
+                boxShadow: '0 0 8px var(--os-primary-muted, rgba(16,244,160,0.3))',
+              }}
+            >
+              C
+            </span>
           )}
-          {currentUser.name}
+        </div>
+        <div 
+          className="font-bold flex items-center cursor-pointer hover:bg-white/10 transition-colors uppercase tracking-wider text-xs px-2.5 py-1 rounded-lg gap-2 border border-white/10" 
+          onClick={() => openWindow('settings', 'Settings')}
+          title="Account Settings & Avatar"
+        >
+          {currentUser.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img loading="lazy" src={currentUser.avatarUrl} alt="avatar" className="w-5 h-5 rounded-full object-cover border border-[#10F4A0]/50" referrerPolicy="no-referrer" />
+          ) : (
+            <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#10F4A0] to-cyan-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+              {currentUser.name?.[0] || 'C'}
+            </div>
+          )}
+          <span>{currentUser.name}</span>
         </div>
         <div className="hidden sm:flex gap-4">
           <div className="group relative">

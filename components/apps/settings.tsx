@@ -496,14 +496,71 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                   <h2 className="text-lg font-medium">Account Profile</h2>
                 </div>
 
-                <div className="flex items-center gap-6 p-6 bg-white/5 rounded-xl border border-white/10">
-                  <div className="w-20 h-20 rounded-full bg-blue-500/20 border-2 border-blue-500 flex items-center justify-center text-3xl font-bold text-blue-400">
-                    {currentUser?.name?.charAt(0) || 'U'}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6 bg-white/5 rounded-xl border border-white/10">
+                  {currentUser?.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={currentUser.avatarUrl} alt="Avatar" className="w-20 h-20 rounded-full object-cover border-2 border-[#10F4A0] shadow-lg shadow-[#10F4A0]/20 shrink-0" />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#10F4A0] to-cyan-500 flex items-center justify-center text-3xl font-black text-slate-950 shrink-0 shadow-lg shadow-[#10F4A0]/20">
+                      {currentUser?.name?.charAt(0) || 'C'}
+                    </div>
+                  )}
+                  <div className="flex-1 space-y-2">
+                    <h3 className="text-xl font-bold">{currentUser?.name || 'Continua User'}</h3>
+                    <p className="text-white/50 text-sm">Role: <span className="text-[#10F4A0] uppercase tracking-wider text-xs font-bold">{currentUser?.role || 'User'}</span></p>
+                    <div className="flex gap-2 items-center pt-2">
+                      <input 
+                        type="text" 
+                        placeholder="Paste custom avatar URL..." 
+                        value={customUrl}
+                        onChange={(e) => setCustomUrl(e.target.value)}
+                        className="bg-black/40 border border-white/15 px-3 py-1.5 rounded-lg text-xs text-white placeholder-white/40 focus:outline-none focus:border-[#10F4A0] flex-1 max-w-xs"
+                      />
+                      <button 
+                        onClick={() => {
+                          if (customUrl.trim() && currentUser) {
+                            useOS().setCurrentUser({ ...currentUser, avatarUrl: customUrl.trim() });
+                            audioSystem.playClick();
+                          }
+                        }}
+                        className="bg-[#10F4A0]/20 hover:bg-[#10F4A0]/30 text-[#10F4A0] border border-[#10F4A0]/40 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                      >
+                        Set Avatar
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold">{currentUser?.name || 'Guest User'}</h3>
-                    <p className="text-white/50 text-sm mt-1">Role: <span className="text-blue-400 uppercase tracking-wider text-xs font-bold">{currentUser?.role || 'User'}</span></p>
-                    <p className="text-white/50 text-sm mt-1">Workspace ID: {currentUser?.id}</p>
+                </div>
+
+                {/* 3D Avatar Preset Selection */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-white/70 uppercase tracking-wider">Select 3D Avatar Preset</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {([
+                      { name: '🤖 3D Glass Cyberbot', url: '/images/avatar_cyber.jpg' },
+                      { name: '💎 Emerald Obsidian', url: '/images/hero_3d.jpg' },
+                      { name: '🚀 Cosmic Astronaut', url: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=2564&auto=format&fit=crop' },
+                      { name: '🎨 Neon Cyberpunk', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=2564&auto=format&fit=crop' },
+                    ]).map((preset) => (
+                      <button
+                        key={preset.url}
+                        onClick={() => {
+                          if (currentUser) {
+                            useOS().setCurrentUser({ ...currentUser, avatarUrl: preset.url });
+                            audioSystem.playClick();
+                          }
+                        }}
+                        className={cn(
+                          "flex flex-col items-center gap-2 p-3 rounded-xl border transition-all text-center",
+                          currentUser?.avatarUrl === preset.url
+                            ? "bg-[#10F4A0]/20 border-[#10F4A0] shadow-md shadow-[#10F4A0]/20"
+                            : "bg-white/5 border-white/10 hover:bg-white/10"
+                        )}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={preset.url} alt={preset.name} className="w-12 h-12 rounded-full object-cover border border-white/20" />
+                        <span className="text-[11px] font-semibold text-white/80">{preset.name}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               </section>
