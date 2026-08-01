@@ -39,6 +39,7 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
   'admin': () => import('@/components/apps/admin-panel'),
   'color-picker': () => import('@/components/apps/color-picker'),
   'calls': () => import('@/components/apps/calls'),
+  'spotify': () => import('@/components/apps/spotify'),
 
   'productivity': () => import('@/components/apps/productivity-suite'),
   'pdf-reader': () => import('@/components/apps/pdf-reader'),
