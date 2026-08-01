@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ShoppingBag, Search, Download, Check, Sparkles, ExternalLink, Globe, Lock, Play, Code, Music, Target, MessageSquare, Palette, FolderOpen } from 'lucide-react';
 import { useWindowStore } from '@/lib/stores/window.store';
+import { cn } from '@/lib/utils';
 
 export interface AppCatalogItem {
   id: string;
