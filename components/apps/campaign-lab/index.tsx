@@ -581,9 +581,9 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                  <button
                   className="flex items-center gap-1 text-sm text-[#37352f]/50 hover:bg-black/5 px-2 py-1 rounded transition-colors"
                   onClick={() => {
-                    const icons = ['📄', '🎯', '📝', '✨', '🚀', '💡', '🔥', '🎨', '📦', '📅', '🏭', '📸', '⚙️', '📋', '💻'];
-                    const randomIcon = icons[Math.floor(Math.random() * icons.length)];
-                    updatePage(activePage.id, { icon: randomIcon });
+                     const icons = ['📄', '🎯', '📝', '✨', '🚀', '💡', '🔥', '🎨', '📦', '📅', '🏭', '📸', '⚙️', '📋', '💻'];
+                     const randomIcon = '📄';
+                     updatePage(activePage.id, { icon: randomIcon });
                   }}
                  >
                    <Smile className="w-4 h-4" /> Add icon

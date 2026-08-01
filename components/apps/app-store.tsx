@@ -30,7 +30,7 @@ const CATALOG: AppCatalogItem[] = [
     id: 'github',
     name: 'GitHub Desktop & Codespaces',
     category: 'developer',
-    icon: '🐙',
+    icon: Code,
     description: 'Code repositories, issues, and automated Virtual FS cloning',
     url: 'https://github.com',
     installed: true,
@@ -40,7 +40,7 @@ const CATALOG: AppCatalogItem[] = [
     id: 'notion',
     name: 'Notion Workspace',
     category: 'productivity',
-    icon: '📝',
+    icon: Sparkles,
     description: 'All-in-one workspace for notes, docs, and team wikis',
     url: 'https://www.notion.so',
     installed: true,
@@ -50,7 +50,7 @@ const CATALOG: AppCatalogItem[] = [
     id: 'spotify',
     name: 'Spotify Music Player',
     category: 'media',
-    icon: '🎵',
+    icon: Music,
     description: 'Digital music service and audio streaming embedded in Notch',
     url: 'https://open.spotify.com',
     installed: true,
@@ -60,7 +60,7 @@ const CATALOG: AppCatalogItem[] = [
     id: 'vscode',
     name: 'VS Code Web',
     category: 'developer',
-    icon: '💻',
+    icon: Code,
     description: 'Full web version of Visual Studio Code IDE',
     url: 'https://vscode.dev',
     installed: false,
@@ -70,7 +70,7 @@ const CATALOG: AppCatalogItem[] = [
     id: 'canva',
     name: 'Canva Design Studio',
     category: 'design',
-    icon: '✨',
+    icon: Sparkles,
     description: 'Graphic design, presentation, and video creator',
     url: 'https://www.canva.com',
     installed: false,
@@ -80,7 +80,7 @@ const CATALOG: AppCatalogItem[] = [
     id: 'linear',
     name: 'Linear Issue Tracker',
     category: 'productivity',
-    icon: '🎯',
+    icon: Target,
     description: 'Streamlined issue tracking for software teams',
     url: 'https://linear.app',
     installed: false,
@@ -90,7 +90,7 @@ const CATALOG: AppCatalogItem[] = [
     id: 'slack',
     name: 'Slack Workspaces',
     category: 'productivity',
-    icon: '💬',
+    icon: MessageSquare,
     description: 'Team messaging and real-time collaboration channel',
     url: 'https://slack.com',
     installed: false,
@@ -187,7 +187,9 @@ export function AppStoreApp() {
             className="p-5 rounded-2xl bg-slate-900 border border-white/10 hover:border-white/20 transition-all flex items-start justify-between gap-4 shadow-xl"
           >
             <div className="flex items-start gap-4">
-              <span className="text-3xl p-3 bg-white/5 border border-white/10 rounded-2xl">{app.icon}</span>
+              <div className="w-12 h-12 shrink-0 bg-gradient-to-tr from-slate-900 to-slate-800 border border-white/20 rounded-2xl flex items-center justify-center shadow-lg">
+                <app.icon className="w-6 h-6 text-cyan-400" />
+              </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <h3 className="font-bold text-sm text-white">{app.name}</h3>

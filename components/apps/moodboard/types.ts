@@ -55,7 +55,7 @@ export type Connection = {
 
 export type CanvasMode = 'select' | 'pan' | 'comment' | 'connect';
 
-export const REACTION_EMOJIS = ['❤️', '👍', '🔥', '✨', '🎯', '💡'];
+export const REACTION_EMOJIS = ['like', 'heart', 'star', 'fire', 'target', 'idea'];
 export const NODE_COLORS = [
   '#ffffff', '#fef3c7', '#dcfce7', '#dbeafe', '#fce7f3',
   '#f3e8ff', '#e0e7ff', '#fed7aa', '#d1fae5', '#fecaca',
