@@ -144,84 +144,69 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Interactive Screen Display Body */}
-          <div className="relative aspect-[16/9] w-full rounded-b-2xl bg-[#080a14] overflow-hidden flex items-center justify-center p-6 border border-white/5">
-            <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#10F4A0_1px,transparent_1px)] [background-size:24px_24px]" />
+          {/* Interactive Screen Display Body with Real 3D Visual Asset */}
+          <div className="relative aspect-[16/9] w-full rounded-b-2xl bg-[#080a14] overflow-hidden flex items-center justify-center border border-white/5 group">
+            {/* Background 3D Render Image */}
+            <img 
+              src="/images/hero_3d.jpg" 
+              alt="ContinuaOS 3D Desktop UI" 
+              className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-700"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#030408] via-transparent to-black/40" />
 
-            {/* Tab 1: OS Desktop View */}
-            {activeTab === 'desktop' && (
-              <div className="relative z-10 w-full h-full flex flex-col justify-between p-4 animate-in fade-in zoom-in-95 duration-300">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { name: 'Terminal', desc: 'Real bash WASM VFS', color: 'from-emerald-500 to-teal-700', icon: Terminal },
-                    { name: 'Power Browser', desc: 'Reverse proxy tabs', color: 'from-cyan-500 to-blue-700', icon: Globe },
-                    { name: 'Moodboard', desc: 'Canvas & brand tokens', color: 'from-teal-500 to-emerald-700', icon: Palette },
-                    { name: 'Code Editor', desc: 'Persistent workspace', color: 'from-cyan-600 to-emerald-800', icon: Code2 },
-                  ].map((app, i) => (
-                    <div key={i} className="p-4 rounded-2xl bg-white/[0.04] backdrop-blur-2xl border border-white/12 flex flex-col items-center text-center shadow-xl">
-                      <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${app.color} flex items-center justify-center shadow-lg mb-2`}>
-                        <app.icon className="w-6 h-6 text-white" />
-                      </div>
-                      <span className="text-xs font-bold text-white">{app.name}</span>
-                      <span className="text-[10px] text-white/40">{app.desc}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Simulated Dock */}
-                <div className="w-fit mx-auto px-6 py-2 rounded-2xl bg-slate-950/90 border border-white/15 backdrop-blur-2xl flex items-center gap-3 shadow-2xl">
-                  <div className="w-8 h-8 rounded-xl bg-[#10F4A0]/20 flex items-center justify-center text-[#10F4A0] font-bold"><Terminal className="w-4 h-4" /></div>
-                  <div className="w-8 h-8 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-300 font-bold"><Globe className="w-4 h-4" /></div>
-                  <div className="w-8 h-8 rounded-xl bg-teal-500/20 flex items-center justify-center text-teal-300 font-bold"><Palette className="w-4 h-4" /></div>
-                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-300 font-bold"><FolderOpen className="w-4 h-4" /></div>
+            {/* Overlaid Tab Interactive Preview Banner */}
+            <div className="relative z-10 w-full h-full p-6 flex flex-col justify-between pointer-events-none">
+              <div className="flex items-center justify-between">
+                <div className="px-3 py-1 rounded-full bg-slate-950/80 backdrop-blur-xl border border-white/15 text-xs font-mono text-[#10F4A0] flex items-center gap-2 shadow-xl">
+                  <div className="w-2 h-2 rounded-full bg-[#10F4A0] animate-pulse" />
+                  <span>3D Living State Active</span>
                 </div>
               </div>
-            )}
 
-            {/* Tab 2: Terminal View */}
-            {activeTab === 'terminal' && (
-              <div className="relative z-10 w-full h-full bg-[#05070d] rounded-xl p-5 border border-white/10 font-mono text-xs text-emerald-400 flex flex-col justify-between text-left animate-in fade-in zoom-in-95 duration-300">
-                <div>
-                  <div className="text-white/40 mb-2">ContinuaOS v2.4 Terminal (xterm.js + VFS)</div>
-                  <div className="text-[#10F4A0]">$ continua init --mode=persistent</div>
-                  <div className="text-white/60 ml-2">✓ Context layer initialized (IndexedDB)</div>
-                  <div className="text-white/60 ml-2">✓ Cloudflare Worker Edge Proxy active</div>
-                  <div className="text-[#10F4A0] mt-2">$ continua status</div>
-                  <div className="text-cyan-300 ml-2">Active Session: 8 windows restored (0.02s)</div>
+              {/* Tab 1: OS Desktop View overlay badge */}
+              {activeTab === 'desktop' && (
+                <div className="p-4 rounded-2xl bg-slate-950/90 backdrop-blur-2xl border border-white/15 max-w-sm ml-auto shadow-2xl animate-in fade-in duration-300">
+                  <div className="text-xs font-bold text-white mb-1 flex items-center gap-2">
+                    <Layout className="w-4 h-4 text-[#10F4A0]" />
+                    <span>Multi-Window Ecosystem</span>
+                  </div>
+                  <p className="text-[11px] text-white/60">Persistent state across all open windows, canvas swatch buffers, and WASM terminals.</p>
                 </div>
-                <div className="flex items-center gap-2 text-emerald-400">
-                  <span>continua@os:~$</span>
-                  <div className="w-2 h-4 bg-[#10F4A0] animate-pulse" />
-                </div>
-              </div>
-            )}
+              )}
 
-            {/* Tab 3: Moodboard View */}
-            {activeTab === 'moodboard' && (
-              <div className="relative z-10 w-full h-full flex items-center justify-center gap-4 p-4 animate-in fade-in zoom-in-95 duration-300">
-                <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-2xl flex flex-col items-center gap-2">
-                  <div className="w-20 h-20 rounded-xl bg-gradient-to-tr from-[#10F4A0] to-cyan-500 shadow-xl" />
-                  <span className="text-xs font-mono font-bold text-white">#10F4A0</span>
+              {/* Tab 2: Terminal View overlay badge */}
+              {activeTab === 'terminal' && (
+                <div className="p-4 rounded-2xl bg-slate-950/90 backdrop-blur-2xl border border-emerald-500/30 max-w-sm ml-auto shadow-2xl animate-in fade-in duration-300">
+                  <div className="text-xs font-mono font-bold text-[#10F4A0] mb-1 flex items-center gap-2">
+                    <Terminal className="w-4 h-4" />
+                    <span>xterm.js + VirtualFS</span>
+                  </div>
+                  <p className="text-[11px] text-white/60 font-mono">$ continua init --mode=persistent (0ms latency)</p>
                 </div>
-                <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-2xl flex flex-col items-center gap-2">
-                  <div className="w-20 h-20 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 shadow-xl" />
-                  <span className="text-xs font-mono font-bold text-white">#00F0FF</span>
-                </div>
-                <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-2xl flex flex-col items-center gap-2">
-                  <div className="w-20 h-20 rounded-xl bg-gradient-to-tr from-slate-900 to-black shadow-xl border border-white/20" />
-                  <span className="text-xs font-mono font-bold text-white">#05070D</span>
-                </div>
-              </div>
-            )}
+              )}
 
-            {/* Tab 4: Security View */}
-            {activeTab === 'security' && (
-              <div className="relative z-10 w-full h-full flex flex-col items-center justify-center text-center p-6 bg-slate-950/90 rounded-xl border border-white/10 animate-in fade-in zoom-in-95 duration-300">
-                <ShieldCheck className="w-12 h-12 text-[#10F4A0] mb-3" />
-                <h3 className="text-base font-bold text-white mb-1">Supabase Row-Level Security (RLS) & JWT Auth</h3>
-                <p className="text-xs text-white/60 max-w-md">Cloudflare Worker proxies all request tokens. Zero service-role keys exposed.</p>
-              </div>
-            )}
+              {/* Tab 3: Moodboard View overlay badge */}
+              {activeTab === 'moodboard' && (
+                <div className="p-4 rounded-2xl bg-slate-950/90 backdrop-blur-2xl border border-cyan-500/30 max-w-sm ml-auto shadow-2xl animate-in fade-in duration-300">
+                  <div className="text-xs font-bold text-cyan-300 mb-1 flex items-center gap-2">
+                    <Palette className="w-4 h-4 text-cyan-400" />
+                    <span>Brand Token Sync</span>
+                  </div>
+                  <p className="text-[11px] text-white/60">Color palettes, typography swatches, and design assets automatically synced.</p>
+                </div>
+              )}
+
+              {/* Tab 4: Security View overlay badge */}
+              {activeTab === 'security' && (
+                <div className="p-4 rounded-2xl bg-slate-950/90 backdrop-blur-2xl border border-emerald-400/30 max-w-sm ml-auto shadow-2xl animate-in fade-in duration-300">
+                  <div className="text-xs font-bold text-emerald-400 mb-1 flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Edge Worker JWT Shield</span>
+                  </div>
+                  <p className="text-[11px] text-white/60">Cloudflare proxy enforces Supabase RLS policies across all edge requests.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -237,28 +222,36 @@ export default function LandingPage() {
           </h2>
         </div>
 
-        {/* 3D Bento Grid Layout */}
+        {/* 3D Bento Grid Layout with High-Res Images */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Bento Card 1 (Large 2-column) */}
-          <div className="md:col-span-2 p-8 rounded-3xl bg-gradient-to-br from-white/[0.06] to-white/[0.01] border border-white/15 backdrop-blur-3xl shadow-2xl flex flex-col justify-between group hover:border-[#10F4A0]/40 transition-all duration-300">
-            <div>
-              <div className="w-12 h-12 rounded-2xl bg-[#10F4A0]/15 border border-[#10F4A0]/30 flex items-center justify-center text-[#10F4A0] mb-6">
+          {/* Bento Card 1 (Large 2-column with 3D Context Image) */}
+          <div className="md:col-span-2 rounded-3xl bg-slate-950 border border-white/15 overflow-hidden shadow-2xl relative group flex flex-col justify-between min-h-[380px]">
+            <img 
+              src="/images/context_3d.jpg" 
+              alt="3D Context Protocol" 
+              className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-700" 
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#030408] via-[#030408]/60 to-transparent z-0" />
+            
+            <div className="relative z-10 p-8">
+              <div className="w-12 h-12 rounded-2xl bg-[#10F4A0]/15 border border-[#10F4A0]/30 backdrop-blur-xl flex items-center justify-center text-[#10F4A0] mb-6">
                 <Layers className="w-6 h-6" />
               </div>
-              <h3 className="text-2xl font-bold text-white mb-3">Context Kernel Protocol</h3>
-              <p className="text-sm text-white/60 leading-relaxed max-w-xl mb-6">
+              <h3 className="text-3xl font-black text-white mb-3 tracking-tight">Context Kernel Protocol</h3>
+              <p className="text-sm text-white/75 leading-relaxed max-w-xl">
                 Stores your entire desktop environment as domain-keyed records (theme, layout, open tabs, active tools, brand tokens). When you reopen ContinuaOS, everything recovers instantly without page refreshes.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2 pt-4 border-t border-white/10">
-              <span className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-xs font-mono text-[#10F4A0]">IndexedDB Engine</span>
-              <span className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-xs font-mono text-cyan-300">Domain-Keyed Sync</span>
-              <span className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-xs font-mono text-teal-300">Zero Refresh State</span>
+
+            <div className="relative z-10 p-6 flex flex-wrap gap-2 border-t border-white/10 bg-slate-950/60 backdrop-blur-xl">
+              <span className="px-3 py-1 rounded-lg bg-white/10 border border-white/15 text-xs font-mono font-bold text-[#10F4A0]">IndexedDB Engine</span>
+              <span className="px-3 py-1 rounded-lg bg-white/10 border border-white/15 text-xs font-mono font-bold text-cyan-300">Domain-Keyed Sync</span>
+              <span className="px-3 py-1 rounded-lg bg-white/10 border border-white/15 text-xs font-mono font-bold text-teal-300">Zero Refresh State</span>
             </div>
           </div>
 
           {/* Bento Card 2 (Performance Metrics) */}
-          <div className="p-8 rounded-3xl bg-gradient-to-br from-white/[0.06] to-white/[0.01] border border-white/15 backdrop-blur-3xl shadow-2xl flex flex-col justify-between group hover:border-cyan-400/40 transition-all duration-300">
+          <div className="p-8 rounded-3xl bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/15 backdrop-blur-3xl shadow-2xl flex flex-col justify-between group hover:border-cyan-400/40 transition-all duration-300">
             <div>
               <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-300 mb-6">
                 <Zap className="w-6 h-6" />
@@ -268,40 +261,48 @@ export default function LandingPage() {
                 Local-first IndexedDB cache serves queries instantly offline. Multi-device sync pushes changes to Cloudflare Workers in background threads.
               </p>
             </div>
-            <div className="text-3xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-[#10F4A0] to-cyan-300">
+            <div className="text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-[#10F4A0] to-cyan-300">
               100% Offline
             </div>
           </div>
 
           {/* Bento Card 3 (Security Edge) */}
-          <div className="p-8 rounded-3xl bg-gradient-to-br from-white/[0.06] to-white/[0.01] border border-white/15 backdrop-blur-3xl shadow-2xl flex flex-col justify-between group hover:border-emerald-400/40 transition-all duration-300">
+          <div className="p-8 rounded-3xl bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/15 backdrop-blur-3xl shadow-2xl flex flex-col justify-between group hover:border-emerald-400/40 transition-all duration-300">
             <div>
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-6">
                 <ShieldCheck className="w-6 h-6" />
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Cloudflare Worker RLS</h3>
               <p className="text-xs text-white/60 leading-relaxed mb-4">
-                All edge proxy calls enforce Supabase Row-Level Security (RLS) via user JWT tokens.
+                All edge proxy calls enforce Supabase Row-Level Security (RLS) via user JWT tokens. Zero service role key leaks.
               </p>
             </div>
             <div className="text-xs font-mono text-emerald-400 flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>RLS Active</span>
+              <span>RLS Token Proxy</span>
             </div>
           </div>
 
-          {/* Bento Card 4 (Dual Target Architecture) */}
-          <div className="md:col-span-2 p-8 rounded-3xl bg-gradient-to-br from-white/[0.06] to-white/[0.01] border border-white/15 backdrop-blur-3xl shadow-2xl flex flex-col justify-between group hover:border-teal-400/40 transition-all duration-300">
-            <div>
-              <div className="w-12 h-12 rounded-2xl bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-300 mb-6">
+          {/* Bento Card 4 (Dual Target Architecture with 3D Image) */}
+          <div className="md:col-span-2 rounded-3xl bg-slate-950 border border-white/15 overflow-hidden shadow-2xl relative group flex flex-col justify-between min-h-[380px]">
+            <img 
+              src="/images/dual_arch.jpg" 
+              alt="3D Dual Target Architecture" 
+              className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-700" 
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#030408] via-[#030408]/60 to-transparent z-0" />
+
+            <div className="relative z-10 p-8">
+              <div className="w-12 h-12 rounded-2xl bg-teal-500/15 border border-teal-500/30 backdrop-blur-xl flex items-center justify-center text-teal-300 mb-6">
                 <Monitor className="w-6 h-6" />
               </div>
-              <h3 className="text-2xl font-bold text-white mb-3">Dual Target Runtime: Web & Tauri Desktop</h3>
-              <p className="text-sm text-white/60 leading-relaxed max-w-xl mb-6">
+              <h3 className="text-3xl font-black text-white mb-3 tracking-tight">Dual Target Runtime: Web & Tauri Desktop</h3>
+              <p className="text-sm text-white/75 leading-relaxed max-w-xl">
                 Run directly in any web browser without installation, or download the native Tauri Desktop application for system webviews, native filesystem bindings, and desktop performance.
               </p>
             </div>
-            <div className="flex flex-wrap gap-4">
+
+            <div className="relative z-10 p-6 flex flex-wrap gap-4 border-t border-white/10 bg-slate-950/60 backdrop-blur-xl">
               <div className="flex items-center gap-2 text-xs font-bold text-white">
                 <CheckCircle2 className="w-4 h-4 text-[#10F4A0]" /> Web Browser OS
               </div>
