@@ -48,10 +48,23 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
   useEffect(() => {
     // Default active track or Spotify session
     setSpotifyTrack({
-      title: 'Starboy',
-      artist: 'The Weeknd, Daft Punk',
-      cover: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=300&auto=format&fit=crop',
+      title: 'High Art Studio Session',
+      artist: 'Terence Howard',
+      cover: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300&auto=format&fit=crop',
     });
+
+    const handler = (e: any) => {
+      if (e.detail) {
+        setIsPlaying(!!e.detail.isPlaying);
+        setSpotifyTrack({
+          title: e.detail.title || 'High Art Studio Session',
+          artist: e.detail.artist || 'Terence Howard',
+          cover: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300&auto=format&fit=crop',
+        });
+      }
+    };
+    window.addEventListener('os:spotify-track-change', handler);
+    return () => window.removeEventListener('os:spotify-track-change', handler);
   }, []);
 
   useEffect(() => {
@@ -166,13 +179,13 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                     onClick={() => setActiveTab('nook')} 
                     className={cn("px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5", activeTab === 'nook' ? "bg-white text-black shadow-md" : "text-white/60 hover:text-white")}
                   >
-                    <span>💡</span> Nook
+                    <Music className="w-3.5 h-3.5" /> Nook
                   </button>
                   <button 
                     onClick={() => setActiveTab('tray')} 
                     className={cn("px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5", activeTab === 'tray' ? "bg-white text-black shadow-md" : "text-white/60 hover:text-white")}
                   >
-                    <span>📁</span> Tray
+                    <LayoutGrid className="w-3.5 h-3.5" /> Tray
                   </button>
                 </div>
 

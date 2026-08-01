@@ -119,9 +119,10 @@ export function HomeWidgetPanel({ className }: ControlCenterProps) {
               </div>
               <button 
                 onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Recording Started', description: 'Meeting audio recording active', type: 'info' } }))}
-                className="w-full py-1 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                className="w-full py-1 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[10px] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
-                <span>🔴</span> Start recording
+                <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                <span>Start recording</span>
               </button>
             </div>
           </div>

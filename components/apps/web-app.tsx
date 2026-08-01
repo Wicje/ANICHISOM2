@@ -70,79 +70,95 @@ export default function WebApp({ window: osWindow }: { window: any }) {
 
   if (osWindow.appId === 'spotify' && spotifyView === 'card') {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-neutral-900 via-stone-900 to-zinc-950 relative overflow-hidden select-none">
-        {/* Background Ambient Glow */}
-        <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/40 via-transparent to-transparent pointer-events-none" />
+      <div className="w-full h-full flex flex-col items-center justify-center p-3 bg-slate-950/90 backdrop-blur-3xl relative overflow-hidden select-none">
+        {/* Background Ambient Blur Glow */}
+        <div className="absolute -inset-10 bg-gradient-to-br from-emerald-600/20 via-teal-900/10 to-purple-900/20 blur-3xl pointer-events-none" />
 
-        {/* High-Art Glassmorphism Card (ref_spotify.jpg inspired) */}
-        <div className="w-80 h-96 rounded-[32px] bg-neutral-900/80 border border-white/15 shadow-2xl p-5 flex flex-col justify-between relative backdrop-blur-2xl text-white">
+        {/* High-Art Glassmorphism System Overlay Card */}
+        <div className="w-full max-w-[340px] h-[400px] rounded-[36px] bg-neutral-900/80 border border-white/20 shadow-[0_30px_70px_rgba(0,0,0,0.8)] p-5 flex flex-col justify-between relative backdrop-blur-2xl text-white contain-layout">
           
           {/* Top Info Bar */}
           <div className="flex items-center justify-between z-10">
-            <div className="flex items-center gap-2 bg-white/10 px-2.5 py-1 rounded-full border border-white/10">
-              <div className="w-5 h-5 rounded-full bg-slate-700 overflow-hidden">
+            <div className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full border border-white/10 backdrop-blur-md">
+              <div className="w-5 h-5 rounded-full bg-slate-700 overflow-hidden ring-1 ring-white/20">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=100&auto=format&fit=crop" alt="avatar" className="w-full h-full object-cover" />
               </div>
-              <span className="text-xs font-bold tracking-wide">Terence Howard</span>
-              <span className="text-[10px] text-white/50">@terenceh</span>
+              <span className="text-xs font-bold tracking-wide text-slate-100">Terence Howard</span>
+              <span className="text-[10px] text-slate-400 font-mono">@terenceh</span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button onClick={() => setLiked(!liked)} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
-                <span className={liked ? "text-rose-500" : "text-white/60"}>❤️</span>
-              </button>
-            </div>
+            <button 
+              onClick={() => setLiked(!liked)} 
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center transition-colors"
+            >
+              <Heart className={cn("w-4 h-4 transition-colors", liked ? "fill-rose-500 text-rose-500" : "text-white/60")} />
+            </button>
           </div>
 
-          {/* Center Album Art */}
-          <div className="absolute inset-x-5 top-16 bottom-24 rounded-2xl overflow-hidden shadow-2xl group">
+          {/* Center Cover Artwork */}
+          <div className="absolute inset-x-5 top-16 bottom-28 rounded-2xl overflow-hidden shadow-2xl group border border-white/10">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img 
               src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop" 
               alt="Track Cover" 
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent" />
+            <div className="absolute bottom-3 left-4 right-4 text-left">
+              <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest block font-mono text-[9px]">Now Playing</span>
+              <span className="text-sm font-black text-white truncate block">High Art Studio Session</span>
+            </div>
           </div>
 
           {/* Bottom Audio Controls */}
-          <div className="z-10 flex flex-col gap-3">
+          <div className="z-10 flex flex-col gap-3.5">
             {/* Progress Slider */}
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <input
                 type="range"
                 min="0"
                 max="100"
                 value={progress}
                 onChange={(e) => setProgress(Number(e.target.value))}
-                className="w-full h-1 bg-white/20 rounded-full appearance-none outline-none accent-white cursor-pointer"
+                className="w-full h-1 bg-white/20 rounded-full appearance-none outline-none accent-emerald-400 cursor-pointer"
               />
-              <div className="flex justify-between text-[10px] text-white/60 font-mono">
+              <div className="flex justify-between text-[10px] text-white/50 font-mono">
                 <span>0:52</span>
                 <span>-1:21</span>
               </div>
             </div>
 
-            {/* Play / Pause / Skip */}
+            {/* Play / Pause / Skip (Vector Icons) */}
             <div className="flex items-center justify-center gap-6">
-              <button className="text-white/70 hover:text-white transition-colors">⏮️</button>
-              <button 
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="w-12 h-12 rounded-full bg-white text-black font-bold flex items-center justify-center shadow-lg hover:scale-105 transition-transform"
-              >
-                {isPlaying ? '⏸️' : '▶️'}
+              <button className="p-2 text-white/70 hover:text-white transition-colors cursor-pointer">
+                <SkipBack className="w-5 h-5" />
               </button>
-              <button className="text-white/70 hover:text-white transition-colors">⏭️</button>
+              <button 
+                onClick={() => {
+                  const nextPlaying = !isPlaying;
+                  setIsPlaying(nextPlaying);
+                  window.dispatchEvent(new CustomEvent('os:spotify-track-change', {
+                    detail: { title: 'High Art Studio Session', artist: 'Terence Howard', isPlaying: nextPlaying }
+                  }));
+                }}
+                className="w-12 h-12 rounded-full bg-white text-slate-950 font-bold flex items-center justify-center shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              >
+                {isPlaying ? <Pause className="w-5 h-5 fill-slate-950" /> : <Play className="w-5 h-5 fill-slate-950 ml-0.5" />}
+              </button>
+              <button className="p-2 text-white/70 hover:text-white transition-colors cursor-pointer">
+                <SkipForward className="w-5 h-5" />
+              </button>
             </div>
           </div>
         </div>
 
         <button 
           onClick={() => setSpotifyView('web')} 
-          className="mt-4 text-xs font-bold text-emerald-400 hover:underline cursor-pointer z-10"
+          className="mt-3 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer z-10 flex items-center gap-1"
         >
-          Switch to Full Spotify Web Player ↗
+          <span>Full Spotify Web Player</span>
+          <ExternalLink className="w-3 h-3" />
         </button>
       </div>
     );

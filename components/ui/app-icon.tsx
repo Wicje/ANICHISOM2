@@ -36,8 +36,8 @@ export function AppIcon({ icon: Icon, iconImage, className, alt, ...props }: App
   }
   if (Icon) {
     return (
-      <div className={cn('flex items-center justify-center shrink-0', className)} {...props}>
-        <Icon className="w-[60%] h-[60%]" style={{ color: 'var(--os-text)' }} />
+      <div className={cn('flex items-center justify-center shrink-0 rounded-2xl bg-gradient-to-tr from-slate-900/90 to-slate-800/80 border border-white/20 shadow-lg p-1.5 backdrop-blur-md', className)} {...props}>
+        <Icon className="w-[75%] h-[75%] text-slate-100 drop-shadow-md" />
       </div>
     );
   }

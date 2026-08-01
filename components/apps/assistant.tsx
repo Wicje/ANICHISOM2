@@ -419,7 +419,7 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
             className={cn("w-6 h-6 rounded-full flex items-center justify-center text-xs transition-colors", isVoiceActive ? "bg-rose-500/20 text-rose-400 border border-rose-500/40" : "bg-white/10 text-white/60 hover:bg-white/20")}
             title="Voice Mic Input"
           >
-            🎙️
+            <Mic className="w-3.5 h-3.5" />
           </button>
 
           {/* Equalizer Wave Bubbles */}
@@ -435,7 +435,7 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
 
           <div className="flex items-center gap-1.5">
             <span className="w-5 h-5 rounded-md bg-black text-white border border-white/20 flex items-center justify-center text-[9px] font-black">
-              ✨
+              <Sparkles className="w-3 h-3 text-emerald-400" />
             </span>
             <button 
               onClick={() => setIsVoiceActive(false)} 
