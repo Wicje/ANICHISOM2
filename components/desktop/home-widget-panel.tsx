@@ -19,6 +19,22 @@ export function HomeWidgetPanel({ className }: ControlCenterProps) {
   
   const [brightness, setBrightnessState] = useState(80);
   const [weather, setWeather] = useState<{ temp: number; desc: string; icon: string }>({ temp: 72, desc: 'Sunny', icon: '☀️' });
+  const [isProximityActive, setIsProximityActive] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const edgeThreshold = 18; // px from right edge
+      if (e.clientX >= window.innerWidth - edgeThreshold) {
+        setIsProximityActive(true);
+      } else if (e.clientX < window.innerWidth - 380 && !isHovered) {
+        setIsProximityActive(false);
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [isHovered]);
 
   useEffect(() => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) return;

@@ -154,10 +154,19 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
     { id: 'privacy', label: 'Privacy & Security', icon: Shield },
   ] as const;
 
+  const [sidebarMouse, setSidebarMouse] = useState<{ x: number; y: number } | null>(null);
+
   return (
     <div className="flex w-full h-full bg-[#05070d]/65 backdrop-blur-3xl border border-white/15 text-white font-sans overflow-hidden select-none">
       {/* Sidebar */}
-      <div className="w-56 border-r border-white/10 p-5 flex flex-col gap-2 shrink-0 bg-white/[0.02]">
+      <div 
+        onMouseMove={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          setSidebarMouse({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        }}
+        onMouseLeave={() => setSidebarMouse(null)}
+        className="w-56 border-r border-white/10 p-5 flex flex-col gap-2 shrink-0 bg-white/[0.02] relative"
+      >
         <div className="text-[10px] font-bold text-[#10F4A0] tracking-widest uppercase mb-3 px-2">Settings</div>
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -165,16 +174,27 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id);
+                audioSystem.playClick();
+              }}
               className={cn(
-                "flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-200",
+                "flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-200 relative group overflow-hidden border",
                 isActive 
-                  ? "bg-gradient-to-r from-[#10F4A0]/20 to-cyan-500/20 text-[#10F4A0] border border-[#10F4A0]/40 shadow-lg shadow-[#10F4A0]/10" 
-                  : "text-white/60 hover:bg-white/5 hover:text-white"
+                  ? "bg-gradient-to-r from-[#10F4A0]/20 to-cyan-500/20 text-[#10F4A0] border-[#10F4A0]/40 shadow-lg shadow-[#10F4A0]/10" 
+                  : "border-transparent text-white/60 hover:bg-white/5 hover:text-white"
               )}
             >
+              {sidebarMouse && !isActive && (
+                <div 
+                  className="absolute inset-0 pointer-events-none opacity-40 transition-opacity duration-300 group-hover:opacity-100"
+                  style={{
+                    background: `radial-gradient(120px circle at ${sidebarMouse.x}px ${sidebarMouse.y}px, rgba(16,244,160,0.18), transparent 80%)`
+                  }}
+                />
+              )}
               <Icon className="w-4 h-4 text-[#10F4A0]" />
-              {tab.label}
+              <span className="relative z-10">{tab.label}</span>
             </button>
           )
         })}

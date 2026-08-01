@@ -168,7 +168,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
         const pointerX = info.point.x;
         const pointerY = info.point.y;
         const screenW = window.innerWidth;
-        const pointerMargin = 20;
+        const pointerMargin = 35; // AriseUI Magnetic Snap Zone threshold
         if (pointerY < pointerMargin) setSnapPreview('top');
         else if (pointerX < pointerMargin) setSnapPreview('left');
         else if (pointerX > screenW - pointerMargin) setSnapPreview('right');
