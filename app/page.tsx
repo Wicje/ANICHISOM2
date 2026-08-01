@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { 
+  Sparkles, Terminal, FolderOpen, Globe, Palette, Shield, Zap, 
+  Layers, Lock, Cpu, ArrowRight, Play, CheckCircle2, Layout, Monitor, HardDrive
+} from 'lucide-react';
+import { AppIcon } from '@/components/ui/app-icon';
 
 export default function LandingPage() {
   const [scrollY, setScrollY] = useState(0);
@@ -13,255 +18,214 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen" style={{ background: '#060608' }}>
+    <div className="min-h-screen bg-[#05070d] text-slate-100 font-sans selection:bg-cyan-500/30 selection:text-cyan-200 overflow-x-hidden">
+      {/* Ambient Radial Mesh Glows */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-b from-cyan-500/20 via-indigo-500/10 to-transparent rounded-full blur-[120px] opacity-70" />
+        <div className="absolute top-[40%] -left-40 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[140px] opacity-50" />
+        <div className="absolute top-[70%] -right-40 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[140px] opacity-50" />
+      </div>
+
       {/* ─── Nav ─── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between" style={{
-        background: scrollY > 50 ? 'rgba(6,6,8,0.85)' : 'transparent',
-        backdropFilter: scrollY > 50 ? 'blur(20px)' : 'none',
-        borderBottom: scrollY > 50 ? '1px solid rgba(255,255,255,0.06)' : '1px solid transparent',
-        transition: 'all 0.3s ease',
-      }}>
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #10F4A0, #00D4AA)' }}>
-            <span className="text-black text-xs font-bold">C</span>
+      <nav className={`fixed top-0 left-0 right-0 z-50 px-6 sm:px-12 py-4 flex items-center justify-between transition-all duration-300 ${
+        scrollY > 30 
+          ? 'bg-[#05070d]/80 backdrop-blur-2xl border-b border-white/10 shadow-2xl' 
+          : 'bg-transparent border-b border-transparent'
+      }`}>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-cyan-500 to-indigo-600 p-0.5 shadow-lg shadow-cyan-500/20 flex items-center justify-center">
+            <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-300 font-black text-base">C</span>
+            </div>
           </div>
-          <span className="text-white font-semibold text-sm tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>Continua</span>
+          <span className="text-white font-bold text-base tracking-tight font-display">ContinuaOS</span>
         </div>
+
         <div className="flex items-center gap-4">
-          <Link href="/waitlist" className="text-xs transition-colors" style={{ color: 'rgba(255,255,255,0.5)' }}>
-            <span className="hover:text-white">Waitlist</span>
+          <Link href="/waitlist" className="text-xs font-semibold text-white/60 hover:text-white transition-colors hidden sm:block">
+            Waitlist Access
           </Link>
-          <Link href="/os" className="px-4 py-1.5 rounded-lg text-xs font-medium transition-all" style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.8)' }}>
-            Open OS
+          <Link 
+            href="/os" 
+            className="px-5 py-2 rounded-full text-xs font-bold bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-lg shadow-cyan-500/25 hover:brightness-110 active:scale-95 transition-all flex items-center gap-2"
+          >
+            <span>Launch Web OS</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
       </nav>
 
-      {/* ─── Hero ─── */}
-      <section className="relative min-h-screen flex items-center justify-center px-6 overflow-hidden">
-        {/* Background glow */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-[0.07]" style={{ background: 'radial-gradient(circle, #10F4A0, transparent 70%)' }} />
+      {/* ─── Hero Section ─── */}
+      <section className="relative pt-36 pb-20 px-6 max-w-6xl mx-auto z-10 flex flex-col items-center text-center">
+        {/* Floating Pill Badge */}
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8 bg-white/[0.04] border border-cyan-500/30 backdrop-blur-xl shadow-lg shadow-cyan-500/5 animate-fade-in">
+          <Sparkles className="w-4 h-4 text-cyan-400" />
+          <span className="text-xs font-bold tracking-wide text-cyan-300 uppercase">Persistent Context Layer & Offline-First Web OS</span>
         </div>
 
-        <div className="relative z-10 text-center max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-8" style={{ background: 'rgba(16,244,160,0.08)', border: '1px solid rgba(16,244,160,0.15)' }}>
-            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#10F4A0' }} />
-            <span className="text-xs font-medium" style={{ color: '#10F4A0' }}>Private Beta — 70 Spots</span>
-          </div>
+        {/* Hero Title */}
+        <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.08] text-white max-w-4xl mb-6">
+          Pick up exactly where you left off. <br />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-indigo-300 to-purple-400">
+            Never start from scratch.
+          </span>
+        </h1>
 
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.1] tracking-tight" style={{ fontFamily: 'var(--font-display)', color: '#ffffff' }}>
-            The persistent<br />
-            <span style={{ color: '#10F4A0' }}>context layer</span>
-          </h1>
+        {/* Hero Subtitle */}
+        <p className="text-base sm:text-lg text-white/60 max-w-2xl leading-relaxed mb-10">
+          ContinuaOS persists your workspace — open terminal sessions, browser windows, design moodboards, and developer tooling — seamlessly synced across all your hardware.
+        </p>
 
-          <p className="text-base md:text-lg mb-10 max-w-xl mx-auto leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
-            Pick up exactly where you stopped. Your workspace remembers everything — browser tabs, projects, brand settings, research — across sessions and devices.
-          </p>
-
-          <div className="flex items-center justify-center gap-3">
-            <Link href="/waitlist" className="px-6 py-3 rounded-xl text-sm font-semibold transition-all hover:scale-[1.02]" style={{ background: '#10F4A0', color: '#060608' }}>
-              Join the Waitlist
-            </Link>
-            <Link href="/os" className="px-6 py-3 rounded-xl text-sm font-medium transition-all hover:scale-[1.02]" style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              Try it now
-            </Link>
-          </div>
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center justify-center gap-4 mb-16">
+          <Link 
+            href="/os" 
+            className="px-8 py-4 rounded-2xl font-bold text-sm bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-xl shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2.5"
+          >
+            <Play className="w-4 h-4 fill-white" />
+            <span>Launch Web OS Now</span>
+          </Link>
+          <Link 
+            href="/waitlist" 
+            className="px-8 py-4 rounded-2xl font-semibold text-sm bg-white/[0.04] hover:bg-white/[0.08] text-white border border-white/12 backdrop-blur-xl hover:scale-[1.02] active:scale-95 transition-all"
+          >
+            Join Private Beta (70 Spots)
+          </Link>
         </div>
-      </section>
 
-      {/* ─── Problem ─── */}
-      <section className="py-24 px-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              { title: 'Tabs close', desc: 'Browser tabs gone. Research gone. Context gone. Start over.', icon: '×' },
-              { title: 'Apps are silos', desc: "Figma doesn't know about your docs. Your browser doesn't know about your designs.", icon: '◻' },
-              { title: 'Sessions die', desc: 'Close the laptop. Lose the state. Reopen everything. Every. Single. Time.', icon: '○' },
-            ].map((item, i) => (
-              <div key={i} className="p-6 rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div className="text-2xl mb-4" style={{ color: 'rgba(255,255,255,0.15)' }}>{item.icon}</div>
-                <h3 className="text-sm font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.8)' }}>{item.title}</h3>
-                <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.35)' }}>{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Solution: Three Layers ─── */}
-      <section className="py-24 px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-2xl md:text-3xl font-bold mb-4" style={{ fontFamily: 'var(--font-display)', color: '#ffffff' }}>
-              Four layers. One workspace.
-            </h2>
-            <p className="text-sm max-w-lg mx-auto" style={{ color: 'rgba(255,255,255,0.4)' }}>
-              Continua is built on a protocol that owns your context. Not a collection of apps — an infrastructure layer.
-            </p>
-          </div>
-
-          <div className="space-y-6">
-            {[
-              {
-                layer: '01',
-                title: 'Context Layer',
-                desc: 'The protocol that persists everything. Theme, workspace layout, browser state, brand settings, research — stored as domain-keyed records with versioning and conflict resolution.',
-                color: '#10F4A0',
-                tags: ['Protocol', 'IDB + Supabase', 'Cross-device sync'],
-              },
-              {
-                layer: '02',
-                title: 'Built-in Apps',
-                desc: 'Browser, terminal, code editor, moodboard, campaign lab — each app reads and writes to the Context Layer. Close one, open another. Your state follows you.',
-                color: '#6366F1',
-                tags: ['Browser', 'Terminal', 'Code Editor', 'Moodboard'],
-              },
-              {
-                layer: '03',
-                title: 'Ecosystem',
-                desc: 'Chrome extension captures context from Figma, Claude, Notion, and 16+ other tools. Reverse proxy loads any site inside the OS. Everything feeds into your context.',
-                color: '#F59E0B',
-                tags: ['Chrome Extension', 'Reverse Proxy', 'Figma API'],
-              },
-              {
-                layer: '04',
-                title: 'Dual-Target Architecture',
-                desc: 'Available anywhere. Run Continua directly in any browser tab, or download the native Tauri Desktop application for completely unrestricted browsing, native webviews, and system-level access.',
-                color: '#EC4899',
-                tags: ['Web Application', 'Tauri Native App', 'Rust Backend'],
-              },
-            ].map((item, i) => (
-              <div key={i} className="flex gap-6 p-6 rounded-2xl transition-all" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div className="text-4xl font-bold shrink-0 w-16 text-center" style={{ color: item.color, opacity: 0.3, fontFamily: 'var(--font-mono)' }}>
-                  {item.layer}
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold mb-2" style={{ color: '#ffffff' }}>{item.title}</h3>
-                  <p className="text-xs leading-relaxed mb-3" style={{ color: 'rgba(255,255,255,0.4)' }}>{item.desc}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {item.tags.map((tag, j) => (
-                      <span key={j} className="px-2 py-0.5 rounded text-[10px] font-medium" style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.5)' }}>
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Features Grid ─── */}
-      <section className="py-24 px-6">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-2xl md:text-3xl font-bold text-center mb-16" style={{ fontFamily: 'var(--font-display)', color: '#ffffff' }}>
-            What Continua does
-          </h2>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            {[
-              { title: 'Persistent sessions', desc: 'Close your laptop. Reopen. Everything is exactly where you left it. Theme, windows, workspace layout — all restored.', icon: '⟲' },
-              { title: 'Cross-device sync', desc: 'Switch from laptop to desktop. Your workspace follows you. Same context, different machine.', icon: '⇄' },
-              { title: 'Browser inside the OS', desc: 'Browse any website without leaving Continua. Reverse proxy strips iframe restrictions. Most sites just work.', icon: '⊞' },
-              { title: 'Design token extraction', desc: 'Connect Figma. Pull colors, typography, components into your context. Your brand system lives here.', icon: '◈' },
-              { title: 'Tool context capture', desc: 'Chrome extension captures what you do in Claude, Notion, GitHub, and 13+ other tools. Context without switching.', icon: '◎' },
-              { title: 'Brand management', desc: 'Logos, colors, voice, guidelines — stored as structured context. Every app in the OS knows your brand.', icon: '◇' },
-            ].map((item, i) => (
-              <div key={i} className="p-5 rounded-xl transition-all hover:scale-[1.01]" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div className="text-lg mb-3" style={{ color: '#10F4A0' }}>{item.icon}</div>
-                <h3 className="text-sm font-semibold mb-1.5" style={{ color: 'rgba(255,255,255,0.85)' }}>{item.title}</h3>
-                <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.35)' }}>{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── How it works ─── */}
-      <section className="py-24 px-6">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl md:text-3xl font-bold text-center mb-16" style={{ fontFamily: 'var(--font-display)', color: '#ffffff' }}>
-            How it works
-          </h2>
-
-          <div className="space-y-4">
-            {[
-              { step: '1', title: 'Sign up with invite code', desc: 'Get an invite from the admin. Create your account.' },
-              { step: '2', title: 'Onboarding sets your context', desc: 'Choose your workspace, theme, and tools. This becomes your default context.' },
-              { step: '3', title: 'Work normally', desc: 'Use the browser, terminal, code editor. Everything you do is persisted automatically.' },
-              { step: '4', title: 'Close and return', desc: 'Close the tab. Come back later. Everything is exactly where you left it.' },
-              { step: '5', title: 'Sync across devices', desc: 'Enable Agency mode. Your context syncs to Supabase. Pick up on any device.' },
-            ].map((item, i) => (
-              <div key={i} className="flex items-start gap-4 p-4 rounded-xl" style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent' }}>
-                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold" style={{ background: 'rgba(16,244,160,0.1)', color: '#10F4A0' }}>
-                  {item.step}
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold mb-0.5" style={{ color: 'rgba(255,255,255,0.8)' }}>{item.title}</h3>
-                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Compatibility ─── */}
-      <section className="py-24 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-2xl md:text-3xl font-bold mb-6" style={{ fontFamily: 'var(--font-display)', color: '#ffffff' }}>
-            Works with everything you use
-          </h2>
-          <p className="text-sm mb-12 max-w-lg mx-auto" style={{ color: 'rgba(255,255,255,0.4)' }}>
-            Reverse proxy loads most sites. Chrome extension captures context from the rest. Figma API pulls design data directly.
-          </p>
-
-          <div className="flex flex-wrap justify-center gap-3">
-            {['Figma', 'Notion', 'Claude', 'GitHub', 'Linear', 'YouTube', 'Canva', 'Adobe', 'Instagram', 'Google Docs', 'Miro', 'Spotify', 'Framer', 'ChatGPT', 'Twitter', 'StackBlitz'].map((tool, i) => (
-              <span key={i} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                {tool}
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── CTA ─── */}
-      <section className="py-32 px-6">
-        <div className="max-w-2xl mx-auto text-center">
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] opacity-[0.05]" style={{ background: 'radial-gradient(circle, #10F4A0, transparent 70%)' }} />
-          </div>
-
-          <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ fontFamily: 'var(--font-display)', color: '#ffffff' }}>
-            Stop restarting.<br />Start continuing.
-          </h2>
-          <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.4)' }}>
-            Join the private beta. 70 spots. By invite only.
-          </p>
-          <div className="flex items-center justify-center gap-3">
-            <Link href="/waitlist" className="px-8 py-3 rounded-xl text-sm font-semibold transition-all hover:scale-[1.02]" style={{ background: '#10F4A0', color: '#060608' }}>
-              Request Access
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Footer ─── */}
-      <footer className="py-8 px-6 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #10F4A0, #00D4AA)' }}>
-              <span className="text-black text-[8px] font-bold">C</span>
+        {/* OS Interface Hero Mockup (Pinterest Reference Style) */}
+        <div className="w-full rounded-3xl p-3 sm:p-4 bg-gradient-to-b from-white/15 to-white/5 border border-white/15 backdrop-blur-3xl shadow-2xl relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 via-transparent to-indigo-500/10 pointer-events-none" />
+          
+          {/* OS Window Header Simulation */}
+          <div className="h-10 bg-black/40 rounded-t-2xl border-b border-white/10 px-4 flex items-center justify-between select-none">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-rose-500/80" />
+              <div className="w-3 h-3 rounded-full bg-amber-500/80" />
+              <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
             </div>
-            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>Continua</span>
+            <div className="text-[11px] font-bold text-white/40 font-mono uppercase tracking-widest">
+              ContinuaOS Desktop v2.4 · Living State
+            </div>
+            <div className="w-12" />
           </div>
-          <div className="text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>
-            The persistent context layer
+
+          {/* Desktop Preview Banner */}
+          <div className="relative aspect-[16/9] w-full rounded-b-2xl bg-[#090b14] overflow-hidden flex items-center justify-center p-6 border border-white/5">
+            {/* Background Graphic Grid */}
+            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:24px_24px]" />
+            
+            {/* Floating Glass App Cards Preview */}
+            <div className="relative z-10 grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-4xl">
+              {[
+                { name: 'Terminal', icon: Terminal, color: 'from-emerald-500 to-teal-700', desc: 'Real bash & WASM filesystem' },
+                { name: 'Power Browser', icon: Globe, color: 'from-cyan-500 to-blue-700', desc: 'Iframe & proxy tab sessions' },
+                { name: 'Moodboard', icon: Palette, color: 'from-orange-500 to-amber-700', desc: 'Canvas & color palettes' },
+                { name: 'Security Admin', icon: Shield, color: 'from-rose-500 to-red-800', desc: 'RLS & encrypted sync' },
+              ].map((app, idx) => (
+                <div 
+                  key={idx} 
+                  className="p-5 rounded-2xl bg-white/[0.04] backdrop-blur-2xl border border-white/12 hover:border-cyan-400/40 transition-all duration-300 flex flex-col items-center text-center shadow-xl group/card"
+                >
+                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${app.color} flex items-center justify-center shadow-lg mb-3 group-hover/card:scale-110 transition-transform`}>
+                    <app.icon className="w-6 h-6 text-white" />
+                  </div>
+                  <h4 className="text-xs font-bold text-white mb-1">{app.name}</h4>
+                  <p className="text-[10px] text-white/50">{app.desc}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
+      </section>
+
+      {/* ─── Architectural Pillars Section ─── */}
+      <section className="py-24 px-6 max-w-6xl mx-auto z-10 relative">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-4">
+            Four Core Pillars. One Unified System.
+          </h2>
+          <p className="text-sm text-white/50 max-w-xl mx-auto">
+            Engineered from the ground up for high-performance creative workflows and continuous offline resilience.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            {
+              step: '01',
+              title: 'Context Layer',
+              desc: 'Persists workspace state, active tabs, themes, and window coordinates across reboots.',
+              icon: Layers,
+              gradient: 'from-cyan-500/20 to-blue-500/10',
+              accent: 'text-cyan-400',
+            },
+            {
+              step: '02',
+              title: 'Offline-First IDB',
+              desc: 'Operates 100% offline with IndexedDB fallback and zero-delay local database queries.',
+              icon: HardDrive,
+              gradient: 'from-emerald-500/20 to-teal-500/10',
+              accent: 'text-emerald-400',
+            },
+            {
+              step: '03',
+              title: 'Cloudflare Workers',
+              desc: 'Enforces Supabase RLS policies and JWT authentication proxies at the edge.',
+              icon: Cpu,
+              gradient: 'from-indigo-500/20 to-purple-500/10',
+              accent: 'text-indigo-400',
+            },
+            {
+              step: '04',
+              title: 'Tauri & Web Native',
+              desc: 'Dual-target architecture: run directly in any web browser or native desktop app.',
+              icon: Monitor,
+              gradient: 'from-rose-500/20 to-pink-500/10',
+              accent: 'text-rose-400',
+            },
+          ].map((pillar, idx) => (
+            <div 
+              key={idx} 
+              className={`p-6 rounded-3xl bg-gradient-to-b ${pillar.gradient} border border-white/10 backdrop-blur-2xl shadow-xl flex flex-col justify-between hover:border-white/20 transition-all`}
+            >
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <div className={`p-3 rounded-2xl bg-white/5 border border-white/10 ${pillar.accent}`}>
+                    <pillar.icon className="w-6 h-6" />
+                  </div>
+                  <span className="text-xs font-mono font-bold text-white/30">{pillar.step}</span>
+                </div>
+                <h3 className="text-base font-bold text-white mb-2">{pillar.title}</h3>
+                <p className="text-xs text-white/60 leading-relaxed">{pillar.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ─── Footer CTA ─── */}
+      <section className="py-24 px-6 text-center z-10 relative">
+        <div className="max-w-3xl mx-auto rounded-3xl p-12 bg-gradient-to-r from-cyan-500/10 via-indigo-500/10 to-purple-500/10 border border-white/15 backdrop-blur-3xl shadow-2xl">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-4">
+            Ready to experience ContinuaOS?
+          </h2>
+          <p className="text-xs sm:text-sm text-white/60 max-w-md mx-auto mb-8 leading-relaxed">
+            Enter your workspace with instant context recovery. Zero setup required.
+          </p>
+          <Link 
+            href="/os" 
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-bold text-sm bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-xl shadow-cyan-500/25 hover:brightness-110 active:scale-95 transition-all"
+          >
+            <span>Launch Desktop Web OS</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-8 px-6 border-t border-white/10 text-center text-xs text-white/40 select-none">
+        <p>© 2026 ContinuaOS · Persistent Web OS & Context Kernel</p>
       </footer>
     </div>
   );
