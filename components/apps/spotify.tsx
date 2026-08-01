@@ -29,7 +29,7 @@ export default function SpotifyApp() {
   const [savedClientId, setSavedClientId] = useState('');
   const [progress, setProgress] = useState(30);
 
-  const currentTrack = CURATED_TRACKS[activeTrackIndex] || CURATED_TRACKS[0];
+  const currentTrack = (CURATED_TRACKS[activeTrackIndex] || CURATED_TRACKS[0])!;
 
   useEffect(() => {
     try {

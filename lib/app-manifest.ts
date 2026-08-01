@@ -39,7 +39,6 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
   'admin': () => import('@/components/apps/admin-panel'),
   'color-picker': () => import('@/components/apps/color-picker'),
   'calls': () => import('@/components/apps/calls'),
-  'spotify': () => import('@/components/apps/spotify'),
 
   'productivity': () => import('@/components/apps/productivity-suite'),
   'pdf-reader': () => import('@/components/apps/pdf-reader'),
@@ -73,7 +72,7 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
   'web-app': () => import('@/components/apps/web-app'),
   'figma': () => import('@/components/apps/web-app'),
   'notion': () => import('@/components/apps/web-app'),
-  'spotify': () => import('@/components/apps/web-app'),
+  'spotify': () => import('@/components/apps/spotify'),
   'discord': () => import('@/components/apps/web-app'),
   'vscode': () => import('@/components/apps/web-app'),
 };// SVG data URIs — vibrant high-resolution 3D vector app icons
