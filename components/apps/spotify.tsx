@@ -51,6 +51,7 @@ export default function SpotifyApp() {
   };
 
   const togglePlay = () => {
+    if (!currentTrack) return;
     const next = !isPlaying;
     setIsPlaying(next);
     audioSystem.playClick();
