@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
+import { audioSystem } from '@/lib/services/audio-engine';
 import { getSupabase } from '@/lib/supabase';
 import { ShieldCheck, UserCheck, UserX, Key, RefreshCw, Loader2, AppWindow, Plus, Trash2, Activity, HardDrive, Cpu, Ticket, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
