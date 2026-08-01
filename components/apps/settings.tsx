@@ -4,6 +4,8 @@ import { useOS, OSWindow } from '@/lib/os-context';
 import { Image as ImageIcon, Palette, Save, Type, Eye, Settings2, Monitor, User, Volume2, VolumeX, Shield, Keyboard, CloudRain, Coffee, Trees, Radio, Download, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useThemeStore } from '@/lib/stores/theme.store';
+import { useAuthStore } from '@/lib/stores/auth.store';
+import { usePrivacyStore } from '@/lib/stores/privacy.store';
 import { audioSystem } from '@/lib/services/audio-engine';
 import { ambientSounds, type AmbientPreset } from '@/lib/services/ambient-sounds';
 
