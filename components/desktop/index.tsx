@@ -54,6 +54,9 @@ import { SpatialStage } from './spatial-stage';
 import { TimeMachine } from './time-machine';
 import { AudioVisualizer } from './audio-visualizer';
 import { AirDropModal } from './airdrop-modal';
+import { AIAgentBar } from '@/components/overlays/ai-agent-bar';
+import { DragShelf } from '@/components/overlays/drag-shelf';
+import { TelemetryHUD } from '@/components/overlays/telemetry-hud';
 type ContextMenuItem = import('./context-menu').ContextMenuItem;
 
 function AppLoadingSkeleton() {
@@ -1020,6 +1023,10 @@ export function Desktop() {
       <SpatialStage isOpen={showSpatialStage} onClose={() => setShowSpatialStage(false)} />
       <TimeMachine isOpen={showTimeMachine} onClose={() => setShowTimeMachine(false)} />
       <AirDropModal isOpen={showAirDrop} onClose={() => setShowAirDrop(false)} />
+
+      <AIAgentBar />
+      <DragShelf />
+      <TelemetryHUD />
 
       <Toaster
         position="bottom-right"

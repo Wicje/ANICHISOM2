@@ -40,6 +40,7 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
   'color-picker': () => import('@/components/apps/color-picker'),
   'calls': () => import('@/components/apps/calls'),
   'p2p-airdrop': () => import('@/components/apps/airdrop-app'),
+  'vault': () => import('@/components/apps/vault'),
 
   'productivity': () => import('@/components/apps/productivity-suite'),
   'pdf-reader': () => import('@/components/apps/pdf-reader'),
@@ -194,6 +195,7 @@ export const APP_MANIFEST: AppManifestEntry[] = [
   { id: 'side-gigs', component: null as any, icon: Briefcase, iconImage: ICO.briefcase, title: 'Side Gigs', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'Manage side projects and gigs' },
   { id: 'calls', component: null as any, icon: Phone, iconImage: ICO.phone, title: 'Calls', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'Video and voice calls' },
   { id: 'p2p-airdrop', component: null as any, icon: Radio, iconImage: ICO.campaign, title: 'AirDrop P2P', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'P2P file & cross-device clipboard sync' },
+  { id: 'vault', component: null as any, icon: Lock, iconImage: ICO.admin, title: 'Encrypted Vault', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'WebCrypto AES-256-GCM zero-knowledge file security' },
 
   // Media
   { id: 'image-viewer', component: null as any, icon: Image, iconImage: ICO.camera, title: 'Image Viewer', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: true, category: 'media', description: 'View, zoom, rotate, and export images' },
