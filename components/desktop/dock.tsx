@@ -144,7 +144,7 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
                   isOpen ? "bg-white/15 border-cyan-400/40" : "bg-white/5 hover:bg-white/15"
                 )}
               >
-                <AppIcon icon={app.icon} iconImage={app.iconImage} className="w-12 h-12 sm:w-14 sm:h-14 drop-shadow-xl" aria-hidden="true" />
+                <AppIcon icon={app.icon} iconImage={app.iconImage} className="w-10 h-10 sm:w-11 sm:h-11 drop-shadow-xl" aria-hidden="true" />
               </button>
               {isOpen && (
                 <span aria-hidden="true" className="absolute -bottom-2 w-1.5 h-1.5 rounded-full bg-[#10F4A0] shadow-sm shadow-[#10F4A0]/50" />

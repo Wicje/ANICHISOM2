@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
 import { VirtualFS, execute, parseInput } from '@/lib/terminal/commands';
+import { audioSystem } from '@/lib/services/audio-engine';
 
 export function TerminalBox({ window }: { window: OSWindow }) {
   const { openWindow, performanceMode, setPerformanceMode, currentUser } = useOS();
@@ -127,6 +128,7 @@ export function TerminalBox({ window }: { window: OSWindow }) {
       let inputBuffer = '';
 
       term.onKey(({ key, domEvent }) => {
+        audioSystem.playKeyPress();
         const ev = domEvent;
         const printable = !ev.altKey && !ev.ctrlKey && !ev.metaKey;
 

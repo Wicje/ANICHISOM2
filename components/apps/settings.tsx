@@ -414,6 +414,42 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                   <p className="text-xs text-white/40">Controls clicks, swooshes, notifications, and startup sounds.</p>
                 </div>
 
+                {/* System Sound Profile Selector */}
+                <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-3">
+                  <div className="flex justify-between items-center text-sm font-medium">
+                    <span>System Sound Profile</span>
+                    <span className="text-[#10F4A0] capitalize">{audioSystem.getSoundProfile()}</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {([
+                      { id: 'mechanical' as const, label: '⌨️ Mechanical', desc: 'Tactile Thock' },
+                      { id: 'glass' as const, label: '💎 Glass Tap', desc: 'Sleek Acoustic' },
+                      { id: 'arcade' as const, label: '👾 8-Bit Arcade', desc: 'Retro Blip' },
+                      { id: 'minimal' as const, label: '🔇 Minimal', desc: 'Soft Haptic' },
+                    ]).map((item) => {
+                      const isActive = audioSystem.getSoundProfile() === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            audioSystem.setSoundProfile(item.id);
+                            audioSystem.playClick();
+                          }}
+                          className={cn(
+                            "flex flex-col items-start gap-1 p-3 rounded-lg text-left transition-all border",
+                            isActive 
+                              ? "bg-[#10F4A0]/20 border-[#10F4A0]/50 text-[#10F4A0] shadow-sm shadow-[#10F4A0]/20" 
+                              : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
+                          )}
+                        >
+                          <div className="text-xs font-semibold">{item.label}</div>
+                          <div className="text-[10px] text-white/40">{item.desc}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-3">
                   <div className="flex justify-between items-center text-sm font-medium">
                     <span>Ambient Sounds</span>
