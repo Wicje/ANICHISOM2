@@ -20,9 +20,10 @@ export const useFocusStore = create<FocusState>((set, get) => ({
     if (currentState) {
       set({ enabled: false, targetEndTime: null });
     } else {
+      const minutes = get().durationMinutes || 25;
       set({
         enabled: true,
-        targetEndTime: Date.now() + 25 * 60 * 1000,
+        targetEndTime: Date.now() + minutes * 60 * 1000,
       });
     }
   },
