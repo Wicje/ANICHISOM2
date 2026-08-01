@@ -155,7 +155,7 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
   ] as const;
 
   return (
-    <div className="flex w-full h-full bg-neutral-950 text-white font-sans">
+    <div className="flex w-full h-full bg-neutral-950/80 backdrop-blur-2xl border border-white/10 text-white font-sans overflow-hidden">
       {/* Sidebar */}
       <div className="w-56 border-r border-white/10 p-4 flex flex-col gap-2 shrink-0">
         <div className="text-xs font-bold text-white/50 tracking-wider uppercase mb-2 px-2">Settings</div>

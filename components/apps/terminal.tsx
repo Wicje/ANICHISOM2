@@ -51,10 +51,10 @@ export function TerminalBox({ window }: { window: OSWindow }) {
         cursorBlink: true,
         cursorStyle: 'bar',
         theme: {
-          background: '#0a0a0a',
+          background: 'transparent',
           foreground: '#d4d4d4',
           cursor: '#d4d4d4',
-          selectionBackground: '#264f78',
+          selectionBackground: 'rgba(38, 79, 120, 0.5)',
           black: '#0a0a0a',
           red: '#f14c4c',
           green: '#6a9955',
@@ -72,6 +72,7 @@ export function TerminalBox({ window }: { window: OSWindow }) {
           brightCyan: '#4ec9b0',
           brightWhite: '#ffffff',
         },
+        allowTransparency: true,
         allowProposedApi: true,
       });
 
@@ -85,19 +86,22 @@ export function TerminalBox({ window }: { window: OSWindow }) {
       fitAddon.fit();
       xtermRef.current = term;
       fitAddonRef.current = fitAddon;
+      vfsRef.current = new VirtualFS();
 
-      const vfs = vfsRef.current;
-
-      const PROMPT = () => `\x1b[36m${currentUserRef.current?.name || 'user'}\x1b[0m:\x1b[35m~\x1b[0m$ `;
+      const PROMPT = () => {
+        const cwd = vfsRef.current.cwd;
+        const displayCwd = cwd === '/' ? '~' : cwd.replace(/^\/home\/user/, '~');
+        return `\x1b[1;32m${currentUserRef.current?.username || 'continua'}\x1b[0m:\x1b[1;34m${displayCwd}\x1b[0m$ `;
+      };
 
       term.writeln('\x1b[1;36m╔══════════════════════════════════════════╗\x1b[0m');
-      term.writeln('\x1b[1;36m║  ContinuaOS Terminal v2.0              ║\x1b[0m');
+      term.writeln('\x1b[1;36m║  ContinuaOS Glass Terminal               ║\x1b[0m');
       term.writeln('\x1b[1;36m║  Real filesystem · Real commands          ║\x1b[0m');
       term.writeln('\x1b[1;36m╚══════════════════════════════════════════╝\x1b[0m');
       term.writeln('');
       term.write(PROMPT());
 
-      // Chunked non-blocking output writing to prevent main-thread freeze on large outputs (Issue 62)
+      // Chunked non-blocking output writing
       const writeOutput = (text: string) => {
         const lines = text.split('\n');
         if (lines.length > 300) {
@@ -131,7 +135,7 @@ export function TerminalBox({ window }: { window: OSWindow }) {
           term.writeln('');
 
           if (line) {
-            const next = [...historyRef.current, line];
+            const next = [line, ...historyRef.current.filter(h => h !== line)];
             if (next.length > 200) next.shift();
             historyRef.current = next;
             setHistory(next);
@@ -142,7 +146,7 @@ export function TerminalBox({ window }: { window: OSWindow }) {
 
           if (line) {
             const ctx = {
-              vfs,
+              vfs: vfsRef.current,
               openWindow,
               performanceMode,
               setPerformanceMode,
@@ -174,7 +178,6 @@ export function TerminalBox({ window }: { window: OSWindow }) {
             const newIdx = idx < historyRef.current.length - 1 ? idx + 1 : idx;
             historyIdxRef.current = newIdx;
             const cmd = historyRef.current[historyRef.current.length - 1 - newIdx] || '';
-            // Clear current line
             term.write('\x1b[2K\r' + PROMPT() + cmd);
             inputBuffer = cmd;
           }
@@ -194,47 +197,50 @@ export function TerminalBox({ window }: { window: OSWindow }) {
           }
         } else if (ev.key === 'Tab') {
           ev.preventDefault();
-          // Simple tab completion — search for matching files in cwd
-          const partial = inputBuffer.split(' ').pop() || '';
-          if (partial) {
-            vfs.ls().then(entries => {
-              const matches = entries.filter(e => e.name.startsWith(partial));
-              if (matches.length === 1) {
-                const completed = matches[0]!.name;
-                const parts = inputBuffer.split(' ');
-                parts[parts.length - 1] = completed;
-                const newBuffer = parts.join(' ');
-                term.write('\x1b[2K\r' + PROMPT() + newBuffer);
-                inputBuffer = newBuffer;
-              } else if (matches.length > 1) {
-                term.writeln('');
-                term.writeln(matches.map(m => m.name).join('  '));
-                term.write(PROMPT() + inputBuffer);
-              }
-            });
+          const trimmed = inputBuffer.trimStart();
+          const parts = trimmed.split(/\s+/);
+          const cmdName = parts[0] || '';
+          const lastToken = parts[parts.length - 1] || '';
+
+          if (parts.length <= 1 && !trimmed.includes(' ')) {
+            const ALL_CMDS = ['help', 'clear', 'ls', 'pwd', 'cd', 'cat', 'touch', 'mkdir', 'rm', 'echo', 'whoami', 'sysinfo', 'open', 'mode', 'theme', 'date', 'history', 'uname', 'env', 'ps', 'kill', 'top', 'uptime', 'netstat', 'ping', 'curl', 'tree', 'find', 'du', 'df', 'grep', 'wc', 'chmod', 'chown', 'export', 'alias', 'version', 'motd', 'banner', 'credits', 'reboot'];
+            const matches = ALL_CMDS.filter(c => c.startsWith(cmdName));
+            if (matches.length === 1) {
+              const completion = matches[0] + ' ';
+              term.write('\x1b[2K\r' + PROMPT() + completion);
+              inputBuffer = completion;
+            } else if (matches.length > 1) {
+              term.writeln('');
+              term.writeln(matches.join('  '));
+              term.write(PROMPT() + inputBuffer);
+            }
+          } else {
+            const children = vfsRef.current.readDir(vfsRef.current.cwd);
+            const matches = children.filter(c => c.name.startsWith(lastToken));
+            if (matches.length === 1) {
+              const item = matches[0];
+              const suffix = item.isDir ? '/' : ' ';
+              const newParts = [...parts.slice(0, -1), item.name + suffix];
+              const newCmd = newParts.join(' ');
+              term.write('\x1b[2K\r' + PROMPT() + newCmd);
+              inputBuffer = newCmd;
+            } else if (matches.length > 1) {
+              term.writeln('');
+              term.writeln(matches.map(m => m.isDir ? m.name + '/' : m.name).join('  '));
+              term.write(PROMPT() + inputBuffer);
+            }
           }
-        } else if (ev.ctrlKey && ev.key === 'l') {
-          ev.preventDefault();
-          term.clear();
-          term.write(PROMPT());
         } else if (ev.ctrlKey && ev.key === 'c') {
-          ev.preventDefault();
           term.writeln('^C');
           inputBuffer = '';
           term.write(PROMPT());
-        } else if (ev.ctrlKey && ev.key === 'a') {
-          ev.preventDefault();
-          term.write('\x1b[2K\r' + PROMPT() + inputBuffer);
-          // Move cursor to start
-        } else if (ev.ctrlKey && ev.key === 'e') {
-          // End — cursor already at end
+        } else if (ev.ctrlKey && ev.key === 'l') {
+          term.clear();
+          term.write(PROMPT() + inputBuffer);
         } else if (ev.ctrlKey && ev.key === 'u') {
-          ev.preventDefault();
-          inputBuffer = '';
           term.write('\x1b[2K\r' + PROMPT());
+          inputBuffer = '';
         } else if (ev.ctrlKey && ev.key === 'w') {
-          ev.preventDefault();
-          // Delete word backward
           const trimmed = inputBuffer.trimEnd();
           const lastSpace = trimmed.lastIndexOf(' ');
           inputBuffer = lastSpace >= 0 ? trimmed.substring(0, lastSpace + 1) : '';
@@ -264,8 +270,8 @@ export function TerminalBox({ window }: { window: OSWindow }) {
   }, []);
 
   return (
-    <div className="w-full h-full bg-[#0a0a0a] flex flex-col overflow-hidden">
-      <div ref={termRef} className="flex-1 p-1" />
+    <div className="w-full h-full bg-neutral-950/75 backdrop-blur-2xl border border-white/10 flex flex-col overflow-hidden">
+      <div ref={termRef} className="flex-1 p-2" />
     </div>
   );
 }

@@ -134,7 +134,7 @@ export function AppStoreApp() {
   });
 
   return (
-    <div className="w-full h-full bg-slate-950 text-slate-100 font-sans flex flex-col overflow-hidden">
+    <div className="w-full h-full bg-neutral-950/80 backdrop-blur-2xl border border-white/10 text-slate-100 font-sans flex flex-col overflow-hidden">
       {/* Top Bar */}
       <div className="px-6 py-4 border-b border-white/10 bg-white/5 flex items-center justify-between">
         <div className="flex items-center gap-3">

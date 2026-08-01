@@ -398,7 +398,7 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
 
   // --- Chat View (default) ---
   return (
-    <div className="flex flex-col w-full h-full bg-[#111] text-white font-sans overflow-hidden">
+    <div className="flex flex-col w-full h-full bg-neutral-950/80 backdrop-blur-2xl border border-white/10 text-white font-sans overflow-hidden">
       
       {/* Header with ChatGPT AI Voice Bar (ref_ui2.jpg inspired) */}
       <div className="p-3 border-b border-white/10 bg-slate-900/90 backdrop-blur-xl flex items-center justify-between gap-3 shrink-0 select-none">
