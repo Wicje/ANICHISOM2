@@ -10,6 +10,8 @@ import { X, Minus, Maximize2, Square, Lock } from 'lucide-react';
 import { getFileLockManager } from '@/lib/file-lock-manager';
 import { audioSystem } from '@/lib/services/audio-engine';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { AppIconInline } from '@/components/ui/app-icon';
+import { APP_MANIFEST } from '@/lib/app-manifest';
 
 interface WindowFrameProps {
   osWindow: OSWindow;
@@ -295,7 +297,15 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
         </div>
         
         <div className="font-display text-xs tracking-wider uppercase select-none pointer-events-none flex items-center gap-2" style={{ color: 'var(--os-text-muted)' }}>
-          {title}
+          {(() => {
+            const entry = APP_MANIFEST.find((a) => a.id === osWindow.appId || a.id === id);
+            return (
+              <>
+                <AppIconInline icon={entry?.icon} iconImage={entry?.iconImage} size={16} className="rounded" />
+                <span>{title}</span>
+              </>
+            );
+          })()}
           {isFileLocked && (
             <span title={`Locked by ${lockedByUser || 'another user'}`}>
               <Lock className="w-3 h-3" style={{ color: '#f59e0b' }} />
