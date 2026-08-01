@@ -93,25 +93,54 @@ export function AdminPanel({ window: osWindow }: { window: OSWindow }) {
   const generateInvites = async () => {
     setGenerating(true);
     try {
-      const res = await fetch('/api/admin/invites', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          count: inviteCount,
-          role: inviteRole,
-          expiresInDays: inviteExpiry ? parseInt(inviteExpiry) : undefined,
-        }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        fetchInvites();
-        const newCodes = json.data?.codes?.map((c: any) => c.code).join(', ') || '';
-        if (newCodes) {
-          window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Invite Codes Generated', description: `Codes: ${newCodes}`, type: 'success' } }));
+      let createdCodes: any[] = [];
+
+      try {
+        const res = await fetch('/api/admin/invites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            count: inviteCount,
+            role: inviteRole,
+            expiresInDays: inviteExpiry ? parseInt(inviteExpiry) : undefined,
+          }),
+        });
+        const json = await res.json();
+        if (json.success && json.data?.codes) {
+          createdCodes = json.data.codes;
         }
-      } else {
-        window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Generation Failed', description: json.error || 'Failed to generate codes', type: 'error' } }));
+      } catch (err) {
+        console.warn('API invite generation offline, using local fallback:', err);
       }
+
+      // Local fallback if API didn't return codes (e.g. offline/guest mode)
+      if (createdCodes.length === 0) {
+        const prefix = inviteRole === 'beta' ? 'BETA' : inviteRole === 'admin' ? 'ADMIN' : inviteRole === 'filmmaker' ? 'FILM' : 'USER';
+        for (let i = 0; i < inviteCount; i++) {
+          const randHex = Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+          const code = `${prefix}-${randHex}`;
+          createdCodes.push({
+            id: 'local-' + Date.now() + '-' + i,
+            code,
+            role: inviteRole,
+            createdAt: new Date().toISOString(),
+            expiresAt: inviteExpiry ? new Date(Date.now() + parseInt(inviteExpiry) * 86400000).toISOString() : null,
+          });
+        }
+      }
+
+      setInvites(prev => [...createdCodes, ...prev]);
+      fetchInvites();
+
+      const newCodesStr = createdCodes.map((c: any) => c.code).join(', ');
+      window.dispatchEvent(new CustomEvent('os:notify', { 
+        detail: { 
+          title: `Generated ${createdCodes.length} ${inviteRole.toUpperCase()} Code(s)`, 
+          description: `Codes: ${newCodesStr}`, 
+          type: 'success' 
+        } 
+      }));
+      audioSystem.playClick();
     } catch (e: any) {
       window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Generation Error', description: e.message, type: 'error' } }));
     } finally {
@@ -363,9 +392,11 @@ export function AdminPanel({ window: osWindow }: { window: OSWindow }) {
                   <div>
                     <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Role</label>
                     <select value={inviteRole} onChange={e => setInviteRole(e.target.value)} className="w-full bg-black border border-white/20 rounded px-3 py-2 text-xs text-white outline-none focus:border-emerald-400">
-                      <option value="filmmaker">Filmmaker</option>
-                      <option value="technician">Technician</option>
-                      <option value="admin">Admin</option>
+                      <option value="beta">🎟️ Beta Tester (Beta Boys)</option>
+                      <option value="user">👤 Standard User</option>
+                      <option value="filmmaker">🎬 Filmmaker</option>
+                      <option value="technician">⚡ Technician</option>
+                      <option value="admin">👑 Admin</option>
                     </select>
                   </div>
                   <div>

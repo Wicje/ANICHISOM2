@@ -838,10 +838,17 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
 
             isSyncingRef.current = true;
             try {
-              canvas.loadFromJSON(JSON.parse(remoteState)).then(() => {
+              const json = typeof remoteState === 'string' ? JSON.parse(remoteState) : remoteState;
+              const res = canvas.loadFromJSON(json, () => {
                 canvas.renderAll();
                 setTimeout(() => { isSyncingRef.current = false; }, 100);
-              }).catch(() => { isSyncingRef.current = false; });
+              });
+              if (res && typeof res.then === 'function') {
+                res.then(() => {
+                  canvas.renderAll();
+                  setTimeout(() => { isSyncingRef.current = false; }, 100);
+                }).catch(() => { isSyncingRef.current = false; });
+              }
             } catch {
               isSyncingRef.current = false;
             }
@@ -958,11 +965,19 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
 
     isSyncingRef.current = true;
     try {
-      canvas.loadFromJSON(JSON.parse(prevState)).then(() => {
+      const json = typeof prevState === 'string' ? JSON.parse(prevState) : prevState;
+      const res = canvas.loadFromJSON(json, () => {
         canvas.renderAll();
-        collab.sharedTypesRef.current.canvas.set(activeSlideId, prevState);
+        collab.sharedTypesRef.current.canvas?.set(activeSlideId, prevState);
         setTimeout(() => { isSyncingRef.current = false; }, 100);
-      }).catch(() => { isSyncingRef.current = false; });
+      });
+      if (res && typeof res.then === 'function') {
+        res.then(() => {
+          canvas.renderAll();
+          collab.sharedTypesRef.current.canvas?.set(activeSlideId, prevState);
+          setTimeout(() => { isSyncingRef.current = false; }, 100);
+        }).catch(() => { isSyncingRef.current = false; });
+      }
     } catch { isSyncingRef.current = false; }
   };
 
@@ -977,11 +992,19 @@ function SlidesEditor({ workspaceMode, projectId, currentUser, canvasRef, collab
 
     isSyncingRef.current = true;
     try {
-      canvas.loadFromJSON(JSON.parse(nextState)).then(() => {
+      const json = typeof nextState === 'string' ? JSON.parse(nextState) : nextState;
+      const res = canvas.loadFromJSON(json, () => {
         canvas.renderAll();
-        collab.sharedTypesRef.current.canvas.set(activeSlideId, nextState);
+        collab.sharedTypesRef.current.canvas?.set(activeSlideId, nextState);
         setTimeout(() => { isSyncingRef.current = false; }, 100);
-      }).catch(() => { isSyncingRef.current = false; });
+      });
+      if (res && typeof res.then === 'function') {
+        res.then(() => {
+          canvas.renderAll();
+          collab.sharedTypesRef.current.canvas?.set(activeSlideId, nextState);
+          setTimeout(() => { isSyncingRef.current = false; }, 100);
+        }).catch(() => { isSyncingRef.current = false; });
+      }
     } catch { isSyncingRef.current = false; }
   };
 
