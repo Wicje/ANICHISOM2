@@ -155,10 +155,10 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
   ] as const;
 
   return (
-    <div className="flex w-full h-full bg-neutral-950/80 backdrop-blur-2xl border border-white/10 text-white font-sans overflow-hidden">
+    <div className="flex w-full h-full bg-[#0a0b10]/85 backdrop-blur-3xl border border-white/12 text-white font-sans overflow-hidden select-none">
       {/* Sidebar */}
-      <div className="w-56 border-r border-white/10 p-4 flex flex-col gap-2 shrink-0">
-        <div className="text-xs font-bold text-white/50 tracking-wider uppercase mb-2 px-2">Settings</div>
+      <div className="w-56 border-r border-white/10 p-5 flex flex-col gap-2 shrink-0 bg-white/[0.02]">
+        <div className="text-[10px] font-bold text-cyan-400 tracking-widest uppercase mb-3 px-2">Settings</div>
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -167,13 +167,13 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                "flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-200",
                 isActive 
-                  ? "bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)]" 
-                  : "text-white/70 hover:bg-white/5 hover:text-white"
+                  ? "bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 text-cyan-300 border border-cyan-500/40 shadow-lg shadow-cyan-500/10" 
+                  : "text-white/60 hover:bg-white/5 hover:text-white"
               )}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-4 h-4 text-cyan-400" />
               {tab.label}
             </button>
           )

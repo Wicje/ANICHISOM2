@@ -271,7 +271,7 @@ export function TerminalBox({ window }: { window: OSWindow }) {
   }, []);
 
   return (
-    <div className="w-full h-full bg-neutral-950/75 backdrop-blur-2xl border border-white/10 flex flex-col overflow-hidden">
+    <div className="w-full h-full bg-[#0a0b10]/85 backdrop-blur-3xl border border-white/12 flex flex-col overflow-hidden shadow-2xl">
       <div ref={termRef} className="flex-1 p-2" />
     </div>
   );
