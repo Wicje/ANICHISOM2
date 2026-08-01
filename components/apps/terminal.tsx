@@ -106,7 +106,7 @@ export function TerminalBox({ window }: { window: OSWindow }) {
           function writeChunk() {
             const end = Math.min(idx + CHUNK_SIZE, lines.length);
             for (; idx < end; idx++) {
-              term.writeln(lines[idx]);
+              term.writeln(lines[idx] || '');
             }
             if (idx < lines.length) {
               requestAnimationFrame(writeChunk);
