@@ -56,7 +56,7 @@ const PRESET_SHADERS = [
 
 export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
   const { wallpaper, setWallpaper, themeColor, setThemeColor, fontFamily, setFontFamily, screenShader, setScreenShader, currentUser, setCurrentUser } = useOS();
-  const updateAuthUser = useAuthStore((s) => s.updateUser);
+  const setAuthUser = useAuthStore((s) => s.setCurrentUser);
   const systemPermissions = usePrivacyStore((s) => s.systemPermissions);
   const setPermission = usePrivacyStore((s) => s.setPermission);
   const [customUrl, setCustomUrl] = useState('');
@@ -547,7 +547,7 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                           if (trimmed && currentUser) {
                             const updated = { ...currentUser, avatarUrl: trimmed };
                             setCurrentUser(updated);
-                            updateAuthUser({ avatarUrl: trimmed });
+                            setAuthUser(updated);
                             audioSystem.playClick();
                             window.dispatchEvent(new CustomEvent('os:notify', { 
                               detail: { title: 'Avatar Updated', description: 'Your custom avatar URL has been applied.', type: 'success' } 
@@ -582,7 +582,7 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                           if (currentUser) {
                             const updated = { ...currentUser, avatarUrl: preset.url };
                             setCurrentUser(updated);
-                            updateAuthUser({ avatarUrl: preset.url });
+                            setAuthUser(updated);
                             audioSystem.playClick();
                             window.dispatchEvent(new CustomEvent('os:notify', { 
                               detail: { title: 'Avatar Changed', description: `Selected ${preset.name}`, type: 'success' } 
