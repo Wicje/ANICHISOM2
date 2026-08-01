@@ -65,9 +65,11 @@ export default function SpotifyApp() {
     setActiveTrackIndex(nextIdx);
     audioSystem.playClick();
     const nextTrack = CURATED_TRACKS[nextIdx];
-    window.dispatchEvent(new CustomEvent('os:spotify-track-change', {
-      detail: { title: nextTrack.title, artist: nextTrack.artist, cover: nextTrack.cover, isPlaying: true }
-    }));
+    if (nextTrack) {
+      window.dispatchEvent(new CustomEvent('os:spotify-track-change', {
+        detail: { title: nextTrack.title, artist: nextTrack.artist, cover: nextTrack.cover, isPlaying: true }
+      }));
+    }
   };
 
   const handlePrev = () => {
@@ -75,9 +77,11 @@ export default function SpotifyApp() {
     setActiveTrackIndex(prevIdx);
     audioSystem.playClick();
     const prevTrack = CURATED_TRACKS[prevIdx];
-    window.dispatchEvent(new CustomEvent('os:spotify-track-change', {
-      detail: { title: prevTrack.title, artist: prevTrack.artist, cover: prevTrack.cover, isPlaying: true }
-    }));
+    if (prevTrack) {
+      window.dispatchEvent(new CustomEvent('os:spotify-track-change', {
+        detail: { title: prevTrack.title, artist: prevTrack.artist, cover: prevTrack.cover, isPlaying: true }
+      }));
+    }
   };
 
   return (
