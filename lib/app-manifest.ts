@@ -9,7 +9,7 @@ import {
   Smartphone, MonitorSpeaker, Tv, Gamepad2, Joystick,
   HardDrive, Database, Server, Cloud, CloudOff, Box, Table,
   Calculator, Play, Circle, Headphones, Film, Mic, Briefcase, Phone, BookOpen,
-  Layout, Sparkles, Activity
+  Layout, Sparkles, Activity, Radio
 } from 'lucide-react';
 
 export type AppManifestEntry = {
