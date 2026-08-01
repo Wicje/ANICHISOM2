@@ -1,14 +1,12 @@
-'use client';
-
 import React, { useState } from 'react';
-import { ShoppingBag, Search, Download, Check, Sparkles, ExternalLink, Globe, Lock, Play } from 'lucide-react';
+import { ShoppingBag, Search, Download, Check, Sparkles, ExternalLink, Globe, Lock, Play, Code, Music, Target, MessageSquare, Palette, FolderOpen } from 'lucide-react';
 import { useWindowStore } from '@/lib/stores/window.store';
 
 export interface AppCatalogItem {
   id: string;
   name: string;
   category: 'productivity' | 'design' | 'developer' | 'media';
-  icon: string;
+  icon: React.ComponentType<any>;
   description: string;
   url: string;
   installed: boolean;
@@ -20,7 +18,7 @@ const CATALOG: AppCatalogItem[] = [
     id: 'figma',
     name: 'Figma Design System',
     category: 'design',
-    icon: '🎨',
+    icon: Palette,
     description: 'Collaborative interface design tool & canvas embedder',
     url: 'https://www.figma.com',
     installed: true,
@@ -181,15 +179,17 @@ export function AppStoreApp() {
 
       {/* Catalog Grid */}
       <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filtered.map((app) => (
-          <div
-            key={app.id}
-            className="p-5 rounded-2xl bg-slate-900 border border-white/10 hover:border-white/20 transition-all flex items-start justify-between gap-4 shadow-xl"
-          >
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 shrink-0 bg-gradient-to-tr from-slate-900 to-slate-800 border border-white/20 rounded-2xl flex items-center justify-center shadow-lg">
-                <app.icon className="w-6 h-6 text-cyan-400" />
-              </div>
+        {filtered.map((app) => {
+          const IconComp = app.icon;
+          return (
+            <div
+              key={app.id}
+              className="p-5 rounded-2xl bg-slate-900 border border-white/10 hover:border-white/20 transition-all flex items-start justify-between gap-4 shadow-xl"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 shrink-0 bg-gradient-to-tr from-slate-900 to-slate-800 border border-white/20 rounded-2xl flex items-center justify-center shadow-lg">
+                  <IconComp className="w-6 h-6 text-cyan-400" />
+                </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <h3 className="font-bold text-sm text-white">{app.name}</h3>
