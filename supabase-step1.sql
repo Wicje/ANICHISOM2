@@ -359,7 +359,13 @@ create policy "Files: delete project member" on public.files for delete using (
 create policy "Events: read workspace member" on public.events for select using (
   exists (select 1 from public.workspaces where id = workspace_id and (owner_id = auth.uid()::text or auth.uid()::text = any(select jsonb_array_elements_text(members))))
 );
-create policy "Events: insert own" on public.events for insert with check (user_id = auth.uid()::text);
+create policy "Events: insert workspace member" on public.events for insert with check (
+  user_id = auth.uid()::text and exists (
+    select 1 from public.workspaces where id = workspace_id and (
+      owner_id = auth.uid()::text or auth.uid()::text = any(select jsonb_array_elements_text(members))
+    )
+  )
+);
 
 create policy "Presence: read workspace member" on public.presence for select using (
   exists (select 1 from public.workspaces where id = workspace_id and (owner_id = auth.uid()::text or auth.uid()::text = any(select jsonb_array_elements_text(members))))
@@ -381,7 +387,9 @@ create policy "Apps: delete own" on public.apps for delete using (user_id = auth
 create policy "Plugins: read all" on public.plugins for select using (true);
 create policy "Plugins: insert authenticated" on public.plugins for insert with check (auth.uid() is not null);
 
-create policy "Invites: read valid" on public.invites for select using (true);
+create policy "Invites: read admin" on public.invites for select using (
+  exists (select 1 from public.users where id = auth.uid()::text and is_admin = true)
+);
 create policy "Invites: insert admin" on public.invites for insert with check (
   exists (select 1 from public.users where id = auth.uid()::text and is_admin = true)
 );
