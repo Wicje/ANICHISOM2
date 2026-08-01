@@ -157,7 +157,11 @@ export function AssistantApp({ window: osWindow }: { window: OSWindow }) {
         });
       };
 
-      const deepContextStr = await gatherDeepContext();
+      const rawDeepContextStr = await gatherDeepContext();
+      // Truncate context payload to 2000 chars to avoid 413 / token limit errors (Issue 125)
+      const deepContextStr = rawDeepContextStr.length > 2000 
+        ? rawDeepContextStr.slice(0, 2000) + '\n...[context truncated to 2000 chars]'
+        : rawDeepContextStr;
 
       const systemPrompt = `You are the ContinuaOS System Assistant. You help users operate their desktop environment.
 

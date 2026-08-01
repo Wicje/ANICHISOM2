@@ -35,8 +35,54 @@ export class SupabaseContextRepository implements ContextRepository {
   async save(request: SaveContextRequest): Promise<SaveContextResponse> {
     const supabase = await createClient();
     const id = `${request.userId}:${request.domain}`;
-    const newVersion = request.version + 1;
     const now = new Date().toISOString();
+
+    // Fetch existing record to verify server version and resolve conflicts (Issue 74, 75)
+    const { data: existing } = await supabase
+      .from('context_records')
+      .select('version, updated_at, data, device_id')
+      .eq('id', id)
+      .maybeSingle();
+
+    let newVersion = 1;
+    if (existing) {
+      // Evaluate lastWriteWins conflict resolution if version mismatch
+      const incomingRecord: ContextRecord = {
+        id,
+        userId: request.userId,
+        domain: request.domain,
+        data: request.data,
+        version: request.version,
+        deviceId: request.deviceId,
+        updatedAt: now,
+        schemaVersion: CONTEXT_KERNEL_VERSION,
+        deleted: false,
+      };
+
+      const existingRecord: ContextRecord = {
+        id,
+        userId: request.userId,
+        domain: request.domain,
+        data: existing.data,
+        version: existing.version,
+        deviceId: existing.device_id,
+        updatedAt: existing.updated_at,
+        schemaVersion: CONTEXT_KERNEL_VERSION,
+        deleted: false,
+      };
+
+      const resolution = lastWriteWins(incomingRecord, existingRecord);
+      if (resolution.status === 'rejected') {
+        return {
+          id,
+          domain: request.domain,
+          version: existing.version,
+          updatedAt: existing.updated_at,
+        };
+      }
+
+      newVersion = existing.version + 1;
+    }
 
     const { error } = await supabase
       .from('context_records')

@@ -71,11 +71,31 @@ async function updateStatus(partial: Partial<SyncStatus>): Promise<void> {
 
 // ─── Service ────────────────────────────────────────────────
 
+let isSyncingRemote = false;
+
 export const BackgroundSyncService = {
+  /**
+   * Check if sync mutex is active to prevent infinite write loops
+   */
+  isSyncing(): boolean {
+    return isSyncingRemote;
+  },
+
   /**
    * Queue a mutation action for background sync.
    */
   async queue(action: Omit<SyncAction, 'id' | 'timestamp' | 'retries' | 'maxRetries' | 'status'>): Promise<SyncAction> {
+    if (isSyncingRemote) {
+      // Ignore queueing if triggered by an active incoming remote broadcast (Issue 127)
+      return {
+        ...action,
+        id: 'ignored-remote-broadcast',
+        timestamp: Date.now(),
+        retries: 0,
+        maxRetries: MAX_RETRIES,
+        status: 'completed',
+      };
+    }
     const entry: SyncAction = {
       ...action,
       id: crypto.randomUUID(),

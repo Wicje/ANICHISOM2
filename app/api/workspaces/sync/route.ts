@@ -6,6 +6,7 @@
  */
 import { NextRequest } from 'next/server';
 import { apiOk, apiError, apiInternal, requireSession } from '@/lib/api-helpers';
+import { SupabaseContextRepository } from '@/lib/context-kernel/supabase-driver';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
     if (!auth.ok) return auth.response;
 
     const body = await request.json();
-    const { desktopState, workspaceId } = body;
+    const { desktopState, workspaceId, deviceId } = body;
 
     if (!desktopState || typeof desktopState !== 'object') {
       return apiError('desktopState is required');
@@ -32,6 +33,16 @@ export async function POST(request: NextRequest) {
           return { id, appId, title, position, size, isMinimized, isMaximized, data: safeData };
         })
       : [];
+
+    // Save sanitized windows state to Context Repository (Issue 73)
+    const repo = new SupabaseContextRepository();
+    await repo.save({
+      userId: auth.userId,
+      domain: `workspace:${workspaceId || 'default'}`,
+      data: { windows: sanitizedWindows, updatedAt: new Date().toISOString() },
+      version: typeof body.version === 'number' ? body.version : 1,
+      deviceId: deviceId || 'web-client',
+    });
 
     return apiOk({
       synced: true,

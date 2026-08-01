@@ -22,20 +22,36 @@ const tokenStore = new Map<string, TokenData>();
 const ENCRYPTION_KEY = process.env.TOKEN_ENCRYPTION_KEY || '';
 const TOKEN_TTL_MS = 3600 * 1000; // 1 hour default access token TTL
 
-// Warn in production if encryption key is missing
-if (process.env.NODE_ENV === 'production' && !ENCRYPTION_KEY) {
-  console.error('[SECURITY] TOKEN_ENCRYPTION_KEY is not set — OAuth tokens stored in plaintext!');
+// Refuse to start in production if key is missing or invalid (Issue 91, 92)
+if (process.env.NODE_ENV === 'production') {
+  if (!ENCRYPTION_KEY) {
+    throw new Error('[SECURITY FATAL] TOKEN_ENCRYPTION_KEY must be configured in production environment');
+  }
+  const keyBytes = Buffer.from(ENCRYPTION_KEY, 'hex');
+  if (keyBytes.length !== 32) {
+    throw new Error(`[SECURITY FATAL] TOKEN_ENCRYPTION_KEY must be a 32-byte hex string (64 hex characters), got ${keyBytes.length} bytes`);
+  }
+}
+
+function getValidatedKey(): Buffer | null {
+  if (!ENCRYPTION_KEY) return null;
+  const key = Buffer.from(ENCRYPTION_KEY, 'hex');
+  if (key.length !== 32) {
+    console.error(`[SECURITY] Invalid ENCRYPTION_KEY length: expected 32 bytes, got ${key.length} bytes`);
+    return null;
+  }
+  return key;
 }
 
 function encrypt(text: string): string {
-  if (!ENCRYPTION_KEY) {
+  const key = getValidatedKey();
+  if (!key) {
     if (process.env.NODE_ENV === 'production') {
-      console.error('[SECURITY] Encrypting with empty key — tokens are NOT encrypted');
+      throw new Error('[SECURITY] Refusing plaintext token storage in production mode');
     }
-    return text; // Dev mode: no encryption
+    return text; // Dev mode fallback only
   }
   const iv = crypto.randomBytes(16);
-  const key = Buffer.from(ENCRYPTION_KEY, 'hex');
   const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
   let encrypted = cipher.update(text, 'utf8', 'hex');
   encrypted += cipher.final('hex');
@@ -43,10 +59,11 @@ function encrypt(text: string): string {
 }
 
 function decrypt(text: string): string {
-  if (!ENCRYPTION_KEY) return text;
+  const key = getValidatedKey();
+  if (!key) return text;
   const parts = text.split(':');
-  const iv = Buffer.from(parts[0]!, 'hex');
-  const key = Buffer.from(ENCRYPTION_KEY, 'hex');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return text;
+  const iv = Buffer.from(parts[0], 'hex');
   const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
   let decrypted = decipher.update(parts[1]!, 'hex', 'utf8');
   decrypted += decipher.final('utf8');
