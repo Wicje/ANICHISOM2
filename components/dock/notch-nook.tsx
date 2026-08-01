@@ -211,27 +211,7 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                   </button>
                 </div>
               </div>
-              {/* Tab indicators */}
-              <div className="flex flex-col gap-2 shrink-0 bg-white/5 p-1 rounded-full ring-1 ring-white/10">
-                <button
-                  onClick={() => setActiveTab('nook')}
-                  className={cn(
-                    "flex flex-col items-center justify-center w-10 h-10 rounded-full transition-all duration-300",
-                    activeTab === 'nook' ? "bg-white/20 text-white shadow-sm ring-1 ring-white/30" : "text-white/40 hover:text-white/80 hover:bg-white/10"
-                  )}
-                >
-                  <Music className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setActiveTab('tray')}
-                  className={cn(
-                    "flex flex-col items-center justify-center w-10 h-10 rounded-full transition-all duration-300",
-                    activeTab === 'tray' ? "bg-white/20 text-white shadow-sm ring-1 ring-white/30" : "text-white/40 hover:text-white/80 hover:bg-white/10"
-                  )}
-                >
-                  <Settings className="w-4 h-4" />
-                </button>
-              </div>
+
 
               {activeTab === 'nook' && (
                 <>

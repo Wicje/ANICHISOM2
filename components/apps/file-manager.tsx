@@ -721,18 +721,20 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   const displayFiles = isViewingLocal ? filteredFiles : filteredCloudFiles;
 
   return (
-    <div className="w-full h-full flex bg-transparent text-[var(--os-text)] font-sans overflow-hidden">
+    <div className="w-full h-full flex flex-col md:flex-row bg-transparent text-[var(--os-text)] font-sans overflow-hidden text-xs sm:text-sm">
 
-      {/* Sidebar */}
-      <div className="w-56 bg-black/5 dark:bg-black/25 border-r border-[var(--os-border)] flex flex-col shrink-0">
-        <div className="h-14 flex items-center px-4 border-b border-[var(--os-border)] text-sm font-semibold tracking-wide text-[var(--os-text)]">
-          <HardDrive className="w-4 h-4 mr-2 text-emerald-500" />
-          Files Bridge
+      {/* Sidebar — Responsive Collapsible Width */}
+      <div className="w-full md:w-52 lg:w-56 bg-black/10 dark:bg-black/40 backdrop-blur-xl border-b md:border-b-0 md:border-r border-[var(--os-border)] flex flex-col shrink-0">
+        <div className="h-12 md:h-14 flex items-center justify-between px-4 border-b border-[var(--os-border)] text-xs sm:text-sm font-semibold tracking-wide text-[var(--os-text)]">
+          <div className="flex items-center gap-2">
+            <HardDrive className="w-4 h-4 text-emerald-400" />
+            <span>Files Bridge</span>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto py-4">
+        <div className="flex-1 overflow-y-auto py-2 sm:py-4">
           {/* Local storage */}
-          <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--os-text-muted)]">Local Disk</div>
+          <div className="px-3 mb-1.5 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-[var(--os-text-muted)]">Local Disk</div>
           <div className="flex flex-col gap-1 px-2">
             {['Root', 'Desktop', 'Documents', 'Downloads', 'Media'].map(loc => (
               <button
@@ -931,15 +933,15 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
             )}
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--os-text-muted)]" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--os-text-muted)]" />
               <input
                 type="text"
-                placeholder="Search files..."
+                placeholder="Search..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-48 bg-[var(--os-surface-elevated)] border border-[var(--os-border)] rounded-full py-1.5 pl-9 pr-4 text-sm text-[var(--os-text)] outline-none focus:border-[var(--os-primary)] transition-colors shadow-inner"
+                className="w-28 sm:w-44 focus:w-40 sm:focus:w-56 bg-[var(--os-surface-elevated)] border border-[var(--os-border)] rounded-full py-1 pl-8 pr-3 text-xs text-[var(--os-text)] outline-none focus:border-[var(--os-primary)] transition-all shadow-inner"
               />
             </div>
 
@@ -1135,7 +1137,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
                 return (
                   <div key={groupName} className="flex flex-col gap-4">
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--os-text-muted)] border-b border-[var(--os-border)] pb-1.5">{groupName}</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-4 md:gap-6">
                       {groupFiles.map((file, i) => {
                         const isFolder = file.isFolder === true || file.mimeType === 'inode/directory';
                         const isMedia = !isFolder && (file.mimeType?.startsWith('video/') || file.mimeType?.startsWith('audio/'));
