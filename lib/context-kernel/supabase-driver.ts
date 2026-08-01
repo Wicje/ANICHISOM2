@@ -72,7 +72,7 @@ export class SupabaseContextRepository implements ContextRepository {
       };
 
       const resolution = lastWriteWins(incomingRecord, existingRecord);
-      if (resolution.status === 'rejected') {
+      if (resolution.source === 'remote') {
         return {
           id,
           domain: request.domain,
