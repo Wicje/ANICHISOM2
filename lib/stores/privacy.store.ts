@@ -29,6 +29,9 @@ export interface WorkspacePrivacyDefaults {
 interface PrivacyState {
   appSettings: Record<string, AppPrivacySettings>;
   workspaceDefaults: WorkspacePrivacyDefaults;
+  systemPermissions: Record<string, 'ask' | 'allow' | 'deny'>;
+
+  setPermission: (perm: string, val: 'ask' | 'allow' | 'deny') => void;
 
   // ─── App Privacy ──────────────────────────────────────────────────
   setAppPrivacy: (appId: string, level: PrivacyLevel, allowedUserIds?: string[]) => void;
@@ -53,6 +56,20 @@ export const usePrivacyStore = create<PrivacyState>((set, get) => ({
   workspaceDefaults: {
     level: 'shared',
     restrictedUserIds: [],
+  },
+  systemPermissions: {
+    Microphone: 'ask',
+    Camera: 'ask',
+    Clipboard: 'allow',
+    'File System': 'allow',
+    Location: 'ask',
+    Network: 'allow',
+  },
+
+  setPermission: (perm, val) => {
+    set(s => ({
+      systemPermissions: { ...s.systemPermissions, [perm]: val }
+    }));
   },
 
   // ─── App Privacy ──────────────────────────────────────────────────
@@ -168,4 +185,4 @@ export const usePrivacyStore = create<PrivacyState>((set, get) => ({
   },
 }));
 
-withPersistence(usePrivacyStore, 'privacy-state', ['appSettings', 'workspaceDefaults']);
+withPersistence(usePrivacyStore, 'privacy-state', ['appSettings', 'workspaceDefaults', 'systemPermissions']);

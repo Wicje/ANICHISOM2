@@ -53,7 +53,10 @@ const PRESET_SHADERS = [
 ];
 
 export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
-  const { wallpaper, setWallpaper, themeColor, setThemeColor, fontFamily, setFontFamily, screenShader, setScreenShader, currentUser } = useOS();
+  const { wallpaper, setWallpaper, themeColor, setThemeColor, fontFamily, setFontFamily, screenShader, setScreenShader, currentUser, setCurrentUser } = useOS();
+  const updateAuthUser = useAuthStore((s) => s.updateUser);
+  const systemPermissions = usePrivacyStore((s) => s.systemPermissions);
+  const setPermission = usePrivacyStore((s) => s.setPermission);
   const [customUrl, setCustomUrl] = useState('');
   const [activeTab, setActiveTab] = useState<'appearance' | 'system' | 'account' | 'privacy'>('appearance');
   const [contextExporting, setContextExporting] = useState(false);
@@ -538,35 +541,50 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                       />
                       <button 
                         onClick={() => {
-                          if (customUrl.trim() && currentUser) {
-                            useOS().setCurrentUser({ ...currentUser, avatarUrl: customUrl.trim() });
+                          const trimmed = customUrl.trim();
+                          if (trimmed && currentUser) {
+                            const updated = { ...currentUser, avatarUrl: trimmed };
+                            setCurrentUser(updated);
+                            updateAuthUser({ avatarUrl: trimmed });
                             audioSystem.playClick();
+                            window.dispatchEvent(new CustomEvent('os:notify', { 
+                              detail: { title: 'Avatar Updated', description: 'Your custom avatar URL has been applied.', type: 'success' } 
+                            }));
                           }
                         }}
                         className="bg-[#10F4A0]/20 hover:bg-[#10F4A0]/30 text-[#10F4A0] border border-[#10F4A0]/40 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
                       >
-                        Set Avatar
+                        Apply Avatar URL
                       </button>
                     </div>
                   </div>
                 </div>
 
-                {/* 3D Avatar Preset Selection */}
+                {/* 3D & Vector Avatar Preset Library */}
                 <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-white/70 uppercase tracking-wider">Select 3D Avatar Preset</h4>
+                  <h4 className="text-xs font-bold text-white/70 uppercase tracking-wider">Select Avatar from Library (DiceBear & 3D)</h4>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {([
                       { name: '🤖 3D Glass Cyberbot', url: '/images/avatar_cyber.jpg' },
-                      { name: '💎 Emerald Obsidian', url: '/images/hero_3d.jpg' },
-                      { name: '🚀 Cosmic Astronaut', url: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=2564&auto=format&fit=crop' },
-                      { name: '🎨 Neon Cyberpunk', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=2564&auto=format&fit=crop' },
+                      { name: '💎 Emerald Cyber Synth', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=continua1&backgroundColor=05070d' },
+                      { name: '🦊 3D Adventurer', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=cyberpunk' },
+                      { name: '🚀 Neon Persona', url: 'https://api.dicebear.com/7.x/personas/svg?seed=neo' },
+                      { name: '🎨 Cosmic Lorelei', url: 'https://api.dicebear.com/7.x/lorelei/svg?seed=orbit' },
+                      { name: '⚡ Minimal Micah', url: 'https://api.dicebear.com/7.x/micah/svg?seed=continua' },
+                      { name: '👑 Identicon Shield', url: 'https://api.dicebear.com/7.x/identicon/svg?seed=continuaos' },
+                      { name: '🌟 Emerald Obsidian 3D', url: '/images/hero_3d.jpg' },
                     ]).map((preset) => (
                       <button
                         key={preset.url}
                         onClick={() => {
                           if (currentUser) {
-                            useOS().setCurrentUser({ ...currentUser, avatarUrl: preset.url });
+                            const updated = { ...currentUser, avatarUrl: preset.url };
+                            setCurrentUser(updated);
+                            updateAuthUser({ avatarUrl: preset.url });
                             audioSystem.playClick();
+                            window.dispatchEvent(new CustomEvent('os:notify', { 
+                              detail: { title: 'Avatar Changed', description: `Selected ${preset.name}`, type: 'success' } 
+                            }));
                           }
                         }}
                         className={cn(
@@ -577,7 +595,7 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                         )}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={preset.url} alt={preset.name} className="w-12 h-12 rounded-full object-cover border border-white/20" />
+                        <img src={preset.url} alt={preset.name} className="w-12 h-12 rounded-full object-cover border border-white/20 bg-slate-900" />
                         <span className="text-[11px] font-semibold text-white/80">{preset.name}</span>
                       </button>
                     ))}
@@ -681,16 +699,27 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                 </div>
 
                 <div className="space-y-3">
-                  {['Microphone', 'Camera', 'Clipboard', 'File System'].map(perm => (
+                  {['Microphone', 'Camera', 'Clipboard', 'File System', 'Location', 'Network'].map(perm => (
                     <div key={perm} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
                       <div>
                         <h3 className="font-medium text-sm">{perm} Access</h3>
-                        <p className="text-xs text-white/50 mt-1">Allow apps to use your {perm.toLowerCase()}</p>
+                        <p className="text-xs text-white/50 mt-1">Configure OS security policy for {perm.toLowerCase()}</p>
                       </div>
-                      <select className="bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                      <select 
+                        value={systemPermissions[perm] || 'ask'}
+                        onChange={(e) => {
+                          const val = e.target.value as 'ask' | 'allow' | 'deny';
+                          setPermission(perm, val);
+                          audioSystem.playClick();
+                          window.dispatchEvent(new CustomEvent('os:notify', { 
+                            detail: { title: 'Permission Updated', description: `${perm} set to ${val.toUpperCase()}`, type: 'success' } 
+                          }));
+                        }}
+                        className="bg-[#05070d] border border-white/20 rounded-lg px-3 py-1.5 text-xs font-semibold text-white focus:outline-none focus:border-[#10F4A0]"
+                      >
                         <option value="ask">Ask First</option>
                         <option value="allow">Allow All</option>
-                        <option value="deny">Deny</option>
+                        <option value="deny">Deny Access</option>
                       </select>
                     </div>
                   ))}

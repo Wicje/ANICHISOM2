@@ -7,8 +7,9 @@ import { useFocusStore } from '@/lib/stores/focus.store';
 import { audioSystem } from '@/lib/services/audio-engine';
 
 export function DynamicHUD() {
-  const { enabled: focusEnabled, isRunning: focusRunning, remainingSeconds, toggle: toggleFocus } = useFocusStore();
+  const { enabled: focusEnabled, getRemainingSeconds, toggle: toggleFocus } = useFocusStore();
   const [isExpanded, setIsExpanded] = useState(false);
+  const remainingSeconds = getRemainingSeconds();
 
   const formatTime = (sec: number) => {
     const m = Math.floor(sec / 60);
@@ -35,7 +36,7 @@ export function DynamicHUD() {
               <span className="w-2 h-2 rounded-full bg-[#10F4A0] animate-pulse" />
               <span className="text-[10px] font-extrabold text-white/90 tracking-widest uppercase">Continua</span>
             </div>
-            {focusRunning ? (
+            {focusEnabled ? (
               <div className="flex items-center gap-1 text-[#10F4A0] text-[10px] font-mono">
                 <Timer className="w-3 h-3" />
                 <span>{formatTime(remainingSeconds)}</span>
@@ -55,7 +56,7 @@ export function DynamicHUD() {
                 onClick={() => { toggleFocus(); audioSystem.playClick(); }}
                 className={cn(
                   "p-1.5 rounded-lg border transition-all",
-                  focusRunning ? "bg-[#10F4A0]/20 border-[#10F4A0] text-[#10F4A0]" : "bg-white/5 border-white/10 hover:bg-white/15 text-white/70"
+                  focusEnabled ? "bg-[#10F4A0]/20 border-[#10F4A0] text-[#10F4A0]" : "bg-white/5 border-white/10 hover:bg-white/15 text-white/70"
                 )}
                 title="Toggle Focus Session"
               >
@@ -63,7 +64,7 @@ export function DynamicHUD() {
               </button>
               <div className="flex flex-col">
                 <span className="text-[11px] font-bold text-white leading-none">
-                  {focusRunning ? `Focus Session (${formatTime(remainingSeconds)})` : 'Continua HUD Active'}
+                  {focusEnabled ? `Focus Session (${formatTime(remainingSeconds)})` : 'Continua HUD Active'}
                 </span>
                 <span className="text-[9px] text-white/50 mt-0.5">
                   Sound: <strong className="text-[#10F4A0] uppercase">{audioSystem.getSoundProfile()}</strong>

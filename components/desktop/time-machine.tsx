@@ -74,7 +74,7 @@ export function TimeMachine({ isOpen, onClose }: TimeMachineProps) {
                     <span className="text-[10px] font-mono text-white/50">{dateStr}</span>
                   </div>
                   <div className="text-[10px] text-white/40">
-                    {snap.windowCount || snap.windows?.length || 0} Open Window(s)
+                    {snap.windows?.length || 0} Open Window(s)
                   </div>
                   <button
                     onClick={(e) => {
