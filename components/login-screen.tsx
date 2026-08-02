@@ -120,43 +120,19 @@ export function LoginScreen() {
           });
         }
       } else {
-        // Mode === 'login'
-        // If user entered invite code or admin key format, or if local login fails
-        if (email.startsWith('ADMIN-') || email.startsWith('BETA-') || password === 'admin') {
-          const role = email.startsWith('BETA-') ? 'user' : 'admin';
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) throw error;
+
+        if (data?.user) {
           setCurrentUser({
-            id: 'local-' + Date.now(),
-            name: displayName || email.split('@')[0] || 'Continua User',
-            role: role as OSRole,
-            avatarUrl: '/images/avatar_cyber.jpg',
-          });
-          setIsLoading(false);
-          return;
-        }
-
-        try {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-
-          if (error) throw error;
-
-          if (data?.user) {
-            setCurrentUser({
-              id: data.user.id,
-              name: data.user.user_metadata?.name || email.split('@')[0],
-              role: (data.user.user_metadata?.role as OSRole) || 'user',
-              avatarUrl: data.user.user_metadata?.avatar_url,
-            });
-          }
-        } catch (supaErr: any) {
-          // Graceful fallback for local development / offline demo
-          setCurrentUser({
-            id: 'local-user-' + Date.now(),
-            name: email.split('@')[0] || 'Continua User',
-            role: 'admin',
-            avatarUrl: '/images/avatar_cyber.jpg',
+            id: data.user.id,
+            name: data.user.user_metadata?.name || email.split('@')[0],
+            role: (data.user.user_metadata?.role as OSRole) || 'user',
+            avatarUrl: data.user.user_metadata?.avatar_url,
           });
         }
       }
@@ -313,22 +289,6 @@ export function LoginScreen() {
           >
             <GitHubIcon className="w-4 h-4" />
             Continue with GitHub
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setCurrentUser({
-                id: 'demo-admin-' + Date.now(),
-                name: 'Continua Admin',
-                role: 'admin',
-                avatarUrl: '/images/avatar_cyber.jpg',
-              });
-            }}
-            className="w-full bg-[#10F4A0]/10 hover:bg-[#10F4A0]/20 text-[#10F4A0] font-bold py-3 transition-all flex items-center justify-center gap-2 text-sm rounded-lg border border-[#10F4A0]/30 cursor-pointer"
-          >
-            <LogIn className="w-4 h-4" />
-            ⚡ Instant Admin / Demo Sign In
           </button>
 
           {passkeySupported && (
