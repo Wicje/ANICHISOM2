@@ -43,13 +43,12 @@ const DEFAULT_GUEST_USER: OSUser = {
 };
 
 export const useAuthStore = create<AuthState>((set, get) => ({
-  currentUser: DEFAULT_GUEST_USER,
+  currentUser: null,
   sessionChecked: false,
 
   setCurrentUser: (user) => {
-    const nextUser = user || DEFAULT_GUEST_USER;
-    set({ currentUser: nextUser });
-    writeDomain(AUTH_DOMAIN, nextUser);
+    set({ currentUser: user });
+    writeDomain(AUTH_DOMAIN, user);
   },
 
   logout: async () => {
@@ -60,8 +59,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (e) {
       console.error('Logout error:', e);
     }
-    set({ currentUser: DEFAULT_GUEST_USER });
-    writeDomain(AUTH_DOMAIN, DEFAULT_GUEST_USER);
+    set({ currentUser: null });
+    writeDomain(AUTH_DOMAIN, null);
   },
 
   wipeSession: async () => {
@@ -93,10 +92,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   checkSession: async () => {
-    // 1. Instant: serve from IDB cache so UI unblocks immediately
+    // 1. Instant: serve from IDB cache so UI unblocks immediately if already logged in
     let cachedUser = await readDomain<OSUser>(AUTH_DOMAIN);
     if (!cachedUser) {
-      // Migration: try legacy key
       const { get: idbGet } = await import('idb-keyval');
       cachedUser = (await idbGet<OSUser>(LEGACY_KEY)) ?? null;
       if (cachedUser) writeDomain(AUTH_DOMAIN, cachedUser);
@@ -104,7 +102,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (cachedUser) {
       set({ currentUser: cachedUser, sessionChecked: true });
     } else {
-      set({ currentUser: DEFAULT_GUEST_USER, sessionChecked: true });
+      set({ currentUser: null, sessionChecked: true });
     }
 
     // 2. Background: validate with Supabase, update if logged in
@@ -127,9 +125,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         writeDomain(AUTH_DOMAIN, osUser);
       }
     } catch {
-      // Fall back to cached user or default guest user
+      // Keep cachedUser or null
       if (!get().currentUser) {
-        set({ currentUser: cachedUser || DEFAULT_GUEST_USER, sessionChecked: true });
+        set({ currentUser: cachedUser || null, sessionChecked: true });
       }
     }
   },
