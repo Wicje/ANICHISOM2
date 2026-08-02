@@ -92,26 +92,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   checkSession: async () => {
-    // 1. Instant: serve from IDB cache so UI unblocks immediately if already logged in
-    let cachedUser = await readDomain<OSUser>(AUTH_DOMAIN);
-    if (!cachedUser) {
-      const { get: idbGet } = await import('idb-keyval');
-      cachedUser = (await idbGet<OSUser>(LEGACY_KEY)) ?? null;
-      if (cachedUser) writeDomain(AUTH_DOMAIN, cachedUser);
-    }
-    if (cachedUser) {
-      set({ currentUser: cachedUser, sessionChecked: true });
-    } else {
-      set({ currentUser: null, sessionChecked: true });
-    }
-
-    // 2. Background: validate with Supabase, update if logged in
     try {
       const { createClient } = await import('@/utils/supabase/client');
       const supabase = createClient();
       const { data: { user } } = await withTimeout(
         supabase.auth.getUser(),
-        5000
+        3000
       );
 
       if (user) {
@@ -119,16 +105,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           id: user.id,
           name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
           role: (user.user_metadata?.role as OSRole) || 'user',
-          avatarUrl: user.user_metadata?.avatar_url || cachedUser?.avatarUrl || '/images/avatar_cyber.jpg',
+          avatarUrl: user.user_metadata?.avatar_url || '/images/avatar_cyber.jpg',
         };
         set({ currentUser: osUser, sessionChecked: true });
         writeDomain(AUTH_DOMAIN, osUser);
+        return;
       }
-    } catch {
-      // Keep cachedUser or null
-      if (!get().currentUser) {
-        set({ currentUser: cachedUser || null, sessionChecked: true });
-      }
-    }
+    } catch {}
+
+    // If no active authenticated Supabase user, enforce LoginScreen
+    set({ currentUser: null, sessionChecked: true });
   },
 }));
