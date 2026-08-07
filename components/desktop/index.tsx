@@ -333,7 +333,24 @@ export function Desktop() {
       // Phase 1: Configure context layer (fast, no await needed)
       setBootMessage('Initializing...');
       setBootProgress(10);
-      configureContextLayer({ mode: 'private' });
+
+      // Wait for the async session check to settle before deciding sync mode
+      if (!useAuthStore.getState().sessionChecked) {
+        try {
+          await useAuthStore.getState().checkSession();
+        } catch { /* fall through to private mode */ }
+      }
+
+      const { currentUser } = useAuthStore.getState();
+      if (currentUser) {
+        configureContextLayer({ mode: 'agency', userId: currentUser.id });
+        // Pull remote context BEFORE local restore so cross-device state wins
+        setBootMessage('Syncing context...');
+        const { syncFromCloud } = await import('@/lib/context-layer');
+        await syncFromCloud();
+      } else {
+        configureContextLayer({ mode: 'private' });
+      }
 
       // Phase 2: Parallel hydration — read all domains simultaneously
       setBootMessage('Restoring context...');
@@ -354,6 +371,9 @@ export function Desktop() {
         const ws = workspace as any;
         if (ws.windows?.length) useWindowStore.getState().setWindows(ws.windows);
       }
+
+      // Restore open windows from the context layer
+      await useWindowStore.getState().hydrate();
 
       // Browser state will be read by the browser component itself
 

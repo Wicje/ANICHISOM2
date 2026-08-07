@@ -5,6 +5,7 @@ import { PWASetup } from '@/components/pwa-setup';
 import { PWAInstall } from '@/components/pwa-install';
 import { GlobalErrorHandlers } from '@/components/global-error-handlers';
 import { HelpModal } from '@/components/help/help-modal';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -54,11 +55,13 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
         <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Outfit:wght@400;600;700&family=Playfair+Display:ital,wght@0,600;1,400&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-sans bg-black text-slate-100 antialiased selection:bg-neon-blue selection:text-black" suppressHydrationWarning>
-        {children}
-        <GlobalErrorHandlers />
-        <PWASetup />
-        <PWAInstall />
-        <HelpModal />
+        <TooltipProvider delayDuration={200}>
+          {children}
+          <GlobalErrorHandlers />
+          <PWASetup />
+          <PWAInstall />
+          <HelpModal />
+        </TooltipProvider>
       </body>
     </html>
   );

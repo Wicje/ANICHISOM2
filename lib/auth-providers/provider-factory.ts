@@ -15,7 +15,7 @@ let cachedProvider: AuthProvider | null = null;
 export async function getAuthProvider(): Promise<AuthProvider> {
   if (cachedProvider) return cachedProvider;
 
-  const providerName = (process.env.NEXT_PUBLIC_AUTH_PROVIDER || 'custom').toLowerCase();
+  const providerName = (process.env.NEXT_PUBLIC_AUTH_PROVIDER || 'supabase').toLowerCase();
 
   switch (providerName) {
     case 'supabase': {
@@ -43,5 +43,5 @@ export function clearProviderCache(): void {
 }
 
 export function getAuthProviderName(): string {
-  return process.env.NEXT_PUBLIC_AUTH_PROVIDER || 'custom';
+  return process.env.NEXT_PUBLIC_AUTH_PROVIDER || 'supabase';
 }

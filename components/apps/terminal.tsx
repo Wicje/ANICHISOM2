@@ -4,6 +4,22 @@ import React, { useEffect, useRef, useState } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
 import { VirtualFS, execute, parseInput } from '@/lib/terminal/commands';
 import { audioSystem } from '@/lib/services/audio-engine';
+import { readDomain, writeDomain } from '@/lib/context-layer';
+
+const TERMINAL_HISTORY_KEY = 'continuaos:terminal-history';
+const TERMINAL_DOMAIN = 'terminal';
+
+async function loadTerminalHistory(): Promise<string[]> {
+  try {
+    const ctx = await readDomain<{ history: string[] }>(TERMINAL_DOMAIN);
+    if (ctx?.history?.length) return ctx.history;
+  } catch { /* fall through to localStorage */ }
+  try {
+    return JSON.parse(localStorage.getItem(TERMINAL_HISTORY_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
 
 export function TerminalBox({ window }: { window: OSWindow }) {
   const { openWindow, performanceMode, setPerformanceMode, currentUser } = useOS();
@@ -11,19 +27,23 @@ export function TerminalBox({ window }: { window: OSWindow }) {
   const xtermRef = useRef<any>(null);
   const fitAddonRef = useRef<any>(null);
   const vfsRef = useRef(new VirtualFS());
-  const [history, setHistory] = useState<string[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('continuaos:terminal-history') || '[]');
-    } catch {
-      return [];
-    }
-  });
-  const historyRef = useRef(history);
+  const [history, setHistory] = useState<string[]>([]);
+  const historyRef = useRef<string[]>([]);
   const historyIdxRef = useRef(-1);
   const currentLineRef = useRef('');
   const [ready, setReady] = useState(false);
   const currentUserRef = useRef(currentUser);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+
+  useEffect(() => {
+    let disposed = false;
+    loadTerminalHistory().then((h) => {
+      if (disposed) return;
+      setHistory(h);
+      historyRef.current = h;
+    });
+    return () => { disposed = true; };
+  }, []);
 
   useEffect(() => {
     historyRef.current = history;
@@ -141,7 +161,10 @@ export function TerminalBox({ window }: { window: OSWindow }) {
             if (next.length > 200) next.shift();
             historyRef.current = next;
             setHistory(next);
-            localStorage.setItem('continuaos:terminal-history', JSON.stringify(next));
+            try {
+              localStorage.setItem(TERMINAL_HISTORY_KEY, JSON.stringify(next));
+            } catch { /* ignore */ }
+            writeDomain(TERMINAL_DOMAIN, { history: next }).catch(() => {});
           }
           historyIdxRef.current = -1;
           inputBuffer = '';

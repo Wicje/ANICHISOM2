@@ -160,6 +160,7 @@ const defaultWindow = {
   updateWindowDimensions: vi.fn(),
   applyWorkspaceLayout: vi.fn(),
   setWindows: vi.fn(),
+  hydrate: vi.fn().mockResolvedValue(undefined),
 };
 
 const defaultTheme = {

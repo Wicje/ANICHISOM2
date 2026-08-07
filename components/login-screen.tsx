@@ -4,6 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useAuthStore, OSRole } from '@/lib/stores/auth.store';
 import { createClient } from '@/utils/supabase/client';
 import { Loader2, AlertCircle, Mail, Lock, UserPlus, LogIn, Ticket, Fingerprint } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
 
 type AuthMode = 'login' | 'signup';
 
@@ -273,41 +276,47 @@ export function LoginScreen() {
 
         {/* SSO Buttons */}
         <div className="flex flex-col gap-2.5 mb-5">
-          <button
+          <Button
+            variant="secondary"
+            size="lg"
             onClick={() => handleSSO('google')}
             disabled={isLoading}
-            className="w-full bg-white/[0.06] hover:bg-white/[0.1] text-white/90 disabled:opacity-50 font-medium py-3 transition-all flex items-center justify-center gap-3 text-sm rounded-lg border border-white/[0.08] hover:border-white/[0.15]"
+            className="w-full bg-white/[0.06] hover:bg-white/[0.1] text-white/90 border border-white/[0.08] hover:border-white/[0.15] h-11"
           >
             <GoogleIcon className="w-4 h-4" />
             Continue with Google
-          </button>
+          </Button>
 
-          <button
+          <Button
+            variant="secondary"
+            size="lg"
             onClick={() => handleSSO('github')}
             disabled={isLoading}
-            className="w-full bg-white/[0.06] hover:bg-white/[0.1] text-white/90 disabled:opacity-50 font-medium py-3 transition-all flex items-center justify-center gap-3 text-sm rounded-lg border border-white/[0.08] hover:border-white/[0.15]"
+            className="w-full bg-white/[0.06] hover:bg-white/[0.1] text-white/90 border border-white/[0.08] hover:border-white/[0.15] h-11"
           >
             <GitHubIcon className="w-4 h-4" />
             Continue with GitHub
-          </button>
+          </Button>
 
           {passkeySupported && (
-            <button
+            <Button
+              variant="secondary"
+              size="lg"
               onClick={handlePasskey}
               disabled={isLoading}
-              className="w-full bg-white/[0.04] hover:bg-white/[0.08] text-white/70 disabled:opacity-50 font-medium py-3 transition-all flex items-center justify-center gap-3 text-sm rounded-lg border border-white/[0.06] hover:border-white/[0.12]"
+              className="w-full bg-white/[0.04] hover:bg-white/[0.08] text-white/70 border border-white/[0.06] hover:border-white/[0.12] h-11"
             >
               <Fingerprint className="w-4 h-4" />
               Sign in with Passkey
-            </button>
+            </Button>
           )}
         </div>
 
         {/* Divider */}
         <div className="flex items-center gap-4 mb-5">
-          <div className="flex-1 h-px bg-white/[0.06]" />
+          <Separator className="flex-1 bg-white/[0.06]" />
           <span className="text-white/20 text-[10px] uppercase tracking-[0.2em] font-mono">or</span>
-          <div className="flex-1 h-px bg-white/[0.06]" />
+          <Separator className="flex-1 bg-white/[0.06]" />
         </div>
 
         {/* Form */}
@@ -315,24 +324,22 @@ export function LoginScreen() {
           {mode === 'signup' && (
             <div className="flex flex-col gap-1.5">
               <label className="text-white/30 text-[10px] uppercase tracking-[0.2em] font-mono">Name</label>
-              <div className="flex items-center bg-white/[0.04] rounded-lg border border-white/[0.06] focus-within:border-[#10F4A0]/40 transition-colors">
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Your name"
-                  className="w-full bg-transparent px-4 py-3 text-white placeholder-white/20 focus:outline-none text-sm"
-                />
-              </div>
+              <Input
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Your name"
+                className="h-11 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-white/20 focus-visible:border-[#10F4A0]/40"
+              />
             </div>
           )}
 
           {mode === 'signup' && (
             <div className="flex flex-col gap-1.5">
               <label className="text-white/30 text-[10px] uppercase tracking-[0.2em] font-mono">Invite Code</label>
-              <div className="flex items-center bg-white/[0.04] rounded-lg border border-white/[0.06] focus-within:border-[#10F4A0]/40 transition-colors">
-                <Ticket className="w-4 h-4 text-white/20 shrink-0 ml-4" />
-                <input
+              <div className="relative">
+                <Ticket className="w-4 h-4 text-white/20 absolute left-4 top-1/2 -translate-y-1/2" />
+                <Input
                   type="text"
                   value={inviteCode}
                   onChange={(e) => {
@@ -341,7 +348,7 @@ export function LoginScreen() {
                   }}
                   placeholder="Enter your invite code"
                   required
-                  className="w-full bg-transparent px-3 py-3 text-white placeholder-white/20 focus:outline-none text-sm tracking-wide uppercase font-mono"
+                  className="h-11 pl-11 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-white/20 focus-visible:border-[#10F4A0]/40 tracking-wide uppercase font-mono"
                 />
               </div>
             </div>
@@ -349,39 +356,40 @@ export function LoginScreen() {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-white/30 text-[10px] uppercase tracking-[0.2em] font-mono">Email</label>
-            <div className="flex items-center bg-white/[0.04] rounded-lg border border-white/[0.06] focus-within:border-[#10F4A0]/40 transition-colors">
-              <Mail className="w-4 h-4 text-white/20 shrink-0 ml-4" />
-              <input
+            <div className="relative">
+              <Mail className="w-4 h-4 text-white/20 absolute left-4 top-1/2 -translate-y-1/2" />
+              <Input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@email.com"
                 required
-                className="w-full bg-transparent px-3 py-3 text-white placeholder-white/20 focus:outline-none text-sm"
+                className="h-11 pl-11 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-white/20 focus-visible:border-[#10F4A0]/40"
               />
             </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
             <label className="text-white/30 text-[10px] uppercase tracking-[0.2em] font-mono">Password</label>
-            <div className="flex items-center bg-white/[0.04] rounded-lg border border-white/[0.06] focus-within:border-[#10F4A0]/40 transition-colors">
-              <Lock className="w-4 h-4 text-white/20 shrink-0 ml-4" />
-              <input
+            <div className="relative">
+              <Lock className="w-4 h-4 text-white/20 absolute left-4 top-1/2 -translate-y-1/2" />
+              <Input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={mode === 'signup' ? 'Min 6 characters' : 'Your password'}
                 required
                 minLength={6}
-                className="w-full bg-transparent px-3 py-3 text-white placeholder-white/20 focus:outline-none text-sm"
+                className="h-11 pl-11 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-white/20 focus-visible:border-[#10F4A0]/40"
               />
             </div>
           </div>
 
-          <button
+          <Button
             type="submit"
+            size="lg"
             disabled={isLoading}
-            className="w-full bg-[#10F4A0] hover:bg-[#0BC68A] text-[#060608] disabled:opacity-40 disabled:cursor-not-allowed font-bold py-3.5 transition-all flex items-center justify-center gap-2.5 rounded-lg text-sm mt-1"
+            className="w-full bg-[#10F4A0] hover:bg-[#0BC68A] text-[#060608] disabled:opacity-40 h-11 font-bold mt-1"
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -391,7 +399,7 @@ export function LoginScreen() {
               <UserPlus className="w-4 h-4" />
             )}
             {isLoading ? 'Authenticating...' : mode === 'login' ? 'Sign In' : 'Create Account'}
-          </button>
+          </Button>
         </form>
 
         {/* Mode toggle */}

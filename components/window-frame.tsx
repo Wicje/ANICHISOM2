@@ -249,7 +249,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
 
       {/* Window Header */}
       <div 
-        className={`h-9 flex items-center justify-between px-3.5 shrink-0 ${isMaximized ? 'rounded-none' : 'rounded-t-3xl'}`}
+        className={`h-9 flex items-center justify-between px-3.5 shrink-0 relative ${isMaximized ? 'rounded-none' : 'rounded-t-3xl'}`}
         style={{ background: isActive ? 'var(--os-hover)' : 'transparent' }}
         onPointerDown={(e) => {
            if (!id) return;
@@ -260,6 +260,16 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
         }}
         onDoubleClick={() => maximizeWindow(id)}
       >
+        {isActive && (
+          <div
+            aria-hidden="true"
+            className="absolute top-0 left-6 right-6 h-[2px] rounded-full"
+            style={{
+              background: 'linear-gradient(90deg, transparent, var(--os-primary), transparent)',
+              opacity: 0.7,
+            }}
+          />
+        )}
         <div className="flex gap-2 items-center">
           {/* Semantic traffic light colors — always visible */}
           <button

@@ -2,8 +2,10 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useWindowStore } from '@/lib/stores/window.store';
 
 describe('WindowStore', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     useWindowStore.setState({ windows: [], highestZIndex: 10 });
+    const { del } = await import('idb-keyval');
+    await del('continua-windows');
   });
 
   it('starts with empty windows', () => {
@@ -116,5 +118,26 @@ describe('WindowStore', () => {
     useWindowStore.getState().openWindow('code', 'First');
     useWindowStore.getState().openWindow('code', 'Second');
     expect(useWindowStore.getState().windows).toHaveLength(2);
+  });
+
+  it('hydrate restores persisted windows', async () => {
+    vi.useFakeTimers();
+    try {
+      await useWindowStore.getState().openWindow('terminal', 'Persisted');
+      await vi.advanceTimersByTimeAsync(2000);
+      useWindowStore.setState({ windows: [], highestZIndex: 10 });
+
+      const { readDomain } = await import('@/lib/context-layer');
+      const persisted = await readDomain<any>('windows');
+      expect(persisted).not.toBeNull();
+      expect(persisted.windows).toHaveLength(1);
+
+      await useWindowStore.getState().hydrate();
+      const { windows } = useWindowStore.getState();
+      expect(windows).toHaveLength(1);
+      expect(windows[0]!.title).toBe('Persisted');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

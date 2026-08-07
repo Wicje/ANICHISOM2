@@ -2,6 +2,7 @@ import type {NextConfig} from 'next';
 import bundleAnalyzer from '@next/bundle-analyzer';
 // @ts-ignore
 import withPWAInit from 'next-pwa';
+import { withSentryConfig } from '@sentry/nextjs';
 
 const withAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',
@@ -72,4 +73,16 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withAnalyzer(withPWA(nextConfig));
+const sentryConfig = {
+  // Only upload source maps / run Sentry build hooks when credentials exist,
+  // so local dev and Tauri/export builds don't fail without them.
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: true,
+  telemetry: false,
+  widenClientFileUpload: true,
+  hideSourceMaps: true,
+};
+
+export default withSentryConfig(withAnalyzer(withPWA(nextConfig)), sentryConfig);

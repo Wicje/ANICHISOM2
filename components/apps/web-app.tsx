@@ -4,39 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { Loader2, Heart, SkipBack, Pause, Play, SkipForward, ExternalLink, Zap, X, Check, ShieldAlert, Globe } from 'lucide-react';
 import { isTauri } from '@/lib/platform';
 import { cn } from '@/lib/utils';
-
-// Sites known to set framing restrictions that only the Continua extension
-// (or Tauri's native webview) can bypass.
-const KNOWN_BLOCKED_HOSTS = new Set([
-  'figma.com', 'www.figma.com',
-  'docs.google.com', 'drive.google.com',
-  'github.com', 'gitlab.com',
-  'notion.so', 'www.notion.so',
-  'airtable.com', 'www.airtable.com',
-  'trello.com', 'www.trello.com',
-  'linear.app',
-  'vercel.com', 'app.vercel.com',
-  'netlify.com', 'app.netlify.com',
-  'youtube.com', 'www.youtube.com',
-  'twitter.com', 'x.com', 'www.x.com',
-  'facebook.com', 'www.facebook.com',
-  'instagram.com', 'www.instagram.com',
-  'linkedin.com', 'www.linkedin.com',
-  'reddit.com', 'www.reddit.com',
-  'medium.com',
-  'spotify.com', 'open.spotify.com',
-  'canva.com', 'www.canva.com',
-  'slack.com', 'app.slack.com',
-  'vscode.dev',
-]);
+import { isCatalogItemKnownBlocked } from '@/lib/known-blocked-hosts';
 
 function isKnownBlocked(url: string): boolean {
-  try {
-    const host = new URL(url).hostname.replace(/^www\./, '');
-    return KNOWN_BLOCKED_HOSTS.has(host);
-  } catch {
-    return false;
-  }
+  return isCatalogItemKnownBlocked(url);
 }
 
 export default function WebApp({ window: osWindow }: { window: any }) {

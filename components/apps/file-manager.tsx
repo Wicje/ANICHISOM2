@@ -130,6 +130,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   const [search, setSearch] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
   const objectUrlsRef = useRef<Set<string>>(new Set());
+  const gridScrollRef = useRef<HTMLDivElement>(null);
 
   // Cloud storage state
   const [cloudSources, setCloudSources] = useState<CloudSource[]>([]);
@@ -440,6 +441,40 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
     fetchFiles();
     fetchCloudSources();
     return () => revokeObjectUrls();
+  }, [currentPath]);
+
+  // Restore + persist file grid scroll position through the context layer
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const m = await import('@/lib/context-layer');
+      if (cancelled) return;
+      try {
+        const saved = await m.readDomain<{ [path: string]: number }>('file-scroll');
+        const scrollTop = saved?.[currentPath];
+        if (typeof scrollTop === 'number' && gridScrollRef.current && selectedSource === 'local') {
+          gridScrollRef.current.scrollTop = scrollTop;
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [currentPath, selectedSource]);
+
+  const scrollDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleGridScroll = useCallback(() => {
+    const el = gridScrollRef.current;
+    if (!el) return;
+    const path = currentPath;
+    if (scrollDebounceRef.current) clearTimeout(scrollDebounceRef.current);
+    scrollDebounceRef.current = setTimeout(async () => {
+      try {
+        const m = await import('@/lib/context-layer');
+        const saved = (await m.readDomain<{ [path: string]: number }>('file-scroll')) || {};
+        saved[path] = el.scrollTop;
+        await m.writeDomain('file-scroll', saved);
+      } catch { /* ignore */ }
+    }, 400);
   }, [currentPath]);
 
   // Auto-refresh when filesystem changes (e.g., terminal mkdir/touch)
@@ -1044,7 +1079,9 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
 
         {/* File Grid */}
         <div
+          ref={gridScrollRef}
           className="flex-1 overflow-y-auto p-6 relative"
+          onScroll={handleGridScroll}
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
           onDragOver={handleDragOver}

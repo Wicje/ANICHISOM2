@@ -1,5 +1,19 @@
 import { create } from 'zustand';
 import { mark, measure } from '@/lib/perf';
+import { readDomain, writeDomain } from '@/lib/context-layer';
+
+const WINDOWS_DOMAIN = 'windows';
+
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+function persistWindows(state: WindowState): void {
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    writeDomain(WINDOWS_DOMAIN, {
+      windows: state.windows,
+      highestZIndex: state.highestZIndex,
+    });
+  }, 1500);
+}
 
 export type OSWindow = {
   id: string;
@@ -19,6 +33,7 @@ export type OSWindow = {
 type WindowState = {
   windows: OSWindow[];
   highestZIndex: number;
+  hydrate: () => Promise<void>;
   openWindow: (appId: string, title?: string, data?: any, activeWorkspace?: number) => void;
   closeWindow: (id: string) => void;
   focusWindow: (id: string) => void;
@@ -51,6 +66,20 @@ export const useWindowStore = create<WindowState>((set, get) => ({
   windows: [],
   highestZIndex: 10,
 
+  hydrate: async () => {
+    mark('window:hydrate');
+    try {
+      const data = await readDomain<{ windows?: OSWindow[]; highestZIndex?: number }>(WINDOWS_DOMAIN);
+      if (data?.windows?.length) {
+        const highest = Math.max(data.highestZIndex || 10, ...data.windows.map((w) => w.zIndex || 10));
+        set({ windows: data.windows, highestZIndex: highest });
+      }
+    } catch (e) {
+      console.warn('[WindowStore] Failed to hydrate:', e);
+    }
+    measure('window:hydrate');
+  },
+
   openWindow: (appId, title, data, activeWorkspace) => {
     mark('window:open');
     const { windows, highestZIndex } = get();
@@ -74,6 +103,7 @@ export const useWindowStore = create<WindowState>((set, get) => ({
             : w
         ),
       });
+      persistWindows(get());
       return;
     }
 
@@ -94,12 +124,14 @@ export const useWindowStore = create<WindowState>((set, get) => ({
     };
 
     set({ highestZIndex: nextZ, windows: [...windows, newWindow] });
+    persistWindows(get());
     measure('window:open');
   },
 
   closeWindow: (id) => {
     mark('window:close');
     set((s) => ({ windows: s.windows.filter((w) => w.id !== id) }));
+    persistWindows(get());
     measure('window:close');
   },
 
@@ -113,6 +145,7 @@ export const useWindowStore = create<WindowState>((set, get) => ({
         w.id === id ? { ...w, zIndex: nextZ, isMinimized: false } : w
       ),
     });
+    persistWindows(get());
     measure('window:focus');
   },
 
@@ -120,6 +153,7 @@ export const useWindowStore = create<WindowState>((set, get) => ({
     set((s) => ({
       windows: s.windows.map((w) => (w.id === id ? { ...w, isMinimized: true } : w)),
     }));
+    persistWindows(get());
   },
 
   maximizeWindow: (id) => {
@@ -128,12 +162,14 @@ export const useWindowStore = create<WindowState>((set, get) => ({
         w.id === id ? { ...w, isMaximized: !w.isMaximized } : w
       ),
     }));
+    persistWindows(get());
   },
 
   updateWindowDimensions: (id, x, y, width, height) => {
     set((s) => ({
       windows: s.windows.map((w) => (w.id === id ? { ...w, x, y, width, height } : w)),
     }));
+    persistWindows(get());
   },
 
   updateWindowData: (id, data) => {
@@ -142,11 +178,13 @@ export const useWindowStore = create<WindowState>((set, get) => ({
         w.id === id ? { ...w, data: { ...w.data, ...data } } : w
       ),
     }));
+    persistWindows(get());
   },
 
   setWindows: (windows) => {
     const highest = Math.max(10, ...windows.map((w) => w.zIndex || 10));
     set({ windows, highestZIndex: highest });
+    persistWindows(get());
   },
 
   loadProject: (projectId, activeWorkspace = 0) => {

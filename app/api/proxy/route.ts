@@ -102,9 +102,10 @@ if (!globalForProxy.__continuaos_proxy_rate_limit_cleanup_interval) {
 
 // --- Security: Auth check — verifies JWT signature via Supabase ---
 async function hasAuthSession(request: NextRequest): Promise<boolean> {
+  // Dev / no Supabase: treat as local/guest mode and allow
   if (process.env.NODE_ENV !== 'production' || !process.env.SUPABASE_URL) return true;
   const result = await requireSession(request);
-  return result.ok || true; // Allow OS web browser access in local/guest mode
+  return result.ok;
 }
 
 function escapeHtml(str: string): string {
