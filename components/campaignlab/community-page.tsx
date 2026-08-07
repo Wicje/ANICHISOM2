@@ -53,7 +53,7 @@ export function AudienceHub({ window: osWindow }: { window?: any }) {
   const stats = [
     { label: 'Total Reach', value: '2.4M', change: '+14%', icon: Users, color: 'text-blue-500', bg: 'bg-blue-50' },
     { label: 'Engagement Rate', value: '4.8%', change: '+1.2%', icon: Activity, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-    { label: 'Audience Growth', value: '+12k', change: '+5%', icon: TrendingUp, color: 'text-purple-500', bg: 'bg-purple-50' },
+    { label: 'Audience Growth', value: '+12k', change: '+5%', icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50' },
   ];
 
   return (
@@ -120,7 +120,7 @@ export function AudienceHub({ window: osWindow }: { window?: any }) {
             {/* Demographics */}
             <div className="grid grid-cols-2 gap-6">
               <div className="bg-white p-6 rounded-2xl border border-black/5 shadow-sm">
-                <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><MapPin className="w-5 h-5 text-indigo-500" /> Top Locations</h3>
+                <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><MapPin className="w-5 h-5 text-cyan-500" /> Top Locations</h3>
                 <div className="space-y-4">
                   {[
                     { loc: 'New York, USA', val: '24%', bar: 'w-[24%]' },
@@ -134,7 +134,7 @@ export function AudienceHub({ window: osWindow }: { window?: any }) {
                         <span className="text-slate-500">{l.val}</span>
                       </div>
                       <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div className={cn("h-full bg-indigo-500 rounded-full", l.bar)} />
+                        <div className={cn("h-full bg-cyan-500 rounded-full", l.bar)} />
                       </div>
                     </div>
                   ))}
@@ -204,7 +204,7 @@ export function AudienceHub({ window: osWindow }: { window?: any }) {
           <div className="max-w-4xl mx-auto space-y-4">
             {mockFeedback.map(fb => (
               <div key={fb.id} className="bg-white p-5 rounded-2xl border border-black/5 shadow-sm flex gap-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 shrink-0 flex items-center justify-center text-white font-bold">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-emerald-500 shrink-0 flex items-center justify-center text-white font-bold">
                   {fb.author.charAt(0)}
                 </div>
                 <div className="flex-1">

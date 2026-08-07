@@ -129,7 +129,7 @@ export function EventHistoryViewer({ workspaceId }: EventHistoryViewerProps) {
     if (type.includes('deleted') || type.includes('archived')) return 'text-red-400';
     if (type.includes('updated')) return 'text-blue-400';
     if (type === 'undo' || type === 'redo') return 'text-yellow-400';
-    if (type.includes('approval')) return 'text-purple-400';
+    if (type.includes('approval')) return 'text-emerald-400';
     return 'text-gray-400';
   };
 

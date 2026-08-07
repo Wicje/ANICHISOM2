@@ -290,7 +290,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
             <div className="text-xs font-semibold text-[#37352f]/50 uppercase tracking-wider mb-2">Views</div>
             <div className="flex flex-col gap-1">
               <button onClick={() => setActiveView('dashboard')} className={cn("flex items-center gap-2 text-xs p-2 rounded text-left transition-colors", activeView === 'dashboard' ? "bg-black/5 text-[#37352f] font-medium" : "text-[#37352f]/70 hover:bg-black/5")}>
-                <LayoutDashboard className="w-4 h-4 text-indigo-500" /> Command Center
+                <LayoutDashboard className="w-4 h-4 text-cyan-500" /> Command Center
               </button>
               <button onClick={() => setActiveView('timeline')} className={cn("flex items-center gap-2 text-xs p-2 rounded text-left transition-colors", activeView === 'timeline' ? "bg-black/5 text-[#37352f] font-medium" : "text-[#37352f]/70 hover:bg-black/5")}>
                 <Clock className="w-4 h-4 text-blue-500" /> Timeline
@@ -548,7 +548,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
             {activePage.level && (
               <div className="flex items-center gap-2 mb-4">
                 <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider",
-                  activePage.level === 'campaign' ? 'bg-purple-100 text-purple-700' :
+                  activePage.level === 'campaign' ? 'bg-emerald-100 text-emerald-700' :
                   activePage.level === 'phase' ? 'bg-blue-100 text-blue-700' :
                   activePage.level === 'task' ? 'bg-amber-100 text-amber-700' :
                   'bg-slate-100 text-slate-700'

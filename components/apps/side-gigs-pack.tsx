@@ -99,7 +99,7 @@ export function SideGigsPack({ window: osWindow }: { window: OSWindow }) {
     <div className="w-full h-full flex flex-col bg-white text-gray-900 overflow-hidden">
       {/* Header */}
       <div className="h-14 border-b border-gray-200 flex items-center px-4 shrink-0 bg-gray-50">
-        <Briefcase className="w-5 h-5 text-violet-600 mr-3" />
+        <Briefcase className="w-5 h-5 text-emerald-600 mr-3" />
         <h1 className="font-bold text-sm tracking-wide hidden sm:block">Side Gigs</h1>
         <div className="ml-8 flex gap-1 overflow-x-auto no-scrollbar">
           {([
@@ -114,7 +114,7 @@ export function SideGigsPack({ window: osWindow }: { window: OSWindow }) {
               className={cn(
                 "px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 whitespace-nowrap",
                 activeTab === tab.id
-                  ? "bg-violet-100 text-violet-700 border border-violet-200"
+                  ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
                   : "text-gray-500 hover:bg-gray-100 hover:text-gray-700 border border-transparent"
               )}
             >
@@ -247,7 +247,7 @@ function DashboardTab() {
           icon={<Calendar className="w-5 h-5" />}
           label="This Month"
           value={formatCurrency(stats.thisMonth)}
-          color="violet"
+          color="emerald"
         />
         <StatCard
           icon={<Timer className="w-5 h-5" />}
@@ -260,7 +260,7 @@ function DashboardTab() {
       {/* Quick Timer */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
         <div className="flex items-center gap-3 mb-3">
-          <Timer className="w-4 h-4 text-violet-600" />
+          <Timer className="w-4 h-4 text-emerald-600" />
           <h3 className="text-sm font-bold text-gray-800">Quick Timer</h3>
         </div>
         <div className="flex items-center gap-3">
@@ -268,7 +268,7 @@ function DashboardTab() {
             value={timerGigId}
             onChange={e => setTimerGigId(e.target.value)}
             disabled={timerRunning}
-            className="flex-1 bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-violet-500 disabled:opacity-50"
+            className="flex-1 bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-500 disabled:opacity-50"
           >
             <option value="">Select a gig...</option>
             {activeGigs.map(g => (
@@ -294,7 +294,7 @@ function DashboardTab() {
             </button>
           )}
           {timerRunning && (
-            <span className="text-2xl font-mono font-bold text-violet-700">
+            <span className="text-2xl font-mono font-bold text-emerald-700">
               {formatDurationShort(Math.floor(timerElapsed / 1000))}
             </span>
           )}
@@ -315,7 +315,7 @@ function DashboardTab() {
                 const sc = GIG_STATUS_COLORS[gig.status];
                 const earnings = useSideGigsStore.getState().getTotalEarnings(gig.id);
                 return (
-                  <div key={gig.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between hover:border-violet-200 transition-colors">
+                  <div key={gig.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between hover:border-emerald-200 transition-colors">
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-gray-900">{gig.name}</span>
@@ -350,7 +350,7 @@ function DashboardTab() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-gray-700">{formatDurationShort(te.duration)}</span>
-                    {te.invoiced && <span className="text-[9px] font-bold text-violet-600 bg-violet-100 px-1 rounded">INV</span>}
+                    {te.invoiced && <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100 px-1 rounded">INV</span>}
                   </div>
                 </div>
               ))}
@@ -366,10 +366,10 @@ function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label:
   const colorMap: Record<string, { bg: string; icon: string }> = {
     emerald: { bg: 'bg-emerald-50', icon: 'text-emerald-600' },
     amber: { bg: 'bg-amber-50', icon: 'text-amber-600' },
-    violet: { bg: 'bg-violet-50', icon: 'text-violet-600' },
+    cyan: { bg: 'bg-cyan-50', icon: 'text-cyan-600' },
     blue: { bg: 'bg-blue-50', icon: 'text-blue-600' },
   };
-  const c = colorMap[color] ?? colorMap.violet!;
+  const c = colorMap[color] ?? colorMap.emerald!;
   return (
     <div className={cn("border border-gray-200 rounded-lg p-4 flex items-center gap-3", c.bg)}>
       <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", c.bg, c.icon)}>
@@ -481,14 +481,14 @@ function TimeTrackingTab() {
         {/* Timer */}
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 flex flex-col gap-3">
           <div className="flex items-center gap-2">
-            <Timer className="w-4 h-4 text-violet-600" />
+            <Timer className="w-4 h-4 text-emerald-600" />
             <span className="text-sm font-bold text-gray-800">Live Timer</span>
           </div>
           <select
             value={timerGigId}
             onChange={e => setTimerGigId(e.target.value)}
             disabled={timerRunning}
-            className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet-500 disabled:opacity-50"
+            className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 disabled:opacity-50"
           >
             <option value="">Select gig...</option>
             {allGigs.filter(g => g.status === 'active').map(g => (
@@ -537,16 +537,16 @@ function TimeTrackingTab() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-gray-400" />
-          <select value={filterGigId} onChange={e => setFilterGigId(e.target.value)} className="bg-white border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:border-violet-500">
+          <select value={filterGigId} onChange={e => setFilterGigId(e.target.value)} className="bg-white border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:border-emerald-500">
             <option value="">All gigs</option>
             {allGigs.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
           </select>
-          <input type="date" value={filterStart} onChange={e => setFilterStart(e.target.value)} className="bg-white border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:border-violet-500" />
-          <input type="date" value={filterEnd} onChange={e => setFilterEnd(e.target.value)} className="bg-white border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:border-violet-500" />
+          <input type="date" value={filterStart} onChange={e => setFilterStart(e.target.value)} className="bg-white border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:border-emerald-500" />
+          <input type="date" value={filterEnd} onChange={e => setFilterEnd(e.target.value)} className="bg-white border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:border-emerald-500" />
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors"
+          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />
           Manual Entry
@@ -563,24 +563,24 @@ function TimeTrackingTab() {
             </button>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            <select value={formGigId} onChange={e => setFormGigId(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet-500">
+            <select value={formGigId} onChange={e => setFormGigId(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
               <option value="">Select gig...</option>
               {allGigs.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
-            <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet-500" />
-            <input type="time" value={formStart} onChange={e => setFormStart(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet-500" />
-            <input type="time" value={formEnd} onChange={e => setFormEnd(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet-500" />
-            <input type="text" placeholder="Notes" value={formNotes} onChange={e => setFormNotes(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet-500" />
+            <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
+            <input type="time" value={formStart} onChange={e => setFormStart(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
+            <input type="time" value={formEnd} onChange={e => setFormEnd(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
+            <input type="text" placeholder="Notes" value={formNotes} onChange={e => setFormNotes(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
           </div>
           <div className="flex items-center justify-between">
             <label className="flex items-center gap-2 text-sm text-gray-600">
-              <input type="checkbox" checked={formBillable} onChange={e => setFormBillable(e.target.checked)} className="rounded border-gray-300 text-violet-600" />
+              <input type="checkbox" checked={formBillable} onChange={e => setFormBillable(e.target.checked)} className="rounded border-gray-300 text-emerald-600" />
               Billable
             </label>
             <button
               onClick={handleManualEntry}
               disabled={!formGigId}
-              className="px-4 py-1.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-md transition-colors"
+              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-md transition-colors"
             >
               Add Entry
             </button>
@@ -619,7 +619,7 @@ function TimeTrackingTab() {
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-1.5">
                       {!te.billable && <span className="text-[9px] font-bold text-gray-400 bg-gray-100 px-1 rounded">NON-BILL</span>}
-                      {te.invoiced && <span className="text-[9px] font-bold text-violet-600 bg-violet-100 px-1 rounded">INVOICED</span>}
+                      {te.invoiced && <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100 px-1 rounded">INVOICED</span>}
                     </div>
                   </td>
                   <td className="px-4 py-2.5 text-right">
@@ -740,7 +740,7 @@ function InvoicesTab() {
         <div className="flex gap-2">
           <button
             onClick={() => setShowForm(!showForm)}
-            className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors"
+            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
             New Invoice
@@ -751,16 +751,16 @@ function InvoicesTab() {
       {/* Generate Invoice Form */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
         <div className="flex items-center gap-2 mb-3">
-          <FileText className="w-4 h-4 text-violet-600" />
+          <FileText className="w-4 h-4 text-emerald-600" />
           <h3 className="text-sm font-bold text-gray-800">Generate Invoice from Time Entries</h3>
         </div>
         <div className="flex items-end gap-3">
-          <select value={genGigId} onChange={e => setGenGigId(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet-500">
+          <select value={genGigId} onChange={e => setGenGigId(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
             <option value="">Select gig...</option>
             {allGigs.map(g => <option key={g.id} value={g.id}>{g.name} ({getUninvoicedHours(g.id).toFixed(1)}h uninvoiced)</option>)}
           </select>
-          <input type="date" value={genStart} onChange={e => setGenStart(e.target.value)} placeholder="Start" className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet-500" />
-          <input type="date" value={genEnd} onChange={e => setGenEnd(e.target.value)} placeholder="End" className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet-500" />
+          <input type="date" value={genStart} onChange={e => setGenStart(e.target.value)} placeholder="Start" className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
+          <input type="date" value={genEnd} onChange={e => setGenEnd(e.target.value)} placeholder="End" className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
           {genGigId && (
             <span className="text-xs text-gray-500 whitespace-nowrap">{uninvoicedHours.toFixed(1)}h available</span>
           )}
@@ -782,19 +782,19 @@ function InvoicesTab() {
             <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            <select value={formGigId} onChange={e => { setFormGigId(e.target.value); const g = gigs[e.target.value]; if (g) setFormRate(String(g.rate)); }} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet-500">
+            <select value={formGigId} onChange={e => { setFormGigId(e.target.value); const g = gigs[e.target.value]; if (g) setFormRate(String(g.rate)); }} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
               <option value="">Select gig...</option>
               {allGigs.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
-            <input type="text" placeholder="Description" value={formDesc} onChange={e => setFormDesc(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet-500" />
-            <input type="number" placeholder="Qty" value={formQty} onChange={e => setFormQty(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet-500" />
-            <input type="number" placeholder="Rate" value={formRate} onChange={e => setFormRate(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet-500" />
-            <input type="text" placeholder="Notes" value={formNotes} onChange={e => setFormNotes(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet-500" />
+            <input type="text" placeholder="Description" value={formDesc} onChange={e => setFormDesc(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
+            <input type="number" placeholder="Qty" value={formQty} onChange={e => setFormQty(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
+            <input type="number" placeholder="Rate" value={formRate} onChange={e => setFormRate(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
+            <input type="text" placeholder="Notes" value={formNotes} onChange={e => setFormNotes(e.target.value)} className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
           </div>
           <button
             onClick={handleCreateInvoice}
             disabled={!formGigId || !formDesc || !formRate}
-            className="self-end px-4 py-1.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-md transition-colors"
+            className="self-end px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-md transition-colors"
           >
             Create Invoice
           </button>
@@ -830,8 +830,8 @@ function InvoicesTab() {
                         key={inv.id}
                         onClick={() => setShowDetail(inv.id)}
                         className={cn(
-                          "border-b border-gray-100 hover:bg-violet-50/50 transition-colors cursor-pointer",
-                          showDetail === inv.id && "bg-violet-50"
+                          "border-b border-gray-100 hover:bg-emerald-50/50 transition-colors cursor-pointer",
+                          showDetail === inv.id && "bg-emerald-50"
                         )}
                       >
                         <td className="px-4 py-2.5 text-xs font-bold text-gray-800 font-mono">{inv.invoiceNumber}</td>
@@ -982,7 +982,7 @@ function ClientsTab() {
                   className={cn(
                     "text-left bg-gray-50 border rounded-lg p-3 transition-colors",
                     selectedClient === client.name
-                      ? "border-violet-300 bg-violet-50"
+                      ? "border-emerald-300 bg-emerald-50"
                       : "border-gray-200 hover:border-gray-300"
                   )}
                 >

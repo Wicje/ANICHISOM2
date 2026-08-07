@@ -66,7 +66,7 @@ export function AppStoreApp() {
       {/* Top Bar */}
       <div className="px-6 py-4 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
         <div className="flex items-center gap-3.5">
-          <div className="p-2.5 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-indigo-500/20 text-cyan-400 border border-cyan-500/30 shadow-lg shadow-cyan-500/10">
+          <div className="p-2.5 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-lg shadow-cyan-500/10">
             <ShoppingBag className="w-5 h-5" />
           </div>
           <div>
@@ -100,7 +100,7 @@ export function AppStoreApp() {
             className={cn(
               "px-3.5 py-1 rounded-full text-xs font-semibold capitalize transition-all duration-200",
               category === cat
-                ? "bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-lg shadow-cyan-500/25 ring-1 ring-white/30"
+                ? "bg-gradient-to-r from-cyan-500 to-cyan-600 text-white shadow-lg shadow-cyan-500/25 ring-1 ring-white/30"
                 : "text-white/50 hover:bg-white/10 hover:text-white"
             )}
           >
@@ -140,7 +140,7 @@ export function AppStoreApp() {
                     "flex items-center justify-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-bold transition-all shadow-md active:scale-95",
                     installed
                       ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30"
-                      : "bg-gradient-to-r from-cyan-500 to-indigo-600 text-white hover:brightness-110 shadow-cyan-500/20"
+                      : "bg-gradient-to-r from-cyan-500 to-cyan-600 text-white hover:brightness-110 shadow-cyan-500/20"
                   )}
                 >
                   {installed ? (

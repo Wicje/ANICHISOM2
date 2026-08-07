@@ -11,6 +11,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
+    // @ts-expect-error — Sentry's error-capture helper accepts the Next error shape
     Sentry.captureUnderscoreErrorException(error);
   }, [error]);
 

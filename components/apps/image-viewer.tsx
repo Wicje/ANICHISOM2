@@ -122,7 +122,7 @@ export function ImageViewerApp({ window: osWindow }: { window: any }) {
         <div className="flex items-center gap-2">
           <button
             onClick={handleSendToMoodboard}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/30 transition-all text-xs font-medium"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/30 transition-all text-xs font-medium"
             title="Send to Moodboard"
           >
             <Sparkles className="w-3.5 h-3.5" />

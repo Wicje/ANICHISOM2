@@ -10,11 +10,11 @@ const TYPE_CONFIG: Record<ActivityType, { icon: React.ComponentType<any>; color:
   'app-open': { icon: Zap, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
   'app-close': { icon: X, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
   'file-save': { icon: Folder, color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
-  'file-open': { icon: Folder, color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
+  'file-open': { icon: Folder, color: '#00f0ff', bg: 'rgba(0,240,255,0.1)' },
   'notification': { icon: Bell, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-  'system': { icon: Monitor, color: '#6366f1', bg: 'rgba(99,102,241,0.1)' },
+  'system': { icon: Monitor, color: '#00f0ff', bg: 'rgba(0,240,255,0.1)' },
   'install': { icon: Package, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
-  'setting-change': { icon: Cog, color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
+  'setting-change': { icon: Cog, color: '#00f0ff', bg: 'rgba(0,240,255,0.1)' },
   'search': { icon: Search, color: '#06b6d4', bg: 'rgba(6,182,212,0.1)' },
 };
 
@@ -83,7 +83,7 @@ export function NotificationSettings({ window: osWindow }: { window?: any }) {
         <div className="grid grid-cols-4 gap-3 mb-4">
           <StatCard label="Total Events" value={stats.total} color="var(--os-primary)" />
           <StatCard label="Last Hour" value={stats.lastHour} color="#10b981" />
-          <StatCard label="App Actions" value={stats.byType.find(b => b.type === 'app-open')?.count || 0} color="#8b5cf6" />
+          <StatCard label="App Actions" value={stats.byType.find(b => b.type === 'app-open')?.count || 0} color="#00f0ff" />
           <StatCard label="File Ops" value={(stats.byType.find(b => b.type === 'file-save')?.count || 0) + (stats.byType.find(b => b.type === 'file-open')?.count || 0)} color="#f59e0b" />
         </div>
 

@@ -14,7 +14,7 @@ interface Category {
 
 const categories: Category[] = [
   { name: 'Economics', count: 18, color: 'bg-yellow-400' },
-  { name: 'Psychology', count: 22, color: 'bg-purple-400' },
+  { name: 'Psychology', count: 22, color: 'bg-emerald-400' },
   { name: 'Computer Science', count: 58, color: 'bg-blue-500', },
   { name: 'AI', count: 26, color: 'bg-green-500' },
   { name: 'Bioinformatics', count: 8, color: 'bg-pink-400' },
@@ -23,7 +23,7 @@ const categories: Category[] = [
   { name: 'Biology', count: 15, color: 'bg-teal-400' },
   { name: 'Sort', count: 36, color: 'bg-gray-400' },
   { name: 'Creativity', count: 18, color: 'bg-amber-400' },
-  { name: 'Physics', count: 4, color: 'bg-indigo-400' },
+  { name: 'Physics', count: 4, color: 'bg-cyan-400' },
   { name: 'Hardware', count: 2, color: 'bg-cyan-400' },
   { name: 'Probability', count: 2, color: 'bg-rose-400' },
 ];

@@ -22,7 +22,7 @@ const bookmarks: BookmarkItem[] = [
     name: 'Ethan',
     handle: '@liamdesi',
     avatar: '🐱',
-    avatarColor: 'bg-purple-200',
+    avatarColor: 'bg-emerald-200',
     text: 'Design Notes is a show that teaches us, hosted by...',
     tags: [
       { label: 'Motion', color: 'bg-blue-100 text-blue-700' },
@@ -39,7 +39,7 @@ const bookmarks: BookmarkItem[] = [
     text: 'How seven design problems — from inception to goi...',
     tags: [
       { label: 'Icons', color: 'bg-red-100 text-red-700' },
-      { label: 'Web', color: 'bg-purple-100 text-purple-700' },
+      { label: 'Web', color: 'bg-emerald-100 text-emerald-700' },
       { label: 'UI Desig...', color: 'bg-blue-100 text-blue-700' },
     ],
     time: '8h',

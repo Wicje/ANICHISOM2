@@ -176,7 +176,7 @@ ${APP_LIST_FOR_AI}
 
 You can help with:
 - Opening apps (terminal, files, browser, moodboard, campaign, code, settings, etc.)
-- Changing theme colors (blue, red, green, purple, or any hex color)
+- Changing theme colors (blue, red, green, cyan, or any hex color)
 - Toggling screen shaders (crt, night/warm, off)
 - Answering questions about the OS and apps. If they ask what is open, use the context above.
 
@@ -224,7 +224,8 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
          if (cmd.includes('blue')) { setThemeColor('#3b82f6'); response = 'Theme updated to Blue.'; }
          else if (cmd.includes('red')) { setThemeColor('#ef4444'); response = 'Theme updated to Red.'; }
          else if (cmd.includes('green')) { setThemeColor('#10b981'); response = 'Theme updated to Green.'; }
-         else { setThemeColor('#8b5cf6'); response = 'Theme updated to Purple.'; }
+         else if (cmd.includes('cyan') || cmd.includes('teal')) { setThemeColor('#00f0ff'); response = 'Theme updated to Neon Blue.'; }
+         else { setThemeColor('#00f0ff'); response = 'Theme updated to Neon Blue.'; }
       } else if (cmd.includes('shader') || cmd.includes('filter')) {
          if (cmd.includes('crt')) { setScreenShader('crt'); response = 'CRT shader enabled.'; }
          else if (cmd.includes('night') || cmd.includes('warm')) { setScreenShader('warm'); response = 'Night shift enabled.'; }
@@ -501,7 +502,7 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'user' ? 'bg-white/10' : 'bg-indigo-500/20 text-indigo-400'}`}>
+             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'user' ? 'bg-white/10' : 'bg-cyan-500/20 text-cyan-400'}`}>
                 {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
              </div>
              <div className={`px-4 py-2 rounded-2xl max-w-[80%] text-sm leading-relaxed ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-white/5 border border-white/10 rounded-tl-sm'}`}>
@@ -511,7 +512,7 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
         ))}
         {isStreaming && (
           <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
               <Bot className="w-4 h-4" />
             </div>
             <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-white/5 border border-white/10 flex items-center gap-1.5">
@@ -533,12 +534,12 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
             onChange={(e) => setInput(e.target.value)}
             disabled={isStreaming}
             placeholder={selectedProvider ? "Ask anything..." : "Ask me to open apps or change settings..."}
-            className="w-full bg-white/5 border border-white/10 rounded-full py-3 pl-4 pr-12 text-sm outline-none focus:border-indigo-500 transition-colors shadow-inner disabled:opacity-50"
+            className="w-full bg-white/5 border border-white/10 rounded-full py-3 pl-4 pr-12 text-sm outline-none focus:border-cyan-500 transition-colors shadow-inner disabled:opacity-50"
           />
           <button 
             type="submit" 
             disabled={isStreaming}
-            className="absolute right-2 p-2 bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-700 rounded-full transition-colors disabled:opacity-50"
+            className="absolute right-2 p-2 bg-cyan-500 hover:bg-cyan-600 disabled:bg-cyan-700 rounded-full transition-colors disabled:opacity-50"
           >
             {isStreaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>

@@ -70,7 +70,7 @@ export function HistoryApp({ window: osWindow }: { window: OSWindow }) {
     if (type.includes('locked')) return <Lock className="w-4 h-4 text-rose-400" />;
     if (type.includes('unlocked')) return <Unlock className="w-4 h-4 text-emerald-400" />;
     if (type.includes('approval') || type.includes('granted')) return <CheckCircle className="w-4 h-4 text-green-400" />;
-    if (type.includes('snapshot') || type.includes('saved')) return <Save className="w-4 h-4 text-purple-400" />;
+    if (type.includes('snapshot') || type.includes('saved')) return <Save className="w-4 h-4 text-emerald-400" />;
     return <Sparkles className="w-4 h-4 text-white/50" />;
   };
 

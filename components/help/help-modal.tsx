@@ -56,7 +56,7 @@ export function HelpModal() {
     <>
       <button 
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 w-12 h-12 bg-indigo-600 text-white rounded-full shadow-lg hover:shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center z-[90]"
+        className="fixed bottom-6 right-6 w-12 h-12 bg-cyan-600 text-white rounded-full shadow-lg hover:shadow-xl hover:bg-cyan-700 transition-all flex items-center justify-center z-[90]"
         title="Help & Resources (Cmd+?)"
       >
         <span className="text-xl font-bold">?</span>
@@ -74,7 +74,7 @@ export function HelpModal() {
                   placeholder="Search help topics..." 
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-slate-800"
+                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all text-slate-800"
                 />
               </div>
               <button onClick={() => setIsOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
@@ -92,14 +92,14 @@ export function HelpModal() {
                     onClick={() => setIsOpen(false)}
                     className="flex items-start gap-4 p-3 rounded-xl hover:bg-slate-50 transition-colors group"
                   >
-                    <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-cyan-50 text-cyan-600 flex items-center justify-center shrink-0">
                       <topic.icon className="w-5 h-5" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{topic.title}</h3>
+                      <h3 className="text-sm font-bold text-slate-800 group-hover:text-cyan-600 transition-colors">{topic.title}</h3>
                       <p className="text-xs text-slate-500 mt-0.5">{topic.description}</p>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 self-center" />
+                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-cyan-500 self-center" />
                   </Link>
                 ))}
                 {filteredTopics.length === 0 && (
@@ -111,7 +111,7 @@ export function HelpModal() {
             </div>
 
             <div className="p-4 bg-slate-50 border-t border-black/5 flex justify-between items-center">
-              <Link href="/help" onClick={() => setIsOpen(false)} className="text-sm font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5">
+              <Link href="/help" onClick={() => setIsOpen(false)} className="text-sm font-medium text-cyan-600 hover:text-cyan-700 flex items-center gap-1.5">
                 Browse Full Help Center <ExternalLink className="w-4 h-4" />
               </Link>
               <button className="text-sm font-medium text-slate-600 hover:text-slate-900 flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm hover:shadow">

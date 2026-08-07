@@ -89,7 +89,7 @@ export function MobileCompanion() {
         {/* Active Tasks Widget */}
         <section>
           <h2 className="text-xs font-bold text-black/40 uppercase tracking-wider mb-3">Today's Focus</h2>
-          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-5 text-white shadow-md relative overflow-hidden">
+          <div className="bg-gradient-to-br from-cyan-500 to-emerald-600 rounded-2xl p-5 text-white shadow-md relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
             <div className="flex items-center gap-2 mb-4 relative z-10">
               <Zap className="w-4 h-4 text-yellow-300 fill-yellow-300" />

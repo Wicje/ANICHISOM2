@@ -79,7 +79,7 @@ export function TimeMachine({ workspaceId }: TimeMachineProps) {
     if (type.includes('deleted')) return 'from-red-600 to-rose-600';
     if (type.includes('updated')) return 'from-blue-600 to-cyan-600';
     if (type === 'undo' || type === 'redo') return 'from-yellow-600 to-amber-600';
-    return 'from-purple-600 to-pink-600';
+    return 'from-emerald-600 to-pink-600';
   };
 
   const handlePreviousDay = () => {

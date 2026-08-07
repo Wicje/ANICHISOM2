@@ -498,8 +498,8 @@ function ProductionTab({ orders, designs, onCreateOrder, onUpdateOrder }: { orde
   const statusColors: Record<string, string> = {
     'pending': 'bg-yellow-100 text-yellow-800',
     'confirmed': 'bg-blue-100 text-blue-800',
-    'in-production': 'bg-indigo-100 text-indigo-800',
-    'shipped': 'bg-purple-100 text-purple-800',
+    'in-production': 'bg-cyan-100 text-cyan-800',
+    'shipped': 'bg-emerald-100 text-emerald-800',
     'delivered': 'bg-green-100 text-green-800',
   };
 
@@ -521,7 +521,7 @@ function ProductionTab({ orders, designs, onCreateOrder, onUpdateOrder }: { orde
              <input type="text" value={orderManufacturer} onChange={e => setOrderManufacturer(e.target.value)} placeholder="Manufacturer" className="border border-gray-300 rounded px-2 py-1 text-xs flex-1 min-w-[120px]" />
              <input type="number" step="0.01" value={orderCost} onChange={e => setOrderCost(e.target.value)} placeholder="Unit cost" className="border border-gray-300 rounded px-2 py-1 text-xs w-20" />
              <input type="date" value={orderDue} onChange={e => setOrderDue(e.target.value)} className="border border-gray-300 rounded px-2 py-1 text-xs" />
-             <button onClick={handleCreateOrder} className="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold hover:bg-indigo-700">Create</button>
+             <button onClick={handleCreateOrder} className="px-3 py-1 bg-cyan-600 text-white rounded text-xs font-bold hover:bg-cyan-700">Create</button>
            </div>
          )}
          {orders.length === 0 ? (
@@ -550,7 +550,7 @@ function ProductionTab({ orders, designs, onCreateOrder, onUpdateOrder }: { orde
           {/* AI Concept Generation */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col">
              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><Bot className="w-6 h-6" /></div>
+                <div className="p-3 bg-cyan-50 text-cyan-600 rounded-xl"><Bot className="w-6 h-6" /></div>
                 <div>
                    <h2 className="text-xl font-bold">AI Concept Generator</h2>
                    <p className="text-sm text-gray-500">Generate base designs from text prompts.</p>
@@ -561,7 +561,7 @@ function ProductionTab({ orders, designs, onCreateOrder, onUpdateOrder }: { orde
                value={prompt}
                onChange={e => setPrompt(e.target.value)}
                placeholder="Describe your design... e.g. 'Cyberpunk oversized cargo pants with reflective taping and asymmetrical pockets'"
-               className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all resize-none h-32 mb-4"
+               className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:bg-white transition-all resize-none h-32 mb-4"
              />
               <button 
                 onClick={async () => {
@@ -584,7 +584,7 @@ function ProductionTab({ orders, designs, onCreateOrder, onUpdateOrder }: { orde
                   }
                   setIsGenerating(false);
                 }}
-               className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-md shadow-indigo-600/20 hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+               className="w-full py-3 bg-cyan-600 text-white rounded-xl font-bold shadow-md shadow-cyan-600/20 hover:bg-cyan-700 transition-colors flex items-center justify-center gap-2"
              >
                {isGenerating ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Zap className="w-4 h-4" /> Generate Concepts</>}
              </button>
@@ -667,7 +667,7 @@ function ShopifyTab({ data, collections, onCreateCollection }: { data: any[]; co
 
   const seasonColors: Record<string, string> = {
     spring: 'bg-green-100 text-green-800', summer: 'bg-yellow-100 text-yellow-800',
-    fall: 'bg-orange-100 text-orange-800', winter: 'bg-blue-100 text-blue-800', resort: 'bg-purple-100 text-purple-800',
+    fall: 'bg-orange-100 text-orange-800', winter: 'bg-blue-100 text-blue-800', resort: 'bg-emerald-100 text-emerald-800',
   };
 
   return (

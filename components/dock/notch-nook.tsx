@@ -123,7 +123,7 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
               className="flex items-center justify-between h-8"
             >
               <div className="flex items-center gap-3">
-                <div className="w-6 h-6 rounded-full flex items-center justify-center shadow-inner overflow-hidden relative" style={{ background: spotifyTrack ? '#1db954' : 'linear-gradient(to bottom right, #6366f1, #a855f7)' }}>
+                <div className="w-6 h-6 rounded-full flex items-center justify-center shadow-inner overflow-hidden relative" style={{ background: spotifyTrack ? '#1db954' : 'linear-gradient(to bottom right, #00f0ff, #10F4A0)' }}>
                   {spotifyTrack ? (
                     <img src={spotifyTrack.cover} alt="Cover" className="absolute inset-0 w-full h-full object-cover" />
                   ) : (
@@ -216,12 +216,12 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
               {activeTab === 'nook' && (
                 <>
                   <div className="flex items-center gap-5 shrink-0">
-                    <div className="w-16 h-16 rounded-[20px] overflow-hidden bg-gradient-to-br from-indigo-900 to-black relative ring-1 ring-white/20 shadow-2xl group">
+                    <div className="w-16 h-16 rounded-[20px] overflow-hidden bg-gradient-to-br from-cyan-900 to-black relative ring-1 ring-white/20 shadow-2xl group">
                       {spotifyTrack ? (
                         <img src={spotifyTrack.cover} alt="Cover" className={cn("absolute inset-0 w-full h-full object-cover transition-transform duration-1000", isPlaying ? "scale-110" : "scale-100")} />
                       ) : (
                         <>
-                          <div className={cn("absolute inset-0 bg-gradient-to-br from-indigo-500/50 via-purple-500/50 to-pink-500/50 transition-transform duration-1000", isPlaying ? "scale-110 rotate-3" : "scale-100 rotate-0")} />
+                          <div className={cn("absolute inset-0 bg-gradient-to-br from-cyan-500/50 via-emerald-500/50 to-pink-500/50 transition-transform duration-1000", isPlaying ? "scale-110 rotate-3" : "scale-100 rotate-0")} />
                           <div className="absolute inset-0 flex items-center justify-center">
                             <Music className="w-7 h-7 text-white shadow-lg" />
                           </div>
@@ -267,13 +267,13 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                     <div className="flex items-center gap-1.5 justify-between">
                       {dates.map((d, i) => (
                         <div key={i} className="flex flex-col items-center gap-1">
-                          <span className={cn("text-[8px] font-bold tracking-widest", d === now.getDate() ? "text-indigo-400" : "text-white/30")}>
+                          <span className={cn("text-[8px] font-bold tracking-widest", d === now.getDate() ? "text-cyan-400" : "text-white/30")}>
                             {days[i]}
                           </span>
                           <span className={cn(
                             "text-xs font-bold transition-all w-6 h-6 flex items-center justify-center rounded-full",
                             d === now.getDate()
-                              ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/50"
+                              ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/50"
                               : "text-white/50"
                           )}>
                             {d}
@@ -363,7 +363,7 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                           active && label === 'Spotify'
                             ? "bg-[#1db954]/20 text-[#1db954] ring-1 ring-[#1db954]/30 shadow-inner"
                             : active
-                            ? "bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/30 shadow-inner"
+                            ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/30 shadow-inner"
                             : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/70"
                         )}
                       >
@@ -386,7 +386,7 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                             document.documentElement.style.filter = `brightness(${e.target.value}%)`;
                           }
                         }}
-                        className="w-full h-1.5 rounded-full accent-indigo-400 bg-white/10"
+                        className="w-full h-1.5 rounded-full accent-cyan-400 bg-white/10"
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
@@ -397,7 +397,7 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                         max="100"
                         value={useThemeStore.getState().volume}
                         onChange={(e) => useThemeStore.getState().setVolume(Number(e.target.value))}
-                        className="w-full h-1.5 rounded-full accent-indigo-400 bg-white/10"
+                        className="w-full h-1.5 rounded-full accent-cyan-400 bg-white/10"
                       />
                     </div>
                   </div>

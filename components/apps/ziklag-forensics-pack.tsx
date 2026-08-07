@@ -32,7 +32,7 @@ const PRIORITY_COLORS: Record<Case['priority'], string> = {
 const EVIDENCE_TYPE_COLORS: Record<Evidence['type'], string> = {
   physical: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   digital: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-  testimonial: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  testimonial: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   documentary: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   biological: 'bg-green-500/20 text-green-400 border-green-500/30',
 };
@@ -43,14 +43,14 @@ const EVIDENCE_STATUS_COLORS: Record<Evidence['status'], string> = {
   'in-lab': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   stored: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
   disposed: 'bg-red-500/20 text-red-400 border-red-500/30',
-  returned: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  returned: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
 };
 
 const CHAIN_ACTION_COLORS: Record<ChainEntry['action'], string> = {
   collected: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   transferred: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
   received: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  analyzed: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  analyzed: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   stored: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
   disposed: 'bg-red-500/20 text-red-400 border-red-500/30',
   returned: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
@@ -292,7 +292,7 @@ function CaseDetail({ caseData, onBack, onDelete }: { caseData: Case; onBack: ()
 
       {caseReports.length > 0 && (
         <div className="bg-gray-900 border border-white/10 rounded-xl p-4">
-          <h3 className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-3">Reports</h3>
+          <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-3">Reports</h3>
           <div className="flex flex-col gap-1">
             {caseReports.slice(0, 5).map(r => (
               <div key={r.id} className="flex items-center gap-3 text-xs px-2 py-1.5 bg-white/5 rounded-lg border border-white/5">
@@ -602,7 +602,7 @@ function ChainTimeline({ entries }: { entries: ChainEntry[] }) {
               "absolute -left-3.5 top-1 w-3 h-3 rounded-full border-2",
               entry.action === 'collected' ? "bg-emerald-500 border-emerald-400" :
               entry.action === 'transferred' ? "bg-yellow-500 border-yellow-400" :
-              entry.action === 'analyzed' ? "bg-purple-500 border-purple-400" :
+              entry.action === 'analyzed' ? "bg-emerald-500 border-emerald-400" :
               entry.action === 'disposed' ? "bg-red-500 border-red-400" :
               entry.action === 'accessed' ? "bg-orange-500 border-orange-400" :
               "bg-blue-500 border-blue-400"
@@ -686,10 +686,10 @@ function ReportsTab() {
       <div className={cn("flex flex-col border-r border-white/10 shrink-0 overflow-hidden transition-all", selectedRpt ? "w-72" : "w-full")}>
         <div className="p-3 border-b border-white/10 flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-purple-400 uppercase tracking-widest">
+            <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-widest">
               {activeCaseId ? `Reports — ${cases[activeCaseId]?.title}` : 'All Reports'}
             </h3>
-            <button onClick={() => setShowForm(!showForm)} className="p-1.5 bg-purple-500/20 text-purple-400 rounded-lg border border-purple-500/30 hover:bg-purple-500/30 transition-colors">
+            <button onClick={() => setShowForm(!showForm)} className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/30 hover:bg-emerald-500/30 transition-colors">
               <Plus className="w-4 h-4" />
             </button>
           </div>
@@ -704,7 +704,7 @@ function ReportsTab() {
               <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Report Title" className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs focus:outline-none placeholder:text-white/30" />
               <textarea value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} placeholder="Report content..." className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs focus:outline-none resize-none h-24 placeholder:text-white/30" />
               <input value={form.author} onChange={e => setForm(f => ({ ...f, author: e.target.value }))} placeholder="Author" className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs focus:outline-none placeholder:text-white/30" />
-              <button onClick={handleCreate} className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded text-xs font-bold border border-purple-500/30 hover:bg-purple-500/30 transition-colors">Create Report</button>
+              <button onClick={handleCreate} className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded text-xs font-bold border border-emerald-500/30 hover:bg-emerald-500/30 transition-colors">Create Report</button>
             </div>
           )}
         </div>
@@ -719,7 +719,7 @@ function ReportsTab() {
               className={cn(
                 "w-full text-left p-3 rounded-lg border transition-colors",
                 selectedRptId === r.id
-                  ? "bg-purple-500/10 border-purple-500/30"
+                  ? "bg-emerald-500/10 border-emerald-500/30"
                   : "bg-white/5 border-white/5 hover:bg-white/10"
               )}
             >
@@ -793,7 +793,7 @@ function ReportEditor({ report, onBack }: { report: Report; onBack: () => void }
         value={content}
         onChange={e => setContent(e.target.value)}
         placeholder="Start writing your report..."
-        className="flex-1 bg-gray-900 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500/50 resize-none placeholder:text-white/20 min-h-[300px]"
+        className="flex-1 bg-gray-900 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/50 resize-none placeholder:text-white/20 min-h-[300px]"
       />
     </div>
   );

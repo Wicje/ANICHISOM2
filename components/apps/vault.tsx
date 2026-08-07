@@ -186,7 +186,7 @@ export default function EncryptedVaultApp() {
   if (!unlocked) {
     return (
       <div className="w-full h-full bg-[#05070d]/90 backdrop-blur-3xl text-white font-sans flex flex-col items-center justify-center p-6 select-none relative overflow-hidden">
-        <div className="absolute -inset-10 bg-gradient-to-br from-cyan-600/10 via-emerald-900/10 to-purple-900/20 blur-3xl pointer-events-none" />
+        <div className="absolute -inset-10 bg-gradient-to-br from-cyan-600/10 via-emerald-900/10 to-emerald-900/20 blur-3xl pointer-events-none" />
 
         <div className="w-full max-w-sm bg-slate-900/80 border border-white/20 shadow-2xl rounded-3xl p-6 backdrop-blur-2xl text-center space-y-5 z-10">
           <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-400 flex items-center justify-center mx-auto">

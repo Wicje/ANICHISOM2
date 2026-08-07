@@ -305,9 +305,9 @@ export function AdminPanel({ window: osWindow }: { window: OSWindow }) {
                     <div className="text-xs text-blue-400 mt-2">Operations / minute</div>
                  </div>
                  <div className="bg-[#111] border border-white/10 rounded-xl p-5 shadow-lg">
-                    <div className="flex items-center gap-2 text-white/50 mb-2 text-sm"><Cpu className="w-4 h-4 text-purple-400" /> Active Sessions</div>
+                    <div className="flex items-center gap-2 text-white/50 mb-2 text-sm"><Cpu className="w-4 h-4 text-emerald-400" /> Active Sessions</div>
                     <div className="text-3xl font-bold">84</div>
-                    <div className="text-xs text-purple-400 mt-2">Across 3 regions</div>
+                    <div className="text-xs text-emerald-400 mt-2">Across 3 regions</div>
                  </div>
               </div>
               

@@ -356,10 +356,10 @@ describe('Desktop', () => {
     expect(screen.queryByTestId('mission-control')).toBeNull();
   });
 
-  it('does not render the lock screen initially', async () => {
+  it('renders the lock screen on launch when a user is logged in', async () => {
     render(<Desktop />);
     await act(async () => { vi.advanceTimersByTime(5000); });
-    expect(screen.queryByTestId('lock-screen')).toBeNull();
+    expect(screen.getByTestId('lock-screen')).toBeTruthy();
   });
 
   it('sets the fontFamily style on the root element', async () => {

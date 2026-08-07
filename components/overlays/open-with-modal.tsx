@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, ExternalLink, Check, Sparkles } from 'lucide-react';
+import { X, ExternalLink, Check, Sparkles, Code, Image as ImageIcon, Clapperboard, FileText, Palette, Globe } from 'lucide-react';
 import { useFileStore, SmartRoute } from '@/lib/stores/file.store';
 import { useWindowStore } from '@/lib/stores/window.store';
 
@@ -13,12 +13,12 @@ export interface OpenWithModalProps {
 }
 
 const AVAILABLE_APPS = [
-  { id: 'code', name: 'Code Editor', icon: '💻', desc: 'Syntax highlighting code & text editor' },
-  { id: 'image-viewer', name: 'Image Viewer', icon: '🖼️', desc: 'High resolution image canvas & filter suite' },
-  { id: 'media-player', name: 'Media Player', icon: '🎬', desc: 'Audio & Video playback' },
-  { id: 'pdf-reader', name: 'PDF Reader', icon: '📄', desc: 'Document & PDF reader' },
-  { id: 'moodboard', name: 'Moodboard Canvas', icon: '🎨', desc: 'Visual node board & clipping tool' },
-  { id: 'power-browser', name: 'Power Browser', icon: '🌐', desc: 'Proxied web app & URL viewer' },
+  { id: 'code', name: 'Code Editor', icon: Code, desc: 'Syntax highlighting code & text editor' },
+  { id: 'image-viewer', name: 'Image Viewer', icon: ImageIcon, desc: 'High resolution image canvas & filter suite' },
+  { id: 'media-player', name: 'Media Player', icon: Clapperboard, desc: 'Audio & Video playback' },
+  { id: 'pdf-reader', name: 'PDF Reader', icon: FileText, desc: 'Document & PDF reader' },
+  { id: 'moodboard', name: 'Moodboard Canvas', icon: Palette, desc: 'Visual node board & clipping tool' },
+  { id: 'power-browser', name: 'Power Browser', icon: Globe, desc: 'Proxied web app & URL viewer' },
 ];
 
 export function OpenWithModal({ filePath, fileName, mimeType, onClose }: OpenWithModalProps) {
@@ -89,7 +89,7 @@ export function OpenWithModal({ filePath, fileName, mimeType, onClose }: OpenWit
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-xl">{app.icon}</span>
+                    {(() => { const Icon = app.icon; return <Icon className="w-5 h-5 text-cyan-400" />; })()}
                     <div className="flex flex-col">
                       <span className="font-semibold text-sm">{app.name}</span>
                       <span className="text-xs text-slate-400">{app.desc}</span>

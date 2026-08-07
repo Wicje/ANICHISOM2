@@ -17,6 +17,7 @@ export type OSUser = {
   name: string;
   role: OSRole;
   avatarUrl?: string;
+  email?: string;
 };
 
 type AuthState = {
@@ -106,6 +107,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
           role: (user.user_metadata?.role as OSRole) || 'user',
           avatarUrl: user.user_metadata?.avatar_url || '/images/avatar_cyber.jpg',
+          email: user.email || undefined,
         };
         set({ currentUser: osUser, sessionChecked: true });
         writeDomain(AUTH_DOMAIN, osUser);

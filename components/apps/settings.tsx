@@ -26,7 +26,7 @@ const PRESET_WALLPAPERS = [
 
 const PRESET_THEMES = [
   { name: 'Neon Blue', color: '#00f0ff' },
-  { name: 'Electric Purple', color: '#8a2be2' },
+  { name: 'Brand Green', color: '#10F4A0' },
   { name: 'Acid Green', color: '#ccff00' },
   { name: 'Cyber Red', color: '#ff003c' },
   { name: 'Clean White', color: '#ffffff' }
@@ -447,10 +447,10 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {([
-                      { id: 'mechanical' as const, label: '⌨️ Mechanical', desc: 'Tactile Thock' },
-                      { id: 'glass' as const, label: '💎 Glass Tap', desc: 'Sleek Acoustic' },
-                      { id: 'arcade' as const, label: '👾 8-Bit Arcade', desc: 'Retro Blip' },
-                      { id: 'minimal' as const, label: '🔇 Minimal', desc: 'Soft Haptic' },
+                      { id: 'mechanical' as const, label: 'Mechanical', desc: 'Tactile Thock' },
+                      { id: 'glass' as const, label: 'Glass Tap', desc: 'Sleek Acoustic' },
+                      { id: 'arcade' as const, label: '8-Bit Arcade', desc: 'Retro Blip' },
+                      { id: 'minimal' as const, label: 'Minimal', desc: 'Soft Haptic' },
                     ]).map((item) => {
                       const isActive = audioSystem.getSoundProfile() === item.id;
                       return (
@@ -567,14 +567,14 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                   <h4 className="text-xs font-bold text-white/70 uppercase tracking-wider">Select Avatar from Library (DiceBear & 3D)</h4>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {([
-                      { name: '🤖 3D Glass Cyberbot', url: '/images/avatar_cyber.jpg' },
-                      { name: '💎 Emerald Cyber Synth', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=continua1&backgroundColor=05070d' },
-                      { name: '🦊 3D Adventurer', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=cyberpunk' },
-                      { name: '🚀 Neon Persona', url: 'https://api.dicebear.com/7.x/personas/svg?seed=neo' },
-                      { name: '🎨 Cosmic Lorelei', url: 'https://api.dicebear.com/7.x/lorelei/svg?seed=orbit' },
-                      { name: '⚡ Minimal Micah', url: 'https://api.dicebear.com/7.x/micah/svg?seed=continua' },
-                      { name: '👑 Identicon Shield', url: 'https://api.dicebear.com/7.x/identicon/svg?seed=continuaos' },
-                      { name: '🌟 Emerald Obsidian 3D', url: '/images/hero_3d.jpg' },
+                      { name: '3D Glass Cyberbot', url: '/images/avatar_cyber.jpg' },
+                      { name: 'Emerald Cyber Synth', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=continua1&backgroundColor=05070d' },
+                      { name: '3D Adventurer', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=cyberpunk' },
+                      { name: 'Neon Persona', url: 'https://api.dicebear.com/7.x/personas/svg?seed=neo' },
+                      { name: 'Cosmic Lorelei', url: 'https://api.dicebear.com/7.x/lorelei/svg?seed=orbit' },
+                      { name: 'Minimal Micah', url: 'https://api.dicebear.com/7.x/micah/svg?seed=continua' },
+                      { name: 'Identicon Shield', url: 'https://api.dicebear.com/7.x/identicon/svg?seed=continuaos' },
+                      { name: 'Emerald Obsidian 3D', url: '/images/hero_3d.jpg' },
                     ]).map((preset) => (
                       <button
                         key={preset.url}

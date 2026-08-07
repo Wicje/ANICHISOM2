@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuthStore } from '@/lib/stores/auth.store';
 import { useThemeStore } from '@/lib/stores/theme.store';
-import { Lock, User } from 'lucide-react';
+import { Lock, User, Loader2, AlertCircle, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface LockScreenProps {
@@ -13,6 +13,41 @@ interface LockScreenProps {
 export function LockScreen({ onUnlock }: LockScreenProps) {
   const { currentUser } = useAuthStore();
   const { wallpaper } = useThemeStore();
+
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isChecking, setIsChecking] = useState(false);
+
+  const handleUnlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsChecking(true);
+
+    try {
+      if (currentUser?.email) {
+        const { createClient } = await import('@/utils/supabase/client');
+        const supabase = createClient();
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: currentUser.email,
+          password,
+        });
+        if (authError) {
+          setError(authError.message || 'Incorrect password. Please try again.');
+          setIsChecking(false);
+          return;
+        }
+      } else if (password === '') {
+        setError('Enter your password to unlock.');
+        setIsChecking(false);
+        return;
+      }
+      onUnlock();
+    } catch {
+      setError('Could not verify password. Please try again.');
+    } finally {
+      setIsChecking(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 w-full h-full flex flex-col items-center justify-center z-[9999] font-sans overflow-hidden" style={{ background: 'var(--os-bg)', color: 'var(--os-text)' }}>
@@ -30,9 +65,35 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
             </div>
           )}
           <div className="font-medium text-lg">{currentUser?.name}</div>
-          <button onClick={onUnlock} className="mt-4 px-8 py-2.5 rounded-full font-medium transition-colors backdrop-blur-md flex items-center gap-2" style={{ background: 'var(--os-glass-bg)', border: '1px solid var(--os-glass-border)', color: 'var(--os-text)' }}>
-            <Lock className="w-4 h-4" /> Unlock
-          </button>
+          <form onSubmit={handleUnlock} className="mt-4 flex flex-col items-center gap-3 w-full max-w-[280px]">
+            <div className="w-full flex items-center gap-2 px-4 py-2.5 rounded-full backdrop-blur-md" style={{ background: 'var(--os-glass-bg)', border: '1px solid var(--os-glass-border)' }}>
+              <Lock className="w-4 h-4 shrink-0" style={{ color: 'var(--os-text-muted)' }} />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                autoFocus
+                disabled={isChecking}
+                className="flex-1 bg-transparent outline-none text-sm placeholder:text-current/40"
+                style={{ color: 'var(--os-text)' }}
+              />
+              <button
+                type="submit"
+                disabled={isChecking}
+                className="flex items-center justify-center w-7 h-7 rounded-full transition-colors disabled:opacity-40"
+                style={{ background: 'var(--os-primary, #0a8f5c)', color: '#fff' }}
+              >
+                {isChecking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+            {error && (
+              <div className="flex items-center gap-1.5 text-xs text-red-400">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+          </form>
         </div>
       </div>
     </div>

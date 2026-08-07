@@ -151,11 +151,11 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
   return (
     <div className="w-full h-full flex flex-col bg-zinc-50 text-zinc-900 font-sans">
       <div className="h-14 border-b border-zinc-200 flex items-center px-4 shrink-0 bg-white">
-        <Camera className="w-5 h-5 text-indigo-500 mr-3" />
+        <Camera className="w-5 h-5 text-cyan-500 mr-3" />
         <h1 className="font-bold hidden sm:block">Photography Studio Pack</h1>
         <div className="ml-8 flex gap-2 overflow-x-auto no-scrollbar">
           {(['gallery', 'delivery', 'watermark', 'prints'] as const).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={cn("px-4 py-1.5 text-xs font-bold rounded-full capitalize whitespace-nowrap transition-all", activeTab === tab ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20" : "hover:bg-zinc-100 text-zinc-600")}>
+            <button key={tab} onClick={() => setActiveTab(tab)} className={cn("px-4 py-1.5 text-xs font-bold rounded-full capitalize whitespace-nowrap transition-all", activeTab === tab ? "bg-cyan-600 text-white shadow-md shadow-cyan-600/20" : "hover:bg-zinc-100 text-zinc-600")}>
               {tab}
             </button>
           ))}
@@ -170,7 +170,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                    <p className="text-zinc-500 text-sm">{images.length} files stored locally via OPFS Virtual Storage.</p>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
-                   <label className="px-5 py-2.5 bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 rounded-xl text-sm font-bold hover:bg-indigo-700 cursor-pointer flex items-center gap-2 justify-center w-full sm:w-auto transition-colors">
+                   <label className="px-5 py-2.5 bg-cyan-600 text-white shadow-lg shadow-cyan-600/20 rounded-xl text-sm font-bold hover:bg-cyan-700 cursor-pointer flex items-center gap-2 justify-center w-full sm:w-auto transition-colors">
                       <Plus className="w-4 h-4" /> Import Files
                       <input type="file" multiple accept="image/*" className="hidden" onChange={handleImport} />
                    </label>
@@ -190,14 +190,14 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                       {Object.values(shoots).map(s => (
                          <div key={s.id} className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl border border-zinc-100">
                             <div className="flex items-center gap-3">
-                               <div className={cn("w-2 h-2 rounded-full", s.status === 'completed' ? "bg-green-500" : s.status === 'in-progress' ? "bg-amber-500" : s.status === 'post-processed' ? "bg-indigo-500" : "bg-zinc-300")} />
+                               <div className={cn("w-2 h-2 rounded-full", s.status === 'completed' ? "bg-green-500" : s.status === 'in-progress' ? "bg-amber-500" : s.status === 'post-processed' ? "bg-cyan-500" : "bg-zinc-300")} />
                                <div>
                                   <div className="text-sm font-bold">{s.name}</div>
                                   <div className="text-xs text-zinc-500">{s.location} &middot; {s.date}</div>
                                </div>
                             </div>
                             <div className="flex items-center gap-2">
-                               <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold uppercase", s.status === 'completed' ? "bg-green-100 text-green-700" : s.status === 'in-progress' ? "bg-amber-100 text-amber-700" : s.status === 'post-processed' ? "bg-indigo-100 text-indigo-700" : "bg-zinc-100 text-zinc-600")}>
+                               <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold uppercase", s.status === 'completed' ? "bg-green-100 text-green-700" : s.status === 'in-progress' ? "bg-amber-100 text-amber-700" : s.status === 'post-processed' ? "bg-cyan-100 text-cyan-700" : "bg-zinc-100 text-zinc-600")}>
                                   {s.status}
                                </span>
                             </div>
@@ -206,10 +206,10 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                    </div>
                 )}
                 <div className="flex flex-col sm:flex-row gap-2">
-                   <input value={newShootName} onChange={e => setNewShootName(e.target.value)} placeholder="Shoot name..." className="px-3 py-2 border border-zinc-200 rounded-lg text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                   <input type="date" value={newShootDate} onChange={e => setNewShootDate(e.target.value)} className="px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                   <input value={newShootLocation} onChange={e => setNewShootLocation(e.target.value)} placeholder="Location..." className="px-3 py-2 border border-zinc-200 rounded-lg text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                   <button onClick={() => { if (!newShootName.trim() || !newShootDate) return; createShoot(newShootName, newShootDate, newShootLocation); setNewShootName(''); setNewShootDate(''); setNewShootLocation(''); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 whitespace-nowrap">
+                   <input value={newShootName} onChange={e => setNewShootName(e.target.value)} placeholder="Shoot name..." className="px-3 py-2 border border-zinc-200 rounded-lg text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+                   <input type="date" value={newShootDate} onChange={e => setNewShootDate(e.target.value)} className="px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+                   <input value={newShootLocation} onChange={e => setNewShootLocation(e.target.value)} placeholder="Location..." className="px-3 py-2 border border-zinc-200 rounded-lg text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+                   <button onClick={() => { if (!newShootName.trim() || !newShootDate) return; createShoot(newShootName, newShootDate, newShootLocation); setNewShootName(''); setNewShootDate(''); setNewShootLocation(''); }} className="px-4 py-2 bg-cyan-600 text-white rounded-lg text-sm font-bold hover:bg-cyan-700 whitespace-nowrap">
                       + New Shoot
                    </button>
                 </div>
@@ -240,7 +240,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                       )}
                       {/* Watermark Tag */}
                       {img.name.startsWith('WM_') && (
-                         <div className="absolute top-3 left-3 bg-indigo-600/90 backdrop-blur text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm z-20">WATERMARKED</div>
+                         <div className="absolute top-3 left-3 bg-cyan-600/90 backdrop-blur text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm z-20">WATERMARKED</div>
                       )}
                       
                       <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-black/90 via-black/50 to-transparent text-white opacity-0 group-hover:opacity-100 transition-opacity z-20 translate-y-4 group-hover:translate-y-0 duration-300">
@@ -268,9 +268,9 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                      value={newGalleryName} 
                      onChange={e => setNewGalleryName(e.target.value)} 
                      placeholder="Gallery Name..." 
-                     className="px-3 py-2 border border-zinc-200 rounded-lg text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                     className="px-3 py-2 border border-zinc-200 rounded-lg text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                    />
-                   <button onClick={handleCreateGallery} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 shadow-sm whitespace-nowrap">
+                   <button onClick={handleCreateGallery} className="px-4 py-2 bg-cyan-600 text-white rounded-lg text-sm font-bold hover:bg-cyan-700 shadow-sm whitespace-nowrap">
                       + New Gallery
                    </button>
                 </div>
@@ -315,7 +315,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                                   https://delivery.continuaos.com/g/{gallery.id}
                                </div>
                                <button 
-                                 className="p-1.5 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors" 
+                                 className="p-1.5 text-zinc-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-md transition-colors" 
                                  title="Copy Link"
                                  onClick={() => {
                                     navigator.clipboard.writeText(`https://delivery.continuaos.com/g/${gallery.id}`);
@@ -328,7 +328,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                          </div>
                          <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Access PIN</label>
-                            <div className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-lg text-xs font-mono font-bold tracking-widest">
+                            <div className="px-3 py-1.5 bg-cyan-50 border border-cyan-100 text-cyan-700 rounded-lg text-xs font-mono font-bold tracking-widest">
                                {gallery.pin}
                             </div>
                          </div>
@@ -351,8 +351,8 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                 {/* Header */}
                 <div className="h-20 border-b border-zinc-100 flex items-center justify-between px-8 bg-white shrink-0">
                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
-                         <Camera className="w-5 h-5 text-indigo-600" />
+                      <div className="w-10 h-10 rounded-full bg-cyan-50 flex items-center justify-center">
+                         <Camera className="w-5 h-5 text-cyan-600" />
                       </div>
                       <div>
                          <h2 className="font-bold text-lg">{viewedGallery.name}</h2>
@@ -381,7 +381,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                 <div className="flex-1 overflow-y-auto p-8 bg-zinc-50">
                    <div className="flex justify-between items-center mb-6">
                       <h3 className="font-bold text-xl">Gallery</h3>
-                      <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center gap-2">
+                      <button className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center gap-2">
                          <Download className="w-4 h-4" /> Download All
                       </button>
                    </div>
@@ -396,7 +396,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                             <div key={img.id} className="relative rounded-xl overflow-hidden group cursor-pointer border border-zinc-200 bg-white">
                                <img loading="lazy" src={img.content as string} className="w-full h-auto" />
                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                  <button className="w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center text-white hover:bg-white hover:text-indigo-600 transition-colors">
+                                  <button className="w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center text-white hover:bg-white hover:text-cyan-600 transition-colors">
                                      <Download className="w-5 h-5" />
                                   </button>
                                </div>
@@ -412,8 +412,8 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
         {activeTab === 'watermark' && (
           <div className="flex flex-col h-full items-center justify-center max-w-2xl mx-auto w-full">
              <div className="bg-white border border-zinc-200 rounded-3xl shadow-xl p-10 w-full flex flex-col items-center text-center">
-                <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mb-6">
-                   <Shield className="w-10 h-10 text-indigo-600" />
+                <div className="w-20 h-20 bg-cyan-50 rounded-full flex items-center justify-center mb-6">
+                   <Shield className="w-10 h-10 text-cyan-600" />
                 </div>
                 <h3 className="text-3xl font-bold mb-3">Batch Watermarking Engine</h3>
                 <p className="text-zinc-500 mb-8 max-w-md">
@@ -427,7 +427,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                          type="text" 
                          value={watermarkText} 
                          onChange={e => setWatermarkText(e.target.value)} 
-                         className="px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-center text-lg uppercase tracking-widest bg-zinc-50"
+                         className="px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 font-bold text-center text-lg uppercase tracking-widest bg-zinc-50"
                       />
                    </div>
 
@@ -440,7 +440,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                                const active = getActiveWatermarkPreset()?.id === p.id;
                                return (
                                   <button key={p.id} onClick={() => { setActiveWatermarkPreset(active ? null : p.id); if (!active) { setWatermarkText(p.text); } }}
-                                     className={cn("flex items-center justify-between px-3 py-2 rounded-lg text-sm border transition-all", active ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "bg-white border-zinc-200 hover:border-zinc-300")}>
+                                     className={cn("flex items-center justify-between px-3 py-2 rounded-lg text-sm border transition-all", active ? "bg-cyan-50 border-cyan-300 text-cyan-700" : "bg-white border-zinc-200 hover:border-zinc-300")}>
                                      <span className="font-bold">{p.name}</span>
                                      <span className="text-xs opacity-60">"{p.text}" &middot; {Math.round(p.opacity * 100)}%</span>
                                   </button>
@@ -454,9 +454,9 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                    <div className="flex flex-col text-left mt-2">
                       <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Create Preset</label>
                       <div className="flex gap-2">
-                         <input value={newPresetName} onChange={e => setNewPresetName(e.target.value)} placeholder="Preset name..." className="px-3 py-2 border border-zinc-200 rounded-lg text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                         <input value={newPresetText} onChange={e => setNewPresetText(e.target.value)} placeholder="Text..." className="px-3 py-2 border border-zinc-200 rounded-lg text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                         <button onClick={() => { if (!newPresetName.trim() || !newPresetText.trim()) return; createWatermarkPreset(newPresetName, newPresetText); setNewPresetName(''); setNewPresetText(''); }} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 whitespace-nowrap">
+                         <input value={newPresetName} onChange={e => setNewPresetName(e.target.value)} placeholder="Preset name..." className="px-3 py-2 border border-zinc-200 rounded-lg text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+                         <input value={newPresetText} onChange={e => setNewPresetText(e.target.value)} placeholder="Text..." className="px-3 py-2 border border-zinc-200 rounded-lg text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+                         <button onClick={() => { if (!newPresetName.trim() || !newPresetText.trim()) return; createWatermarkPreset(newPresetName, newPresetText); setNewPresetName(''); setNewPresetText(''); }} className="px-3 py-2 bg-cyan-600 text-white rounded-lg text-sm font-bold hover:bg-cyan-700 whitespace-nowrap">
                             Save
                          </button>
                       </div>
@@ -468,7 +468,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                      onClick={applyWatermark}
                      disabled={isWatermarking || images.length === 0}
                      className={cn("px-8 py-4 rounded-xl font-bold text-lg w-full max-w-sm transition-all flex items-center justify-center gap-3", 
-                        isWatermarking ? "bg-zinc-200 text-zinc-500" : "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 hover:scale-105"
+                        isWatermarking ? "bg-zinc-200 text-zinc-500" : "bg-cyan-600 text-white shadow-xl shadow-cyan-600/30 hover:bg-cyan-700 hover:scale-105"
                      )}
                    >
                      {isWatermarking ? (
@@ -517,7 +517,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                                </span>
                             ))}
                          </div>
-                         <div className="text-sm font-bold text-indigo-600">${order.total.toFixed(2)}</div>
+                         <div className="text-sm font-bold text-cyan-600">${order.total.toFixed(2)}</div>
                       </div>
                    ))}
                 </div>
@@ -527,11 +527,11 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
              <div className="p-6 bg-white border border-zinc-200 rounded-2xl shadow-sm">
                 <h4 className="font-bold text-sm mb-4">New Print Order</h4>
                 <div className="flex flex-col sm:flex-row gap-3">
-                   <select value={newOrderGalleryId} onChange={e => setNewOrderGalleryId(e.target.value)} className="px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                   <select value={newOrderGalleryId} onChange={e => setNewOrderGalleryId(e.target.value)} className="px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
                       <option value="">Select gallery...</option>
                       {Object.values(storeGalleries).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                    </select>
-                   <select value={newOrderSize} onChange={e => setNewOrderSize(e.target.value)} className="px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                   <select value={newOrderSize} onChange={e => setNewOrderSize(e.target.value)} className="px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
                       <option value="5x7">5x7</option>
                       <option value="8x10">8x10</option>
                       <option value="11x14">11x14</option>
@@ -539,8 +539,8 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                       <option value="20x24">20x24</option>
                       <option value="24x36">24x36</option>
                    </select>
-                   <input type="number" min={1} value={newOrderQty} onChange={e => setNewOrderQty(Number(e.target.value))} className="w-20 px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                   <select value={newOrderFinish} onChange={e => setNewOrderFinish(e.target.value as any)} className="px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                   <input type="number" min={1} value={newOrderQty} onChange={e => setNewOrderQty(Number(e.target.value))} className="w-20 px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+                   <select value={newOrderFinish} onChange={e => setNewOrderFinish(e.target.value as any)} className="px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
                       <option value="matte">Matte</option>
                       <option value="glossy">Glossy</option>
                       <option value="metallic">Metallic</option>
@@ -553,7 +553,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                       const finishMultiplier = newOrderFinish === 'canvas' ? 2.5 : newOrderFinish === 'metallic' ? 1.5 : 1;
                       createPrintOrder(newOrderGalleryId, [{ size: newOrderSize, quantity: newOrderQty, finish: newOrderFinish, price: Math.round(base * finishMultiplier * 100) / 100 }]);
                       setNewOrderQty(1);
-                   }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 whitespace-nowrap">
+                   }} className="px-4 py-2 bg-cyan-600 text-white rounded-lg text-sm font-bold hover:bg-cyan-700 whitespace-nowrap">
                       + Create Order
                    </button>
                 </div>
@@ -615,7 +615,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
                  <button className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-colors">
                     Download
                  </button>
-                 <button className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 transition-all">
+                 <button className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold shadow-lg shadow-cyan-500/20 transition-all">
                     Edit in Studio
                  </button>
               </div>

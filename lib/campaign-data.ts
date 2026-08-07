@@ -14,12 +14,12 @@ import {
 
 // ─── Cover Gradient Presets ─────────────────────────────────
 export const COVER_GRADIENTS = [
-  'from-blue-500 to-purple-600',
+  'from-cyan-500 to-emerald-600',
   'from-emerald-400 to-teal-600',
   'from-amber-400 to-orange-600',
   'from-pink-400 to-rose-600',
-  'from-indigo-400 to-blue-600',
-  'from-violet-400 to-purple-600',
+  'from-cyan-400 to-blue-600',
+  'from-emerald-400 to-teal-600',
   'from-cyan-400 to-sky-600',
   'from-fuchsia-400 to-pink-600',
   'from-lime-400 to-green-600',
@@ -34,11 +34,10 @@ const SELECT_COLORS: Record<string, string> = {
   green: 'bg-emerald-100 text-emerald-700',
   red: 'bg-red-100 text-red-700',
   amber: 'bg-amber-100 text-amber-700',
-  purple: 'bg-purple-100 text-purple-700',
+  emerald: 'bg-emerald-100 text-emerald-700',
   pink: 'bg-pink-100 text-pink-700',
   slate: 'bg-slate-100 text-slate-700',
   cyan: 'bg-cyan-100 text-cyan-700',
-  indigo: 'bg-indigo-100 text-indigo-700',
   lime: 'bg-lime-100 text-lime-700',
 };
 
@@ -89,7 +88,7 @@ export const DEFAULT_DATABASES: DatabaseSchema[] = [
       { id: 'sup-email', name: 'Email', type: 'email' },
       { id: 'sup-phone', name: 'Phone', type: 'phone' },
       { id: 'sup-category', name: 'Category', type: 'select', options: [
-        { id: 'cat-fabric', name: 'Fabric', color: 'purple' },
+        { id: 'cat-fabric', name: 'Fabric', color: 'emerald' },
         { id: 'cat-printing', name: 'Printing', color: 'blue' },
         { id: 'cat-hardware', name: 'Hardware', color: 'amber' },
         { id: 'cat-packaging', name: 'Packaging', color: 'green' },
@@ -117,7 +116,7 @@ export const DEFAULT_DATABASES: DatabaseSchema[] = [
       { id: 'bom-source', name: 'Source', type: 'select', options: [
         { id: 'src-domestic', name: 'Domestic', color: 'blue' },
         { id: 'src-import', name: 'Import', color: 'amber' },
-        { id: 'src-custom', name: 'Custom', color: 'purple' },
+        { id: 'src-custom', name: 'Custom', color: 'emerald' },
       ] },
       { id: 'bom-lead', name: 'Lead Time (days)', type: 'number' },
       { id: 'bom-status', name: 'Status', type: 'select', options: [
@@ -140,7 +139,7 @@ export const DEFAULT_PAGES: Page[] = [
     parentId: null,
     title: 'Brand Strategy Q4',
     icon: '🎯',
-    coverGradient: 'from-blue-500 to-purple-600',
+    coverGradient: 'from-cyan-500 to-emerald-600',
     expanded: true,
     level: 'campaign',
     campaignId: '1',
@@ -249,7 +248,7 @@ export const TEMPLATES = [
   {
     name: 'ContinuaOS Campaign',
     icon: '✨',
-    coverGradient: 'from-blue-500 to-purple-600',
+    coverGradient: 'from-cyan-500 to-emerald-600',
     description: 'Full campaign workflow from brief to delivery',
     hierarchy: true as const,
     pages: [
@@ -334,7 +333,7 @@ export const TEMPLATES = [
   {
     name: 'Meeting Notes',
     icon: '📅',
-    coverGradient: 'from-indigo-400 to-blue-600',
+    coverGradient: 'from-cyan-400 to-blue-600',
     description: 'Structured meeting notes with action items',
     hierarchy: false as const,
     pages: [
@@ -401,7 +400,7 @@ export const TEMPLATES = [
   {
     name: 'Social Campaign',
     icon: '📱',
-    coverGradient: 'from-violet-400 to-purple-600',
+    coverGradient: 'from-emerald-400 to-teal-600',
     description: 'Content calendar, platform strategy, and scheduling',
     hierarchy: true as const,
     pages: [

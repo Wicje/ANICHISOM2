@@ -44,14 +44,14 @@ const STATUS_COLORS: Record<Deployment['status'], { dot: string; text: string }>
   degraded: { dot: 'bg-yellow-500', text: 'text-yellow-400' },
   down: { dot: 'bg-red-500', text: 'text-red-400' },
   deploying: { dot: 'bg-blue-500 animate-pulse', text: 'text-blue-400' },
-  'rolled-back': { dot: 'bg-purple-500', text: 'text-purple-400' },
+  'rolled-back': { dot: 'bg-emerald-500', text: 'text-emerald-400' },
 };
 
 const REVIEW_STATUS_COLORS: Record<CodeReview['status'], { bg: string; text: string }> = {
   open: { bg: 'bg-blue-500/15', text: 'text-blue-400' },
   approved: { bg: 'bg-green-500/15', text: 'text-green-400' },
   'changes-requested': { bg: 'bg-yellow-500/15', text: 'text-yellow-400' },
-  merged: { bg: 'bg-purple-500/15', text: 'text-purple-400' },
+  merged: { bg: 'bg-emerald-500/15', text: 'text-emerald-400' },
   closed: { bg: 'bg-gray-500/15', text: 'text-gray-400' },
 };
 
@@ -60,7 +60,7 @@ const METHOD_COLORS: Record<ApiEndpoint['method'], { bg: string; text: string }>
   POST: { bg: 'bg-blue-500/15', text: 'text-blue-400' },
   PUT: { bg: 'bg-yellow-500/15', text: 'text-yellow-400' },
   DELETE: { bg: 'bg-red-500/15', text: 'text-red-400' },
-  PATCH: { bg: 'bg-purple-500/15', text: 'text-purple-400' },
+  PATCH: { bg: 'bg-emerald-500/15', text: 'text-emerald-400' },
 };
 
 const PIPELINE_STATUS_COLORS: Record<Pipeline['status'], { bg: string; text: string; icon: React.ReactNode }> = {

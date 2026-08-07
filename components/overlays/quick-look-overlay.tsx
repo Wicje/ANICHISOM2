@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useFileStore, FileItem } from '@/lib/stores/file.store';
 import { LocalFile, FS } from '@/lib/fs';
-import { X, ExternalLink } from 'lucide-react';
+import { X, ExternalLink, Folder } from 'lucide-react';
 import { useWindowActions } from '@/lib/hooks/use-window-actions';
 import { resolveAppComponent, APP_MANIFEST } from '@/lib/app-manifest';
 
@@ -149,7 +149,7 @@ export function QuickLookOverlay() {
             <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-black/20 min-h-[400px]">
                {activeFile.isFolder ? (
                  <div className="flex flex-col items-center opacity-50">
-                    <span className="text-6xl mb-4">📁</span>
+                    <Folder className="w-16 h-16 mb-4 text-slate-500" />
                     <span>Folder Preview Not Available</span>
                  </div>
                ) : activeFile.mimeType.startsWith('image/') && blobUrl ? (

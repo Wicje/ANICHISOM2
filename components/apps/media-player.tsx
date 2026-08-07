@@ -364,7 +364,7 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
             <div className="flex flex-col items-center gap-8 z-0">
               <div className={cn(
                 "w-64 h-64 rounded-full flex items-center justify-center transition-all duration-1000",
-                isPlaying ? "bg-gradient-to-tr from-rose-500 via-purple-500 to-indigo-500 animate-[spin_10s_linear_infinite] shadow-[0_0_100px_rgba(225,29,72,0.4)] scale-105" 
+                isPlaying ? "bg-gradient-to-tr from-rose-500 via-emerald-500 to-cyan-500 animate-[spin_10s_linear_infinite] shadow-[0_0_100px_rgba(225,29,72,0.4)] scale-105" 
                           : "bg-white/5 border border-white/10 scale-100"
               )}>
                 <div className="w-24 h-24 rounded-full bg-black flex items-center justify-center border border-white/10 z-10">

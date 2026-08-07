@@ -187,7 +187,7 @@ export default function FeedbackWidget() {
                   className={cn(
                     'w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all',
                     title.trim() && content.trim()
-                      ? 'bg-violet-600 hover:bg-violet-500 text-white'
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
                       : 'bg-white/5 text-white/25 cursor-not-allowed',
                   )}
                 >

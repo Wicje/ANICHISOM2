@@ -108,9 +108,9 @@ export function ControlCenter({ onClose }: { onClose: () => void }) {
               if (!dnd) setScreenShader('warm');
               else setScreenShader('none');
             }}
-            className={cn("flex-1 rounded-2xl p-3 flex flex-col justify-center items-center gap-2 border transition-colors", dnd ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-300" : "bg-white/10 border-white/5 hover:bg-white/20")}
+            className={cn("flex-1 rounded-2xl p-3 flex flex-col justify-center items-center gap-2 border transition-colors", dnd ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-300" : "bg-white/10 border-white/5 hover:bg-white/20")}
           >
-            {dnd ? <Moon className="w-6 h-6 fill-indigo-400" /> : <Moon className="w-6 h-6" />}
+            {dnd ? <Moon className="w-6 h-6 fill-cyan-400" /> : <Moon className="w-6 h-6" />}
             <span className="text-xs font-bold">Do Not Disturb</span>
           </button>
           <button 
@@ -174,7 +174,7 @@ export function ControlCenter({ onClose }: { onClose: () => void }) {
       {/* Media Player */}
       <div className="bg-white/10 rounded-2xl p-4 border border-white/5 flex items-center gap-4 hover:bg-white/20 transition-colors cursor-pointer">
         <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
-          <div className="w-full h-full bg-gradient-to-br from-purple-500 to-blue-500 animate-pulse"></div>
+          <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-blue-500 animate-pulse"></div>
         </div>
         <div className="flex flex-col flex-1 truncate">
           <span className="text-sm font-bold truncate">OS Background Audio</span>

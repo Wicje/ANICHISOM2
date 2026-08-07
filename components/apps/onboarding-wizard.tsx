@@ -4,7 +4,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { useOnboardingStore } from '@/lib/stores/onboarding.store';
 import { APP_MANIFEST, getManifestEntry } from '@/lib/app-manifest';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Clapperboard, Camera, Code, Palette, Megaphone, Briefcase, GraduationCap, Compass, type LucideIcon } from 'lucide-react';
 import type { UserRole } from '@/lib/stores/onboarding.store';
 
 const STEPS = ['welcome', 'role', 'apps'] as const;
@@ -189,13 +189,26 @@ interface RoleStepProps {
   onSelect: (roleId: UserRole) => void;
 }
 
+const ROLE_ICONS: Record<string, LucideIcon> = {
+  clapperboard: Clapperboard,
+  camera: Camera,
+  code: Code,
+  palette: Palette,
+  megaphone: Megaphone,
+  briefcase: Briefcase,
+  'graduation-cap': GraduationCap,
+  compass: Compass,
+};
+
 function RoleStep({ roles, selectedRole, onSelect }: RoleStepProps) {
   return (
     <div>
       <h2 className="text-2xl font-bold text-center mb-2">What&apos;s your discipline?</h2>
       <p className="text-white/40 text-center mb-8 font-mono text-xs tracking-wider">We shape your context around how you work.</p>
       <div className="grid grid-cols-2 gap-3">
-        {roles.map((role) => (
+        {roles.map((role) => {
+          const RoleIcon = ROLE_ICONS[role.icon] ?? Check;
+          return (
           <button
             key={role.id}
             onClick={() => onSelect(role.id)}
@@ -206,7 +219,9 @@ function RoleStep({ roles, selectedRole, onSelect }: RoleStepProps) {
                 : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/15',
             )}
           >
-            <span className="text-2xl mt-0.5">{role.icon}</span>
+            <span className="mt-0.5 p-2 rounded-lg bg-white/[0.06] border border-white/10">
+              <RoleIcon className="w-5 h-5 text-[#10F4A0]" />
+            </span>
             <div>
               <div className="font-medium text-sm">{role.label}</div>
               <div className="text-xs text-white/40 mt-0.5">{role.description}</div>
@@ -217,7 +232,8 @@ function RoleStep({ roles, selectedRole, onSelect }: RoleStepProps) {
               </div>
             )}
           </button>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

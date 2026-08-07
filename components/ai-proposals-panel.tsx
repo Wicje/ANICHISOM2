@@ -12,7 +12,7 @@ import { useOS } from '@/lib/os-context';
 import { getAIProposalEngine, type DesignProposal, type ProjectBriefAnalysis } from '@/lib/ai-proposal-engine';
 import {
   Sparkles, Copy, ThumbsUp, ThumbsDown, Zap, Eye, Heart,
-  ChevronDown, ChevronUp, RefreshCw, Save, X, Loader
+  ChevronDown, ChevronUp, RefreshCw, Save, X, Loader, Palette, Type, LayoutGrid, Accessibility
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -99,17 +99,17 @@ export function AIProposalsPanel({ projectBrief }: AIProposalsPanelProps) {
   const getProposalIcon = (type: string) => {
     switch (type) {
       case 'color-palette':
-        return '🎨';
+        return <Palette className="w-5 h-5 text-cyan-400" />;
       case 'typography':
-        return '✍️';
+        return <Type className="w-5 h-5 text-cyan-400" />;
       case 'layout':
-        return '📐';
+        return <LayoutGrid className="w-5 h-5 text-cyan-400" />;
       case 'animation':
-        return '✨';
+        return <Sparkles className="w-5 h-5 text-cyan-400" />;
       case 'accessibility':
-        return '♿';
+        return <Accessibility className="w-5 h-5 text-cyan-400" />;
       default:
-        return '⚡';
+        return <Zap className="w-5 h-5 text-cyan-400" />;
     }
   };
 
@@ -131,9 +131,9 @@ export function AIProposalsPanel({ projectBrief }: AIProposalsPanelProps) {
   return (
     <div className="w-full h-full flex flex-col bg-gray-900 text-white overflow-hidden">
       {/* Header */}
-      <div className="border-b border-gray-700 p-4 shrink-0 bg-gradient-to-r from-purple-900/20 to-pink-900/20">
+      <div className="border-b border-gray-700 p-4 shrink-0 bg-gradient-to-r from-emerald-900/20 to-pink-900/20">
         <div className="flex items-center gap-2 mb-2">
-          <Sparkles className="w-5 h-5 text-purple-400" />
+          <Sparkles className="w-5 h-5 text-emerald-400" />
           <h2 className="text-lg font-semibold">AI Design Recommendations</h2>
         </div>
         <p className="text-sm text-gray-400">
@@ -227,12 +227,12 @@ export function AIProposalsPanel({ projectBrief }: AIProposalsPanelProps) {
                     onClick={() => setSelectedProposal(proposal)}
                     className={`w-full text-left px-4 py-2 transition-colors ${
                       selectedProposal?.id === proposal.id
-                        ? 'bg-purple-600/30'
+                        ? 'bg-emerald-600/30'
                         : 'hover:bg-gray-700/50'
                     }`}
                   >
                     <div className="flex items-start gap-2">
-                      <span className="text-lg mt-0.5">{getProposalIcon(proposal.type)}</span>
+                      <span className="mt-0.5 flex">{getProposalIcon(proposal.type)}</span>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm truncate">{proposal.title}</div>
                         <div className="text-xs text-gray-400 mt-0.5">{proposal.type}</div>
@@ -254,14 +254,14 @@ export function AIProposalsPanel({ projectBrief }: AIProposalsPanelProps) {
             <div className="p-4 border-b border-gray-700 shrink-0">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-start gap-3">
-                  <span className="text-4xl">{getProposalIcon(selectedProposal.type)}</span>
+                  <span className="flex w-12 h-12 items-center justify-center rounded-xl bg-cyan-500/15 border border-cyan-500/30">{getProposalIcon(selectedProposal.type)}</span>
                   <div>
                     <h3 className="text-xl font-semibold">{selectedProposal.title}</h3>
                     <p className="text-sm text-gray-400 mt-1">{selectedProposal.description}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-bold text-purple-400">
+                  <div className="text-2xl font-bold text-emerald-400">
                     {Math.round(selectedProposal.confidence * 100)}%
                   </div>
                   <div className="text-xs text-gray-400">confidence</div>

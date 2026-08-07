@@ -137,9 +137,9 @@ export function AssetPipeline({ window: osWindow }: { window: OSWindow }) {
     <div className="h-full w-full flex flex-col bg-[#141414] text-white">
        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 shrink-0 bg-[#0c0c0c]">
          <div className="flex items-center gap-2">
-            <Archive className="w-5 h-5 text-purple-400" />
+            <Archive className="w-5 h-5 text-emerald-400" />
             <h2 className="font-semibold text-white/90">Asset Pipeline</h2>
-            <div className="ml-2 px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded-full text-[10px] font-bold tracking-wider uppercase border border-purple-500/20">
+            <div className="ml-2 px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full text-[10px] font-bold tracking-wider uppercase border border-emerald-500/20">
               Local-First
             </div>
          </div>
@@ -151,7 +151,7 @@ export function AssetPipeline({ window: osWindow }: { window: OSWindow }) {
                  placeholder="Filter assets..."
                  value={searchTerm}
                  onChange={(e) => setSearchTerm(e.target.value)}
-                 className="bg-black border border-white/10 rounded-md py-1 pl-8 pr-3 text-xs text-white/90 placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 w-48"
+                 className="bg-black border border-white/10 rounded-md py-1 pl-8 pr-3 text-xs text-white/90 placeholder:text-white/30 focus:outline-none focus:border-emerald-500/50 w-48"
               />
             </div>
             <button 
@@ -196,7 +196,7 @@ export function AssetPipeline({ window: osWindow }: { window: OSWindow }) {
                      <span className="text-xs font-semibold">IndexedDB</span>
                   </div>
                   <div className="h-1.5 bg-white/10 rounded-full overflow-hidden mb-1">
-                     <div className="h-full bg-purple-500 w-1/3" />
+                     <div className="h-full bg-emerald-500 w-1/3" />
                   </div>
                   <div className="text-[10px] text-white/40 text-right">Local Sync</div>
                </div>
@@ -209,7 +209,7 @@ export function AssetPipeline({ window: osWindow }: { window: OSWindow }) {
                   <Archive className="w-12 h-12 mb-4 opacity-50" />
                   <h3 className="text-sm font-semibold text-white/50 mb-1">No local assets indexed</h3>
                   <p className="text-xs max-w-sm mb-4">Upload Code Snippets, Framer files or Raw Video components to the local storage.</p>
-                  <label className="cursor-pointer px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-bold transition-colors">
+                  <label className="cursor-pointer px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold transition-colors">
                     Upload File
                     <input type="file" className="hidden" onChange={handleFileUpload} />
                   </label>
@@ -224,7 +224,7 @@ export function AssetPipeline({ window: osWindow }: { window: OSWindow }) {
                     >
                        {activeTab === 'snippets' && <Code className="w-10 h-10 text-emerald-400/50 mb-3 group-hover:scale-110 transition-transform" />}
                        {activeTab === 'modules' && <Layout className="w-10 h-10 text-cyan-400/50 mb-3 group-hover:scale-110 transition-transform" />}
-                       {activeTab === 'videos' && <Video className="w-10 h-10 text-purple-400/50 mb-3 group-hover:scale-110 transition-transform" />}
+                       {activeTab === 'videos' && <Video className="w-10 h-10 text-emerald-400/50 mb-3 group-hover:scale-110 transition-transform" />}
                        <div className="font-medium text-xs text-center truncate w-full group-hover:text-white text-white/80">{asset.metadata.name}</div>
                        <div className="text-[10px] text-white/40 mt-1">{asset.metadata.size}</div>
                     </div>

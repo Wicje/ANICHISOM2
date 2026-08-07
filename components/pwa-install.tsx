@@ -81,7 +81,7 @@ export function PWAInstall() {
       {showBanner && deferredPrompt && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] animate-in slide-in-from-bottom-4 duration-300">
           <div className="bg-slate-900 border border-white/10 rounded-xl shadow-2xl p-4 flex items-center gap-4 max-w-md">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-emerald-600 flex items-center justify-center shrink-0">
               <Download className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
@@ -91,7 +91,7 @@ export function PWAInstall() {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={handleInstall}
-                className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-medium rounded-lg transition-colors"
+                className="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-medium rounded-lg transition-colors"
               >
                 Install
               </button>
@@ -152,7 +152,7 @@ export function PWAInstallButton({ className }: { className?: string }) {
     <button
       onClick={handleClick}
       className={cn(
-        'flex items-center gap-2 px-3 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-indigo-400 text-xs font-medium hover:bg-indigo-500/20 transition-colors',
+        'flex items-center gap-2 px-3 py-2 bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-cyan-400 text-xs font-medium hover:bg-cyan-500/20 transition-colors',
         className,
       )}
     >

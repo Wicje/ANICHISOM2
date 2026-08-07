@@ -17,7 +17,7 @@ export type PropertyType =
 export type SelectOption = {
   id: string;
   name: string;
-  color: string; // e.g. 'blue', 'green', 'red', 'amber', 'purple', 'pink', 'slate'
+  color: string; // e.g. 'blue', 'green', 'red', 'amber', 'emerald', 'pink', 'slate'
 };
 
 export type DatabaseProperty = {
@@ -121,7 +121,7 @@ export type Page = {
   title: string;
   icon: string;
   coverImage?: string;       // URL or gradient preset
-  coverGradient?: string;    // e.g. 'from-blue-500 to-purple-600'
+  coverGradient?: string;    // e.g. 'from-cyan-500 to-emerald-600'
   description?: string;      // page subtitle / description
   expanded?: boolean;
   blocks: Block[];

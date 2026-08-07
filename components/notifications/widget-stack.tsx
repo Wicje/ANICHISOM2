@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Battery, Wifi, Search, Settings } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Battery, Wifi, Search, Settings, Music, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FS, LocalFile } from '@/lib/fs';
 
@@ -96,7 +96,7 @@ export function WidgetStack({ window: osWindow }: { window?: any }) {
     <div className="w-80 flex flex-col gap-4 bg-black/60 backdrop-blur-[40px] rounded-[36px] p-5 shadow-[0_30px_80px_-20px_rgba(0,0,0,1),inset_0_1px_0_rgba(255,255,255,0.15)] border border-white/5 font-sans overflow-hidden ring-1 ring-white/10 relative">
       {/* Decorative ambient background */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
-        <div className="absolute top-[-20%] left-[-20%] w-[140%] h-[140%] bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-pink-500/10 blur-[60px] opacity-60" />
+        <div className="absolute top-[-20%] left-[-20%] w-[140%] h-[140%] bg-gradient-to-br from-cyan-500/10 via-emerald-500/5 to-pink-500/10 blur-[60px] opacity-60" />
       </div>
 
       <audio ref={audioRef} onEnded={() => {
@@ -136,9 +136,9 @@ export function WidgetStack({ window: osWindow }: { window?: any }) {
         {/* Event + Calendar */}
         <div className="flex gap-4 relative z-10">
           {/* Next event */}
-          <div className="flex-1 bg-gradient-to-br from-indigo-500/10 to-purple-500/5 backdrop-blur-xl rounded-[28px] p-4.5 border border-white/10 shadow-[0_8px_32px_-10px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] group hover:bg-white/10 transition-all duration-300 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/20 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none" />
-            <div className="text-indigo-300/80 text-[10px] uppercase tracking-widest mb-2 font-bold flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" /> Next event</div>
+          <div className="flex-1 bg-gradient-to-br from-cyan-500/10 to-emerald-500/5 backdrop-blur-xl rounded-[28px] p-4.5 border border-white/10 shadow-[0_8px_32px_-10px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] group hover:bg-white/10 transition-all duration-300 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/20 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none" />
+            <div className="text-cyan-300/80 text-[10px] uppercase tracking-widest mb-2 font-bold flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" /> Next event</div>
             <div className="text-white text-[17px] font-extrabold leading-[1.1] mb-4 tracking-tight relative z-10">{eventTitle}</div>
             <div className="flex items-center gap-5 relative z-10">
               <div>
@@ -149,7 +149,7 @@ export function WidgetStack({ window: osWindow }: { window?: any }) {
                 <div className="text-white/40 text-[9px] uppercase tracking-widest font-semibold mb-1">With</div>
                 <div className="flex -space-x-2 relative z-10">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 border border-white/20 shadow-md relative z-20 hover:-translate-y-1 transition-transform" style={{ zIndex: 10 - i }} />
+                    <div key={i} className="w-5 h-5 rounded-full bg-gradient-to-br from-cyan-400 to-emerald-500 border border-white/20 shadow-md relative z-20 hover:-translate-y-1 transition-transform" style={{ zIndex: 10 - i }} />
                   ))}
                 </div>
               </div>
@@ -185,9 +185,9 @@ export function WidgetStack({ window: osWindow }: { window?: any }) {
         <div className="flex gap-4 relative z-10">
           {/* Music */}
           <div className="flex-1 bg-gradient-to-br from-gray-800/80 to-black/80 backdrop-blur-xl rounded-[28px] p-4.5 border border-white/10 shadow-[0_8px_32px_-10px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] group hover:border-white/20 transition-all duration-300">
-            <div className="w-full aspect-square rounded-[20px] bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 mb-4 relative overflow-hidden ring-1 ring-white/20 shadow-[0_10px_20px_-5px_rgba(0,0,0,0.5)] group-hover:shadow-[0_15px_30px_-5px_rgba(0,0,0,0.6)] transition-all duration-500">
+            <div className="w-full aspect-square rounded-[20px] bg-gradient-to-br from-cyan-500 via-emerald-500 to-pink-500 mb-4 relative overflow-hidden ring-1 ring-white/20 shadow-[0_10px_20px_-5px_rgba(0,0,0,0.5)] group-hover:shadow-[0_15px_30px_-5px_rgba(0,0,0,0.6)] transition-all duration-500">
               <div className="w-full h-full flex items-center justify-center bg-black/20">
-                <div className="text-4xl filter drop-shadow-xl scale-100 group-hover:scale-110 transition-transform duration-500">🎵</div>
+                <Music className="w-8 h-8 text-white/90 drop-shadow-xl group-hover:scale-110 transition-transform duration-500" />
               </div>
             </div>
             <div className="text-white text-[13px] font-bold truncate tracking-wide drop-shadow-md">{track?.name?.replace(/\.[^.]+$/, '') || 'No track'}</div>
@@ -212,7 +212,7 @@ export function WidgetStack({ window: osWindow }: { window?: any }) {
             <div className="text-white text-4xl font-light tracking-tighter leading-none relative z-10 drop-shadow-md">26°</div>
             <div className="text-white/60 text-[11px] font-bold mt-2 relative z-10 tracking-widest">H: 28°  L: 19°</div>
             <div className="mt-auto flex items-center gap-3 relative z-10">
-              <span className="text-4xl filter drop-shadow-[0_0_15px_rgba(250,204,21,0.4)] hover:scale-110 transition-transform duration-500">☀️</span>
+              <Sun className="text-4xl drop-shadow-[0_0_15px_rgba(250,204,21,0.4)] hover:scale-110 transition-transform duration-500 text-amber-300" />
               <span className="text-white/90 text-sm font-bold tracking-widest uppercase">Sunny</span>
             </div>
           </div>

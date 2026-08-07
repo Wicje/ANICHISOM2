@@ -483,7 +483,7 @@ export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
                        "w-4 h-4 rounded-full border-2",
                        coc.action === 'received' ? 'bg-emerald-500/20 border-emerald-500' :
                        coc.action === 'secured' ? 'bg-blue-500/20 border-blue-500' :
-                       coc.action === 'imaged' ? 'bg-purple-500/20 border-purple-500' :
+                       coc.action === 'imaged' ? 'bg-emerald-500/20 border-emerald-500' :
                        'bg-white/20 border-white/50'
                      )} />
                    </div>
@@ -495,7 +495,7 @@ export function ZiklagTools({ window: osWindow }: { window: OSWindow }) {
                            "px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded",
                            coc.action === 'received' ? 'bg-emerald-500/10 text-emerald-400' :
                            coc.action === 'secured' ? 'bg-blue-500/10 text-blue-400' :
-                           coc.action === 'imaged' ? 'bg-purple-500/10 text-purple-400' :
+                           coc.action === 'imaged' ? 'bg-emerald-500/10 text-emerald-400' :
                            'bg-white/10 text-white/70'
                          )}>
                            {coc.action}

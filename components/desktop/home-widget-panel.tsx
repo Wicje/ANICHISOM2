@@ -3,11 +3,25 @@
 import React, { useState, useEffect } from 'react';
 import {
   Wifi, Battery, Search, Bell, Moon, Sun, Bluetooth, Airplay,
-  Volume2, Music, Calendar, Cloud, Thermometer, Clock
+  Volume2, Music, Calendar, Cloud, Thermometer, Clock,
+  CloudSun, CloudFog, CloudRain, Snowflake, type LucideIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useFocusStore } from '@/lib/stores/focus.store';
+
+const WEATHER_ICONS: Record<string, LucideIcon> = {
+  sun: Sun,
+  'cloud-sun': CloudSun,
+  'cloud-fog': CloudFog,
+  'cloud-rain': CloudRain,
+  snowflake: Snowflake,
+};
+
+function WeatherIcon({ name }: { name: string }) {
+  const Icon = WEATHER_ICONS[name] ?? Sun;
+  return <Icon className="w-5 h-5" />;
+}
 
 interface ControlCenterProps {
   className?: string;
@@ -18,7 +32,7 @@ export function HomeWidgetPanel({ className }: ControlCenterProps) {
   const { enabled: focusActive, toggle: toggleFocus } = useFocusStore();
   
   const [brightness, setBrightnessState] = useState(80);
-  const [weather, setWeather] = useState<{ temp: number; desc: string; icon: string }>({ temp: 72, desc: 'Sunny', icon: '☀️' });
+  const [weather, setWeather] = useState<{ temp: number; desc: string; icon: string }>({ temp: 72, desc: 'Sunny', icon: 'sun' });
   const [isProximityActive, setIsProximityActive] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -47,11 +61,11 @@ export function HomeWidgetPanel({ className }: ControlCenterProps) {
           const temp = Math.round(data.current?.temperature_2m ?? 72);
           const code = data.current?.weathercode ?? 0;
           let desc = 'Clear';
-          let icon = '☀️';
-          if (code >= 1 && code <= 3) { desc = 'Partly Cloudy'; icon = '⛅'; }
-          else if (code >= 45 && code <= 48) { desc = 'Foggy'; icon = '🌫️'; }
-          else if (code >= 51 && code <= 67) { desc = 'Rainy'; icon = '🌧️'; }
-          else if (code >= 71) { desc = 'Snowy'; icon = '❄️'; }
+          let icon = 'sun';
+          if (code >= 1 && code <= 3) { desc = 'Partly Cloudy'; icon = 'cloud-sun'; }
+          else if (code >= 45 && code <= 48) { desc = 'Foggy'; icon = 'cloud-fog'; }
+          else if (code >= 51 && code <= 67) { desc = 'Rainy'; icon = 'cloud-rain'; }
+          else if (code >= 71) { desc = 'Snowy'; icon = 'snowflake'; }
           setWeather({ temp, desc, icon });
         } catch { /* keep default fallback */ }
       },
@@ -203,7 +217,7 @@ export function HomeWidgetPanel({ className }: ControlCenterProps) {
           onClick={() => toggleFocus()}
           className={cn(
             "w-14 h-14 rounded-2xl backdrop-blur-xl flex items-center justify-center transition-colors cursor-pointer",
-            focusActive ? "bg-indigo-500 text-white" : "bg-white/10 text-white hover:bg-white/15"
+            focusActive ? "bg-cyan-500 text-white" : "bg-white/10 text-white hover:bg-white/15"
           )}
           title="Toggle Focus Mode"
         >
@@ -212,7 +226,7 @@ export function HomeWidgetPanel({ className }: ControlCenterProps) {
 
         {/* Music widget - spans 2 cols */}
         <div className="col-span-2 rounded-2xl bg-white/10 backdrop-blur-xl p-3 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-pink-500 to-emerald-600 flex items-center justify-center shrink-0">
             <Music className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1 min-w-0">
@@ -259,7 +273,7 @@ export function HomeWidgetPanel({ className }: ControlCenterProps) {
             <div className="text-lg font-bold text-white">{weather.temp}°F</div>
             <div className="text-[9px] text-white/50">{weather.desc}</div>
           </div>
-          <span className="text-2xl">{weather.icon}</span>
+          <span className="text-2xl"><WeatherIcon name={weather.icon} /></span>
         </div>
 
         {/* Dark Mode Toggle */}

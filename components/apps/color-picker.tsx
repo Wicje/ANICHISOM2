@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 
 export function ColorPickerApp({ window }: { window: OSWindow }) {
   const [color, setColor] = useState('#00f0ff');
-  const [savedColors, setSavedColors] = useState<string[]>(['#00f0ff', '#ff003c', '#ccff00', '#8a2be2']);
+  const [savedColors, setSavedColors] = useState<string[]>(['#00f0ff', '#ff003c', '#ccff00', '#10F4A0']);
   const [copied, setCopied] = useState<string | null>(null);
 
   const hexToRgb = (hex: string) => {

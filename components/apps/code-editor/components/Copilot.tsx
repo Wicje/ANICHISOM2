@@ -19,7 +19,7 @@ export function CopilotPanel({ agentOpen, setAgentOpen }: CopilotProps) {
     <div className="w-80 shrink-0 bg-[#252526] border-l border-[#3c3c3c] flex flex-col z-20 shadow-[-10px_0_20px_rgba(0,0,0,0.2)]">
       <div className="p-3 border-b border-[#3c3c3c] flex items-center justify-between text-white/80 font-sans">
          <div className="flex items-center gap-2 font-semibold">
-            <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" /> Agentic Copilot
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Agentic Copilot
          </div>
          <button onClick={() => setAgentOpen(false)} className="text-white/50 hover:text-white">✖</button>
       </div>
@@ -45,7 +45,7 @@ export function CopilotPanel({ agentOpen, setAgentOpen }: CopilotProps) {
              }
            }}
            placeholder="Ask copilot to edit..." 
-           className="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded px-3 py-2 text-xs text-white outline-none focus:border-purple-500 transition-colors"
+           className="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded px-3 py-2 text-xs text-white outline-none focus:border-emerald-500 transition-colors"
          />
       </div>
     </div>

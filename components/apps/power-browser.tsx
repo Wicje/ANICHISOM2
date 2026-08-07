@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BrowserClipService } from '@/lib/services/browser-clip.service';
-import { isTauri } from '@/lib/platform';
+import { isTauri, getBrowserName } from '@/lib/platform';
 import { useDownloadsStore, DownloadItem } from '@/lib/stores/downloads.store';
 import {
   startDownload, saveBlobDownload, cancelDownload, retryDownload,
@@ -195,12 +195,12 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   if (!activeTab) {
     return (
       <div className="w-full h-full bg-slate-950 text-slate-100 flex flex-col items-center justify-center font-sans p-6">
-        <Globe className="w-12 h-12 text-indigo-400 mb-3 opacity-80" />
+        <Globe className="w-12 h-12 text-cyan-400 mb-3 opacity-80" />
         <h3 className="text-base font-bold text-white mb-1">No Tabs Open</h3>
         <p className="text-xs text-slate-400 mb-5">Open a new tab to start browsing the web.</p>
         <button
           onClick={() => addTab()}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-lg transition-all"
+          className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-semibold shadow-lg transition-all"
         >
           <Plus className="w-4 h-4" /> Open New Tab
         </button>
@@ -655,7 +655,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                   <div
                     className="h-full"
                     style={{
-                      background: 'var(--os-primary, #6366f1)',
+                      background: 'var(--os-primary, #00f0ff)',
                       animation: 'browser-loading 1.5s ease-in-out infinite',
                     }}
                   />
@@ -716,7 +716,9 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                               if (el) iframeRefs.current.set(tab.id, el);
                               else iframeRefs.current.delete(tab.id);
                             }}
-                            src={extensionInstalled ? tab.url : (tab.url.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(tab.url)}` : tab.url)}
+                            src={!extensionInstalled && isKnownBlocked(tab.url) && tab.url.startsWith('http')
+                              ? `/api/proxy?url=${encodeURIComponent(tab.url)}`
+                              : tab.url}
                             className="w-full h-full border-none bg-white absolute inset-0 z-0"
                             style={{ isolation: 'isolate' }}
                             title={`Tab ${tab.id}`}
@@ -766,7 +768,9 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
               />
             ) : (
               <iframe
-                src={extensionInstalled ? splitUrl : (splitUrl.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(splitUrl)}` : splitUrl)}
+                src={!extensionInstalled && isKnownBlocked(splitUrl) && splitUrl.startsWith('http')
+                  ? `/api/proxy?url=${encodeURIComponent(splitUrl)}`
+                  : splitUrl}
                 className="flex-1 border-none bg-white"
                 sandbox="allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox allow-same-origin"
               />
@@ -964,7 +968,7 @@ function DownloadsPanel({
 }
 
 const QUICK_LINKS = [
-  { label: 'ContinuaOS Docs', url: 'https://docs.continuaos.com', icon: 'A', color: 'bg-indigo-100 text-indigo-600' },
+  { label: 'ContinuaOS Docs', url: 'https://docs.continuaos.com', icon: 'A', color: 'bg-cyan-100 text-cyan-600' },
   { label: 'GitHub', url: 'https://github.com', icon: 'G', color: 'bg-slate-100 text-slate-700' },
   { label: 'Supabase', url: 'https://supabase.com', icon: 'S', color: 'bg-emerald-100 text-emerald-600' },
   { label: 'Vercel', url: 'https://vercel.com', icon: 'V', color: 'bg-black text-white' },
@@ -1057,8 +1061,8 @@ function BlockedSiteFallback({
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-8 max-w-md w-full mx-4 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center mx-auto mb-5">
-          <ShieldAlert className="w-8 h-8 text-indigo-600" />
+        <div className="w-16 h-16 rounded-2xl bg-cyan-50 border border-cyan-200 flex items-center justify-center mx-auto mb-5">
+          <ShieldAlert className="w-8 h-8 text-cyan-600" />
         </div>
         <h3 className="text-xl font-semibold text-slate-800 mb-2">
           Site Embedding Protected
@@ -1073,7 +1077,7 @@ function BlockedSiteFallback({
           {onOpenExtensionModal && (
             <button
               onClick={onOpenExtensionModal}
-              className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-indigo-500/20"
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-cyan-500/20"
             >
               <Zap className="w-4 h-4 fill-white" />
               Enable Continua Extension (15s Setup)
@@ -1113,8 +1117,22 @@ export function ExtensionGuideModal({
 }) {
   const [copied, setCopied] = useState(false);
   const folderPath = 'chrome-extension';
+  const browser = getBrowserName();
 
   if (!isOpen) return null;
+
+  const isFirefox = browser === 'firefox';
+  const installSteps = isFirefox
+    ? [
+        'Open about:debugging#/runtime/this-firefox in Firefox.',
+        'Click "Load Temporary Add-on..." and select the manifest.json file inside the chrome-extension folder.',
+        'The extension (Continua Context Bridge) now appears under Temporary Extensions and strips framing headers in real time.',
+      ]
+    : [
+        'Open chrome://extensions in Chrome, Brave, or Edge.',
+        'Turn ON Developer mode in the top right corner.',
+        'Click Load unpacked and select the chrome-extension folder in this project.',
+      ];
 
   const handleCopyPath = () => {
     navigator.clipboard.writeText(folderPath);
@@ -1127,8 +1145,8 @@ export function ExtensionGuideModal({
       <div className="bg-slate-900 text-slate-100 rounded-2xl border border-slate-800 shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="px-6 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-              <Zap className="w-5 h-5 fill-indigo-400" />
+            <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+              <Zap className="w-5 h-5 fill-cyan-400" />
             </div>
             <div>
               <h3 className="font-bold text-base text-white">Continua Context Bridge Extension</h3>
@@ -1154,40 +1172,30 @@ export function ExtensionGuideModal({
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs leading-relaxed">
+              <div className="p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-xs leading-relaxed">
                 Modern sites (Google, Notion, Figma) set security headers blocking standard iframe embeds. The Continua extension removes these headers in real time.
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">1</div>
-                  <div className="text-xs text-slate-300">
-                    Open <code className="px-1.5 py-0.5 bg-slate-800 rounded text-amber-400 font-mono">chrome://extensions</code> in Chrome, Brave, or Edge.
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">2</div>
-                  <div className="text-xs text-slate-300">
-                    Turn ON <strong className="text-white">Developer mode</strong> in the top right corner.
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">3</div>
-                  <div className="text-xs text-slate-300 space-y-2">
-                    <p>Click <strong className="text-white">Load unpacked</strong> and select the extension folder:</p>
-                    <div className="flex items-center gap-2 p-2 bg-slate-950 border border-slate-800 rounded-lg">
-                      <code className="font-mono text-xs text-indigo-300 flex-1">{folderPath}</code>
-                      <button
-                        onClick={handleCopyPath}
-                        className="px-2.5 py-1 text-[11px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors"
-                      >
-                        {copied ? 'Copied!' : 'Copy Path'}
-                      </button>
+                {installSteps.map((step, i) => (
+                  <div key={step} className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">{i + 1}</div>
+                    <div className="text-xs text-slate-300">
+                      {step}
+                      {i === 2 && !isFirefox && (
+                        <div className="flex items-center gap-2 mt-2 p-2 bg-slate-950 border border-slate-800 rounded-lg">
+                          <code className="font-mono text-xs text-cyan-300 flex-1">{folderPath}</code>
+                          <button
+                            onClick={handleCopyPath}
+                            className="px-2.5 py-1 text-[11px] font-semibold bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors"
+                          >
+                            {copied ? 'Copied!' : 'Copy Path'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
+                ))}
               </div>
             </div>
           )}

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Loader2, Heart, SkipBack, Pause, Play, SkipForward, ExternalLink, Zap, X, Check, ShieldAlert, Globe } from 'lucide-react';
-import { isTauri } from '@/lib/platform';
+import { isTauri, getBrowserName } from '@/lib/platform';
 import { cn } from '@/lib/utils';
 import { isCatalogItemKnownBlocked } from '@/lib/known-blocked-hosts';
 
@@ -96,7 +96,7 @@ export default function WebApp({ window: osWindow }: { window: any }) {
   if (initWait && !extensionInstalled && !isTauri()) {
     return (
       <div className="w-full h-full relative bg-slate-900 text-slate-100 flex flex-col items-center justify-center font-sans p-6 gap-3">
-        <Loader2 className="w-7 h-7 text-indigo-400 animate-spin" />
+        <Loader2 className="w-7 h-7 text-cyan-400 animate-spin" />
         <span className="text-xs font-medium text-slate-400">Initializing app view...</span>
       </div>
     );
@@ -106,12 +106,12 @@ export default function WebApp({ window: osWindow }: { window: any }) {
     return (
       <div className="w-full h-full relative bg-slate-900 text-slate-100 flex flex-col items-center justify-center font-sans p-6 text-center overflow-y-auto">
         <div className="max-w-md w-full flex flex-col items-center gap-4 py-4">
-          <div className="p-4 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300">
+          <div className="p-4 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300">
             <ShieldAlert className="w-9 h-9" />
           </div>
           <div>
             <h3 className="font-bold text-base text-white flex items-center justify-center gap-2">
-              <Globe className="w-4 h-4 text-indigo-400" /> {osWindow.title || 'This app'}
+              <Globe className="w-4 h-4 text-cyan-400" /> {osWindow.title || 'This app'}
             </h3>
             <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
               This site blocks embedding in iframes. Install the Continua extension to open it natively in your OS,
@@ -122,7 +122,7 @@ export default function WebApp({ window: osWindow }: { window: any }) {
           <div className="flex flex-col gap-2 w-full max-w-[260px]">
             <button
               onClick={() => setShowGuide(true)}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:brightness-110 text-white transition-all active:scale-95 shadow-lg shadow-indigo-600/20"
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 hover:brightness-110 text-white transition-all active:scale-95 shadow-lg shadow-cyan-600/20"
             >
               <Zap className="w-3.5 h-3.5 fill-white" /> Enable Extension
             </button>
@@ -156,7 +156,7 @@ export default function WebApp({ window: osWindow }: { window: any }) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center p-3 bg-slate-950/90 backdrop-blur-3xl relative overflow-hidden select-none">
         {/* Background Ambient Blur Glow */}
-        <div className="absolute -inset-10 bg-gradient-to-br from-emerald-600/20 via-teal-900/10 to-purple-900/20 blur-3xl pointer-events-none" />
+        <div className="absolute -inset-10 bg-gradient-to-br from-emerald-600/20 via-teal-900/10 to-emerald-900/20 blur-3xl pointer-events-none" />
 
         {/* High-Art Glassmorphism System Overlay Card */}
         <div className="w-full max-w-[340px] h-[400px] rounded-[36px] bg-neutral-900/80 border border-white/20 shadow-[0_30px_70px_rgba(0,0,0,0.8)] p-5 flex flex-col justify-between relative backdrop-blur-2xl text-white contain-layout">
@@ -252,7 +252,7 @@ export default function WebApp({ window: osWindow }: { window: any }) {
     <div className="w-full h-full relative bg-white flex flex-col" style={{ zIndex: 1, isolation: 'isolate' }}>
       {loading && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm text-slate-200">
-          <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+          <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
         </div>
       )}
 
@@ -271,7 +271,7 @@ export default function WebApp({ window: osWindow }: { window: any }) {
             </button>
             <button
               onClick={() => setShowGuide(true)}
-              className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md bg-indigo-600 hover:bg-indigo-500 transition-colors"
+              className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md bg-cyan-600 hover:bg-cyan-500 transition-colors"
             >
               <Zap className="w-3 h-3" /> Enable Extension
             </button>
@@ -308,6 +308,20 @@ function ExtensionGuideModal({
   extensionInstalled: boolean;
   onClose: () => void;
 }) {
+  const browser = getBrowserName();
+  const isFirefox = browser === 'firefox';
+  const installSteps = isFirefox
+    ? [
+        'Open about:debugging#/runtime/this-firefox in Firefox.',
+        'Click "Load Temporary Add-on..." and select the manifest.json file inside the chrome-extension folder.',
+        'The extension (Continua Context Bridge) now appears under Temporary Extensions and strips framing headers in real time.',
+      ]
+    : [
+        'Open chrome://extensions in Chrome, Brave, or Edge.',
+        'Turn ON Developer mode in the top right corner.',
+        'Click Load unpacked and select the chrome-extension folder in this project.',
+      ];
+
   return (
     <div
       className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
@@ -319,8 +333,8 @@ function ExtensionGuideModal({
       >
         <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-slate-950/50">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-              <Zap className="w-5 h-5 fill-indigo-400" />
+            <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+              <Zap className="w-5 h-5 fill-cyan-400" />
             </div>
             <div>
               <h3 className="font-bold text-sm text-white">Continua Context Bridge Extension</h3>
@@ -346,17 +360,13 @@ function ExtensionGuideModal({
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs leading-relaxed">
+              <div className="p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-xs leading-relaxed">
                 Sites like Notion and Figma set security headers that block standard iframe embeds. The Continua extension removes them in real time.
               </div>
               <div className="space-y-3">
-                {[
-                  'Open chrome://extensions in Chrome, Brave, or Edge.',
-                  'Turn ON Developer mode in the top right corner.',
-                  'Click Load unpacked and select the chrome-extension folder in this project.',
-                ].map((step, i) => (
+                {installSteps.map((step, i) => (
                   <div key={step} className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                    <div className="w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
                       {i + 1}
                     </div>
                     <div className="text-xs text-slate-300">{step}</div>

@@ -166,7 +166,7 @@ export function SideGigsMarketplace() {
   return (
     <div className="w-full h-full flex flex-col bg-gray-900 text-white overflow-hidden">
       {/* Header */}
-      <div className="border-b border-gray-700 p-4 shrink-0 bg-gradient-to-r from-blue-900/20 to-purple-900/20">
+      <div className="border-b border-gray-700 p-4 shrink-0 bg-gradient-to-r from-blue-900/20 to-emerald-900/20">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Briefcase className="w-6 h-6" />
@@ -385,7 +385,7 @@ export function SideGigsMarketplace() {
                       <Star className="w-4 h-4" />
                       {gig.rating}
                     </div>
-                    <div className="flex items-center gap-1 text-purple-400">
+                    <div className="flex items-center gap-1 text-emerald-400">
                       <Users className="w-4 h-4" />
                       {gig.applicants} applicants
                     </div>
@@ -497,7 +497,7 @@ export function SideGigsMarketplace() {
                 <label className="text-xs font-semibold text-gray-400 mb-2 block">Posted by</label>
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
-                    {selectedGig.postedBy.avatar || '👤'}
+                    {selectedGig.postedBy.avatar ? <img src={selectedGig.postedBy.avatar} alt="" className="w-8 h-8 rounded-full" /> : <User className="w-4 h-4 text-white" />}
                   </div>
                   <div>
                     <div className="text-sm font-medium">{selectedGig.postedBy.name}</div>

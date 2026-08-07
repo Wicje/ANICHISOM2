@@ -20,7 +20,7 @@ export function CommandCenter({ window: osWindow }: { window?: any }) {
   const stats = [
     { label: 'Active Campaigns', value: campaigns.length, icon: Target, color: 'text-blue-500' },
     { label: 'Task Completion', value: tasks.length ? Math.round((completedTasks.length / tasks.length) * 100) + '%' : '0%', icon: CheckCircle, color: 'text-emerald-500' },
-    { label: 'Recent Activity', value: notifications.length, icon: Activity, color: 'text-purple-500' },
+    { label: 'Recent Activity', value: notifications.length, icon: Activity, color: 'text-emerald-500' },
   ];
 
   const recentNotifications = notifications.slice(0, 8);
@@ -37,13 +37,13 @@ export function CommandCenter({ window: osWindow }: { window?: any }) {
       <div className="px-8 py-6 bg-white border-b border-black/5 flex items-center justify-between shrink-0">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <LayoutDashboard className="w-6 h-6 text-indigo-500" />
+            <LayoutDashboard className="w-6 h-6 text-cyan-500" />
             Command Center
           </h1>
           <p className="text-sm text-slate-500 mt-1">Overview of all active campaigns and project metrics.</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => addPage(null)} className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg text-sm font-medium hover:bg-indigo-600 shadow-sm transition-colors">
+          <button onClick={() => addPage(null)} className="flex items-center gap-2 px-4 py-2 bg-cyan-500 text-white rounded-lg text-sm font-medium hover:bg-cyan-600 shadow-sm transition-colors">
             <Plus className="w-4 h-4" /> New Campaign
           </button>
         </div>
@@ -107,7 +107,7 @@ export function CommandCenter({ window: osWindow }: { window?: any }) {
                           <span>{Math.round(progress)}%</span>
                         </div>
                         <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                          <div className="h-full bg-cyan-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
                         </div>
                       </div>
                       
@@ -116,7 +116,7 @@ export function CommandCenter({ window: osWindow }: { window?: any }) {
                           <span className="flex items-center gap-1"><CheckSquare className="w-4 h-4" /> {completed.length}/{campaignTasks.length}</span>
                           <span className="flex items-center gap-1"><Users className="w-4 h-4" /> {campaign.share?.invitedUsers?.length || 0}</span>
                         </div>
-                        <span className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-500 font-medium flex items-center">Open <ChevronRight className="w-4 h-4" /></span>
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity text-cyan-500 font-medium flex items-center">Open <ChevronRight className="w-4 h-4" /></span>
                       </div>
                     </div>
                   );
@@ -132,8 +132,8 @@ export function CommandCenter({ window: osWindow }: { window?: any }) {
                 <div className="space-y-6 relative z-10">
                   {recentNotifications.map(notification => (
                     <div key={notification.id} className="flex gap-4">
-                      <div className="w-8 h-8 rounded-full bg-indigo-50 border-4 border-white flex items-center justify-center shrink-0 shadow-sm relative z-10">
-                        <Bell className="w-3.5 h-3.5 text-indigo-500" />
+                      <div className="w-8 h-8 rounded-full bg-cyan-50 border-4 border-white flex items-center justify-center shrink-0 shadow-sm relative z-10">
+                        <Bell className="w-3.5 h-3.5 text-cyan-500" />
                       </div>
                       <div className="flex-1 pt-1.5">
                         <p className="text-sm text-slate-700 leading-snug">{notification.message}</p>

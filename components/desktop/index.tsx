@@ -197,7 +197,14 @@ export function Desktop() {
   const showNotch = useThemeStore((s) => s.showNotch);
   useDynamicWallpaper(dynamicWallpaper);
 
-  const [isLocked, setIsLocked] = useState(false);
+  const [isLocked, setIsLocked] = useState(true);
+
+  // A fresh interactive sign-in (LoginScreen) skips the launch lock screen.
+  useEffect(() => {
+    const handleFreshSignIn = () => setIsLocked(false);
+    window.addEventListener('os:fresh-sign-in', handleFreshSignIn);
+    return () => window.removeEventListener('os:fresh-sign-in', handleFreshSignIn);
+  }, []);
   const [showLaunchpad, setShowLaunchpad] = useState(false);
   const [showMissionControl, setShowMissionControl] = useState(false);
   const [showControlCenter, setShowControlCenter] = useState(false);
@@ -579,6 +586,7 @@ export function Desktop() {
       'ctrl+shift+4': 'action:screenshot',
       'meta+shift+v': 'action:clipboard-history',
       'ctrl+shift+v': 'action:clipboard-history',
+      'meta+l': 'action:lock',
     };
 
     import('@/lib/fs').then(({ FS }) => {
@@ -651,6 +659,8 @@ export function Desktop() {
           useScreenshotStore.getState().start();
         } else if (action === 'action:clipboard-history') {
           useClipboardUIStore.getState().toggle();
+        } else if (action === 'action:lock') {
+          setIsLocked(true);
         }
       }
     };

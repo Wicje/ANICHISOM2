@@ -157,7 +157,7 @@ export function ControlCenter({ onClose }: ControlCenterProps) {
               openWindow('app-store', 'ContinuaOS App Store');
             }}
             className="p-3 rounded-xl flex flex-col items-start gap-2 transition-colors"
-            style={{ background: '#8b5cf6', color: 'white' }}
+            style={{ background: '#00f0ff', color: 'white' }}
           >
             <Cloud className="w-5 h-5" />
             <span className="text-xs font-medium">App Store</span>
@@ -166,7 +166,7 @@ export function ControlCenter({ onClose }: ControlCenterProps) {
             onClick={() => toggleNotch()}
             className="p-3 rounded-xl flex flex-col items-start gap-2 transition-colors"
             style={{
-              background: showNotch ? '#6366f1' : 'var(--os-hover)',
+              background: showNotch ? '#00f0ff' : 'var(--os-hover)',
               color: showNotch ? 'white' : 'var(--os-text-muted)',
             }}
           >

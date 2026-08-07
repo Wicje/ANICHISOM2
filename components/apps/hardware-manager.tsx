@@ -51,7 +51,7 @@ export function HardwareManagerApp() {
             onClick={handleConnectBt}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-white border border-white/10 transition-all"
           >
-            <Bluetooth className="w-3.5 h-3.5 text-indigo-400" /> Pair Bluetooth
+            <Bluetooth className="w-3.5 h-3.5 text-cyan-400" /> Pair Bluetooth
           </button>
           <button
             onClick={handleMountStorage}
@@ -82,11 +82,11 @@ export function HardwareManagerApp() {
 
           <div
             onClick={handleConnectBt}
-            className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:border-indigo-500/50 hover:bg-white/10 transition-all cursor-pointer group"
+            className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:border-cyan-500/50 hover:bg-white/10 transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between mb-3">
-              <Bluetooth className="w-6 h-6 text-indigo-400 group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300">
+              <Bluetooth className="w-6 h-6 text-cyan-400 group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300">
                 Web Bluetooth
               </span>
             </div>
@@ -139,7 +139,7 @@ export function HardwareManagerApp() {
                   <div className="flex items-center gap-3">
                     <div className="p-2.5 rounded-lg bg-white/5 border border-white/10">
                       {dev.type === 'usb' && <Usb className="w-5 h-5 text-cyan-400" />}
-                      {dev.type === 'bluetooth' && <Bluetooth className="w-5 h-5 text-indigo-400" />}
+                      {dev.type === 'bluetooth' && <Bluetooth className="w-5 h-5 text-cyan-400" />}
                       {dev.type === 'storage' && <HardDrive className="w-5 h-5 text-emerald-400" />}
                     </div>
                     <div className="flex flex-col">

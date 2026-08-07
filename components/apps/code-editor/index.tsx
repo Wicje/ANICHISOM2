@@ -181,7 +181,7 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
              {isDeploying ? <RefreshCcw className="w-3 h-3 animate-spin" /> : <Server className="w-3 h-3" />}
              <span>Preview</span>
           </button>
-          <button onClick={() => setAgentOpen(!agentOpen)} className={cn("flex items-center gap-1 px-2 py-1 rounded text-white text-xs font-sans transition-colors", agentOpen ? "bg-purple-600" : "bg-white/10 hover:bg-white/20")}>
+          <button onClick={() => setAgentOpen(!agentOpen)} className={cn("flex items-center gap-1 px-2 py-1 rounded text-white text-xs font-sans transition-colors", agentOpen ? "bg-emerald-600" : "bg-white/10 hover:bg-white/20")}>
             <Search className="w-3 h-3" /> Copilot
           </button>
         </div>

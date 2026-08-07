@@ -14,7 +14,7 @@ export function DesktopIcons() {
     try {
       let files = await FS.readDir('Desktop');
       if (files.length === 0) {
-        await FS.write('Desktop/Welcome to ContinuaOS.md', `# Welcome to ContinuaOS! 🚀
+        await FS.write('Desktop/Welcome to ContinuaOS.md', `# Welcome to ContinuaOS!
 This is a hyper-immersive, AI-powered Web Operating System built for **Writers, Travellers, Photographers, Students, Devs, and Designers**.
 
 ### Quick Actions:
@@ -24,7 +24,7 @@ This is a hyper-immersive, AI-powered Web Operating System built for **Writers, 
 
 Enjoy your new home.
 `);
-        await FS.write('Desktop/For Writers.md', `# Your Distraction-Free Zone ✍️
+        await FS.write('Desktop/For Writers.md', `# Your Distraction-Free Zone
 
 Writers need focus. 
 1. Look at the top right Menu Bar. See the **FOCUS** button next to the clock? Click it.
@@ -41,18 +41,18 @@ Writers need focus.
             "Zero iframe sandboxing limits (Proxy bypass installed)"
           ]
         }, null, 2));
-        await FS.write('Desktop/For Photographers.md', `# Organize Your Shoots 📸
+        await FS.write('Desktop/For Photographers.md', `# Organize Your Shoots
 Drop your raw files or JPEGs directly onto the Desktop.
 Double click them to preview in the native Image Viewer.
 Because the OS uses IndexedDB, your assets remain fully private and instantly accessible offline—perfect for reviewing shoots on a flight without Wi-Fi!
 `);
-        await FS.write('Desktop/For Students.md', `# The Ultimate Study Environment 🎓
+        await FS.write('Desktop/For Students.md', `# The Ultimate Study Environment
 
 1. Hit **Cmd+K** and search for "Ask Edge AI". It runs *locally*, meaning it won't crash when campus Wi-Fi drops.
 2. Store your class notes in the \`Documents\` folder.
 3. Keep track of your clipboard history (Cmd+Shift+V) when writing essays!
 `);
-        await FS.write('Desktop/For Travellers.md', `# Trip Itinerary: Tokyo 2026 ✈️
+        await FS.write('Desktop/For Travellers.md', `# Trip Itinerary: Tokyo 2026
 - **Flight**: JL007
 - **Hotel**: Shinjuku Granbell
 - **To-Do**: 

@@ -199,7 +199,7 @@ function ColorsSection({ brandId, colors, store }: { brandId: string; colors: Br
 
   return (
     <div className="space-y-6">
-      <h2 className="text-sm font-bold flex items-center gap-2"><Palette className="w-4 h-4 text-purple-400" /> Color Palette</h2>
+      <h2 className="text-sm font-bold flex items-center gap-2"><Palette className="w-4 h-4 text-emerald-400" /> Color Palette</h2>
 
       <div className="grid grid-cols-2 gap-3">
         {colors.map((color) => (

@@ -52,6 +52,7 @@ export function LoginScreen() {
           name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
           role: (user.user_metadata?.role as OSRole) || 'user',
           avatarUrl: user.user_metadata?.avatar_url,
+          email: user.email || undefined,
         });
       }
     });
@@ -120,7 +121,9 @@ export function LoginScreen() {
             id: data.session.user.id,
             name: data.session.user.user_metadata?.name || email.split('@')[0],
             role: (data.session.user.user_metadata?.role as OSRole) || 'user',
+            email: data.session.user.email || undefined,
           });
+          window.dispatchEvent(new CustomEvent('os:fresh-sign-in'));
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -136,7 +139,9 @@ export function LoginScreen() {
             name: data.user.user_metadata?.name || email.split('@')[0],
             role: (data.user.user_metadata?.role as OSRole) || 'user',
             avatarUrl: data.user.user_metadata?.avatar_url,
+            email: data.user.email || undefined,
           });
+          window.dispatchEvent(new CustomEvent('os:fresh-sign-in'));
         }
       }
     } catch (err: unknown) {

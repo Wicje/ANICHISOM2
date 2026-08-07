@@ -27,7 +27,7 @@ const TEMPLATES: AssetFile[] = [
 
 const ICONS = {
   image: <ImageIcon className="w-5 h-5 text-blue-500" />,
-  video: <Video className="w-5 h-5 text-purple-500" />,
+  video: <Video className="w-5 h-5 text-emerald-500" />,
   copy: <FileText className="w-5 h-5 text-amber-500" />,
   design: <PenTool className="w-5 h-5 text-rose-500" />,
   template: <LayoutTemplate className="w-5 h-5 text-emerald-500" />

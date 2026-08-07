@@ -147,7 +147,7 @@ Tailor the phases, deliverables, and approach to this specific project scope and
       {/* Editor Side */}
       <div className="w-1/2 border-r border-white/10 flex flex-col bg-[#0a0a0a]">
         <div className="p-4 border-b border-white/10 flex items-center gap-3 shrink-0">
-          <Bot className="w-5 h-5 text-purple-400" />
+          <Bot className="w-5 h-5 text-emerald-400" />
           <h2 className="text-sm font-medium">AI Proposal Generator</h2>
         </div>
 
@@ -162,7 +162,7 @@ Tailor the phases, deliverables, and approach to this specific project scope and
                   setClientName(e.target.value);
                   saveState({ clientName: e.target.value });
                 }}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-purple-500/50 transition-colors"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-emerald-500/50 transition-colors"
               />
             </div>
 
@@ -175,7 +175,7 @@ Tailor the phases, deliverables, and approach to this specific project scope and
                   saveState({ projectScope: e.target.value });
                 }}
                 rows={3}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-purple-500/50 transition-colors resize-none"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-emerald-500/50 transition-colors resize-none"
               />
             </div>
 
@@ -188,7 +188,7 @@ Tailor the phases, deliverables, and approach to this specific project scope and
                   setBudget(e.target.value);
                   saveState({ budget: e.target.value });
                 }}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-purple-500/50 transition-colors"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-emerald-500/50 transition-colors"
               />
             </div>
 
@@ -202,7 +202,7 @@ Tailor the phases, deliverables, and approach to this specific project scope and
             <button
               onClick={handleGenerate}
               disabled={isGenerating}
-              className="mt-4 w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-lg py-3.5 text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)] disabled:opacity-50"
+              className="mt-4 w-full bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-500 hover:to-blue-500 text-white rounded-lg py-3.5 text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(16,244,160,0.3)] disabled:opacity-50"
             >
               {isGenerating ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
