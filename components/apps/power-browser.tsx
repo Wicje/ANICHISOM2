@@ -95,9 +95,26 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
       setInitWait(false);
     }, 250);
 
+    // Keep re-checking for a few seconds — the extension content script may
+    // inject late. If it activates after the blocked fallback is showing, the
+    // tab swaps to a native iframe.
+    let polls = 0;
+    const pollInterval = setInterval(() => {
+      polls += 1;
+      const active = typeof window !== 'undefined' &&
+        ((window as any).__CONTINUA_EXTENSION_ACTIVE__ || document.getElementById('continua-extension-marker'));
+      if (active) {
+        setExtensionInstalled(true);
+        clearInterval(pollInterval);
+      } else if (polls >= 8) {
+        clearInterval(pollInterval);
+      }
+    }, 300);
+
     return () => {
       window.removeEventListener('continua-extension-ready', handler);
       clearTimeout(timer);
+      clearInterval(pollInterval);
     };
   }, []);
 
@@ -591,10 +608,11 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                     searchEngine={searchEngine}
                     onNavigate={(url) => { setLoading(true); navigateTab(activeTabId, url, ''); }}
                   />
-                ) : isKnownBlocked(tab.url) && blockedTabs.has(tab.id) ? (
+                ) : isKnownBlocked(tab.url) && (blockedTabs.has(tab.id) || (!extensionInstalled && !isTauri())) ? (
                   <BlockedSiteFallback
                     url={tab.url}
                     onOpenExternal={openExternal}
+                    onOpenExtensionModal={() => setShowExtensionModal(true)}
                     onTryProxy={() => {
                       // Force reload through proxy
                       setBlockedTabs(prev => {

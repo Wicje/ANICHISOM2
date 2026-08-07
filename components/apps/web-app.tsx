@@ -1,9 +1,43 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Loader2, Heart, SkipBack, Pause, Play, SkipForward, ExternalLink } from 'lucide-react';
+import { Loader2, Heart, SkipBack, Pause, Play, SkipForward, ExternalLink, Zap, X, Check, ShieldAlert, Globe } from 'lucide-react';
 import { isTauri } from '@/lib/platform';
 import { cn } from '@/lib/utils';
+
+// Sites known to set framing restrictions that only the Continua extension
+// (or Tauri's native webview) can bypass.
+const KNOWN_BLOCKED_HOSTS = new Set([
+  'figma.com', 'www.figma.com',
+  'docs.google.com', 'drive.google.com',
+  'github.com', 'gitlab.com',
+  'notion.so', 'www.notion.so',
+  'airtable.com', 'www.airtable.com',
+  'trello.com', 'www.trello.com',
+  'linear.app',
+  'vercel.com', 'app.vercel.com',
+  'netlify.com', 'app.netlify.com',
+  'youtube.com', 'www.youtube.com',
+  'twitter.com', 'x.com', 'www.x.com',
+  'facebook.com', 'www.facebook.com',
+  'instagram.com', 'www.instagram.com',
+  'linkedin.com', 'www.linkedin.com',
+  'reddit.com', 'www.reddit.com',
+  'medium.com',
+  'spotify.com', 'open.spotify.com',
+  'canva.com', 'www.canva.com',
+  'slack.com', 'app.slack.com',
+  'vscode.dev',
+]);
+
+function isKnownBlocked(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '');
+    return KNOWN_BLOCKED_HOSTS.has(host);
+  } catch {
+    return false;
+  }
+}
 
 export default function WebApp({ window: osWindow }: { window: any }) {
   const { data } = osWindow;
@@ -18,31 +52,53 @@ export default function WebApp({ window: osWindow }: { window: any }) {
   const url = data?.url || PREDEFINED_URLS[osWindow.appId] || 'https://duckduckgo.com';
   
   const [loading, setLoading] = useState(true);
-  const [extensionInstalled, setExtensionInstalled] = useState(false);
+  const [extensionInstalled, setExtensionInstalled] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      (!!(window as any).__CONTINUA_EXTENSION_ACTIVE__ ||
+        !!document.getElementById('continua-extension-marker'))
+  );
   const [initWait, setInitWait] = useState(true);
+  const [showGuide, setShowGuide] = useState(false);
+  const [proxyOptIn, setProxyOptIn] = useState(false);
   const [spotifyView, setSpotifyView] = useState<'card' | 'web'>('card');
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(35);
   const [liked, setLiked] = useState(true);
 
   useEffect(() => {
-    // Check if the Continua Extension is active
-    if (typeof window !== 'undefined' && (window as any).__CONTINUA_EXTENSION_ACTIVE__) {
-      setExtensionInstalled(true);
-    }
+    const detectExtension = () =>
+      typeof window !== 'undefined' &&
+      (!!(window as any).__CONTINUA_EXTENSION_ACTIVE__ ||
+        !!document.getElementById('continua-extension-marker'));
+
     const handler = () => setExtensionInstalled(true);
     window.addEventListener('continua-extension-ready', handler);
-    
+
     // Give the content script up to 250ms to inject before falling back to proxy
     const timer = setTimeout(() => {
       setInitWait(false);
     }, 250);
 
+    // Keep re-checking for a few seconds — the extension content script may
+    // inject later than the initial window. If it activates after we have
+    // already fallen back to the proxy, the iframe swaps to native embedding.
+    let polls = 0;
+    const pollInterval = setInterval(() => {
+      polls += 1;
+      if (detectExtension()) {
+        setExtensionInstalled(true);
+        clearInterval(pollInterval);
+      } else if (polls >= 8) {
+        clearInterval(pollInterval);
+      }
+    }, 300);
+
     const contextHandler = () => {
       window.dispatchEvent(new CustomEvent('os:context-response', {
         detail: {
           appId: osWindow.appId,
-          context: `Web App Container viewing URL: ${url}\nExtension Active: ${extensionInstalled}`
+          context: `Web App Container viewing URL: ${url}\nExtension Active: ${detectExtension()}`
         }
       }));
     };
@@ -52,12 +108,18 @@ export default function WebApp({ window: osWindow }: { window: any }) {
       window.removeEventListener('continua-extension-ready', handler);
       window.removeEventListener('os:request-context', contextHandler);
       clearTimeout(timer);
+      clearInterval(pollInterval);
     };
-  }, [url, extensionInstalled, osWindow.appId]);
+  }, [url, osWindow.appId]);
 
   // For native-feeling PWAs, we strip X-Frame-Options via extension or Tauri natively.
-  // If we are on web without extension, we attempt the proxy as fallback (though complex sites might break).
-  const isProxied = !extensionInstalled && !isTauri() && url.startsWith('http');
+  // Known-blocked hosts require the extension (or Tauri); without it we show a
+  // clean guide screen instead of falling back to the broken proxy. Other sites
+  // still attempt the proxy as a best-effort fallback.
+  const blockedNeedsExtension =
+    !extensionInstalled && !isTauri() && url.startsWith('http') && isKnownBlocked(url) && !proxyOptIn;
+  const isProxied =
+    !extensionInstalled && !isTauri() && url.startsWith('http') && !blockedNeedsExtension;
   const finalUrl = isProxied ? `/api/proxy?url=${encodeURIComponent(url)}` : url;
 
   if (initWait && !extensionInstalled && !isTauri()) {
@@ -65,6 +127,56 @@ export default function WebApp({ window: osWindow }: { window: any }) {
       <div className="w-full h-full relative bg-slate-900 text-slate-100 flex flex-col items-center justify-center font-sans p-6 gap-3">
         <Loader2 className="w-7 h-7 text-indigo-400 animate-spin" />
         <span className="text-xs font-medium text-slate-400">Initializing app view...</span>
+      </div>
+    );
+  }
+
+  if (blockedNeedsExtension) {
+    return (
+      <div className="w-full h-full relative bg-slate-900 text-slate-100 flex flex-col items-center justify-center font-sans p-6 text-center overflow-y-auto">
+        <div className="max-w-md w-full flex flex-col items-center gap-4 py-4">
+          <div className="p-4 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300">
+            <ShieldAlert className="w-9 h-9" />
+          </div>
+          <div>
+            <h3 className="font-bold text-base text-white flex items-center justify-center gap-2">
+              <Globe className="w-4 h-4 text-indigo-400" /> {osWindow.title || 'This app'}
+            </h3>
+            <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+              This site blocks embedding in iframes. Install the Continua extension to open it natively in your OS,
+              or open it in a new browser tab.
+            </p>
+            <p className="text-[10px] font-mono text-slate-500 mt-2 truncate">{url}</p>
+          </div>
+          <div className="flex flex-col gap-2 w-full max-w-[260px]">
+            <button
+              onClick={() => setShowGuide(true)}
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:brightness-110 text-white transition-all active:scale-95 shadow-lg shadow-indigo-600/20"
+            >
+              <Zap className="w-3.5 h-3.5 fill-white" /> Enable Extension
+            </button>
+            <button
+              onClick={() => window.open(url, '_blank')}
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold rounded-xl bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-all active:scale-95"
+            >
+              <ExternalLink className="w-3.5 h-3.5" /> Open in New Tab
+            </button>
+            <button
+              onClick={() => setProxyOptIn(true)}
+              className="flex items-center justify-center gap-1.5 px-4 py-2 text-[11px] font-medium rounded-xl bg-transparent hover:bg-white/5 text-slate-400 hover:text-slate-200 transition-all"
+            >
+              Try limited proxy view anyway
+            </button>
+          </div>
+        </div>
+
+        {showGuide && (
+          <ExtensionGuideModal
+            url={url}
+            extensionInstalled={extensionInstalled}
+            onClose={() => setShowGuide(false)}
+          />
+        )}
       </div>
     );
   }
@@ -172,7 +284,30 @@ export default function WebApp({ window: osWindow }: { window: any }) {
           <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
         </div>
       )}
-      
+
+      {isProxied && (
+        <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-1.5 bg-slate-900 border-b border-white/10 text-slate-300">
+          <span className="truncate text-[11px] font-mono flex items-center gap-1.5">
+            <Zap className="w-3 h-3 fill-amber-500 text-amber-500 shrink-0" />
+            <span className="truncate">{url}</span>
+          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => window.open(url, '_blank')}
+              className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md bg-white/10 hover:bg-white/20 transition-colors"
+            >
+              <ExternalLink className="w-3 h-3" /> Open in New Tab
+            </button>
+            <button
+              onClick={() => setShowGuide(true)}
+              className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md bg-indigo-600 hover:bg-indigo-500 transition-colors"
+            >
+              <Zap className="w-3 h-3" /> Enable Extension
+            </button>
+          </div>
+        </div>
+      )}
+
       <iframe
         src={finalUrl}
         className="w-full h-full flex-1 border-none bg-white relative z-0"
@@ -181,6 +316,105 @@ export default function WebApp({ window: osWindow }: { window: any }) {
         onLoad={() => setLoading(false)}
         onError={() => setLoading(false)}
       />
+
+      {showGuide && (
+        <ExtensionGuideModal
+          url={url}
+          extensionInstalled={extensionInstalled}
+          onClose={() => setShowGuide(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ExtensionGuideModal({
+  url,
+  extensionInstalled,
+  onClose,
+}: {
+  url: string;
+  extensionInstalled: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-slate-900 text-slate-100 rounded-2xl border border-white/10 shadow-2xl max-w-lg w-full overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-slate-950/50">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+              <Zap className="w-5 h-5 fill-indigo-400" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-white">Continua Context Bridge Extension</h3>
+              <p className="text-xs text-slate-400">Unlock native iframe embedding for Notion, Figma &amp; more</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {extensionInstalled ? (
+            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3 text-emerald-400">
+              <Check className="w-6 h-6 shrink-0" />
+              <div>
+                <h4 className="font-bold text-sm text-emerald-300">Extension is Active &amp; Connected</h4>
+                <p className="text-xs text-emerald-400/80">Framing headers are stripped in real time. Reload this window if the page still fails to load.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs leading-relaxed">
+                Sites like Notion and Figma set security headers that block standard iframe embeds. The Continua extension removes them in real time.
+              </div>
+              <div className="space-y-3">
+                {[
+                  'Open chrome://extensions in Chrome, Brave, or Edge.',
+                  'Turn ON Developer mode in the top right corner.',
+                  'Click Load unpacked and select the chrome-extension folder in this project.',
+                ].map((step, i) => (
+                  <div key={step} className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                      {i + 1}
+                    </div>
+                    <div className="text-xs text-slate-300">{step}</div>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => window.open(url, '_blank')}
+                className="w-full flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Or open this app in a new browser tab
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-white/10 bg-slate-950/50 flex items-center justify-between">
+          <span className={cn("flex items-center gap-2 text-xs", extensionInstalled ? "text-emerald-400" : "text-amber-400")}>
+            <span className={cn("w-2 h-2 rounded-full animate-pulse", extensionInstalled ? "bg-emerald-400" : "bg-amber-400")} />
+            {extensionInstalled ? 'Bridge Active' : 'Not Detected'}
+          </span>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-semibold bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { readDomain, writeDomain } from '@/lib/context-layer';
 import { syncQueue } from '@/lib/sync-queue';
 import { Workspace, Event } from '@/lib/workspace-types';
+import { useWindowStore } from './window.store';
 
 const DOMAIN = 'workspace';
 const LEGACY_SNAPSHOTS_KEY = 'continuaos_os_snapshots';
@@ -120,7 +121,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   restoreSnapshot: (id) => {
     const snapshot = get().snapshots.find(s => s.id === id) || null;
     if (snapshot) {
-      const { useWindowStore } = require('./window.store');
       useWindowStore.getState().setWindows(snapshot.windows);
     }
     return snapshot;

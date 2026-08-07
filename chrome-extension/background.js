@@ -6,15 +6,65 @@
  */
 
 let CONTINUA_URL = 'http://localhost:3000';
-if (typeof chrome !== 'undefined' && chrome.storage?.sync) {
-  chrome.storage.sync.get(['continuaUrl'], (result) => {
+if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+  chrome.storage.local.get(['continuaUrl'], (result) => {
     if (result.continuaUrl) CONTINUA_URL = result.continuaUrl;
+    syncEmbedRules();
   });
 }
 const SYNC_INTERVAL = 30000; // Sync every 30 seconds
 
 // Tool-specific context detectors (loaded from detectors.js via importScripts)
 importScripts('detectors.js');
+
+// ─── Dynamic DNR Rule ────────────────────────────────────────────────────────
+// The static rules.json covers localhost / 127.0.0.1 / vercel.app, but the OS
+// may be served from any domain (custom domain, LAN IP, etc.). Register a
+// dynamic rule that strips framing headers for frames initiated from whichever
+// host the OS is actually reachable on, so Notion/Figma/GitHub/etc. embed even
+// on non-whitelisted origins.
+
+const EMBED_RULE_ID = 1001;
+
+function embedRule() {
+  let host = 'localhost';
+  try {
+    host = new URL(CONTINUA_URL).hostname;
+  } catch (e) {
+    // Invalid configured URL — fall back to localhost
+  }
+  return {
+    id: EMBED_RULE_ID,
+    priority: 1,
+    action: {
+      type: 'modifyHeaders',
+      responseHeaders: [
+        { header: 'x-frame-options', operation: 'remove' },
+        { header: 'content-security-policy', operation: 'remove' },
+        { header: 'cross-origin-embedder-policy', operation: 'remove' },
+        { header: 'cross-origin-opener-policy', operation: 'remove' }
+      ]
+    },
+    condition: {
+      urlFilter: '*',
+      resourceTypes: ['sub_frame', 'main_frame', 'xmlhttprequest'],
+      initiatorDomains: [host, 'localhost', '127.0.0.1']
+    }
+  };
+}
+
+async function syncEmbedRules() {
+  if (typeof chrome === 'undefined' || !chrome.declarativeNetRequest) return;
+  try {
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: [EMBED_RULE_ID],
+      addRules: [embedRule()]
+    });
+  } catch (e) {
+    // Non-fatal: static rules still cover the common dev hosts
+  }
+}
+syncEmbedRules();
 
 // ─── Tab Context Capture ────────────────────────────────────────────────────
 
@@ -282,6 +332,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'setContinuaUrl') {
     // Store custom Continua URL
     chrome.storage.local.set({ continuaUrl: message.url });
+    if (typeof message.url === 'string' && message.url) {
+      CONTINUA_URL = message.url;
+      syncEmbedRules();
+    }
     sendResponse({ success: true });
     return true;
   }

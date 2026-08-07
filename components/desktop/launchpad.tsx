@@ -6,6 +6,7 @@ import { useWindowStore } from '@/lib/stores/window.store';
 import { useWindowActions } from '@/lib/hooks/use-window-actions';
 import { useWorkspaceStore } from '@/lib/stores/workspace.store';
 import { APP_MANIFEST } from '@/lib/app-manifest';
+import { WEB_APP_CATALOG } from '@/lib/web-app-catalog';
 import { getAllPlugins, isPluginActive } from '@/lib/plugin-registry';
 import { Search, Globe, File as FileIcon } from 'lucide-react';
 import { AppIcon } from '@/components/ui/app-icon';
@@ -51,9 +52,26 @@ export function Launchpad({ onClose }: LaunchpadProps) {
       icon: Globe, // Fallback lucide icon
       roles: ['user', 'admin'],
       description: `Installed Web App: ${app.url}`,
+      url: app.url,
     }));
 
-    const combinedApps = [...APP_MANIFEST, ...customAppsFormatted];
+    // Apps installed from the App Store that aren't already in the manifest
+    // (e.g. GitHub, Canva, Linear, Slack) appear in the launchpad once installed.
+    const manifestIds = new Set(APP_MANIFEST.map(app => app.id));
+    const installedStoreApps = installedApps
+      .map(id => WEB_APP_CATALOG.find(app => app.id === id))
+      .filter((app): app is (typeof WEB_APP_CATALOG)[number] => !!app && !manifestIds.has(app.id))
+      .map(app => ({
+        id: app.id,
+        title: app.name,
+        iconImage: app.iconImage,
+        icon: app.icon,
+        roles: ['user', 'admin'],
+        description: app.description,
+        url: app.url,
+      }));
+
+    const combinedApps = [...APP_MANIFEST, ...customAppsFormatted, ...installedStoreApps];
 
     return combinedApps.filter(app => {
       if (!app.roles.includes(currentUser.role) && !isSuperUser) return false;

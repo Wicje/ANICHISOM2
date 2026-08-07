@@ -60,8 +60,9 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// Check connection status
-fetch('http://localhost:3000/api/context/stats', { credentials: 'include' })
+// Check connection status against the configured Continua URL
+const continuaBase = (continuaUrlInput.value || 'http://localhost:3000').replace(/\/$/, '');
+fetch(`${continuaBase}/api/context/stats`, { credentials: 'include' })
   .then(r => r.json())
   .then(data => {
     if (data.success) {

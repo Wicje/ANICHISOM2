@@ -107,7 +107,7 @@ describe('Crypto Service', () => {
       const result = await hashPassword('mypassword');
       expect(result.hash).toBeDefined();
       expect(result.salt).toBeDefined();
-      expect(result.iterations).toBe(100_000);
+      expect(result.iterations).toBe(600_000);
       // Hash should be base64
       expect(() => atob(result.hash)).not.toThrow();
     });

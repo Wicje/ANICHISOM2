@@ -35,7 +35,7 @@ vi.mock('@/lib/stores/window.store', () => {
 });
 
 vi.mock('@/lib/stores/workspace.store', () => {
-  const state = { activeWorkspace: 0, installedApps: ['terminal', 'browser'], recentApps: [] };
+  const state = { activeWorkspace: 0, installedApps: ['terminal', 'browser'], recentApps: [], customWebApps: [] };
   const store = (selector?: any) => (typeof selector === 'function' ? selector(state) : state);
   store.getState = vi.fn(() => state);
   return { useWorkspaceStore: store };

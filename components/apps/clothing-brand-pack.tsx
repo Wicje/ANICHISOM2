@@ -73,7 +73,8 @@ function SketchingTab({ windowId, collab, designs, selectedDesignId, onSelectDes
   const [newDesignCategory, setNewDesignCategory] = useState<Design['category']>('top');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [fabricCanvas, setFabricCanvas] = useState<any>(null);
+  const fabricRef = useRef<any>(null);
+  const [fabricReady, setFabricReady] = useState(false);
   const [tool, setTool] = useState<'draw' | 'select' | 'text'>('draw');
   const undoStackRef = useRef<string[]>([]);
   const redoStackRef = useRef<string[]>([]);
@@ -83,13 +84,14 @@ function SketchingTab({ windowId, collab, designs, selectedDesignId, onSelectDes
   const [canRedo, setCanRedo] = useState(false);
 
   const handleSketchUndo = () => {
-    if (!fabricCanvas || undoStackRef.current.length === 0) return;
+    const canvas = fabricRef.current;
+    if (!canvas || undoStackRef.current.length === 0) return;
     const prev = undoStackRef.current.pop()!;
-    redoStackRef.current.push(JSON.stringify(fabricCanvas.toJSON()));
+    redoStackRef.current.push(JSON.stringify(canvas.toJSON()));
     isSyncingRef.current = true;
-    fabricCanvas.loadFromJSON(prev, () => {
-      fabricCanvas.renderAll();
-      const state = JSON.stringify(fabricCanvas.toJSON());
+    canvas.loadFromJSON(prev, () => {
+      canvas.renderAll();
+      const state = JSON.stringify(canvas.toJSON());
       previousStateRef.current = state;
       isSyncingRef.current = false;
       const sketchMap = collab.sharedTypesRef.current.sketch;
@@ -100,13 +102,14 @@ function SketchingTab({ windowId, collab, designs, selectedDesignId, onSelectDes
   };
 
   const handleSketchRedo = () => {
-    if (!fabricCanvas || redoStackRef.current.length === 0) return;
+    const canvas = fabricRef.current;
+    if (!canvas || redoStackRef.current.length === 0) return;
     const next = redoStackRef.current.pop()!;
-    undoStackRef.current.push(JSON.stringify(fabricCanvas.toJSON()));
+    undoStackRef.current.push(JSON.stringify(canvas.toJSON()));
     isSyncingRef.current = true;
-    fabricCanvas.loadFromJSON(next, () => {
-      fabricCanvas.renderAll();
-      const state = JSON.stringify(fabricCanvas.toJSON());
+    canvas.loadFromJSON(next, () => {
+      canvas.renderAll();
+      const state = JSON.stringify(canvas.toJSON());
       previousStateRef.current = state;
       isSyncingRef.current = false;
       const sketchMap = collab.sharedTypesRef.current.sketch;
@@ -116,10 +119,13 @@ function SketchingTab({ windowId, collab, designs, selectedDesignId, onSelectDes
     setCanRedo(redoStackRef.current.length > 0);
   };
 
-  // Sync Fabric canvas state to Y.Map on local changes
+  // Sync Fabric canvas state to Y.Map on local changes.
+  // `fabricRef` and `collab.sharedTypesRef` are stable refs, so this callback
+  // never changes identity — the init effect below runs exactly once.
   const syncToYjs = useCallback(() => {
-    if (!fabricCanvas || isSyncingRef.current) return;
-    const state = JSON.stringify(fabricCanvas.toJSON());
+    const canvas = fabricRef.current;
+    if (!canvas || isSyncingRef.current) return;
+    const state = JSON.stringify(canvas.toJSON());
     if (previousStateRef.current) {
       undoStackRef.current.push(previousStateRef.current);
       redoStackRef.current = [];
@@ -129,13 +135,14 @@ function SketchingTab({ windowId, collab, designs, selectedDesignId, onSelectDes
     previousStateRef.current = state;
     const sketchMap = collab.sharedTypesRef.current.sketch;
     if (sketchMap) sketchMap.set('state', state);
-  }, [fabricCanvas, collab]);
+  }, [collab.sharedTypesRef]);
 
   useEffect(() => {
     let canvas: any = null;
+    let disposed = false;
     import('fabric').then((fabricModule) => {
       const fabric = (fabricModule as any).fabric || fabricModule;
-      if (!canvasRef.current || !containerRef.current) return;
+      if (disposed || !canvasRef.current || !containerRef.current) return;
 
       canvas = new fabric.Canvas(canvasRef.current, {
         width: Math.max(containerRef.current.clientWidth - 40, 600),
@@ -150,10 +157,12 @@ function SketchingTab({ windowId, collab, designs, selectedDesignId, onSelectDes
       canvas.on('path:created', () => syncToYjs());
       canvas.on('object:modified', () => syncToYjs());
 
-      setFabricCanvas(canvas);
+      fabricRef.current = canvas;
+      setFabricReady(true);
 
       // Load a template mannequin outline
       fabric.Image.fromURL('https://cdn-icons-png.flaticon.com/512/77/77305.png', (img: any) => {
+         if (disposed || !canvas) return;
          img.set({ left: canvas.width / 2 - 100, top: 50, scaleX: 0.5, scaleY: 0.5, opacity: 0.1, selectable: false });
          canvas.add(img);
          canvas.sendToBack(img);
@@ -163,41 +172,53 @@ function SketchingTab({ windowId, collab, designs, selectedDesignId, onSelectDes
     });
 
     return () => {
-      if (canvas) canvas.dispose();
+      disposed = true;
+      if (canvas) {
+        canvas.dispose();
+        canvas = null;
+      }
+      if (fabricRef.current) {
+        fabricRef.current.dispose();
+        fabricRef.current = null;
+      }
     };
   }, [syncToYjs]);
 
   // Load remote canvas state from Y.Map when synced
   useEffect(() => {
-    if (!collab.synced || !fabricCanvas) return;
+    if (!collab.synced || !fabricReady) return;
+    const canvas = fabricRef.current;
+    if (!canvas) return;
     const sketchMap = collab.sharedTypesRef.current.sketch;
     if (!sketchMap) return;
 
     const remoteState = sketchMap.get('state') as string | undefined;
     if (remoteState) {
       isSyncingRef.current = true;
-      fabricCanvas.loadFromJSON(remoteState, () => {
-        fabricCanvas.renderAll();
-        previousStateRef.current = JSON.stringify(fabricCanvas.toJSON());
+      canvas.loadFromJSON(remoteState, () => {
+        canvas.renderAll();
+        previousStateRef.current = JSON.stringify(canvas.toJSON());
         isSyncingRef.current = false;
       });
     }
-  }, [collab.synced, fabricCanvas]);
+  }, [collab.synced, fabricReady, collab.sharedTypesRef]);
 
   // Observe Y.Map for remote canvas updates
   useEffect(() => {
-    if (!collab.synced) return;
+    if (!collab.synced || !fabricReady) return;
+    const canvas = fabricRef.current;
+    if (!canvas) return;
     const sketchMap = collab.sharedTypesRef.current.sketch;
-    if (!sketchMap || !fabricCanvas) return;
+    if (!sketchMap) return;
 
     const observer = () => {
       if (isSyncingRef.current) return;
       const remoteState = sketchMap.get('state') as string | undefined;
       if (remoteState) {
         isSyncingRef.current = true;
-        fabricCanvas.loadFromJSON(remoteState, () => {
-          fabricCanvas.renderAll();
-          previousStateRef.current = JSON.stringify(fabricCanvas.toJSON());
+        canvas.loadFromJSON(remoteState, () => {
+          canvas.renderAll();
+          previousStateRef.current = JSON.stringify(canvas.toJSON());
           isSyncingRef.current = false;
         });
       }
@@ -205,16 +226,17 @@ function SketchingTab({ windowId, collab, designs, selectedDesignId, onSelectDes
 
     sketchMap.observe(observer);
     return () => sketchMap.unobserve(observer);
-  }, [collab.synced, fabricCanvas]);
+  }, [collab.synced, fabricReady, collab.sharedTypesRef]);
 
   useEffect(() => {
-     if (!fabricCanvas) return;
+     const canvas = fabricRef.current;
+     if (!canvas) return;
      if (tool === 'draw') {
-        fabricCanvas.isDrawingMode = true;
+        canvas.isDrawingMode = true;
      } else {
-        fabricCanvas.isDrawingMode = false;
+        canvas.isDrawingMode = false;
      }
-  }, [tool, fabricCanvas]);
+  }, [tool, fabricReady]);
 
   return (
     <div
@@ -244,27 +266,30 @@ function SketchingTab({ windowId, collab, designs, selectedDesignId, onSelectDes
          {tool === 'draw' && (
            <div className="flex flex-col gap-2">
              <label className="text-xs font-bold text-gray-500 uppercase">Brush Size</label>
-             <input type="range" min="1" max="20" defaultValue="3" onChange={e => {
-                if(fabricCanvas) fabricCanvas.freeDrawingBrush.width = parseInt(e.target.value);
-             }} className="w-full" />
+              <input type="range" min="1" max="20" defaultValue="3" onChange={e => {
+                 const canvas = fabricRef.current;
+                 if (canvas) canvas.freeDrawingBrush.width = parseInt(e.target.value);
+              }} className="w-full" />
              <label className="text-xs font-bold text-gray-500 uppercase mt-2">Color</label>
              <div className="flex gap-2">
                 {['#000000', '#EF4444', '#3B82F6', '#10B981', '#F59E0B'].map(c => (
                   <button key={c} className="w-6 h-6 rounded-full border border-gray-300" style={{backgroundColor: c}} onClick={() => {
-                     if(fabricCanvas) fabricCanvas.freeDrawingBrush.color = c;
+                     const canvas = fabricRef.current;
+                     if (canvas) canvas.freeDrawingBrush.color = c;
                   }} />
                 ))}
              </div>
            </div>
          )}
           <div className="mt-auto">
-             <button onClick={() => {
-               const sketchData = fabricCanvas ? JSON.stringify(fabricCanvas.toJSON()) : '';
-                const id = onCreateDesign(newDesignName || 'Untitled Design', newDesignCategory);
-                onUpdateDesign(id, { sketchData });
-               onSelectDesign(id);
-               setNewDesignName('');
-             }} className="w-full py-2 bg-black text-white rounded-lg text-sm font-bold shadow-sm">Save Sketch</button>
+              <button onClick={() => {
+                 const canvas = fabricRef.current;
+                 const sketchData = canvas ? JSON.stringify(canvas.toJSON()) : '';
+                 const id = onCreateDesign(newDesignName || 'Untitled Design', newDesignCategory);
+                 onUpdateDesign(id, { sketchData });
+                 onSelectDesign(id);
+                 setNewDesignName('');
+              }} className="w-full py-2 bg-black text-white rounded-lg text-sm font-bold shadow-sm">Save Sketch</button>
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold text-gray-500 uppercase">Design Name</label>
@@ -283,8 +308,8 @@ function SketchingTab({ windowId, collab, designs, selectedDesignId, onSelectDes
                   onSelectDesign(d.id);
                   setNewDesignName(d.name);
                   setNewDesignCategory(d.category);
-                  if (d.sketchData && fabricCanvas) {
-                    fabricCanvas.loadFromJSON(d.sketchData, () => fabricCanvas.renderAll());
+                  if (d.sketchData && fabricRef.current) {
+                    fabricRef.current.loadFromJSON(d.sketchData, () => fabricRef.current.renderAll());
                   }
                 }} className={cn("text-left px-2 py-1.5 rounded text-xs border transition-colors", selectedDesignId === d.id ? "bg-black text-white border-black" : "border-transparent hover:bg-gray-100")}>
                   <div className="font-bold truncate">{d.name}</div>

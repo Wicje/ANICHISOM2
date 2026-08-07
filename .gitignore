@@ -9,6 +9,7 @@ out/
 # Build artifacts
 tsconfig.tsbuildinfo
 coverage/
+dist/
 
 # Rust
 rust/target/

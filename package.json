@@ -13,6 +13,9 @@
     "clean": "next clean",
     "tauri": "tauri",
     "build:tauri": "TAURI_BUILD=true NODE_OPTIONS=--max-old-space-size=4096 next build",
+    "extension:build": "node scripts/build-extension.mjs",
+    "extension:zip": "node scripts/build-extension.mjs --zip",
+    "extension:crx": "node scripts/build-extension.mjs --crx",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -102,7 +105,7 @@
     "@types/react-dom": "^19",
     "@types/react-window": "^1.8.8",
     "@types/ws": "^8.18.1",
-    "@vitejs/plugin-react": "^6.0.3",
+    "@vitejs/plugin-react": "^4.7.0",
     "eslint": "9.39.1",
     "eslint-config-next": "16.0.8",
     "jsdom": "^29.1.1",

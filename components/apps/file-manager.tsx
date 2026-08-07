@@ -230,6 +230,29 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
     lastClickedIdRef.current = null;
   };
 
+  // Mirror the local listing + selection into the global file store so shared
+  // overlays (Quick Look, etc.) can preview the currently selected file.
+  useEffect(() => {
+    useFileStore.setState({
+      files: files.map(f => ({
+        id: f.id,
+        name: f.name,
+        path: f.id,
+        source: 'opfs',
+        mimeType: f.mimeType || 'application/octet-stream',
+        size: f.size || 0,
+        isFolder: !!f.isFolder,
+        lastModified: f.modified ? new Date(f.modified).toISOString() : undefined,
+      })),
+      currentPath,
+      currentSource: 'opfs',
+    });
+  }, [files, currentPath]);
+
+  useEffect(() => {
+    useFileStore.setState({ selectedFiles: new Set(selectedFileIds) });
+  }, [selectedFileIds]);
+
   // Get the directory path for a given folder file
   const getFolderPath = (folder: LocalFile) => {
     return currentPath === 'Root' ? folder.name : `${currentPath}/${folder.name}`;

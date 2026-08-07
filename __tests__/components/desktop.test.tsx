@@ -55,6 +55,10 @@ vi.mock('@/components/desktop/snapshots-menu', () => ({
   SnapshotsMenu: () => <div data-testid="snapshots-menu" />,
 }));
 
+vi.mock('@/components/desktop/time-machine', () => ({
+  TimeMachine: () => <div data-testid="time-machine" />,
+}));
+
 vi.mock('@/components/apps/onboarding-wizard', () => ({
   __esModule: true,
   default: () => <div data-testid="onboarding-wizard" />,
@@ -104,6 +108,7 @@ vi.mock('@/lib/services/audio-engine', () => ({
     playWindowClose: vi.fn(),
     playStartup: vi.fn(),
     playError: vi.fn(),
+    getSoundProfile: vi.fn(() => 'mechanical'),
   },
 }));
 
@@ -117,11 +122,6 @@ vi.mock('motion/react', () => ({
 vi.mock('@/components/notifications/notification-center', () => ({
   NotificationCenter: () => <div data-testid="notification-center" />,
 }));
-
-vi.mock('lucide-react', () => {
-  const icon = (p: any) => <svg {...p} />;
-  return new Proxy({}, { get: () => icon });
-});
 
 vi.mock('socket.io-client', () => ({
   io: vi.fn(() => ({
@@ -277,6 +277,8 @@ vi.mock('@/lib/plugin-registry', () => ({
   registerBuiltinPlugins: vi.fn(),
   persistInstallStates: vi.fn(),
   isPluginActive: vi.fn(() => false),
+  getInstalledPlugins: vi.fn(() => []),
+  getInstallState: vi.fn(() => false),
 }));
 
 vi.mock('@/lib/app-manifest', () => ({

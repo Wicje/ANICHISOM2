@@ -45,18 +45,31 @@ vi.mock('motion/react', () => ({
   useReducedMotion: vi.fn(() => false),
 }));
 
-vi.mock('lucide-react', () => ({
-  X: (p: any) => <svg data-testid="icon-x" {...p} />,
-  Minus: (p: any) => <svg data-testid="icon-minus" {...p} />,
-  Maximize2: (p: any) => <svg data-testid="icon-maximize" {...p} />,
-  Square: (p: any) => <svg data-testid="icon-square" {...p} />,
-  Lock: (p: any) => <svg data-testid="icon-lock" {...p} />,
-}));
+vi.mock('lucide-react', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return {
+    ...actual,
+    X: (p: any) => <svg data-testid="icon-x" {...p} />,
+    Minus: (p: any) => <svg data-testid="icon-minus" {...p} />,
+    Maximize2: (p: any) => <svg data-testid="icon-maximize" {...p} />,
+    Square: (p: any) => <svg data-testid="icon-square" {...p} />,
+    Lock: (p: any) => <svg data-testid="icon-lock" {...p} />,
+  };
+});
 
 vi.mock('@/lib/file-lock-manager', () => ({
   getFileLockManager: vi.fn(() => ({
     isLocked: vi.fn(() => ({ locked: false, userId: null })),
   })),
+}));
+
+vi.mock('@/lib/services/audio-engine', () => ({
+  audioSystem: {
+    init: vi.fn(),
+    playClick: vi.fn(),
+    playSwoosh: vi.fn(),
+    playWindowClose: vi.fn(),
+  },
 }));
 
 import { WindowFrame } from '@/components/window-frame';
