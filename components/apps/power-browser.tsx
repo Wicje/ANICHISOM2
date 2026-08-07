@@ -9,11 +9,16 @@ import {
   ArrowLeft, ArrowRight, RotateCw, Home, Lock, ExternalLink, Search,
   Maximize2, Minimize2, Download, Plus, X, Star, Bookmark, Trash2,
   Pin, PinOff, PanelLeftClose, PanelLeftOpen, Columns, GripVertical, Scissors,
-  Globe, AlertTriangle, Zap, ShieldAlert, Check
+  Globe, AlertTriangle, Zap, ShieldAlert, Check, FolderDown, FolderOpen, Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BrowserClipService } from '@/lib/services/browser-clip.service';
 import { isTauri } from '@/lib/platform';
+import { useDownloadsStore, DownloadItem } from '@/lib/stores/downloads.store';
+import {
+  startDownload, saveBlobDownload, cancelDownload, retryDownload,
+  looksLikeDownloadUrl,
+} from '@/lib/services/download-manager.service';
 
 // Sites known to block iframe embedding aggressively
 const KNOWN_BLOCKED_HOSTS = new Set([
@@ -76,6 +81,11 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   const [showExtensionModal, setShowExtensionModal] = useState(false);
   const [initWait, setInitWait] = useState(true);
   const iframeRefs = useRef<Map<string, HTMLIFrameElement>>(new Map());
+  const proxyIntercepts = useRef<Map<string, { doc: Document; handler: (e: MouseEvent) => void }>>(new Map());
+
+  const downloads = useDownloadsStore((s) => s.downloads);
+  const [showDownloads, setShowDownloads] = useState(false);
+  const activeDownloadCount = downloads.filter(d => d.status === 'downloading' || d.status === 'queued').length;
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
 
@@ -117,6 +127,81 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
       clearInterval(pollInterval);
     };
   }, []);
+
+  // Hydrate persisted downloads on mount.
+  useEffect(() => {
+    void useDownloadsStore.getState().loadPersisted();
+  }, []);
+
+  // Receive downloads captured by the extension content script inside
+  // cross-origin frames (blocked sites rendered natively).
+  useEffect(() => {
+    const intercepts = proxyIntercepts.current;
+    const handleMessage = (event: MessageEvent) => {
+      if (event.source === window) return;
+      const data = event.data as Record<string, unknown> | null;
+      if (!data || data.source !== 'continua-extension' || data.type !== 'continua-download') return;
+
+      if (data.blob instanceof ArrayBuffer) {
+        void saveBlobDownload({
+          blob: new Blob([data.blob], { type: typeof data.blobType === 'string' ? data.blobType : '' }),
+          filename: typeof data.filename === 'string' ? data.filename : 'download',
+          mimeType: typeof data.blobType === 'string' ? data.blobType : undefined,
+          url: typeof data.url === 'string' ? data.url : undefined,
+        });
+      } else if (typeof data.url === 'string') {
+        void startDownload(data.url, {
+          filename: typeof data.filename === 'string' ? data.filename : undefined,
+          mimeType: typeof data.mimeType === 'string' ? data.mimeType : undefined,
+        });
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      for (const { doc, handler } of intercepts.values()) {
+        doc.removeEventListener('click', handler, true);
+      }
+      intercepts.clear();
+    };
+  }, []);
+
+  // Attach a click interceptor to same-origin (proxy) iframes so file links
+  // are captured into the OS instead of loading raw bytes in the frame.
+  const attachProxyClickIntercept = (iframeEl: HTMLIFrameElement, tabId: string) => {
+    const prev = proxyIntercepts.current.get(tabId);
+    if (prev) {
+      prev.doc.removeEventListener('click', prev.handler, true);
+      proxyIntercepts.current.delete(tabId);
+    }
+    let doc: Document | null = null;
+    try {
+      doc = iframeEl.contentDocument;
+    } catch {
+      return;
+    }
+    if (!doc) return;
+    const handler = (e: MouseEvent) => {
+      const anchor = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!anchor) return;
+      const href = anchor.href || '';
+      const proxyMatch = href.match(/[?&]url=([^&]+)/);
+      if (!proxyMatch) return;
+      let targetUrl = '';
+      try {
+        targetUrl = decodeURIComponent(proxyMatch[1]!);
+      } catch {
+        return;
+      }
+      if (!targetUrl || !(anchor.hasAttribute('download') || looksLikeDownloadUrl(targetUrl))) return;
+      e.preventDefault();
+      e.stopPropagation();
+      void startDownload(targetUrl, { filename: anchor.getAttribute('download') || undefined });
+    };
+    doc.addEventListener('click', handler, true);
+    proxyIntercepts.current.set(tabId, { doc, handler });
+  };
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -246,6 +331,8 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
     setLoading(false);
     const iframe = iframeRefs.current.get(tabId);
     if (!iframe) return;
+
+    attachProxyClickIntercept(iframe, tabId);
 
     try {
       const doc = iframe.contentDocument || iframe.contentWindow?.document;
@@ -576,6 +663,20 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                     >
                       <Scissors className="w-4 h-4" />
                     </button>
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowDownloads(v => !v)}
+                        className={cn("relative hover:text-black hover:bg-black/5 rounded p-1.5 transition-colors", showDownloads && "text-blue-500")}
+                        title="Downloads — files you save stay inside ContinuaOS"
+                      >
+                        <FolderDown className="w-4 h-4" />
+                        {activeDownloadCount > 0 && (
+                          <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-0.5 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center">
+                            {activeDownloadCount}
+                          </span>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               {loading && (
@@ -755,6 +856,138 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
         onClose={() => setShowExtensionModal(false)}
         extensionInstalled={extensionInstalled}
       />
+
+      {showDownloads && (
+        <DownloadsPanel
+          downloads={downloads}
+          onClose={() => setShowDownloads(false)}
+          onOpenFolder={() => {
+            setShowDownloads(false);
+            openWindow('files', 'Downloads', { initialPath: 'Downloads' });
+          }}
+          onCancel={cancelDownload}
+          onRetry={retryDownload}
+          onRemove={(id) => useDownloadsStore.getState().removeDownload(id)}
+        />
+      )}
+    </div>
+  );
+}
+
+function formatBytes(bytes: number): string {
+  if (!bytes) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let v = bytes;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v >= 100 || i === 0 ? Math.round(v) : v.toFixed(1)} ${units[i]}`;
+}
+
+function DownloadsPanel({
+  downloads,
+  onClose,
+  onOpenFolder,
+  onCancel,
+  onRetry,
+  onRemove,
+}: {
+  downloads: DownloadItem[];
+  onClose: () => void;
+  onOpenFolder: () => void;
+  onCancel: (id: string) => void;
+  onRetry: (id: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <div className="absolute right-3 top-14 z-[120] w-80 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-100 bg-slate-50">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <FolderDown className="w-4 h-4 text-slate-400" />
+          Downloads
+          {downloads.length > 0 && <span className="text-xs font-medium text-slate-400">{downloads.length}</span>}
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={onOpenFolder} title="Open Downloads folder" className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 transition-colors">
+            <FolderOpen className="w-4 h-4" />
+          </button>
+          <button onClick={onClose} title="Close" className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="max-h-80 overflow-y-auto">
+        {downloads.length === 0 ? (
+          <div className="px-4 py-8 text-center text-xs text-slate-400">
+            Nothing downloaded yet.
+            <br />
+            Files you download from the browser stay inside your OS.
+          </div>
+        ) : (
+          <ul className="divide-y divide-slate-50">
+            {downloads.map((d) => (
+              <li key={d.id} className="px-3.5 py-2.5 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                  {d.status === 'downloading' || d.status === 'queued' ? (
+                    <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                  ) : d.status === 'error' ? (
+                    <AlertTriangle className="w-4 h-4 text-red-500" />
+                  ) : (
+                    <Check className="w-4 h-4 text-emerald-500" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-slate-700 truncate" title={d.filename}>
+                    {d.filename}
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {d.status === 'downloading' ? (
+                      d.totalBytes > 0 ? `Downloading… ${Math.round(d.progress)}%` : `Downloading… ${formatBytes(d.receivedBytes)}`
+                    ) : d.status === 'queued' ? (
+                      'Queued…'
+                    ) : d.status === 'error' ? (
+                      <span className="text-red-400">{d.error || 'Failed'}</span>
+                    ) : (
+                      formatBytes(d.receivedBytes)
+                    )}
+                  </div>
+                  {d.status === 'downloading' && d.totalBytes > 0 && (
+                    <div className="mt-1 h-1 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500 rounded-full transition-all"
+                        style={{ width: `${d.progress}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {d.status === 'done' && (
+                    <button onClick={onOpenFolder} title="Open folder" className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
+                      <FolderOpen className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  {(d.status === 'downloading' || d.status === 'queued') && (
+                    <button onClick={() => onCancel(d.id)} title="Cancel" className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  {d.status === 'error' && (
+                    <button onClick={() => onRetry(d.id)} title="Retry" className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
+                      <RotateCw className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button onClick={() => onRemove(d.id)} title="Remove from list" className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

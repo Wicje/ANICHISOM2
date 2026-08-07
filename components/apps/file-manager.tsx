@@ -126,7 +126,7 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
 
   // Local files state
   const [files, setFiles] = useState<LocalFile[]>([]);
-  const [currentPath, setCurrentPath] = useState<string>('Desktop');
+  const [currentPath, setCurrentPath] = useState<string>(osWindow?.data?.initialPath || 'Desktop');
   const [search, setSearch] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
   const objectUrlsRef = useRef<Set<string>>(new Set());

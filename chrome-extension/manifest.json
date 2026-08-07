@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Continua Context Bridge",
-  "version": "0.1.0",
-  "description": "Captures browser context and syncs it to your Continua workspace.",
+  "version": "0.2.0",
+  "description": "Captures browser context and syncs it to your Continua workspace. Strips X-Frame-Options so sites embed inside ContinuaOS, and routes downloads back into the OS.",
   "permissions": ["activeTab", "tabs", "scripting", "storage", "declarativeNetRequest"],
   "host_permissions": ["<all_urls>"],
   "declarative_net_request": {

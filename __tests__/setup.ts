@@ -28,7 +28,19 @@ vi.mock('idb-keyval', () => ({
   set: vi.fn((key: string, value: unknown) => { idbStore.set(key, value); return Promise.resolve(); }),
   del: vi.fn((key: string) => { idbStore.delete(key); return Promise.resolve(); }),
   clear: vi.fn(() => { idbStore.clear(); return Promise.resolve(); }),
+  keys: vi.fn(() => Promise.resolve([...idbStore.keys()])),
 }));
+
+// jsdom doesn't implement blob: object URLs — stub them for FS reads.
+if (typeof URL.createObjectURL !== 'function') {
+  const urls = new Map<string, Blob>();
+  URL.createObjectURL = vi.fn((blob: Blob) => {
+    const url = `blob:mock-${Math.random().toString(36).slice(2)}`;
+    urls.set(url, blob);
+    return url;
+  });
+  URL.revokeObjectURL = vi.fn((url: string) => { urls.delete(url); });
+}
 
 // Mock sync-queue
 vi.mock('@/lib/sync-queue', () => ({
