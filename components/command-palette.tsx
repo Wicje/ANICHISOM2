@@ -15,6 +15,7 @@ import { useScreenshotStore } from '@/lib/stores/screenshot.store';
 import { useClipboardUIStore } from '@/lib/stores/clipboard.store';
 import { useMemoryStore } from '@/lib/stores/memory.store';
 import { useAIStore } from '@/lib/stores/ai.store';
+import { slashSkills } from '@/lib/skills/slash-skills';
 import { cn } from '@/lib/utils';
 
 export function CommandPalette() {
@@ -167,6 +168,28 @@ export function CommandPalette() {
       type: 'System',
       icon: Clipboard,
       action: () => useClipboardUIStore.getState().toggle(),
+    });
+
+    // Athena Slash Skills Substrate
+    slashSkills.list().forEach((skill) => {
+      cmds.push({
+        id: `skill-${skill.name}`,
+        name: `/${skill.name} — ${skill.description}`,
+        type: 'Skill',
+        icon: Sparkles,
+        action: async () => {
+          setIsAiLoading(true);
+          setAiResponse(null);
+          try {
+            const out = await slashSkills.execute(`/${skill.name}`);
+            setAiResponse(out);
+          } catch (e: any) {
+            setAiResponse(`Skill execution error: ${e.message}`);
+          } finally {
+            setIsAiLoading(false);
+          }
+        },
+      });
     });
 
     // Applications

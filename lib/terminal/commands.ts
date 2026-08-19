@@ -1,5 +1,6 @@
 import { VirtualFS, VFSEntry } from './virtual-fs';
 import { wasmTerminalEngine } from '@/lib/wasm-terminal';
+import { slashSkills } from '@/lib/skills/slash-skills';
 
 export type CommandResult = {
   output?: string;
@@ -34,18 +35,22 @@ const commands: Record<string, (args: string[], flags: Record<string, string | b
       '  stat <file>          Show file details',
       '  echo <text>          Print text (supports > file redirect)',
       '',
-      'SYSTEM:',
+      'SYSTEM & APPS:',
       '  clear                Clear terminal screen',
       '  history              Show command history',
       '  whoami               Show current user',
-      '  date                 Show current date/time',
-      '  theme [light|heavy]  Switch performance mode',
-      '',
-      'APPS:',
       '  open <app>           Launch an app (terminal, files, browser, code, ...)',
       '',
+      'SLASH SKILLS (Athena Agent Substrate):',
+      '  /tidy [dir]          Trigger Smart AI File Organizer',
+      '  /mount-git <repo>    Mount Virtual GitHub Drive',
+      '  /convert-md <file>   Convert file to clean AI Markdown',
+      '  /summarize <file>    Generate concise AI executive summary',
+      '  /memory              Inspect Continuous Episodic Memory',
+      '  /help                List all slash skills',
+      '',
       'AI:',
-      '  ai <prompt>          Query the AI assistant',
+      '  ai <prompt>          Query the AI assistant with episodic memory',
     ].join('\n'),
   }),
 
@@ -306,6 +311,16 @@ export function parseInput(input: string): { cmd: string; args: string[]; flags:
 }
 
 export async function execute(input: string, ctx: CommandContext): Promise<CommandResult> {
+  const trimmed = input.trim();
+  if (trimmed.startsWith('/')) {
+    try {
+      const output = await slashSkills.execute(trimmed, { vfs: ctx.vfs, openWindow: ctx.openWindow });
+      return { output };
+    } catch (e: any) {
+      return { error: e.message || 'Slash skill execution failed.' };
+    }
+  }
+
   const { cmd, args, flags } = parseInput(input);
   if (!cmd) return { output: '' };
 

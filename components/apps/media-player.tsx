@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
-import { Play, Pause, SkipForward, SkipBack, Volume2, Maximize, Film, Music, ListVideo, X, LayoutGrid, Disc, Mic2, Radio } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Volume2, Maximize, Film, Music, ListVideo, X, LayoutGrid, Disc, Mic2, Radio, Wifi } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FS, LocalFile } from '@/lib/fs';
 import { useCollaborativeDoc, CollaborativeDocState } from '@/lib/hooks/useCollaborativeDoc';
+import { audioCast } from '@/lib/p2p/audio-stream';
 
 type ViewMode = 'player' | 'coverflow';
 
@@ -59,6 +60,7 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const [showLyrics, setShowLyrics] = useState(false);
   const [activeLyricIndex, setActiveLyricIndex] = useState<number>(-1);
+  const [isCasting, setIsCasting] = useState(false);
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
   const visualizerCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -419,6 +421,29 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
             <span className="text-xs text-white/50 uppercase tracking-wider">{isAudio ? 'Audio Player' : 'CinePlay Video'}</span>
           </div>
           <div className="flex items-center gap-2">
+            <button 
+              onClick={(e) => {
+                e.preventDefault();
+                if (mediaRef.current) {
+                  const active = audioCast.toggleBroadcast(mediaRef.current);
+                  setIsCasting(active);
+                  window.dispatchEvent(new CustomEvent('os:notify', {
+                    detail: {
+                      title: active ? 'Wi-Fi Audio Casting Active' : 'Audio Cast Stopped',
+                      description: active ? 'Broadcasting local playback to discovered peer devices.' : 'Stopped network audio stream.',
+                      type: active ? 'success' : 'info'
+                    }
+                  }));
+                }
+              }}
+              className={cn(
+                "p-2 rounded-full backdrop-blur-md pointer-events-auto transition-all",
+                isCasting ? "bg-[#10F4A0] text-black shadow-[0_0_15px_rgba(16,244,160,0.6)] animate-pulse" : "bg-white/10 hover:bg-white/20 text-white/80"
+              )}
+              title="Cast Audio over Local Wi-Fi (WiFiAudioStreaming Pattern)"
+            >
+              <Radio className="w-4 h-4" />
+            </button>
             <button 
               onClick={(e) => { e.preventDefault(); setShowLyrics(!showLyrics); }}
               className={cn(

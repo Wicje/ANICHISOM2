@@ -14,6 +14,7 @@ import { useFileStore } from '@/lib/stores/file.store';
 import { useWindowStore } from '@/lib/stores/window.store';
 import { hardwareManager } from '@/lib/hardware';
 import { getAiProvider } from '@/lib/ai-providers/ai-provider-factory';
+import { DocParser } from '@/lib/doc-parser';
 import { OpenWithModal } from '@/components/overlays/open-with-modal';
 import { SyncPromptBanner } from './sync-prompt-banner';
 import { OSPrompt, OSConfirm, OSModal } from '@/components/ui/os-modal';
@@ -1742,12 +1743,53 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
             <Copy className="w-3.5 h-3.5" /> Copy
           </button>
           {!contextMenu.file.isFolder && (
-            <button
-              onClick={() => downloadFile(contextMenu.file, { stopPropagation: () => {} } as any)}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
-            >
-              <Download className="w-3.5 h-3.5" /> Download
-            </button>
+            <>
+              <button
+                onClick={async () => {
+                  const targetId = contextMenu.file.id;
+                  setContextMenu(null);
+                  try {
+                    const dest = await DocParser.convertAndSave(targetId);
+                    fetchFiles();
+                    window.dispatchEvent(new CustomEvent('os:notify', {
+                      detail: { title: 'Converted to AI Markdown', description: `Saved to ${dest}`, type: 'success' },
+                    }));
+                  } catch (e: any) {
+                    window.dispatchEvent(new CustomEvent('os:notify', {
+                      detail: { title: 'Conversion Failed', description: e.message, type: 'error' },
+                    }));
+                  }
+                }}
+                className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-emerald-400 font-medium"
+              >
+                <FileText className="w-3.5 h-3.5" /> Convert to AI Markdown
+              </button>
+              <button
+                onClick={async () => {
+                  const targetId = contextMenu.file.id;
+                  setContextMenu(null);
+                  try {
+                    await DocParser.ingestToMemory(targetId);
+                    window.dispatchEvent(new CustomEvent('os:notify', {
+                      detail: { title: 'Ingested to AI Memory', description: `File ${contextMenu.file.name} is now available in continuous memory.`, type: 'success' },
+                    }));
+                  } catch (e: any) {
+                    window.dispatchEvent(new CustomEvent('os:notify', {
+                      detail: { title: 'Ingestion Failed', description: e.message, type: 'error' },
+                    }));
+                  }
+                }}
+                className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-cyan-400 font-medium"
+              >
+                <Sparkles className="w-3.5 h-3.5" /> Ingest to AI Memory
+              </button>
+              <button
+                onClick={() => downloadFile(contextMenu.file, { stopPropagation: () => {} } as any)}
+                className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
+              >
+                <Download className="w-3.5 h-3.5" /> Download
+              </button>
+            </>
           )}
           <button
             onClick={() => deleteFile(contextMenu.file.id, { stopPropagation: () => {} } as any)}

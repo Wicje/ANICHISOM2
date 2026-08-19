@@ -127,17 +127,53 @@ export async function listAllModels(): Promise<AiModelInfo[]> {
   return models;
 }
 
+import { episodicMemory } from '@/lib/ai-memory/episodic-memory';
+
+/**
+ * Enriches prompt options with episodic nucleus memory and applies MinMax token pruning
+ */
+async function enrichOptionsWithEpisodicMemory(options: AiChatOptions): Promise<AiChatOptions> {
+  const lastUserMsg = [...options.messages].reverse().find(m => m.role === 'user');
+  if (!lastUserMsg || !lastUserMsg.content) return options;
+
+  try {
+    const nucleusContext = await episodicMemory.retrieveNucleusContext(lastUserMsg.content);
+    if (!nucleusContext) return options;
+
+    const baseSystem = options.systemPrompt || '';
+    const enrichedSystem = episodicMemory.optimizeTokens(
+      baseSystem ? `${baseSystem}\n\n${nucleusContext}` : nucleusContext,
+      1500
+    );
+
+    return {
+      ...options,
+      systemPrompt: enrichedSystem,
+    };
+  } catch {
+    return options;
+  }
+}
+
 /**
  * Chat with fallback chain — try providers in order until one succeeds
  */
 export async function chatWithFallback(options: AiChatOptions): Promise<AiChatResponse> {
+  const enriched = await enrichOptionsWithEpisodicMemory(options);
   const chain = getFallbackChain();
 
   for (const providerId of chain) {
     try {
       const provider = getAiProvider(providerId);
       if (await provider.isAvailable()) {
-        return await provider.chat(options);
+        const response = await provider.chat(enriched);
+        // Record turn into continuous episodic memory
+        const userPrompt = options.messages[options.messages.length - 1]?.content;
+        if (userPrompt) {
+          episodicMemory.recordTurn('user', userPrompt).catch(() => {});
+          episodicMemory.recordTurn('assistant', response.text).catch(() => {});
+        }
+        return response;
       }
     } catch (error: unknown) {
       console.warn(`[AI] Provider ${providerId} failed:`, error);
@@ -159,13 +195,24 @@ export async function chatStreamWithFallback(
   options: AiChatOptions,
   onChunk: (chunk: AiStreamChunk) => void,
 ): Promise<void> {
+  const enriched = await enrichOptionsWithEpisodicMemory(options);
   const chain = getFallbackChain();
 
   for (const providerId of chain) {
     try {
       const provider = getAiProvider(providerId);
       if (await provider.isAvailable()) {
-        return await provider.chatStream(options, onChunk);
+        let fullText = '';
+        await provider.chatStream(enriched, (chunk) => {
+          fullText += chunk.text;
+          onChunk(chunk);
+        });
+        const userPrompt = options.messages[options.messages.length - 1]?.content;
+        if (userPrompt && fullText) {
+          episodicMemory.recordTurn('user', userPrompt).catch(() => {});
+          episodicMemory.recordTurn('assistant', fullText).catch(() => {});
+        }
+        return;
       }
     } catch (error: unknown) {
       console.warn(`[AI] Stream provider ${providerId} failed:`, error);
