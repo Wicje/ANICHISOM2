@@ -1,4 +1,9 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { VirtualFS, execute } from '@/lib/terminal/commands';
+import { useAuthStore } from '@/lib/stores/auth.store';
+import { useWindowStore } from '@/lib/stores/window.store';
+import { useThemeStore } from '@/lib/stores/theme.store';
+import { useFocusStore } from '@/lib/stores/focus.store';
 
 interface TerminalProps {
   terminalOpen: boolean;
@@ -15,44 +20,57 @@ interface TerminalLine {
 export function TerminalPanel({ terminalOpen, setTerminalOpen, projectId }: TerminalProps) {
   const [lines, setLines] = useState<TerminalLine[]>([
     { id: 0, type: 'output', text: 'ContinuaOS WebContainer Node.js Engine (v18.17.0)' },
-    { id: 1, type: 'output', text: 'Welcome to the integrated terminal.' },
+    { id: 1, type: 'output', text: 'Connected to VirtualFS POSIX kernel. Type "help" or "/" for skills.' },
   ]);
   const [inputValue, setInputValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const lineCounter = useRef(2);
+  const vfsRef = useRef(new VirtualFS());
 
-  const handleCommand = useCallback((cmd: string) => {
+  const handleCommand = useCallback(async (cmd: string) => {
     const trimmed = cmd.trim();
     if (!trimmed) return;
 
-    const newLine: TerminalLine = { id: lineCounter.current++, type: 'input', text: cmd };
-    const outputLines: TerminalLine[] = [];
-
-    // Simple built-in commands
-    if (trimmed === 'help') {
-      outputLines.push({ id: lineCounter.current++, type: 'output', text: 'Available commands: help, clear, echo, date, whoami, ls, pwd, uname' });
-    } else if (trimmed === 'clear') {
+    if (trimmed === 'clear') {
       setLines([]);
       setInputValue('');
       return;
-    } else if (trimmed.startsWith('echo ')) {
-      outputLines.push({ id: lineCounter.current++, type: 'output', text: trimmed.slice(5) });
-    } else if (trimmed === 'date') {
-      outputLines.push({ id: lineCounter.current++, type: 'output', text: new Date().toString() });
-    } else if (trimmed === 'whoami') {
-      outputLines.push({ id: lineCounter.current++, type: 'output', text: 'user@continuaos' });
-    } else if (trimmed === 'ls') {
-      outputLines.push({ id: lineCounter.current++, type: 'output', text: 'package.json  src/  public/  README.md  node_modules/' });
-    } else if (trimmed === 'pwd') {
-      outputLines.push({ id: lineCounter.current++, type: 'output', text: `/home/user/projects/${projectId}` });
-    } else if (trimmed === 'uname') {
-      outputLines.push({ id: lineCounter.current++, type: 'output', text: 'ContinuaOS WebContainer v1.0.0' });
-    } else {
-      outputLines.push({ id: lineCounter.current++, type: 'error', text: `command not found: ${trimmed.split(' ')[0]}` });
     }
 
-    setLines(prev => [...prev, newLine, ...outputLines]);
+    const newLine: TerminalLine = { id: lineCounter.current++, type: 'input', text: cmd };
+    setLines(prev => [...prev, newLine]);
     setInputValue('');
+
+    try {
+      const ctx = {
+        openWindow: (appId: string, title?: string, data?: any) => useWindowStore.getState().openWindow(appId, title, data),
+        vfs: vfsRef.current,
+        performanceMode: 'heavy',
+        setPerformanceMode: () => {},
+        currentUser: useAuthStore.getState().currentUser,
+      };
+
+      const res = await execute(trimmed, ctx);
+      if (res.error) {
+        setLines(prev => [...prev, {
+          id: lineCounter.current++,
+          type: 'error',
+          text: res.error || 'Execution error'
+        }]);
+      } else if (res.output) {
+        setLines(prev => [...prev, {
+          id: lineCounter.current++,
+          type: 'output',
+          text: res.output || ''
+        }]);
+      }
+    } catch (err: any) {
+      setLines(prev => [...prev, {
+        id: lineCounter.current++,
+        type: 'error',
+        text: err.message || 'Execution failed'
+      }]);
+    }
   }, [projectId]);
 
   if (!terminalOpen) return null;

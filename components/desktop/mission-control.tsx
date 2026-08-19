@@ -18,8 +18,23 @@ export function MissionControl({ onClose }: MissionControlProps) {
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
   const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace);
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="absolute inset-0 z-[240] bg-black/40 backdrop-blur-xl pointer-events-auto flex flex-col animate-in fade-in duration-200">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="absolute inset-0 z-[240] bg-black/40 backdrop-blur-xl pointer-events-auto flex flex-col animate-in fade-in duration-200"
+    >
       <div className="h-48 bg-black/40 border-b border-white/10 flex items-center justify-center gap-10 px-8 py-6">
         {[0, 1, 2].map(wsIndex => (
           <button

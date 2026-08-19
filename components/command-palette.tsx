@@ -254,6 +254,28 @@ export function CommandPalette() {
     }
 
     if (query.trim()) {
+      if (query.trim().startsWith('/')) {
+        cmds.unshift({
+          id: 'slash-exec',
+          name: `Execute Slash Skill: "${query.trim()}"`,
+          type: 'Slash Skill',
+          icon: Sparkles,
+          action: async () => {
+            setIsAiLoading(true);
+            setAiResponse('Executing slash skill...');
+            try {
+              const out = await slashSkills.execute(query.trim());
+              setAiResponse(out);
+            } catch (err: any) {
+              setAiResponse(`Execution error: ${err.message || err}`);
+            } finally {
+              setIsAiLoading(false);
+            }
+          },
+          hideOnEmpty: true,
+        });
+      }
+
       cmds.push({ 
         id: 'search', 
         name: `Search Google for "${query}"`, 
@@ -293,7 +315,7 @@ export function CommandPalette() {
 
   const filtered = useMemo(() => commands.filter(c => {
     if (c.hideOnEmpty && !query) return false;
-    if (c.id === 'search' || c.id === 'ai-ask') return true;
+    if (c.id === 'search' || c.id === 'ai-ask' || c.id === 'slash-exec') return true;
     return c.name.toLowerCase().includes(query.toLowerCase());
   }), [commands, query]);
 
@@ -321,7 +343,7 @@ export function CommandPalette() {
       e.preventDefault();
       const cmd = filtered[selectedIndex];
       cmd?.action();
-      if (cmd?.id !== 'ai-ask') {
+      if (cmd?.id !== 'ai-ask' && cmd?.id !== 'slash-exec') {
         setIsOpen(false);
         setQuery('');
       }

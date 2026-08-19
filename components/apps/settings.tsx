@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useFileStore } from '@/lib/stores/file.store';
 import { useOS, OSWindow } from '@/lib/os-context';
-import { Image as ImageIcon, Palette, Save, Type, Eye, Settings2, Monitor, User, Volume2, VolumeX, Shield, Keyboard, CloudRain, Coffee, Trees, Radio, Download, Upload } from 'lucide-react';
+import { Image as ImageIcon, Palette, Save, Type, Eye, Settings2, Monitor, User, Volume2, VolumeX, Shield, Keyboard, CloudRain, Coffee, Trees, Radio, Download, Upload, HardDrive, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useAuthStore } from '@/lib/stores/auth.store';
@@ -77,6 +77,42 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
   const muted = useThemeStore((s) => s.muted);
   const setMuted = useThemeStore((s) => s.setMuted);
   const ambientSound = useThemeStore((s) => s.ambientSound);
+
+  const [storageInfo, setStorageInfo] = useState<{ usage: number; quota: number }>({ usage: 0, quota: 1024 * 1024 * 1024 * 10 });
+  const [cleaningCache, setCleaningCache] = useState(false);
+
+  React.useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.estimate) {
+      navigator.storage.estimate().then((est) => {
+        setStorageInfo({
+          usage: est.usage || 0,
+          quota: est.quota || (1024 * 1024 * 1024 * 10),
+        });
+      });
+    }
+  }, []);
+
+  const handleCleanCache = async () => {
+    setCleaningCache(true);
+    try {
+      if (typeof window !== 'undefined' && window.caches) {
+        const keys = await caches.keys();
+        for (const k of keys) await caches.delete(k);
+      }
+      if (navigator.storage && navigator.storage.estimate) {
+        const est = await navigator.storage.estimate();
+        setStorageInfo(prev => ({ ...prev, usage: est.usage || 0 }));
+      }
+      audioSystem.playClick();
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Storage Cleaned', description: 'Temporary app caches purged successfully.', type: 'success' }
+      }));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setCleaningCache(false);
+    }
+  };
 
   const handleApplyCustom = () => {
     if (customUrl) {
@@ -508,6 +544,42 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                     })}
                   </div>
                   <p className="text-xs text-white/40">Subtle background ambience. Plays through your audio output.</p>
+                </div>
+              </section>
+
+              <section className="space-y-6">
+                <div className="flex items-center gap-2 pb-2 border-b border-white/10">
+                  <HardDrive className="w-5 h-5 text-white/70" />
+                  <h2 className="text-lg font-medium">Storage & Quota</h2>
+                </div>
+
+                <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-4">
+                  <div className="flex justify-between items-center text-sm font-medium">
+                    <span>OPFS & Sovereign Storage</span>
+                    <span className="text-[#10F4A0] font-mono font-bold">
+                      {(storageInfo.usage / (1024 * 1024)).toFixed(1)} MB / {(storageInfo.quota / (1024 * 1024 * 1024)).toFixed(1)} GB
+                    </span>
+                  </div>
+
+                  {/* Storage Progress Bar */}
+                  <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden flex">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-500 to-[#10F4A0] transition-all rounded-full"
+                      style={{ width: `${Math.max(2, Math.min(100, (storageInfo.usage / storageInfo.quota) * 100))}%` }}
+                    />
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2">
+                    <p className="text-xs text-white/40">Includes local files, recordings, downloaded assets, and episodic dialogue cache.</p>
+                    <button
+                      onClick={handleCleanCache}
+                      disabled={cleaningCache}
+                      className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-colors flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      {cleaningCache ? 'Purging...' : 'Purge Temp Caches'}
+                    </button>
+                  </div>
                 </div>
               </section>
             </div>

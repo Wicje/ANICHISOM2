@@ -535,7 +535,10 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
 
         {/* Dynamic View Content */}
         {activeView === 'dashboard' ? (
-          <CommandCenter />
+          <CommandCenter onSelectCampaign={(id) => {
+            setActiveView('page');
+            store.setActivePageId(id);
+          }} />
         ) : activeView === 'timeline' ? (
           <CampaignTimeline />
         ) : activeView === 'audience' ? (

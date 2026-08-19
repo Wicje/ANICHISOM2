@@ -1036,12 +1036,10 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
             </span>
             <button
               onClick={() => {
-                const name = prompt('Board Name:', `Moodboard ${boards.length + 1}`);
-                if (name) {
-                  const b = addBoard(name);
-                  setShowBoardsMenu(false);
-                  openWindow('moodboard', b.name, { projectId: b.id });
-                }
+                const name = `Moodboard ${boards.length + 1}`;
+                const b = addBoard(name);
+                setShowBoardsMenu(false);
+                openWindow('moodboard', b.name, { projectId: b.id });
               }}
               className="px-2 py-1 bg-blue-600 hover:bg-blue-500 rounded text-[11px] font-bold text-white transition-colors flex items-center gap-1"
             >

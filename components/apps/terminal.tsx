@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
 import { VirtualFS, execute, parseInput } from '@/lib/terminal/commands';
+import { slashSkills } from '@/lib/skills/slash-skills';
 import { audioSystem } from '@/lib/services/audio-engine';
 import { readDomain, writeDomain } from '@/lib/context-layer';
 
@@ -234,7 +235,15 @@ export function TerminalBox({ window }: { window: OSWindow }) {
           const lastToken = parts[parts.length - 1] || '';
 
           if (parts.length <= 1 && !trimmed.includes(' ')) {
-            const ALL_CMDS = ['help', 'clear', 'ls', 'pwd', 'cd', 'cat', 'touch', 'mkdir', 'rm', 'echo', 'whoami', 'sysinfo', 'open', 'mode', 'theme', 'date', 'history', 'uname', 'env', 'ps', 'kill', 'top', 'uptime', 'netstat', 'ping', 'curl', 'tree', 'find', 'du', 'df', 'grep', 'wc', 'chmod', 'chown', 'export', 'alias', 'version', 'motd', 'banner', 'credits', 'reboot'];
+            const slashCmds = slashSkills.list().map(s => '/' + s.name);
+            const ALL_CMDS = [
+              ...slashCmds,
+              'help', 'clear', 'ls', 'pwd', 'cd', 'cat', 'touch', 'mkdir', 'rm', 'echo',
+              'whoami', 'sysinfo', 'open', 'mode', 'theme', 'date', 'history', 'uname',
+              'env', 'ps', 'kill', 'top', 'uptime', 'netstat', 'ping', 'curl', 'tree',
+              'find', 'du', 'df', 'grep', 'wc', 'chmod', 'chown', 'export', 'alias',
+              'version', 'motd', 'banner', 'credits', 'reboot', 'ai'
+            ];
             const matches = ALL_CMDS.filter(c => c.startsWith(cmdName));
             if (matches.length === 1) {
               const completion = matches[0] + ' ';

@@ -3,11 +3,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   ZoomIn, ZoomOut, RotateCcw, RotateCw, Maximize2, Minimize2, Download,
-  Info, Image as ImageIcon, LayoutGrid, FlipHorizontal, Sparkles
+  Info, Image as ImageIcon, LayoutGrid, FlipHorizontal, Sparkles,
+  ChevronLeft, ChevronRight, Monitor
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FS } from '@/lib/fs';
 import { BrowserClipService } from '@/lib/services/browser-clip.service';
+import { useThemeStore } from '@/lib/stores/theme.store';
 
 export function ImageViewerApp({ window: osWindow }: { window: any }) {
   const fileData = osWindow?.data || {};
@@ -22,12 +24,66 @@ export function ImageViewerApp({ window: osWindow }: { window: any }) {
   const [dimensions, setDimensions] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [loading, setLoading] = useState<boolean>(true);
 
+  // Sibling image navigation
+  const [siblingImages, setSiblingImages] = useState<string[]>([]);
+  const [currentSiblingIndex, setCurrentSiblingIndex] = useState<number>(0);
+  const setWallpaper = useThemeStore((s) => s.setWallpaper);
+
+  useEffect(() => {
+    async function loadSiblings() {
+      const currentPath = fileData.fileId || fileData.path;
+      if (!currentPath) return;
+
+      try {
+        const parts = currentPath.split('/');
+        const dir = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
+        const items = await FS.readDir(dir);
+        const imgExts = ['.png', '.jpg', '.jpeg', '.webp', '.svg', '.gif', '.bmp'];
+        const images = items
+          .filter(item => !item.isFolder && imgExts.some(ext => item.name.toLowerCase().endsWith(ext)))
+          .map(item => dir ? `${dir}/${item.name}` : item.name);
+
+        if (images.length > 0) {
+          setSiblingImages(images);
+          const idx = images.indexOf(currentPath);
+          setCurrentSiblingIndex(idx !== -1 ? idx : 0);
+        }
+      } catch (err) {
+        console.warn('Failed to load sibling images:', err);
+      }
+    }
+    loadSiblings();
+  }, [fileData.fileId, fileData.path]);
+
+  const loadSpecificImage = async (pathOrUrl: string) => {
+    setLoading(true);
+    setZoom(1);
+    setRotation(0);
+    setFlipped(false);
+    try {
+      if (pathOrUrl.startsWith('http') || pathOrUrl.startsWith('blob:')) {
+        setImageUrl(pathOrUrl);
+        setFileName(pathOrUrl.split('/').pop() || 'Image Preview');
+      } else {
+        const file = await FS.read(pathOrUrl);
+        if (file?.content) {
+          setImageUrl(file.content);
+          setFileName(pathOrUrl.split('/').pop() || 'Image Preview');
+          if (file.size) setFileSize(`${(file.size / 1024).toFixed(1)} KB`);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load image into viewer:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     async function loadImage() {
       setLoading(true);
       try {
         const pathOrId = fileData.fileId || fileData.path;
-        // If it's a local file, read it freshly so we don't rely on volatile blob URLs from file-manager
         if (pathOrId && !fileData.url) {
           const file = await FS.read(pathOrId);
           if (file?.content) {
@@ -48,6 +104,28 @@ export function ImageViewerApp({ window: osWindow }: { window: any }) {
     loadImage();
   }, [fileData]);
 
+  const navigateSibling = (direction: 'prev' | 'next') => {
+    if (siblingImages.length <= 1) return;
+    const newIdx = direction === 'next'
+      ? (currentSiblingIndex + 1) % siblingImages.length
+      : (currentSiblingIndex - 1 + siblingImages.length) % siblingImages.length;
+    setCurrentSiblingIndex(newIdx);
+    const targetPath = siblingImages[newIdx]!;
+    loadSpecificImage(targetPath);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        navigateSibling('prev');
+      } else if (e.key === 'ArrowRight') {
+        navigateSibling('next');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [siblingImages, currentSiblingIndex]);
+
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
     setDimensions({ width: img.naturalWidth, height: img.naturalHeight });
@@ -66,6 +144,14 @@ export function ImageViewerApp({ window: osWindow }: { window: any }) {
     a.href = imageUrl;
     a.download = fileName;
     a.click();
+  };
+
+  const handleSetWallpaper = () => {
+    if (!imageUrl) return;
+    setWallpaper(imageUrl);
+    window.dispatchEvent(new CustomEvent('os:notify', {
+      detail: { title: 'Wallpaper Updated', description: `Set ${fileName} as desktop wallpaper`, type: 'success' },
+    }));
   };
 
   const handleSendToMoodboard = () => {
@@ -94,6 +180,19 @@ export function ImageViewerApp({ window: osWindow }: { window: any }) {
 
         {/* Toolbar Controls */}
         <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10">
+          {siblingImages.length > 1 && (
+            <>
+              <button onClick={() => navigateSibling('prev')} className="p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors" title="Previous Image (Left Arrow)">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-[10px] font-mono px-1 text-white/60">{currentSiblingIndex + 1}/{siblingImages.length}</span>
+              <button onClick={() => navigateSibling('next')} className="p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors" title="Next Image (Right Arrow)">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <div className="w-px h-4 bg-white/10 mx-1" />
+            </>
+          )}
+
           <button onClick={handleZoomOut} className="p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors" title="Zoom Out">
             <ZoomOut className="w-4 h-4" />
           </button>
@@ -120,6 +219,15 @@ export function ImageViewerApp({ window: osWindow }: { window: any }) {
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleSetWallpaper}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-all text-xs font-medium"
+            title="Set as Desktop Wallpaper"
+          >
+            <Monitor className="w-3.5 h-3.5" />
+            <span>Set Wallpaper</span>
+          </button>
+
           <button
             onClick={handleSendToMoodboard}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/30 transition-all text-xs font-medium"
@@ -151,7 +259,25 @@ export function ImageViewerApp({ window: osWindow }: { window: any }) {
       </div>
 
       {/* Main Preview Workspace */}
-      <div className="flex-1 relative flex items-center justify-center overflow-hidden bg-[radial-gradient(#1e1e24_1px,transparent_1px)] [background-size:16px_16px]">
+      <div className="flex-1 relative flex items-center justify-center overflow-hidden bg-[radial-gradient(#1e1e24_1px,transparent_1px)] [background-size:16px_16px] group">
+        {siblingImages.length > 1 && (
+          <>
+            <button
+              onClick={() => navigateSibling('prev')}
+              className="absolute left-4 z-30 p-2.5 rounded-full bg-black/60 hover:bg-black/90 text-white/70 hover:text-white border border-white/15 backdrop-blur-xl opacity-0 group-hover:opacity-100 transition-all shadow-xl"
+              title="Previous Image (Left Arrow)"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => navigateSibling('next')}
+              className="absolute right-4 z-30 p-2.5 rounded-full bg-black/60 hover:bg-black/90 text-white/70 hover:text-white border border-white/15 backdrop-blur-xl opacity-0 group-hover:opacity-100 transition-all shadow-xl"
+              title="Next Image (Right Arrow)"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </>
+        )}
         {loading ? (
           <div className="flex flex-col items-center gap-2 text-white/40">
             <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />

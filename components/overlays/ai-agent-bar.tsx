@@ -8,6 +8,9 @@ import { useThemeStore } from '@/lib/stores/theme.store';
 import { useFocusStore } from '@/lib/stores/focus.store';
 import { audioSystem } from '@/lib/services/audio-engine';
 
+import { slashSkills } from '@/lib/skills/slash-skills';
+import { getAiProvider } from '@/lib/ai-providers/ai-provider-factory';
+
 export function AIAgentBar() {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -35,46 +38,60 @@ export function AIAgentBar() {
 
   if (!isOpen) return null;
 
-  const handleExecute = (e: React.FormEvent) => {
+  const handleExecute = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim()) return;
+    const rawQuery = query.trim();
+    if (!rawQuery || executing) return;
     setExecuting(true);
-    setResponseMsg(null);
+    setResponseMsg('Processing agent instruction...');
     audioSystem.playClick();
 
-    setTimeout(() => {
-      const q = query.toLowerCase();
-      let result = 'Command executed successfully.';
-
-      if (q.includes('focus') || q.includes('do not disturb')) {
-        toggleFocus();
-        result = 'Focus session toggled.';
-      } else if (q.includes('dark') || q.includes('light') || q.includes('theme')) {
-        setColorMode(colorMode === 'dark' ? 'light' : 'dark');
-        result = `Color mode switched to ${colorMode === 'dark' ? 'light' : 'dark'}.`;
-      } else if (q.includes('terminal') || q.includes('cmd')) {
-        openWindow('terminal', 'Terminal');
-        result = 'Opened Terminal.';
-      } else if (q.includes('code') || q.includes('editor')) {
-        openWindow('code', 'Code Editor');
-        result = 'Opened Code Editor.';
-      } else if (q.includes('settings')) {
-        openWindow('settings', 'Settings');
-        result = 'Opened Settings.';
-      } else if (q.includes('spotify') || q.includes('music')) {
-        openWindow('spotify', 'Spotify Player');
-        result = 'Opened Spotify Player.';
+    try {
+      if (rawQuery.startsWith('/')) {
+        const skillRes = await slashSkills.execute(rawQuery);
+        setResponseMsg(skillRes);
+        window.dispatchEvent(new CustomEvent('os:notify', {
+          detail: { title: 'Slash Skill Executed', description: skillRes.slice(0, 100), type: 'success' }
+        }));
       } else {
-        result = `Executed AI Intent: "${query}" across Continua Kernel.`;
+        const q = rawQuery.toLowerCase();
+        if (q.includes('focus') || q.includes('do not disturb')) {
+          toggleFocus();
+          setResponseMsg('Focus session toggled.');
+        } else if (q.includes('dark') || q.includes('light') || q.includes('theme')) {
+          const nextMode = colorMode === 'dark' ? 'light' : 'dark';
+          setColorMode(nextMode);
+          setResponseMsg(`Color mode switched to ${nextMode}.`);
+        } else if (q.includes('open terminal') || q === 'terminal') {
+          openWindow('terminal', 'Terminal');
+          setResponseMsg('Opened Terminal.');
+        } else if (q.includes('open code') || q === 'code editor') {
+          openWindow('code', 'Code Editor');
+          setResponseMsg('Opened Code Editor.');
+        } else if (q.includes('open settings') || q === 'settings') {
+          openWindow('settings', 'Settings');
+          setResponseMsg('Opened Settings.');
+        } else if (q.includes('open music') || q === 'spotify') {
+          openWindow('spotify', 'Spotify Player');
+          setResponseMsg('Opened Spotify Player.');
+        } else {
+          // Route to active edge/cloud AI provider with episodic memory
+          const aiProvider = getAiProvider();
+          const response = await aiProvider.chat({
+            messages: [{ role: 'user', content: rawQuery }]
+          });
+          const text = response.text || 'Action completed.';
+          setResponseMsg(text);
+          window.dispatchEvent(new CustomEvent('os:notify', {
+            detail: { title: 'AI Agent Response', description: text.slice(0, 90), type: 'success' }
+          }));
+        }
       }
-
-      setResponseMsg(result);
+    } catch (err: any) {
+      setResponseMsg(`Agent Error: ${err.message || 'Execution failed'}`);
+    } finally {
       setExecuting(false);
-      setQuery('');
-      window.dispatchEvent(new CustomEvent('os:notify', {
-        detail: { title: 'AI Agent Action', description: result, type: 'success' }
-      }));
-    }, 450);
+    }
   };
 
   return (

@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { useCampaignStore } from '@/lib/stores/campaign.store';
 import { Page } from '@/lib/campaign-types';
 
-export function CommandCenter({ window: osWindow }: { window?: any }) {
+export function CommandCenter({ window: osWindow, onSelectCampaign }: { window?: any; onSelectCampaign?: (id: string) => void }) {
   const { pages, notifications, addPage, updatePage } = useCampaignStore();
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'completed'>('all');
 
@@ -87,7 +87,14 @@ export function CommandCenter({ window: osWindow }: { window?: any }) {
                   const progress = campaignTasks.length ? (completed.length / campaignTasks.length) * 100 : 0;
                   
                   return (
-                    <div key={campaign.id} className="bg-white p-5 rounded-2xl border border-black/5 shadow-sm hover:shadow-md transition-all cursor-pointer group" onClick={() => useCampaignStore.getState().setActivePageId(campaign.id)}>
+                    <div
+                      key={campaign.id}
+                      className="bg-white p-5 rounded-2xl border border-black/5 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                      onClick={() => {
+                        useCampaignStore.getState().setActivePageId(campaign.id);
+                        onSelectCampaign?.(campaign.id);
+                      }}
+                    >
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3">
                           <div className="text-3xl">{campaign.icon || '🎯'}</div>

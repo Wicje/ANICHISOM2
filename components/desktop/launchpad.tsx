@@ -80,6 +80,16 @@ export function Launchpad({ onClose }: LaunchpadProps) {
     });
   }, [currentUser, isSuperUser, query, installedApps]);
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const handleOpenFile = (path: string, name: string) => {
     const mime = name.includes('.') ? name.split('.').pop()! : '';
     const appId = useFileStore.getState().resolveSmartRoute(mime, name);
@@ -92,8 +102,13 @@ export function Launchpad({ onClose }: LaunchpadProps) {
   };
 
   return (
-    <div className="absolute inset-0 z-[250] bg-black/60 backdrop-blur-2xl pointer-events-auto flex flex-col items-center pt-24 pb-12 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
-      <div className="w-full max-w-xl mb-8 px-4">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="absolute inset-0 z-[250] bg-black/60 backdrop-blur-2xl pointer-events-auto flex flex-col items-center pt-24 pb-12 overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
+    >
+      <div className="w-full max-w-xl mb-8 px-4" onClick={(e) => e.stopPropagation()}>
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
           <input

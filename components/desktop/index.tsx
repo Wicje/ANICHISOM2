@@ -818,16 +818,21 @@ export function Desktop() {
       y: e.clientY,
       items: [
         { label: 'New Folder', icon: Folder, onClick: async () => {
-          const name = prompt('Folder name:', 'New Folder');
-          if (name) {
-            try {
-              await FS.mkdir(`Desktop/${name}`);
-              window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Folder Created', description: `Created "${name}" on Desktop`, type: 'success' } }));
-              window.dispatchEvent(new CustomEvent('os:refresh-desktop'));
-              logActivity('file-save', 'Folder created', `Desktop/${name}`);
-            } catch (err) {
-              window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Error', description: 'Failed to create folder', type: 'error' } }));
+          try {
+            await FS.mkdir('Desktop');
+            const files = await FS.readDir('Desktop');
+            let name = 'New Folder';
+            let counter = 1;
+            while (files.some(f => f.name.toLowerCase() === name.toLowerCase())) {
+              counter++;
+              name = `New Folder (${counter})`;
             }
+            await FS.mkdir(`Desktop/${name}`);
+            window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Folder Created', description: `Created "${name}" on Desktop`, type: 'success' } }));
+            window.dispatchEvent(new CustomEvent('os:refresh-desktop'));
+            logActivity('file-save', 'Folder created', `Desktop/${name}`);
+          } catch (err) {
+            window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Error', description: 'Failed to create folder', type: 'error' } }));
           }
         }},
         { label: 'Change Wallpaper', onClick: () => openWindow('settings') },

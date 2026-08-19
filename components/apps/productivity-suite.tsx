@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import DOMPurify from 'isomorphic-dompurify';
 import { Storage } from '@/lib/storage';
+import { FS } from '@/lib/fs';
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -212,6 +213,44 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
     }
   };
 
+  const handleSaveToFS = async () => {
+    setSaveStatus('saving');
+    try {
+      await FS.mkdir('Documents');
+      let contentToSave = '';
+      let ext = 'html';
+      let mime = 'text/html';
+
+      if (activeTab === 'word' && we) {
+        contentToSave = we.getHTML();
+      } else if (activeTab === 'sheets') {
+        contentToSave = JSON.stringify(sheetsDataRef.current || {}, null, 2);
+        ext = 'json';
+        mime = 'application/json';
+      } else if (activeTab === 'slides' && fabricCanvasRef.current) {
+        contentToSave = JSON.stringify(fabricCanvasRef.current.toJSON?.() || {}, null, 2);
+        ext = 'json';
+        mime = 'application/json';
+      } else {
+        contentToSave = `<h1>${docTitle}</h1>`;
+      }
+
+      const safeTitle = (docTitle || 'Untitled').replace(/[\\/:*?"<>|]/g, '_');
+      const filename = `Documents/${safeTitle}.${ext}`;
+      await FS.write(filename, contentToSave, mime);
+
+      setSaveStatus('saved');
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Document Saved', description: `Saved to ${filename}`, type: 'success' }
+      }));
+      window.dispatchEvent(new CustomEvent('os:refresh-desktop'));
+      window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path: 'Documents' } }));
+    } catch (err: any) {
+      setSaveStatus('unsaved');
+      console.error('Failed to mirror doc to FS:', err);
+    }
+  };
+
   return (
     <div className="w-full h-full flex bg-white text-slate-800 font-sans shadow-2xl relative overflow-hidden">
       {/* Document Sidebar */}
@@ -330,7 +369,7 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
         {/* Toolbar */}
         <div className="flex items-center gap-4 px-4 py-2 bg-white border-t border-slate-200">
            <div className="flex items-center gap-1 border-r border-slate-200 pr-4">
-             <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Save to local-first DB" onClick={() => { setSaveStatus('saving'); setTimeout(() => setSaveStatus('saved'), 500); window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Document Saved', description: 'Your work has been securely saved.' }})); }}><Save className="w-4 h-4" /></button>
+             <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Save Document to Storage & Files" onClick={handleSaveToFS}><Save className="w-4 h-4" /></button>
              <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Print" onClick={() => window.print()}><Printer className="w-4 h-4" /></button>
              <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Share via Self-Host" onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Share Link Created', description: 'Link copied to clipboard.' }}))}><Share2 className="w-4 h-4" /></button>
              <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" title="Export" onClick={handleExport}><Download className="w-4 h-4" /></button>
