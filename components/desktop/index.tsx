@@ -175,6 +175,7 @@ export function Desktop() {
   const closeWindow = useWindowStore((s) => s.closeWindow);
   const focusWindow = useWindowStore((s) => s.focusWindow);
   const minimizeWindow = useWindowStore((s) => s.minimizeWindow);
+  const maximizeWindow = useWindowStore((s) => s.maximizeWindow);
   const highestZIndex = useWindowStore((s) => s.highestZIndex);
   const applyWorkspaceLayout = useWindowStore((s) => s.applyWorkspaceLayout);
   // Granular theme selectors — only re-render Desktop when these specific values change
@@ -575,9 +576,20 @@ export function Desktop() {
       'alt+f': 'open:files',
       'alt+b': 'open:browser',
       'alt+c': 'open:code',
+      'meta+k': 'action:spotlight',
+      'ctrl+k': 'action:spotlight',
+      'meta+space': 'action:spotlight',
       'ctrl+space': 'action:launchpad',
+      'meta+w': 'action:close-active-window',
       'ctrl+w': 'action:close-active-window',
+      'meta+m': 'action:minimize-active-window',
       'ctrl+m': 'action:minimize-active-window',
+      'alt+meta+arrowleft': 'action:snap-left',
+      'alt+ctrl+arrowleft': 'action:snap-left',
+      'alt+meta+arrowright': 'action:snap-right',
+      'alt+ctrl+arrowright': 'action:snap-right',
+      'alt+meta+arrowup': 'action:snap-maximize',
+      'alt+ctrl+arrowup': 'action:snap-maximize',
       'alt+n': 'action:notch-nook',
       'alt+w': 'action:widget-stack',
       'meta+shift+f': 'action:focus-mode',
@@ -639,6 +651,8 @@ export function Desktop() {
         const action = currentKeybinds[combo];
         if (action.startsWith('open:')) {
           openWindow(action.replace('open:', ''));
+        } else if (action === 'action:spotlight') {
+          window.dispatchEvent(new CustomEvent('os:open-spotlight'));
         } else if (action === 'action:launchpad') {
           setShowLaunchpad(prev => !prev);
         } else if (action === 'action:close-active-window') {
@@ -649,6 +663,24 @@ export function Desktop() {
           const activeW = curWindows.filter(w => w.workspace === curWorkspace || w.workspace === undefined);
           const focused = activeW.find(w => !w.isMinimized && w.zIndex >= curZIndex);
           if (focused) minimizeWindow(focused.id);
+        } else if (action === 'action:snap-left') {
+          const activeW = curWindows.filter(w => w.workspace === curWorkspace || w.workspace === undefined);
+          const focused = activeW.find(w => !w.isMinimized && w.zIndex >= curZIndex);
+          if (focused) {
+            useWindowStore.getState().updateWindowDimensions(focused.id, 0, 32, window.innerWidth / 2, window.innerHeight - 100);
+          }
+        } else if (action === 'action:snap-right') {
+          const activeW = curWindows.filter(w => w.workspace === curWorkspace || w.workspace === undefined);
+          const focused = activeW.find(w => !w.isMinimized && w.zIndex >= curZIndex);
+          if (focused) {
+            useWindowStore.getState().updateWindowDimensions(focused.id, window.innerWidth / 2, 32, window.innerWidth / 2, window.innerHeight - 100);
+          }
+        } else if (action === 'action:snap-maximize') {
+          const activeW = curWindows.filter(w => w.workspace === curWorkspace || w.workspace === undefined);
+          const focused = activeW.find(w => !w.isMinimized && w.zIndex >= curZIndex);
+          if (focused) {
+            maximizeWindow(focused.id);
+          }
         } else if (action === 'action:notch-nook') {
           setShowNotchNook(prev => !prev);
         } else if (action === 'action:widget-stack') {

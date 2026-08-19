@@ -9,15 +9,15 @@ import { readDomain, writeDomain } from '@/lib/context-layer';
 const TERMINAL_HISTORY_KEY = 'continuaos:terminal-history';
 const TERMINAL_DOMAIN = 'terminal';
 
-async function loadTerminalHistory(): Promise<string[]> {
+async function loadTerminalState(): Promise<{ history: string[]; cwd?: string }> {
   try {
-    const ctx = await readDomain<{ history: string[] }>(TERMINAL_DOMAIN);
-    if (ctx?.history?.length) return ctx.history;
+    const ctx = await readDomain<{ history: string[]; cwd?: string }>(TERMINAL_DOMAIN);
+    if (ctx?.history?.length || ctx?.cwd) return { history: ctx.history || [], cwd: ctx.cwd };
   } catch { /* fall through to localStorage */ }
   try {
-    return JSON.parse(localStorage.getItem(TERMINAL_HISTORY_KEY) || '[]');
+    return { history: JSON.parse(localStorage.getItem(TERMINAL_HISTORY_KEY) || '[]') };
   } catch {
-    return [];
+    return { history: [] };
   }
 }
 
@@ -37,10 +37,15 @@ export function TerminalBox({ window }: { window: OSWindow }) {
 
   useEffect(() => {
     let disposed = false;
-    loadTerminalHistory().then((h) => {
+    loadTerminalState().then((state) => {
       if (disposed) return;
-      setHistory(h);
-      historyRef.current = h;
+      if (state.history?.length) {
+        setHistory(state.history);
+        historyRef.current = state.history;
+      }
+      if (state.cwd) {
+        vfsRef.current.cd(state.cwd);
+      }
     });
     return () => { disposed = true; };
   }, []);
@@ -186,6 +191,7 @@ export function TerminalBox({ window }: { window: OSWindow }) {
               } else if (result.output) {
                 writeOutput(result.output);
               }
+              writeDomain(TERMINAL_DOMAIN, { history: historyRef.current, cwd: vfsRef.current.getCwd() }).catch(() => {});
               term.write(PROMPT());
             });
           } else {

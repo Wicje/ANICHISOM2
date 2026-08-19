@@ -48,7 +48,13 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   const [pinTitle, setPinTitle] = useState('');
   const [searchEngine, setSearchEngine] = useState<'google' | 'duckduckgo' | 'bing'>('google');
   const [blockedTabs, setBlockedTabs] = useState<Set<string>>(new Set());
-  const [extensionInstalled, setExtensionInstalled] = useState(false);
+  const [proxyTabs, setProxyTabs] = useState<Set<string>>(new Set());
+  const [extensionInstalled, setExtensionInstalled] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !!(window as any).__CONTINUA_EXTENSION_ACTIVE__ ||
+      !!document.getElementById('continua-extension-marker') ||
+      document.documentElement.getAttribute('data-continua-extension') === 'active';
+  });
   const [showExtensionModal, setShowExtensionModal] = useState(false);
   const [initWait, setInitWait] = useState(true);
   const iframeRefs = useRef<Map<string, HTMLIFrameElement>>(new Map());
@@ -65,11 +71,24 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && ((window as any).__CONTINUA_EXTENSION_ACTIVE__ || document.getElementById('continua-extension-marker'))) {
+    const checkActive = () => {
+      if (typeof window === 'undefined') return false;
+      return !!(window as any).__CONTINUA_EXTENSION_ACTIVE__ ||
+        !!document.getElementById('continua-extension-marker') ||
+        document.documentElement.getAttribute('data-continua-extension') === 'active';
+    };
+
+    if (checkActive()) {
       setExtensionInstalled(true);
     }
     const handler = () => setExtensionInstalled(true);
+    const msgHandler = (e: MessageEvent) => {
+      if (e.data && (e.data.type === 'continua-extension-ready' || e.data.source === 'continua-extension')) {
+        setExtensionInstalled(true);
+      }
+    };
     window.addEventListener('continua-extension-ready', handler);
+    window.addEventListener('message', msgHandler);
     
     // Give the content script up to 250ms to inject before falling back to proxy
     const timer = setTimeout(() => {
@@ -82,9 +101,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
     let polls = 0;
     const pollInterval = setInterval(() => {
       polls += 1;
-      const active = typeof window !== 'undefined' &&
-        ((window as any).__CONTINUA_EXTENSION_ACTIVE__ || document.getElementById('continua-extension-marker'));
-      if (active) {
+      if (checkActive()) {
         setExtensionInstalled(true);
         clearInterval(pollInterval);
       } else if (polls >= 8) {
@@ -94,6 +111,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
 
     return () => {
       window.removeEventListener('continua-extension-ready', handler);
+      window.removeEventListener('message', msgHandler);
       clearTimeout(timer);
       clearInterval(pollInterval);
     };
@@ -680,13 +698,13 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                     searchEngine={searchEngine}
                     onNavigate={(url) => { setLoading(true); navigateTab(activeTabId, url, ''); }}
                   />
-                ) : isKnownBlocked(tab.url) && (blockedTabs.has(tab.id) || (!extensionInstalled && !isTauri())) ? (
+                ) : blockedTabs.has(tab.id) ? (
                   <BlockedSiteFallback
                     url={tab.url}
                     onOpenExternal={openExternal}
                     onOpenExtensionModal={() => setShowExtensionModal(true)}
                     onTryProxy={() => {
-                      // Force reload through proxy
+                      setProxyTabs(prev => new Set([...prev, tab.id]));
                       setBlockedTabs(prev => {
                         const next = new Set(prev);
                         next.delete(tab.id);
@@ -716,7 +734,7 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                               if (el) iframeRefs.current.set(tab.id, el);
                               else iframeRefs.current.delete(tab.id);
                             }}
-                            src={!extensionInstalled && isKnownBlocked(tab.url) && tab.url.startsWith('http')
+                            src={(!extensionInstalled && (isKnownBlocked(tab.url) || proxyTabs.has(tab.id)) && tab.url.startsWith('http'))
                               ? `/api/proxy?url=${encodeURIComponent(tab.url)}`
                               : tab.url}
                             className="w-full h-full border-none bg-white absolute inset-0 z-0"
@@ -728,21 +746,6 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                           />
                         )}
                       </>
-                    )}
-                    {blockedTabs.has(tab.id) && (
-                      <BlockedSiteFallback
-                        url={tab.url}
-                        onOpenExternal={openExternal}
-                        onOpenExtensionModal={() => setShowExtensionModal(true)}
-                        onTryProxy={() => {
-                          setBlockedTabs(prev => {
-                            const next = new Set(prev);
-                            next.delete(tab.id);
-                            return next;
-                          });
-                          reload();
-                        }}
-                      />
                     )}
                   </>
                 )}

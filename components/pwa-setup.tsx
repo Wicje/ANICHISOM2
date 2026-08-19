@@ -8,6 +8,7 @@ import { useBrowserStore } from '@/lib/stores/browser.store';
 import { useFileStore } from '@/lib/stores/file.store';
 import { OfflineStateService } from '@/lib/services/offline-state.service';
 import { BackgroundSyncService } from '@/lib/services/background-sync.service';
+import { readDomain } from '@/lib/context-layer';
 import { initVitals } from '@/lib/vitals';
 
 export function PWASetup() {
@@ -21,6 +22,12 @@ export function PWASetup() {
     if (!('serviceWorker' in navigator)) return;
 
     const registerSW = () => {
+      // True if the page is already controlled by a SW. A first-time install
+      // (no controller yet) is NOT an "update" — hard-reloading then would
+      // interrupt the boot sequence and any open native file picker for no
+      // benefit (the new SW already claims clients via self.skipWaiting()).
+      const hadController = !!navigator.serviceWorker.controller;
+
       navigator.serviceWorker
         .register('/sw.js')
         .then((reg) => {
@@ -37,8 +44,15 @@ export function PWASetup() {
             if (!newWorker) return;
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'activated') {
-                // New SW activated — reload to pick up new assets
-                window.location.reload();
+                // Never reload for the first install — only for genuine
+                // updates of an already-controlled page.
+                if (!hadController) return;
+                // Defer so the current render isn't interrupted, and skip if
+                // the tab is hidden or a native file picker is open.
+                setTimeout(() => {
+                  if (document.visibilityState === 'hidden') return;
+                  window.location.reload();
+                }, 1500);
               }
             });
           });
@@ -66,10 +80,21 @@ export function PWASetup() {
 
       // Restore Zustand stores from snapshot
       try {
-        if (snapshot.auth.currentUser) {
+        // The context-layer domains are the freshest source of truth (written
+        // on every change). Skip snapshot-restoring those stores when the
+        // domain already has data, so a 30s-stale snapshot can't clobber a
+        // just-saved avatar/wallpaper after a reload.
+        const [authDomain, themeDomain] = await Promise.all([
+          readDomain<Record<string, unknown>>('auth'),
+          readDomain<Record<string, unknown>>('theme'),
+        ]);
+        const hasAuthDomain = !!authDomain && Object.keys(authDomain).length > 0;
+        const hasThemeDomain = !!themeDomain && Object.keys(themeDomain).length > 0;
+
+        if (snapshot.auth.currentUser && !hasAuthDomain) {
           useAuthStore.setState({ currentUser: snapshot.auth.currentUser });
         }
-        if (snapshot.theme) {
+        if (snapshot.theme && !hasThemeDomain) {
           useThemeStore.setState({
             wallpaper: snapshot.theme.wallpaper,
             themeColor: snapshot.theme.themeColor,

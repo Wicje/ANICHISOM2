@@ -5,14 +5,45 @@ import { readDomain, writeDomain } from '@/lib/context-layer';
 const WINDOWS_DOMAIN = 'windows';
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
-function persistWindows(state: WindowState): void {
+let lastPendingState: { windows: OSWindow[]; highestZIndex: number } | null = null;
+
+function flushPersistWindows(): void {
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  if (lastPendingState) {
+    writeDomain(WINDOWS_DOMAIN, {
+      windows: lastPendingState.windows,
+      highestZIndex: lastPendingState.highestZIndex,
+    }).catch(() => {});
+  }
+}
+
+function persistWindows(state: WindowState, immediate = false): void {
+  lastPendingState = {
+    windows: state.windows,
+    highestZIndex: state.highestZIndex,
+  };
+  if (immediate) {
+    flushPersistWindows();
+    return;
+  }
   if (persistTimer) clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
-    writeDomain(WINDOWS_DOMAIN, {
-      windows: state.windows,
-      highestZIndex: state.highestZIndex,
-    });
-  }, 1500);
+    flushPersistWindows();
+  }, 1000);
+}
+
+// Ensure pending window state changes are never lost when browser closes or tabs switch
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', flushPersistWindows);
+  window.addEventListener('pagehide', flushPersistWindows);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      flushPersistWindows();
+    }
+  });
 }
 
 export type OSWindow = {

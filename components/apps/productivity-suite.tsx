@@ -182,6 +182,9 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
     saveDocIndex(newList);
   };
 
+  // Safely reference the editor — null it out if destroyed to prevent commandManager crashes
+  const we = wordEditorRef.current && !wordEditorRef.current.isDestroyed ? wordEditorRef.current : null;
+
   const handleExport = () => {
     if (activeTab === 'word') {
       if (!we) return;
@@ -208,9 +211,6 @@ export function ProductivitySuite({ window: osWindow }: { window: OSWindow }) {
       }
     }
   };
-
-  // Safely reference the editor — null it out if destroyed to prevent commandManager crashes
-  const we = wordEditorRef.current && !wordEditorRef.current.isDestroyed ? wordEditorRef.current : null;
 
   return (
     <div className="w-full h-full flex bg-white text-slate-800 font-sans shadow-2xl relative overflow-hidden">
@@ -506,15 +506,23 @@ function WordEditor({ performanceMode, workspaceMode, projectId, currentUser, on
 
   // Seed default content into the Y.XmlFragment if it's empty
   useEffect(() => {
-    if (!editor || !fragment) return;
-    if (fragment.length === 0) {
-      editor.commands.setContent(defaultContent);
+    if (!editor || editor.isDestroyed || !fragment) return;
+    try {
+      if (fragment.length === 0 && editor.commands) {
+        editor.commands.setContent(defaultContent);
+      }
+    } catch {
+      // Safe guard during teardown / remount
     }
-    onEditorReady(editor);
-  }, [editor, fragment]);
+    if (!editor.isDestroyed) {
+      onEditorReady(editor);
+    }
+  }, [editor, fragment, onEditorReady]);
 
   useEffect(() => {
-    onEditorReady(editor);
+    if (editor && !editor.isDestroyed) {
+      onEditorReady(editor);
+    }
     return () => onEditorReady(null);
   }, [editor, onEditorReady]);
 

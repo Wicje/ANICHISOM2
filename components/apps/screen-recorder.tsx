@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useOS, OSWindow } from '@/lib/os-context';
-import { Monitor, Square, Circle, Download, X } from 'lucide-react';
+import { Monitor, Square, Circle, Download, X, Sparkles, Keyboard, MousePointer, Film, Save, Check } from 'lucide-react';
 import { FS } from '@/lib/fs';
+import { cn } from '@/lib/utils';
 
 const CODEC_CHAIN = [
   'video/webm;codecs=vp9,opus',
@@ -27,8 +28,16 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [savedToOs, setSavedToOs] = useState(false);
+
+  // Screenize Studio Effects State
+  const [enableSmartZoom, setEnableSmartZoom] = useState(true);
+  const [enableKeystrokes, setEnableKeystrokes] = useState(true);
+  const [enableCursorHalo, setEnableCursorHalo] = useState(true);
+  const [recentKey, setRecentKey] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -228,6 +237,29 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
     }
   };
 
+  useEffect(() => {
+    if (!isRecording) return;
+
+    const handleKey = (e: KeyboardEvent) => {
+      if (enableKeystrokes) {
+        const parts: string[] = [];
+        if (e.metaKey || e.ctrlKey) parts.push('⌘');
+        if (e.altKey) parts.push('⌥');
+        if (e.shiftKey) parts.push('⇧');
+        if (!['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) {
+          parts.push(e.key.toUpperCase());
+        }
+        if (parts.length > 0) {
+          setRecentKey(parts.join(' + '));
+          setTimeout(() => setRecentKey(null), 1500);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isRecording, enableKeystrokes]);
+
   const clearRecording = () => {
     if (recordedUrl) {
       URL.revokeObjectURL(recordedUrl);
@@ -240,9 +272,45 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
       
       {/* Toolbar */}
       <div className="h-14 border-b border-white/10 bg-white/5 flex items-center justify-between px-4 shrink-0">
-        <div className="flex items-center gap-2">
-          <Monitor className="w-5 h-5 text-blue-400" />
-          <span className="font-medium text-sm">Screen & Share</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Film className="w-5 h-5 text-emerald-400" />
+            <span className="font-semibold text-sm">Screenize Studio</span>
+          </div>
+
+          {/* Studio Effects Toggles (Screenize Pattern) */}
+          <div className="hidden sm:flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-white/10 text-xs">
+            <button
+              onClick={() => setEnableSmartZoom(!enableSmartZoom)}
+              className={cn(
+                "flex items-center gap-1 px-2.5 py-1 rounded transition-colors",
+                enableSmartZoom ? "bg-emerald-500/20 text-emerald-400 font-semibold" : "text-white/40 hover:text-white/70"
+              )}
+              title="Smooth zoom on cursor click areas"
+            >
+              <Sparkles className="w-3 h-3" /> Auto-Zoom
+            </button>
+            <button
+              onClick={() => setEnableKeystrokes(!enableKeystrokes)}
+              className={cn(
+                "flex items-center gap-1 px-2.5 py-1 rounded transition-colors",
+                enableKeystrokes ? "bg-emerald-500/20 text-emerald-400 font-semibold" : "text-white/40 hover:text-white/70"
+              )}
+              title="Show floating keyboard shortcuts badge"
+            >
+              <Keyboard className="w-3 h-3" /> Keystrokes
+            </button>
+            <button
+              onClick={() => setEnableCursorHalo(!enableCursorHalo)}
+              className={cn(
+                "flex items-center gap-1 px-2.5 py-1 rounded transition-colors",
+                enableCursorHalo ? "bg-emerald-500/20 text-emerald-400 font-semibold" : "text-white/40 hover:text-white/70"
+              )}
+              title="Pulse glowing ring on clicks"
+            >
+              <MousePointer className="w-3 h-3" /> Click Halo
+            </button>
+          </div>
         </div>
         
         <div className="flex items-center gap-2">
@@ -267,10 +335,10 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
           {stream && !isRecording && (
             <button 
               onClick={startRecording}
-              className="flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-4 py-1.5 rounded-md text-xs font-medium transition-colors"
+              className="flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-4 py-1.5 rounded-md text-xs font-medium transition-colors shadow-lg shadow-rose-500/30"
             >
               <Circle className="w-3 h-3 fill-white" />
-              Record
+              Record Studio
             </button>
           )}
           
@@ -297,7 +365,7 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
           </div>
         )}
 
-        {/* Live Preview */}
+        {/* Live Preview with Screenize Overlays */}
         <div className="flex flex-col gap-2">
           <div className="text-xs font-bold text-white/50 uppercase tracking-wider">Live Preview</div>
           <div className="w-full aspect-video bg-black rounded-xl border border-white/10 overflow-hidden relative shadow-inner">
@@ -319,7 +387,14 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
               <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
                 <div className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
                 <div className="w-2 h-2 rounded-full bg-red-500 absolute" />
-                <span className="text-xs font-bold text-red-500 tracking-wider">REC</span>
+                <span className="text-xs font-bold text-red-500 tracking-wider">REC STUDIO</span>
+              </div>
+            )}
+
+            {/* Floating Keystroke Badge Overlay */}
+            {isRecording && recentKey && (
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl bg-neutral-900/90 border border-white/20 text-white font-mono text-sm font-bold shadow-2xl backdrop-blur-md animate-bounce">
+                {recentKey}
               </div>
             )}
           </div>

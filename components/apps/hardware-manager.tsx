@@ -1,17 +1,70 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Usb, Bluetooth, HardDrive, Smartphone, RefreshCw, Plus, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Usb, Bluetooth, HardDrive, Smartphone, RefreshCw, Plus, CheckCircle2, ShieldAlert, Cpu, Activity, Zap, Layers, Database } from 'lucide-react';
 import { hardwareManager, ConnectedDevice } from '@/lib/hardware';
+import { cn } from '@/lib/utils';
 
 export function HardwareManagerApp() {
   const [devices, setDevices] = useState<ConnectedDevice[]>([]);
+  const [storageEstimate, setStorageEstimate] = useState<{ usage: number; quota: number } | null>(null);
+  const [gpuInfo, setGpuInfo] = useState<{ vendor: string; architecture: string; available: boolean } | null>(null);
+  const [fps, setFps] = useState<number>(60);
 
   useEffect(() => {
     setDevices(hardwareManager.getDevices());
     return hardwareManager.subscribe(() => {
       setDevices(hardwareManager.getDevices());
     });
+  }, []);
+
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.storage && 'estimate' in navigator.storage) {
+      navigator.storage.estimate().then(est => {
+        if (est.usage !== undefined && est.quota !== undefined) {
+          setStorageEstimate({ usage: est.usage, quota: est.quota });
+        }
+      });
+    }
+
+    if (typeof navigator !== 'undefined' && 'gpu' in navigator) {
+      (navigator as any).gpu.requestAdapter().then(async (adapter: any) => {
+        if (adapter) {
+          try {
+            const info = await adapter.requestAdapterInfo?.();
+            setGpuInfo({
+              vendor: info?.vendor || 'Hardware Accelerated',
+              architecture: info?.architecture || 'WebGPU Compute',
+              available: true,
+            });
+          } catch {
+            setGpuInfo({ vendor: 'WebGPU Compatible', architecture: 'Unified Shader Pipeline', available: true });
+          }
+        } else {
+          setGpuInfo({ vendor: 'Disabled', architecture: 'N/A', available: false });
+        }
+      }).catch(() => {
+        setGpuInfo({ vendor: 'Disabled', architecture: 'N/A', available: false });
+      });
+    }
+
+    // Live frame rate measurement
+    let frames = 0;
+    let lastTime = performance.now();
+    let animId: number;
+
+    const measure = () => {
+      frames++;
+      const now = performance.now();
+      if (now - lastTime >= 1000) {
+        setFps(Math.round((frames * 1000) / (now - lastTime)));
+        frames = 0;
+        lastTime = now;
+      }
+      animId = requestAnimationFrame(measure);
+    };
+    animId = requestAnimationFrame(measure);
+    return () => cancelAnimationFrame(animId);
   }, []);
 
   const handleConnectUsb = async () => {
@@ -64,6 +117,61 @@ export function HardwareManagerApp() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+        
+        {/* Real-Time Hardware & Engine Telemetry Cards (Fluidd Pattern) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col gap-2">
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-emerald-400">
+                <Activity className="w-4 h-4" /> System Frame Rate
+              </span>
+              <span className="font-mono text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">
+                {fps} FPS
+              </span>
+            </div>
+            <div className="text-2xl font-black text-white">{fps} <span className="text-xs font-normal text-slate-400">fps (60Hz target)</span></div>
+            <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+              <div className="bg-emerald-400 h-full rounded-full transition-all" style={{ width: `${Math.min(100, (fps / 60) * 100)}%` }} />
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col gap-2">
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-cyan-400">
+                <Database className="w-4 h-4" /> Storage Quota (OPFS)
+              </span>
+              <span className="font-mono text-xs px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold">
+                {storageEstimate ? `${Math.round((storageEstimate.usage / storageEstimate.quota) * 100)}%` : '0%'}
+              </span>
+            </div>
+            <div className="text-xl font-bold text-white">
+              {storageEstimate ? `${(storageEstimate.usage / (1024 * 1024)).toFixed(1)} MB` : '0 MB'}
+              <span className="text-xs font-normal text-slate-400 ml-1">
+                / {storageEstimate ? `${(storageEstimate.quota / (1024 * 1024 * 1024)).toFixed(1)} GB quota` : 'N/A'}
+              </span>
+            </div>
+            <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+              <div
+                className="bg-cyan-400 h-full rounded-full transition-all"
+                style={{ width: `${storageEstimate ? Math.min(100, (storageEstimate.usage / storageEstimate.quota) * 100) : 5}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col gap-2">
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-purple-400">
+                <Zap className="w-4 h-4" /> WebGPU Engine
+              </span>
+              <span className={cn("font-mono text-xs px-2 py-0.5 rounded font-bold", gpuInfo?.available ? "bg-purple-500/20 text-purple-300" : "bg-slate-800 text-slate-400")}>
+                {gpuInfo?.available ? 'Hardware Active' : 'Fallback'}
+              </span>
+            </div>
+            <div className="text-base font-bold text-white truncate">{gpuInfo?.vendor || 'WebGPU Compute'}</div>
+            <div className="text-xs text-slate-400 truncate">{gpuInfo?.architecture || 'Unified Shader Core'}</div>
+          </div>
+        </div>
+
         {/* Device Categories Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div

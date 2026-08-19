@@ -219,7 +219,7 @@ const DETECTORS = {
 /**
  * Detect what tool the user is using and extract tool-specific context.
  */
-export function detectToolContext(url): Record<string, unknown> | null {
+function detectToolContext(url) {
   for (const [key, detector] of Object.entries(DETECTORS)) {
     if (detector.match(url)) {
       try {
@@ -230,4 +230,16 @@ export function detectToolContext(url): Record<string, unknown> | null {
     }
   }
   return null;
+}
+
+if (typeof self !== 'undefined') {
+  self.detectToolContext = detectToolContext;
+  self.DETECTORS = DETECTORS;
+}
+if (typeof window !== 'undefined') {
+  window.detectToolContext = detectToolContext;
+  window.DETECTORS = DETECTORS;
+}
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { detectToolContext, DETECTORS };
 }

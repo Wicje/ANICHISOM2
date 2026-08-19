@@ -65,14 +65,41 @@ const DEFAULTS = {
 };
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let lastPersistedJson: string | null = null;
+
+function writeThemeDomain(data: Record<string, unknown>) {
+  const json = JSON.stringify(data);
+  if (json === lastPersistedJson) return;
+  lastPersistedJson = json;
+  void writeDomain(DOMAIN, data);
+}
+
+function serializeTheme(state: ThemeState): Record<string, unknown> {
+  const { setWallpaper, setThemeColor, setFontFamily, setScreenShader, setPerformanceMode, setColorMode, setVolume, setMuted, setAnimationsEnabled, setGlassmorphism, setAeroSnap, setAmbientSound, setDynamicWallpaper, hydrateAll, ...data } = state as any;
+  return data;
+}
 
 function persistTheme(state: ThemeState) {
   if (typeof window === 'undefined') return;
   if (debounceTimer) clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
-    const { setWallpaper, setThemeColor, setFontFamily, setScreenShader, setPerformanceMode, setColorMode, setVolume, setMuted, setAnimationsEnabled, setGlassmorphism, setAeroSnap, setAmbientSound, setDynamicWallpaper, hydrateAll, ...data } = state as any;
-    writeDomain(DOMAIN, data);
-  }, 2000);
+    debounceTimer = null;
+    writeThemeDomain(serializeTheme(state));
+  }, 300);
+}
+
+// Flush any pending theme write before the page unloads so a quick reload
+// doesn't lose the last change (e.g. wallpaper).
+if (typeof window !== 'undefined') {
+  const flushTheme = () => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+    writeThemeDomain(serializeTheme(useThemeStore.getState()));
+  };
+  window.addEventListener('pagehide', flushTheme);
+  window.addEventListener('beforeunload', flushTheme);
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({

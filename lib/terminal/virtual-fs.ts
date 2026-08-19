@@ -59,7 +59,7 @@ export class VirtualFS {
 
   async ls(path?: string): Promise<VFSEntry[]> {
     const target = path ? this.resolvePath(path) : this.cwd;
-    const dirPath = target === '/' ? '' : target;
+    const dirPath = target === '/' ? '' : target.replace(/^\/+/, '');
     try {
       const files = await FS.readDir(dirPath);
       return files
@@ -77,7 +77,7 @@ export class VirtualFS {
   }
 
   async cat(path: string): Promise<string> {
-    const resolved = this.resolvePath(path);
+    const resolved = this.resolvePath(path).replace(/^\/+/, '');
     const file = await FS.read(resolved);
     if (!file) throw new Error(`cat: ${path}: No such file or directory`);
     if (file.content && file.content.startsWith('blob:')) {
@@ -87,7 +87,7 @@ export class VirtualFS {
   }
 
   async touch(path: string): Promise<void> {
-    const resolved = this.resolvePath(path);
+    const resolved = this.resolvePath(path).replace(/^\/+/, '');
     await FS.write(resolved, '');
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path: resolved } }));
@@ -95,12 +95,12 @@ export class VirtualFS {
   }
 
   async mkdir(path: string): Promise<void> {
-    const resolved = this.resolvePath(path);
+    const resolved = this.resolvePath(path).replace(/^\/+/, '');
     await FS.mkdir(resolved);
   }
 
   async rm(path: string, recursive = false): Promise<void> {
-    const resolved = this.resolvePath(path);
+    const resolved = this.resolvePath(path).replace(/^\/+/, '');
     if (!recursive) {
       const entries = await this.ls(resolved);
       if (entries.length > 0) throw new Error(`rm: ${path}: is a directory (use -r)`);
@@ -112,7 +112,7 @@ export class VirtualFS {
   }
 
   async write(path: string, content: string | Blob, mimeType?: string): Promise<void> {
-    const resolved = this.resolvePath(path);
+    const resolved = this.resolvePath(path).replace(/^\/+/, '');
     await FS.write(resolved, content, mimeType);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path: resolved } }));
@@ -120,15 +120,15 @@ export class VirtualFS {
   }
 
   async append(path: string, content: string): Promise<void> {
-    const resolved = this.resolvePath(path);
+    const resolved = this.resolvePath(path).replace(/^\/+/, '');
     const existing = await FS.read(resolved);
     const existingContent = existing?.content && !existing.content.startsWith('blob:') ? existing.content : '';
     await FS.write(resolved, existingContent + content);
   }
 
   async mv(src: string, dest: string): Promise<void> {
-    const srcResolved = this.resolvePath(src);
-    const destResolved = this.resolvePath(dest);
+    const srcResolved = this.resolvePath(src).replace(/^\/+/, '');
+    const destResolved = this.resolvePath(dest).replace(/^\/+/, '');
     const file = await FS.read(srcResolved);
     if (!file) throw new Error(`mv: ${src}: No such file or directory`);
     const content = file.content && !file.content.startsWith('blob:') ? file.content : '';
@@ -140,8 +140,8 @@ export class VirtualFS {
   }
 
   async cp(src: string, dest: string): Promise<void> {
-    const srcResolved = this.resolvePath(src);
-    const destResolved = this.resolvePath(dest);
+    const srcResolved = this.resolvePath(src).replace(/^\/+/, '');
+    const destResolved = this.resolvePath(dest).replace(/^\/+/, '');
     const file = await FS.read(srcResolved);
     if (!file) throw new Error(`cp: ${src}: No such file or directory`);
     const content = file.content && !file.content.startsWith('blob:') ? file.content : '';

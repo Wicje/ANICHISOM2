@@ -1,109 +1,201 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Continua Context Bridge</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      width: 340px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #060608;
-      color: #e0e0e0;
+      width: 320px;
       padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #060608;
+      color: #f1f5f9;
+      user-select: none;
     }
     .header {
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
       gap: 8px;
-      margin-bottom: 16px;
     }
     .logo {
-      width: 24px;
-      height: 24px;
+      width: 22px;
+      height: 22px;
       border-radius: 6px;
-      background: linear-gradient(135deg, #10F4A0, #00D4AA);
+      background: linear-gradient(135deg, #10F4A0 0%, #00f0ff 100%);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 12px;
-      font-weight: bold;
+      font-weight: 900;
+      font-size: 13px;
       color: #060608;
     }
-    .title { font-size: 14px; font-weight: 600; }
-    .status {
-      font-size: 11px;
-      color: rgba(255,255,255,0.4);
-      margin-left: auto;
-    }
-    .status.connected { color: #10F4A0; }
-    .btn {
-      width: 100%;
-      padding: 10px;
-      border: none;
-      border-radius: 8px;
+    .brand-title {
+      font-weight: 700;
       font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: opacity 0.15s;
-      margin-bottom: 8px;
+      letter-spacing: -0.2px;
     }
-    .btn:hover { opacity: 0.85; }
-    .btn-primary { background: #10F4A0; color: #060608; }
-    .btn-secondary { background: rgba(255,255,255,0.06); color: #e0e0e0; }
-    .context-list { margin-top: 12px; }
-    .context-item {
-      padding: 10px;
-      background: rgba(255,255,255,0.03);
-      border-radius: 8px;
-      margin-bottom: 6px;
-      border: 1px solid rgba(255,255,255,0.05);
-    }
-    .context-item .url {
-      font-size: 11px;
-      color: #10F4A0;
-      word-break: break-all;
-      margin-bottom: 4px;
-    }
-    .context-item .title {
-      font-size: 12px;
-      color: rgba(255,255,255,0.7);
-      margin-bottom: 4px;
-    }
-    .context-item .meta {
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 9999px;
       font-size: 10px;
-      color: rgba(255,255,255,0.3);
+      font-weight: 600;
+      background: rgba(16, 244, 160, 0.12);
+      color: #10F4A0;
+      border: 1px solid rgba(16, 244, 160, 0.3);
     }
-    .config { margin-top: 12px; }
-    .config input {
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #10F4A0;
+      box-shadow: 0 0 6px #10F4A0;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .feature-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 0;
+      font-size: 11px;
+      color: #cbd5e1;
+    }
+    .feature-status {
+      color: #10F4A0;
+      font-weight: 600;
+      font-size: 10px;
+    }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .label {
+      font-size: 11px;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+    .input {
       width: 100%;
-      padding: 8px 10px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
+      background: #0f172a;
+      border: 1px solid #334155;
       border-radius: 6px;
-      color: #e0e0e0;
+      padding: 7px 10px;
+      color: #fff;
       font-size: 12px;
       outline: none;
+      transition: border-color 0.2s;
+    }
+    .input:focus {
+      border-color: #10F4A0;
+    }
+    .button {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #10F4A0 0%, #00f0ff 100%);
+      color: #060608;
       margin-bottom: 8px;
     }
-    .config input:focus { border-color: rgba(16,244,160,0.3); }
-    .empty { text-align: center; padding: 20px; color: rgba(255,255,255,0.3); font-size: 12px; }
+    .btn-primary:hover {
+      filter: brightness(1.1);
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: #f1f5f9;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .footer {
+      text-align: center;
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
   <div class="header">
-    <div class="logo">C</div>
-    <span class="title">Continua</span>
-    <span class="status" id="status">Checking...</span>
+    <div class="brand">
+      <div class="logo">C</div>
+      <div class="brand-title">Continua Bridge</div>
+    </div>
+    <div class="status-badge">
+      <div class="pulse-dot"></div>
+      Active
+    </div>
   </div>
 
-  <button class="btn btn-primary" id="captureBtn">Capture Current Tab</button>
-
-  <div class="config">
-    <input type="text" id="continuaUrl" placeholder="Continua URL (http://localhost:3000)">
+  <div class="card">
+    <div class="card-title">Bridge Status</div>
+    <div class="feature-row">
+      <span>X-Frame Header Stripping</span>
+      <span class="feature-status">Enabled</span>
+    </div>
+    <div class="feature-row">
+      <span>Context Capture Engine</span>
+      <span class="feature-status">Ready</span>
+    </div>
+    <div class="feature-row">
+      <span>Download Hijack to OS</span>
+      <span class="feature-status">Active</span>
+    </div>
   </div>
 
-  <div class="context-list" id="contextList">
-    <div class="empty">No captured contexts yet.</div>
+  <div class="input-group">
+    <label class="label" for="urlInput">Continua Workspace URL</label>
+    <input type="text" id="urlInput" class="input" placeholder="http://localhost:3000" />
+  </div>
+
+  <button id="saveBtn" class="button btn-primary">
+    Save Workspace URL
+  </button>
+  <button id="captureBtn" class="button btn-secondary">
+    Capture Current Tab Context
+  </button>
+
+  <div class="footer">
+    Continua Context Layer · v0.2.0
   </div>
 
   <script src="popup.js"></script>

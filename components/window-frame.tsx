@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, useDragControls, useReducedMotion } from 'motion/react';
 import { OSWindow } from '@/lib/os-context';
 import { useWindowActions } from '@/lib/hooks/use-window-actions';
@@ -12,6 +13,8 @@ import { audioSystem } from '@/lib/services/audio-engine';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AppIconInline } from '@/components/ui/app-icon';
 import { APP_MANIFEST } from '@/lib/app-manifest';
+
+type SnapPreviewMode = 'left' | 'right' | 'top' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
 interface WindowFrameProps {
   osWindow: OSWindow;
@@ -40,7 +43,7 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
   const [isFileLocked, setIsFileLocked] = useState(false);
   const [lockedByUser, setLockedByUser] = useState<string | null>(null);
   const [isMinimizing, setIsMinimizing] = useState(false);
-  const [snapPreview, setSnapPreview] = useState<'left' | 'right' | 'top' | null>(null);
+  const [snapPreview, setSnapPreview] = useState<SnapPreviewMode | null>(null);
 
   useEffect(() => {
     if (!osWindow.data?.fileId) return;
@@ -168,11 +171,28 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
         const pointerX = info.point.x;
         const pointerY = info.point.y;
         const screenW = window.innerWidth;
-        const pointerMargin = 35; // AriseUI Magnetic Snap Zone threshold
-        if (pointerY < pointerMargin) setSnapPreview('top');
-        else if (pointerX < pointerMargin) setSnapPreview('left');
-        else if (pointerX > screenW - pointerMargin) setSnapPreview('right');
-        else setSnapPreview(null);
+        const screenH = window.innerHeight;
+        const cornerMargin = 55;
+        const edgeMargin = 35;
+
+        // 4 Corner Quadrants
+        if (pointerY < cornerMargin && pointerX < cornerMargin) {
+          setSnapPreview('top-left');
+        } else if (pointerY < cornerMargin && pointerX > screenW - cornerMargin) {
+          setSnapPreview('top-right');
+        } else if (pointerY > screenH - cornerMargin - 40 && pointerX < cornerMargin) {
+          setSnapPreview('bottom-left');
+        } else if (pointerY > screenH - cornerMargin - 40 && pointerX > screenW - cornerMargin) {
+          setSnapPreview('bottom-right');
+        } else if (pointerY < edgeMargin) {
+          setSnapPreview('top');
+        } else if (pointerX < edgeMargin) {
+          setSnapPreview('left');
+        } else if (pointerX > screenW - edgeMargin) {
+          setSnapPreview('right');
+        } else {
+          setSnapPreview(null);
+        }
       }}
       onDragEnd={(e, info) => {
         let newX = currentX + info.offset.x;
@@ -182,24 +202,46 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
         const screenW = window.innerWidth;
         const screenH = window.innerHeight;
         const headerSpace = 32;
+        const halfW = screenW / 2;
+        const halfH = (screenH - headerSpace) / 2;
         const pointerX = info.point.x;
         const pointerY = info.point.y;
-        const pointerMargin = 20;
+        const cornerMargin = 55;
+        const edgeMargin = 35;
 
         if (aeroSnap) {
-          if (pointerY < pointerMargin) {
-            if (!isMaximized) maximizeWindow(id);
-            return;
-          }
-          if (pointerX < pointerMargin) {
+          if (pointerY < cornerMargin && pointerX < cornerMargin) {
             newX = 0;
             newY = headerSpace;
-            newWidth = screenW / 2;
-            newHeight = screenH - headerSpace;
-          } else if (pointerX > screenW - pointerMargin) {
-            newX = screenW / 2;
+            newWidth = halfW;
+            newHeight = halfH;
+          } else if (pointerY < cornerMargin && pointerX > screenW - cornerMargin) {
+            newX = halfW;
             newY = headerSpace;
-            newWidth = screenW / 2;
+            newWidth = halfW;
+            newHeight = halfH;
+          } else if (pointerY > screenH - cornerMargin - 40 && pointerX < cornerMargin) {
+            newX = 0;
+            newY = headerSpace + halfH;
+            newWidth = halfW;
+            newHeight = halfH;
+          } else if (pointerY > screenH - cornerMargin - 40 && pointerX > screenW - cornerMargin) {
+            newX = halfW;
+            newY = headerSpace + halfH;
+            newWidth = halfW;
+            newHeight = halfH;
+          } else if (pointerY < edgeMargin) {
+            if (!isMaximized) maximizeWindow(id);
+            return;
+          } else if (pointerX < edgeMargin) {
+            newX = 0;
+            newY = headerSpace;
+            newWidth = halfW;
+            newHeight = screenH - headerSpace;
+          } else if (pointerX > screenW - edgeMargin) {
+            newX = halfW;
+            newY = headerSpace;
+            newWidth = halfW;
             newHeight = screenH - headerSpace;
           }
         }
@@ -356,16 +398,18 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
         </>
       )}
 
-      {/* Snap Preview Overlay */}
-      {snapPreview && (
+      {/* Desktop Blueprint Ghost Overlay (HomeDockOS Style) */}
+      {snapPreview && typeof document !== 'undefined' && createPortal(
         <div
-          className="absolute z-[200] rounded-xl border-2 border-blue-400/60 bg-blue-400/10 pointer-events-none transition-all duration-150"
+          className="fixed z-[9999] pointer-events-none rounded-2xl border-2 border-emerald-400/60 bg-emerald-400/10 backdrop-blur-sm shadow-[0_0_30px_rgba(16,244,160,0.25)] transition-all duration-150 ease-out animate-pulse"
           style={{
-            ...(snapPreview === 'left' ? { left: 0, top: 0, width: '50%', height: '100%' } : {}),
-            ...(snapPreview === 'right' ? { right: 0, top: 0, width: '50%', height: '100%' } : {}),
-            ...(snapPreview === 'top' ? { left: 0, top: 0, width: '100%', height: '100%' } : {}),
+            left: snapPreview === 'left' || snapPreview === 'top-left' || snapPreview === 'bottom-left' || snapPreview === 'top' ? 8 : (window.innerWidth / 2 + 4),
+            top: snapPreview === 'top' || snapPreview === 'top-left' || snapPreview === 'top-right' || snapPreview === 'left' || snapPreview === 'right' ? 38 : (32 + (window.innerHeight - 32) / 2 + 4),
+            width: snapPreview === 'top' ? 'calc(100vw - 16px)' : 'calc(50vw - 12px)',
+            height: snapPreview === 'top' || snapPreview === 'left' || snapPreview === 'right' ? 'calc(100vh - 48px)' : 'calc(50vh - 28px)',
           }}
-        />
+        />,
+        document.body
       )}
     </motion.div>
   );

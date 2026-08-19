@@ -5,12 +5,15 @@ import { useOS, OSWindow } from '@/lib/os-context';
 import {
   Folder, File as FileIcon, FileText, Image as ImageIcon, Video, Box, Search,
   Plus, Trash2, HardDrive, RefreshCw, ChevronRight, Download, Upload,
-  Cloud, Link, Unlink, Loader2, ExternalLink, Lock, Eye, Pencil, Copy, CheckCircle
+  Cloud, Link, Unlink, Loader2, ExternalLink, Lock, Eye, Pencil, Copy, CheckCircle,
+  Sparkles, GitBranch, Check, CheckSquare, Square, ArrowRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { FS, LocalFile } from '@/lib/fs';
+import { FS, LocalFile, GitHubMount } from '@/lib/fs';
 import { useFileStore } from '@/lib/stores/file.store';
+import { useWindowStore } from '@/lib/stores/window.store';
 import { hardwareManager } from '@/lib/hardware';
+import { getAiProvider } from '@/lib/ai-providers/ai-provider-factory';
 import { OpenWithModal } from '@/components/overlays/open-with-modal';
 import { SyncPromptBanner } from './sync-prompt-banner';
 import { OSPrompt, OSConfirm, OSModal } from '@/components/ui/os-modal';
@@ -183,6 +186,179 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   const [openWithApps, setOpenWithApps] = useState<{ appId: string; label: string }[]>([]);
   const [openWithFile, setOpenWithFile] = useState<LocalFile | null>(null);
 
+  // Virtual GitHub Mount State
+  const [gitHubMounts, setGitHubMounts] = useState<GitHubMount[]>([]);
+  const [showMountGitHub, setShowMountGitHub] = useState(false);
+  const [githubRepoInput, setGithubRepoInput] = useState('');
+  const [githubBranchInput, setGithubBranchInput] = useState('main');
+  const [mountingGitHub, setMountingGitHub] = useState(false);
+
+  // Smart Tidy AI File Sorter State
+  interface TidyItem {
+    from: string;
+    to: string;
+    category: string;
+    reason?: string;
+    selected: boolean;
+  }
+  const [tidyPlan, setTidyPlan] = useState<TidyItem[] | null>(null);
+  const [tidyLoading, setTidyLoading] = useState(false);
+
+  const loadGitHubMounts = useCallback(async () => {
+    try {
+      const mounts = await FS.listGitHubMounts();
+      setGitHubMounts(mounts);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    loadGitHubMounts();
+    const handleFsChanged = (e: any) => {
+      if (e.detail?.path === 'GitHub') loadGitHubMounts();
+    };
+    window.addEventListener('os:fs-changed', handleFsChanged);
+    return () => window.removeEventListener('os:fs-changed', handleFsChanged);
+  }, [loadGitHubMounts]);
+
+  const handleMountGitHub = async () => {
+    if (!githubRepoInput.trim()) return;
+    setMountingGitHub(true);
+    try {
+      const mount = await FS.mountGitHub(githubRepoInput, githubRepoInput, githubBranchInput || 'main');
+      await loadGitHubMounts();
+      setShowMountGitHub(false);
+      setGithubRepoInput('');
+      setSelectedSource('local');
+      setCurrentPath(`GitHub/${mount.owner}/${mount.repo}`);
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'GitHub Repo Mounted', description: `Mounted virtual tree for ${mount.owner}/${mount.repo}`, type: 'success' },
+      }));
+    } catch (err: any) {
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Mount Failed', description: err.message || 'Could not mount repository', type: 'error' },
+      }));
+    } finally {
+      setMountingGitHub(false);
+    }
+  };
+
+  const handleUnmountGitHub = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await FS.unmountGitHub(id);
+    await loadGitHubMounts();
+    if (currentPath.startsWith(`GitHub/${id}`)) {
+      setCurrentPath('Desktop');
+    }
+    window.dispatchEvent(new CustomEvent('os:notify', {
+      detail: { title: 'Repository Unmounted', description: `Unmounted ${id}`, type: 'info' },
+    }));
+  };
+
+  const handleSmartTidy = async () => {
+    if (files.length === 0) {
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Folder Empty', description: 'No files to organize in this folder.', type: 'info' },
+      }));
+      return;
+    }
+    setTidyLoading(true);
+    try {
+      const fileList = files.filter(f => !f.isFolder).map(f => ({
+        name: f.name,
+        path: f.id,
+        size: f.size,
+        mimeType: f.mimeType,
+      }));
+
+      if (fileList.length === 0) {
+        window.dispatchEvent(new CustomEvent('os:notify', {
+          detail: { title: 'No Files to Organize', description: 'This folder only contains subdirectories.', type: 'info' },
+        }));
+        setTidyLoading(false);
+        return;
+      }
+
+      const prompt = `You are an automated file organizer. Analyze this directory: "${currentPath}" and its files:
+${JSON.stringify(fileList, null, 2)}
+
+Group these files into clean, logical subdirectories (e.g. Documents, Invoices, Media/Audio, Media/Video, Code, Archives, Images) and suggest clean descriptive destination paths relative to current path.
+Respond ONLY with a JSON array in this exact format, with no markdown fences, no explanatory text:
+[
+  { "from": "path/or/name", "to": "TargetFolder/CleanName.ext", "category": "Documents", "reason": "Categorized by type" }
+]`;
+
+      const provider = getAiProvider();
+      const response = await provider.chat({
+        messages: [{ role: 'user', content: prompt }],
+      });
+
+      let parsed: any[] = [];
+      try {
+        const cleaned = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
+        parsed = JSON.parse(cleaned);
+      } catch {
+        // Fallback rule-based organizer
+        parsed = fileList.map(f => {
+          let category = 'Documents';
+          let folder = 'Documents';
+          if (f.mimeType?.startsWith('image/')) { category = 'Images'; folder = 'Images'; }
+          else if (f.mimeType?.startsWith('video/')) { category = 'Video'; folder = 'Media/Video'; }
+          else if (f.mimeType?.startsWith('audio/')) { category = 'Audio'; folder = 'Media/Audio'; }
+          else if (f.mimeType?.includes('zip') || f.mimeType?.includes('tar')) { category = 'Archives'; folder = 'Archives'; }
+          else if (f.name.endsWith('.ts') || f.name.endsWith('.tsx') || f.name.endsWith('.js') || f.name.endsWith('.py')) { category = 'Code'; folder = 'Code'; }
+
+          return {
+            from: f.name,
+            to: `${folder}/${f.name}`,
+            category,
+            reason: `Grouped into ${folder}`,
+          };
+        });
+      }
+
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setTidyPlan(parsed.map(item => ({
+          from: item.from,
+          to: item.to,
+          category: item.category || 'General',
+          reason: item.reason || '',
+          selected: true,
+        })));
+      }
+    } catch (err: any) {
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Smart Tidy Error', description: err.message || 'Failed to analyze files', type: 'error' },
+      }));
+    } finally {
+      setTidyLoading(false);
+    }
+  };
+
+  const applyTidyPlan = async () => {
+    if (!tidyPlan) return;
+    const itemsToMove = tidyPlan.filter(item => item.selected);
+    if (itemsToMove.length === 0) {
+      setTidyPlan(null);
+      return;
+    }
+
+    for (const item of itemsToMove) {
+      const srcPath = currentPath === 'Root' ? item.from : `${currentPath}/${item.from}`;
+      const destPath = currentPath === 'Root' ? item.to : `${currentPath}/${item.to}`;
+      try {
+        await FS.move(srcPath, destPath);
+      } catch (err) {
+        console.warn(`[SmartTidy] Failed to move ${srcPath} -> ${destPath}`, err);
+      }
+    }
+
+    setTidyPlan(null);
+    fetchFiles();
+    window.dispatchEvent(new CustomEvent('os:notify', {
+      detail: { title: 'Files Organized', description: `Successfully organized ${itemsToMove.length} file(s).`, type: 'success' },
+    }));
+  };
+
   const revokeObjectUrls = () => {
     for (const url of objectUrlsRef.current) {
       URL.revokeObjectURL(url);
@@ -253,6 +429,12 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   useEffect(() => {
     useFileStore.setState({ selectedFiles: new Set(selectedFileIds) });
   }, [selectedFileIds]);
+
+  useEffect(() => {
+    if (osWindow?.id && currentPath) {
+      useWindowStore.getState().updateWindowData(osWindow.id, { initialPath: currentPath });
+    }
+  }, [currentPath, osWindow?.id]);
 
   // Get the directory path for a given folder file
   const getFolderPath = (folder: LocalFile) => {
@@ -637,19 +819,35 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFiles = e.target.files;
-    if (!uploadedFiles) return;
+    e.target.value = '';
+    if (!uploadedFiles || uploadedFiles.length === 0) return;
 
-    for (let i = 0; i < uploadedFiles.length; i++) {
-      const file = uploadedFiles[i]!;
-      const filePath = currentPath === 'Root' ? file.name : `${currentPath}/${file.name}`;
-      await FS.write(filePath, file, file.type);
+    let imported = 0;
+    try {
+      for (let i = 0; i < uploadedFiles.length; i++) {
+        const file = uploadedFiles[i]!;
+        const filePath = currentPath === 'Root' ? file.name : `${currentPath}/${file.name}`;
+        await FS.write(filePath, file, file.type);
+        imported++;
 
-      // Prompt sync for large files (>5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setSyncPromptFile({ name: file.name, size: file.size, type: file.type, file });
+        // Prompt sync for large files (>5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          setSyncPromptFile({ name: file.name, size: file.size, type: file.type, file });
+        }
       }
+      fetchFiles();
+    } catch (err) {
+      console.error('Upload failed:', err);
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: {
+          title: 'Upload Failed',
+          description: imported > 0
+            ? `${imported} of ${uploadedFiles.length} files saved, but the rest could not be stored.`
+            : 'Your files could not be saved. Check that browser storage is available.',
+          type: 'error',
+        },
+      }));
     }
-    fetchFiles();
   };
 
   // Drag-and-drop handlers
@@ -927,6 +1125,55 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
             </div>
           )}
 
+          {/* GitHub Virtual Drives (GHFS) */}
+          <div className="px-3 mt-6 mb-2 flex items-center justify-between">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--os-text-muted)]">GitHub Repos</div>
+            <button
+              onClick={() => setShowMountGitHub(true)}
+              className="p-1 rounded hover:bg-[var(--os-hover)] text-emerald-400 transition-colors"
+              title="Mount GitHub Repository"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="flex flex-col gap-1 px-2">
+            {gitHubMounts.length > 0 ? (
+              gitHubMounts.map(mount => (
+                <div
+                  key={mount.id}
+                  onClick={() => {
+                    setSelectedSource('local');
+                    setCurrentPath(`GitHub/${mount.owner}/${mount.repo}`);
+                  }}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer group",
+                    currentPath.startsWith(`GitHub/${mount.id}`) ? "bg-[var(--os-active)] text-[var(--os-primary)]" : "text-[var(--os-text-muted)] hover:bg-[var(--os-hover)] hover:text-[var(--os-text)]"
+                  )}
+                >
+                  <GitBranch className="w-4 h-4 text-purple-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="truncate font-medium text-xs">{mount.repo}</div>
+                    <div className="text-[10px] text-[var(--os-text-muted)] truncate">{mount.owner} ({mount.branch})</div>
+                  </div>
+                  <button
+                    onClick={(e) => handleUnmountGitHub(mount.id, e)}
+                    className="p-1 rounded hover:bg-[var(--os-error)]/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Unmount repository"
+                  >
+                    <Unlink className="w-3.5 h-3.5 text-[var(--os-text-muted)] hover:text-[var(--os-error)]" />
+                  </button>
+                </div>
+              ))
+            ) : (
+              <button
+                onClick={() => setShowMountGitHub(true)}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[11px] font-medium border border-dashed border-purple-500/30 text-purple-400 hover:bg-purple-500/10 transition-colors"
+              >
+                <GitBranch className="w-3.5 h-3.5" /> + Mount GitHub Repo
+              </button>
+            )}
+          </div>
+
           {/* Refresh cloud sources */}
           <div className="px-3 mt-6">
             <button
@@ -1022,6 +1269,15 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
 
                 <button onClick={() => setShowImportUrl(!showImportUrl)} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--os-hover)] hover:bg-[var(--os-active)] rounded-md text-sm font-medium transition-colors" title="Import from URL">
                    <Cloud className="w-4 h-4" /> Import URL
+                </button>
+
+                <button
+                  onClick={handleSmartTidy}
+                  disabled={tidyLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-md text-sm font-medium transition-colors shadow-sm disabled:opacity-50"
+                  title="AI File Organizer: Automatically categorize and organize current folder"
+                >
+                  <Sparkles className="w-4 h-4" /> {tidyLoading ? 'Analyzing...' : 'Smart Tidy'}
                 </button>
 
                 <button onClick={() => setShowNewFolder(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--os-hover)] hover:bg-[var(--os-active)] rounded-md text-sm font-medium transition-colors">
@@ -1603,6 +1859,136 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
           onClose={() => setShowOpenWith(false)}
         />
       )}
+
+      {/* Mount GitHub Repository Modal (GHFS) */}
+      <OSModal
+        open={showMountGitHub}
+        onClose={() => setShowMountGitHub(false)}
+        title="Mount Virtual GitHub Repository"
+      >
+        <div className="flex flex-col gap-4 text-sm">
+          <p className="text-[var(--os-text-muted)] text-xs">
+            Mount any public or accessible GitHub repository as a virtual directory. Files are streamed on-demand without cloning.
+          </p>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-[var(--os-text)]">Repository (owner/repo or URL)</label>
+            <input
+              type="text"
+              placeholder="e.g. facebook/react or DustinBrett/daedalOS"
+              value={githubRepoInput}
+              onChange={(e) => setGithubRepoInput(e.target.value)}
+              className="px-3 py-2 rounded-lg bg-[var(--os-surface-elevated)] border border-[var(--os-border)] text-[var(--os-text)] text-sm outline-none focus:border-purple-400"
+              autoFocus
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-[var(--os-text)]">Branch (default: main)</label>
+            <input
+              type="text"
+              placeholder="main"
+              value={githubBranchInput}
+              onChange={(e) => setGithubBranchInput(e.target.value)}
+              className="px-3 py-2 rounded-lg bg-[var(--os-surface-elevated)] border border-[var(--os-border)] text-[var(--os-text)] text-sm outline-none focus:border-purple-400"
+            />
+          </div>
+          <div className="flex justify-end gap-2 mt-2">
+            <button
+              onClick={() => setShowMountGitHub(false)}
+              className="px-4 py-2 rounded-lg text-xs font-medium text-[var(--os-text-muted)] hover:bg-[var(--os-hover)] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleMountGitHub}
+              disabled={mountingGitHub || !githubRepoInput.trim()}
+              className="px-4 py-2 rounded-lg text-xs font-medium bg-purple-600 hover:bg-purple-700 text-white transition-colors disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {mountingGitHub ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <GitBranch className="w-3.5 h-3.5" />}
+              {mountingGitHub ? 'Mounting...' : 'Mount Repository'}
+            </button>
+          </div>
+        </div>
+      </OSModal>
+
+      {/* Smart Tidy AI Sorter Staging Diff Modal (AI-File-Sorter) */}
+      <OSModal
+        open={!!tidyPlan}
+        onClose={() => setTidyPlan(null)}
+        title="Smart Tidy — Preview File Organization"
+      >
+        <div className="flex flex-col gap-4 text-sm max-h-[65vh]">
+          <p className="text-xs text-[var(--os-text-muted)]">
+            Review the proposed organization below. Checked files will be moved into structured subdirectories automatically.
+          </p>
+
+          <div className="flex items-center justify-between text-xs text-[var(--os-text-muted)] pb-1 border-b border-[var(--os-border)]">
+            <button
+              onClick={() => {
+                const allSelected = tidyPlan?.every(i => i.selected);
+                setTidyPlan(prev => prev ? prev.map(i => ({ ...i, selected: !allSelected })) : null);
+              }}
+              className="flex items-center gap-1.5 hover:text-[var(--os-text)] transition-colors font-medium"
+            >
+              {tidyPlan?.every(i => i.selected) ? <CheckSquare className="w-4 h-4 text-emerald-400" /> : <Square className="w-4 h-4" />}
+              Select All ({tidyPlan?.filter(i => i.selected).length}/{tidyPlan?.length})
+            </button>
+            <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+              <Sparkles className="w-3 h-3" /> AI Proposed Plan
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-2 overflow-y-auto pr-1 max-h-80">
+            {tidyPlan?.map((item, idx) => (
+              <div
+                key={idx}
+                onClick={() => {
+                  setTidyPlan(prev => prev ? prev.map((it, i) => i === idx ? { ...it, selected: !it.selected } : it) : null);
+                }}
+                className={cn(
+                  "p-2.5 rounded-lg border flex items-center gap-3 cursor-pointer transition-all text-xs",
+                  item.selected ? "bg-emerald-500/5 border-emerald-500/30" : "bg-[var(--os-surface-elevated)] border-[var(--os-border)] opacity-60"
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={item.selected}
+                  onChange={() => {}}
+                  className="rounded text-emerald-500 focus:ring-0 cursor-pointer"
+                />
+                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="text-[var(--os-text-muted)] line-through truncate max-w-[45%]">{item.from}</span>
+                    <ArrowRight className="w-3 h-3 text-emerald-400 shrink-0" />
+                    <span className="font-semibold text-emerald-400 truncate">{item.to}</span>
+                  </div>
+                  {item.reason && (
+                    <div className="text-[10px] text-[var(--os-text-muted)] opacity-80">{item.reason}</div>
+                  )}
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+                  {item.category}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-[var(--os-border)]">
+            <button
+              onClick={() => setTidyPlan(null)}
+              className="px-4 py-2 rounded-lg text-xs font-medium text-[var(--os-text-muted)] hover:bg-[var(--os-hover)] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={applyTidyPlan}
+              disabled={!tidyPlan?.some(i => i.selected)}
+              className="px-4 py-2 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+            >
+              <Check className="w-3.5 h-3.5" /> Apply Organization ({tidyPlan?.filter(i => i.selected).length})
+            </button>
+          </div>
+        </div>
+      </OSModal>
     </div>
   );
 }

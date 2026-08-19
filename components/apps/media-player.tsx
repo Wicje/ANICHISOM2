@@ -1,11 +1,34 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
-import { Play, Pause, SkipForward, SkipBack, Volume2, Maximize, Film, Music, ListVideo, X, LayoutGrid, Disc } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Volume2, Maximize, Film, Music, ListVideo, X, LayoutGrid, Disc, Mic2, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FS, LocalFile } from '@/lib/fs';
 import { useCollaborativeDoc, CollaborativeDocState } from '@/lib/hooks/useCollaborativeDoc';
 
 type ViewMode = 'player' | 'coverflow';
+
+export interface LyricLine {
+  time: number;
+  text: string;
+}
+
+export function parseLRC(lrcText: string): LyricLine[] {
+  const lines = lrcText.split('\n');
+  const result: LyricLine[] = [];
+  const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
+  for (const line of lines) {
+    const match = timeRegex.exec(line);
+    if (match) {
+      const mins = parseInt(match[1]!, 10);
+      const secs = parseInt(match[2]!, 10);
+      const ms = parseFloat(`0.${match[3]!}`);
+      const time = mins * 60 + secs + ms;
+      const text = line.replace(timeRegex, '').trim();
+      if (text) result.push({ time, text });
+    }
+  }
+  return result.sort((a, b) => a.time - b.time);
+}
 
 export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
   const { workspaceMode } = useOS();
@@ -31,6 +54,13 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
   const [currentFileUrl, setCurrentFileUrl] = useState<string | undefined>(osWindow.data?.fileUrl);
   const [currentMimeType, setCurrentMimeType] = useState<string | undefined>(osWindow.data?.mimeType);
   const [currentTitle, setCurrentTitle] = useState<string | undefined>('Now Playing');
+
+  // Synced Lyrics (LRCLIB) State
+  const [lyrics, setLyrics] = useState<LyricLine[]>([]);
+  const [showLyrics, setShowLyrics] = useState(false);
+  const [activeLyricIndex, setActiveLyricIndex] = useState<number>(-1);
+  const lyricsContainerRef = useRef<HTMLDivElement>(null);
+  const visualizerCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null);
 
@@ -139,9 +169,65 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
     }
   }, [volume]);
 
+  // Auto-fetch synced lyrics from LRCLIB
+  useEffect(() => {
+    if (!currentTitle || currentTitle === 'Now Playing') {
+      setLyrics([]);
+      return;
+    }
+    const cleanTitle = currentTitle.replace(/\.[^.]+$/, '').replace(/[\(\[\{].*?[\)\]\}]/g, '').trim();
+    let isMounted = true;
+    fetch(`https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanTitle)}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!isMounted) return;
+        if (data?.syncedLyrics) {
+          setLyrics(parseLRC(data.syncedLyrics));
+        } else if (data?.plainLyrics) {
+          setLyrics(data.plainLyrics.split('\n').filter(Boolean).map((t: string, i: number) => ({ time: i * 5, text: t })));
+        } else {
+          setLyrics([]);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setLyrics([]);
+      });
+    return () => { isMounted = false; };
+  }, [currentTitle]);
+
+  // Broadcast media playback to MenuBar
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('os:media-playback', {
+        detail: {
+          isPlaying,
+          title: currentTitle || 'Audio Track',
+          artist: isAudio ? 'Audio Track' : 'Video',
+          progress,
+          duration
+        }
+      }));
+    }
+  }, [isPlaying, currentTitle, progress, duration, isAudio]);
+
   const handleTimeUpdate = () => {
     if (mediaRef.current) {
-      setProgress(mediaRef.current.currentTime);
+      const cur = mediaRef.current.currentTime;
+      setProgress(cur);
+
+      if (lyrics.length > 0) {
+        const idx = lyrics.findIndex((l, i) => {
+          const next = lyrics[i + 1];
+          return cur >= l.time && (!next || cur < next.time);
+        });
+        if (idx !== -1 && idx !== activeLyricIndex) {
+          setActiveLyricIndex(idx);
+          const el = document.getElementById(`lyric-line-${idx}`);
+          if (el && lyricsContainerRef.current) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      }
     }
   };
 
@@ -332,20 +418,66 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
             <span className="text-sm font-semibold tracking-wide">{currentTitle}</span>
             <span className="text-xs text-white/50 uppercase tracking-wider">{isAudio ? 'Audio Player' : 'CinePlay Video'}</span>
           </div>
-          <button 
-            onClick={(e) => { e.preventDefault(); setShowPlaylist(!showPlaylist); }}
-            className="p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md pointer-events-auto transition-colors"
-          >
-            <ListVideo className="w-4 h-4" />
-          </button>
-          <button 
-            onClick={(e) => { e.preventDefault(); setViewMode('coverflow'); }}
-            className="p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md pointer-events-auto transition-colors"
-            title="Coverflow View"
-          >
-            <Disc className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={(e) => { e.preventDefault(); setShowLyrics(!showLyrics); }}
+              className={cn(
+                "p-2 rounded-full backdrop-blur-md pointer-events-auto transition-colors",
+                showLyrics ? "bg-emerald-500 text-white" : "bg-white/10 hover:bg-white/20 text-white/80"
+              )}
+              title="Synced Lyrics (LRCLIB)"
+            >
+              <Mic2 className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={(e) => { e.preventDefault(); setShowPlaylist(!showPlaylist); }}
+              className="p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md pointer-events-auto transition-colors"
+            >
+              <ListVideo className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={(e) => { e.preventDefault(); setViewMode('coverflow'); }}
+              className="p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md pointer-events-auto transition-colors"
+              title="Coverflow View"
+            >
+              <Disc className="w-4 h-4" />
+            </button>
+          </div>
         </div>
+
+        {/* Synced Lyrics Overlay (LRCLIB & YTM-Player Pattern) */}
+        {showLyrics && lyrics.length > 0 && (
+          <div
+            ref={lyricsContainerRef}
+            className="absolute inset-0 bg-black/85 backdrop-blur-2xl z-10 flex flex-col items-center justify-start overflow-y-auto px-8 py-20 text-center scroll-smooth"
+          >
+            <div className="text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-6 flex items-center gap-1.5 shrink-0">
+              <Mic2 className="w-3.5 h-3.5" /> Synced Lyrics
+            </div>
+            <div className="flex flex-col gap-6 max-w-lg w-full pb-20">
+              {lyrics.map((line, idx) => (
+                <p
+                  key={idx}
+                  id={`lyric-line-${idx}`}
+                  onClick={() => {
+                    if (mediaRef.current) {
+                      mediaRef.current.currentTime = line.time;
+                      setProgress(line.time);
+                    }
+                  }}
+                  className={cn(
+                    "text-base sm:text-xl font-bold cursor-pointer transition-all duration-300 py-1 select-none",
+                    idx === activeLyricIndex
+                      ? "text-emerald-400 scale-110 drop-shadow-[0_0_20px_rgba(16,244,160,0.6)] font-extrabold opacity-100"
+                      : "text-white/40 hover:text-white/70 opacity-60 scale-95"
+                  )}
+                >
+                  {line.text}
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Media Surface */}
         <div className="absolute inset-0 flex items-center justify-center">

@@ -96,6 +96,23 @@ export function MenuBar({
   const unreadCount = useNotificationStore((s) => s.notifications.filter(n => !n.read).length);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const { battery, network } = useHardwareState();
+  const windows = useWindowStore((s) => s.windows);
+  const closeWindow = useWindowStore((s) => s.closeWindow);
+  const minimizeWindow = useWindowStore((s) => s.minimizeWindow);
+  const maximizeWindow = useWindowStore((s) => s.maximizeWindow);
+
+  const focusedWindow = windows
+    .filter(w => !w.isMinimized && (w.workspace === undefined || w.workspace === activeWorkspace))
+    .sort((a, b) => b.zIndex - a.zIndex)[0];
+
+  const appName = focusedWindow
+    ? (focusedWindow.appId === 'code' ? 'Code Studio'
+      : focusedWindow.appId === 'terminal' ? 'Terminal'
+      : focusedWindow.appId === 'browser' ? 'Power Browser'
+      : focusedWindow.appId === 'files' ? 'File Manager'
+      : focusedWindow.appId === 'productivity' ? 'Document Studio'
+      : focusedWindow.title || 'Continua')
+    : 'Continua';
 
   useEffect(() => {
     if (!openMenu) return;
@@ -107,6 +124,19 @@ export function MenuBar({
   const [showWifiMenu, setShowWifiMenu] = useState(false);
   const [activeWifi, setActiveWifi] = useState('Continua_Studio_5G');
   const [wifiEnabled, setWifiEnabled] = useState(true);
+
+  // Live Media Playback State
+  const [mediaPlayback, setMediaPlayback] = useState<{ isPlaying: boolean; title: string; artist?: string } | null>(null);
+
+  useEffect(() => {
+    const handleMedia = (e: any) => {
+      if (e.detail) {
+        setMediaPlayback(e.detail);
+      }
+    };
+    window.addEventListener('os:media-playback', handleMedia);
+    return () => window.removeEventListener('os:media-playback', handleMedia);
+  }, []);
 
   const wifiNetworks = [
     { ssid: 'Continua_Studio_5G', signal: '100%', secured: true },
@@ -164,21 +194,65 @@ export function MenuBar({
           )}
           <span>{activeUser.name}</span>
         </div>
+        <div 
+          className="font-bold flex items-center cursor-pointer hover:bg-white/10 transition-colors uppercase tracking-wider text-xs px-2.5 py-1 rounded-lg gap-2 border border-white/10" 
+          onClick={() => {
+            if (focusedWindow) {
+              setOpenMenu(openMenu === 'app' ? null : 'app');
+            } else {
+              openWindow('settings', 'Settings');
+            }
+          }}
+          title={focusedWindow ? `${appName} Options` : "Account Settings"}
+        >
+          <span className="font-black text-white">{appName}</span>
+        </div>
         <div className="hidden sm:flex gap-4">
+          {/* Active App / System Menu */}
           <div className="group relative">
             <button role="menuitem" className="px-2 py-0.5 rounded transition-colors cursor-default" style={{ color: 'var(--os-text)' }} aria-expanded={openMenu === 'file'} aria-haspopup="true" onClick={() => setOpenMenu(openMenu === 'file' ? null : 'file')} onKeyDown={(e) => { if (e.key === 'Escape') setOpenMenu(null); if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenMenu(openMenu === 'file' ? null : 'file'); } }}>File</button>
             <div role="menu" className={cn("absolute top-full left-0 mt-1 transition-transform origin-top-left glass-panel text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[180px] z-[300]", openMenu === 'file' ? "scale-100" : "scale-0 group-hover:scale-100")} style={{ color: 'var(--os-text)' }} onMouseLeave={() => setOpenMenu(null)}>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); useWorkspaceStore.getState().saveSnapshot('Desktop State', useWindowStore.getState().windows); window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Saved State', description: 'OS Workspace layout saved. Restore it from Time Machine.', type: 'success' } })); }}>Save Desktop State</button>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); window.dispatchEvent(new CustomEvent('os:open-spotlight')); }}>New File (Spotlight)</button>
-              <div className="h-px my-1" style={{ background: 'var(--os-border)' }}></div>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors text-rose-400 font-semibold" onClick={(e) => { e.stopPropagation(); setOpenMenu(null); wipeSession(); }}>Wipe Local Data</button>
+              {focusedWindow?.appId === 'code' ? (
+                <>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); window.dispatchEvent(new CustomEvent('os:open-spotlight')); }}>New File (⌘N)</button>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'File Saved', description: 'Workspace code changes persisted to context layer.', type: 'success' } })); }}>Save Workspace (⌘S)</button>
+                  <div className="h-px my-1" style={{ background: 'var(--os-border)' }}></div>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors text-rose-400 font-semibold" onClick={(e) => { e.stopPropagation(); setOpenMenu(null); closeWindow(focusedWindow.id); }}>Close Editor (⌘W)</button>
+                </>
+              ) : focusedWindow?.appId === 'browser' ? (
+                <>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); window.dispatchEvent(new CustomEvent('os:browser-new-tab')); }}>New Tab (⌘T)</button>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); openWindow('browser', 'Power Browser'); }}>New Window (⌘N)</button>
+                  <div className="h-px my-1" style={{ background: 'var(--os-border)' }}></div>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors text-rose-400 font-semibold" onClick={(e) => { e.stopPropagation(); setOpenMenu(null); closeWindow(focusedWindow.id); }}>Close Window (⌘W)</button>
+                </>
+              ) : focusedWindow?.appId === 'terminal' ? (
+                <>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); openWindow('terminal', 'Terminal'); }}>New Terminal (⌘N)</button>
+                  <div className="h-px my-1" style={{ background: 'var(--os-border)' }}></div>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors text-rose-400 font-semibold" onClick={(e) => { e.stopPropagation(); setOpenMenu(null); closeWindow(focusedWindow.id); }}>Close Terminal (⌘W)</button>
+                </>
+              ) : focusedWindow?.appId === 'files' ? (
+                <>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); window.dispatchEvent(new CustomEvent('os:open-spotlight')); }}>New Item</button>
+                  <div className="h-px my-1" style={{ background: 'var(--os-border)' }}></div>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors text-rose-400 font-semibold" onClick={(e) => { e.stopPropagation(); setOpenMenu(null); closeWindow(focusedWindow.id); }}>Close Window (⌘W)</button>
+                </>
+              ) : (
+                <>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); useWorkspaceStore.getState().saveSnapshot('Desktop State', useWindowStore.getState().windows); window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Saved State', description: 'OS Workspace layout saved. Restore it from Time Machine.', type: 'success' } })); }}>Save Desktop State</button>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); window.dispatchEvent(new CustomEvent('os:open-spotlight')); }}>New File (Spotlight)</button>
+                  <div className="h-px my-1" style={{ background: 'var(--os-border)' }}></div>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors text-rose-400 font-semibold" onClick={(e) => { e.stopPropagation(); setOpenMenu(null); wipeSession(); }}>Wipe Local Data</button>
+                </>
+              )}
             </div>
           </div>
           <div className="group relative">
             <button role="menuitem" className="px-2 py-0.5 rounded transition-colors cursor-default" style={{ color: 'var(--os-text)' }} aria-expanded={openMenu === 'edit'} aria-haspopup="true" onClick={() => setOpenMenu(openMenu === 'edit' ? null : 'edit')} onKeyDown={(e) => { if (e.key === 'Escape') setOpenMenu(null); if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenMenu(openMenu === 'edit' ? null : 'edit'); } }}>Edit</button>
             <div role="menu" className={cn("absolute top-full left-0 mt-1 transition-transform origin-top-left glass-panel text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[160px] z-[300]", openMenu === 'edit' ? "scale-100" : "scale-0 group-hover:scale-100")} style={{ color: 'var(--os-text)' }} onMouseLeave={() => setOpenMenu(null)}>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); }}>Undo (Cmd+Z)</button>
-              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); }}>Redo (Cmd+Shift+Z)</button>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); }}>Undo (⌘Z)</button>
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); }}>Redo (⌘⇧Z)</button>
               <div className="h-px my-1" style={{ background: 'var(--os-border)' }}></div>
               <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); setShowLaunchpad(true); }}>Edit OS Apps</button>
             </div>
@@ -195,8 +269,23 @@ export function MenuBar({
               <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); setShowMissionControl(true); }}>Mission Control</button>
             </div>
           </div>
+          <div className="group relative">
+            <button role="menuitem" className="px-2 py-0.5 rounded transition-colors cursor-default" style={{ color: 'var(--os-text)' }} aria-expanded={openMenu === 'window'} aria-haspopup="true" onClick={() => setOpenMenu(openMenu === 'window' ? null : 'window')} onKeyDown={(e) => { if (e.key === 'Escape') setOpenMenu(null); if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenMenu(openMenu === 'window' ? null : 'window'); } }}>Window</button>
+            <div role="menu" className={cn("absolute top-full left-0 mt-1 transition-transform origin-top-left glass-panel text-xs font-medium rounded-lg shadow-2xl py-1 min-w-[190px] z-[300]", openMenu === 'window' ? "scale-100" : "scale-0 group-hover:scale-100")} style={{ color: 'var(--os-text)' }} onMouseLeave={() => setOpenMenu(null)}>
+              {focusedWindow && (
+                <>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); minimizeWindow(focusedWindow.id); }}>Minimize (⌘M)</button>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); maximizeWindow(focusedWindow.id); }}>Zoom / Maximize</button>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); useWindowStore.getState().updateWindowDimensions(focusedWindow.id, 0, 32, window.innerWidth / 2, window.innerHeight - 100); }}>Tile Window to Left (⌥⌘←)</button>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); useWindowStore.getState().updateWindowDimensions(focusedWindow.id, window.innerWidth / 2, 32, window.innerWidth / 2, window.innerHeight - 100); }}>Tile Window to Right (⌥⌘→)</button>
+                  <div className="h-px my-1" style={{ background: 'var(--os-border)' }}></div>
+                </>
+              )}
+              <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); windows.forEach(w => minimizeWindow(w.id)); }}>Minimize All</button>
+            </div>
+          </div>
 
-          <div className="flex items-center ml-4 pl-4" style={{ borderLeft: '1px solid var(--os-border)' }}>
+          <div className="flex items-center gap-2 ml-4 pl-4" style={{ borderLeft: '1px solid var(--os-border)' }}>
             <button
               onClick={() => window.dispatchEvent(new CustomEvent('os:open-spotlight'))}
               className="flex items-center gap-2 px-2.5 py-1 rounded transition-colors cursor-pointer hover:bg-white/10"
@@ -206,6 +295,29 @@ export function MenuBar({
               <Search className="w-3.5 h-3.5" />
               <span className="text-xs opacity-70 font-mono">⌘K</span>
             </button>
+
+            {/* Now Playing Dynamic Equalizer Pill (ytm-player & HomeDockOS Pattern) */}
+            {mediaPlayback?.title && mediaPlayback.title !== 'Now Playing' && (
+              <div
+                onClick={() => {
+                  const mediaWin = windows.find(w => w.appId === 'media-player');
+                  if (mediaWin) {
+                    useWindowStore.getState().focusWindow(mediaWin.id);
+                  } else {
+                    openWindow('media-player', 'Media Player');
+                  }
+                }}
+                className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/20 transition-all cursor-pointer shadow-sm"
+                title={`Now Playing: ${mediaPlayback.title}`}
+              >
+                <div className="flex items-end gap-0.5 h-3">
+                  <span className={cn("w-0.5 bg-emerald-400 rounded-full transition-all duration-200", mediaPlayback.isPlaying ? "animate-pulse h-2.5" : "h-1")} />
+                  <span className={cn("w-0.5 bg-emerald-400 rounded-full transition-all duration-200", mediaPlayback.isPlaying ? "animate-bounce h-3.5" : "h-1.5")} />
+                  <span className={cn("w-0.5 bg-emerald-400 rounded-full transition-all duration-200", mediaPlayback.isPlaying ? "animate-pulse h-2" : "h-1")} />
+                </div>
+                <span className="text-[11px] font-semibold max-w-[120px] truncate">{mediaPlayback.title}</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-1 ml-4 pl-4 rounded-md p-0.5" style={{ borderLeft: '1px solid var(--os-border)', background: 'var(--os-hover)' }}>

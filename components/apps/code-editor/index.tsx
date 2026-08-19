@@ -16,6 +16,7 @@ import { TerminalPanel } from './components/Terminal';
 import { CopilotPanel } from './components/Copilot';
 import { StatusBar } from './components/StatusBar';
 import { useCollaborativeDoc } from '@/lib/hooks/useCollaborativeDoc';
+import { useWindowStore } from '@/lib/stores/window.store';
 
 export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
   const { openWindow, currentUser, workspaceMode } = useOS();
@@ -43,6 +44,38 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
     handleCodeChange,
     setCode
   } = useCodeEditorState(projectId, osWindow.data?.content, workspaceMode, roomId, currentUser, osWindow.data?.fileId);
+
+  // Multi-tab state
+  const [openTabs, setOpenTabs] = useState<string[]>(() => {
+    const initialTabs = osWindow.data?.openTabs;
+    if (Array.isArray(initialTabs) && initialTabs.length > 0) return initialTabs;
+    return [osWindow.data?.fileId || 'app.tsx'];
+  });
+
+  useEffect(() => {
+    if (activeFileId && !openTabs.includes(activeFileId)) {
+      setOpenTabs(prev => [...prev, activeFileId]);
+    }
+  }, [activeFileId, openTabs]);
+
+  useEffect(() => {
+    if (osWindow?.id) {
+      useWindowStore.getState().updateWindowData(osWindow.id, {
+        fileId: activeFileId,
+        openTabs,
+      });
+    }
+  }, [activeFileId, openTabs, osWindow?.id]);
+
+  const handleCloseTab = (tabId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (openTabs.length <= 1) return;
+    const nextTabs = openTabs.filter(id => id !== tabId);
+    setOpenTabs(nextTabs);
+    if (activeFileId === tabId) {
+      setActiveFileId(nextTabs[nextTabs.length - 1]!);
+    }
+  };
 
   // UI States
   const [terminalOpen, setTerminalOpen] = useState(true);
@@ -203,13 +236,35 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
         {/* Editor & Terminal Area */}
         <div className="flex-1 flex flex-col relative bg-[#1e1e1e] min-w-0">
            {/* Editor Tabs */}
-           <div className="flex bg-[#2d2d2d] custom-scrollbar overflow-x-auto shrink-0">
-             <div className="flex items-center gap-2 px-3 py-2 bg-[#1e1e1e] text-white text-[13px] cursor-pointer min-w-[120px] relative shrink-0">
-               <div className="absolute top-0 left-0 right-0 h-[2px] bg-blue-500" />
-               <FileIcon className={cn("w-3.5 h-3.5", fileName.endsWith('.tsx') || fileName.endsWith('.ts') ? "text-[#519aba]" : "text-[#e3c14a]")} />
-               <span className="italic">{fileName}</span>
-               <button className="ml-auto opacity-0 hover:opacity-100 hover:bg-white/10 rounded p-0.5">✖</button>
-             </div>
+           <div className="flex bg-[#2d2d2d] custom-scrollbar overflow-x-auto shrink-0 border-b border-[#252526]">
+             {openTabs.map((tabId) => {
+               const tabFile = files.find(f => f.id === tabId);
+               const tabName = tabFile?.name || tabId.split('/').pop() || tabId;
+               const isActive = activeFileId === tabId;
+               return (
+                 <div
+                   key={tabId}
+                   onClick={() => setActiveFileId(tabId)}
+                   className={cn(
+                     "group flex items-center gap-2 px-3 py-2 text-[13px] cursor-pointer min-w-[120px] max-w-[200px] relative shrink-0 transition-colors border-r border-[#252526]",
+                     isActive ? "bg-[#1e1e1e] text-white" : "bg-[#2d2d2d] text-white/60 hover:bg-[#252526] hover:text-white/80"
+                   )}
+                 >
+                   {isActive && <div className="absolute top-0 left-0 right-0 h-[2px] bg-blue-500" />}
+                   <FileIcon className={cn("w-3.5 h-3.5 shrink-0", tabName.endsWith('.tsx') || tabName.endsWith('.ts') ? "text-[#519aba]" : "text-[#e3c14a]")} />
+                   <span className="truncate italic text-xs">{tabName}</span>
+                   {openTabs.length > 1 && (
+                     <button
+                       onClick={(e) => handleCloseTab(tabId, e)}
+                       className="ml-auto opacity-0 group-hover:opacity-100 hover:opacity-100 hover:bg-white/10 rounded p-0.5 text-xs text-white/50 hover:text-white transition-opacity"
+                       title="Close tab"
+                     >
+                       ✖
+                     </button>
+                   )}
+                 </div>
+               );
+             })}
            </div>
            
             {!editorReady && (

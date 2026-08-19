@@ -6,7 +6,7 @@ import { useWindowStore } from '@/lib/stores/window.store';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useWorkspaceStore } from '@/lib/stores/workspace.store';
 import { useAuthStore } from '@/lib/stores/auth.store';
-import { Grid, Layers, Folder, Globe } from 'lucide-react';
+import { Grid, Layers, Folder, Globe, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNotificationStore } from '@/lib/stores/notification.store';
 import { APP_MANIFEST } from '@/lib/app-manifest';
@@ -24,7 +24,7 @@ interface DockProps {
 
 export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setShowMissionControl }: DockProps) {
   const { currentUser } = useAuthStore();
-  const { openWindow, focusWindow, minimizeWindow } = useWindowActions();
+  const { openWindow, focusWindow, minimizeWindow, closeWindow } = useWindowActions();
   const windows = useWindowStore((s) => s.windows);
   const highestZIndex = useWindowStore((s) => s.highestZIndex);
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
@@ -174,8 +174,9 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
         {dockApps.map((app, idx) => {
           const itemIndex = idx + 2; // Offset for Launchpad & Mission Control
           const { scale, translateX, translateY } = getMagneticTransform(itemIndex);
-          const isOpen = activeWindows.some(w => w.appId === app.id);
-          const isFocused = activeWindows.some(w => w.appId === app.id && !w.isMinimized && w.zIndex >= highestZIndex);
+          const openWindowsForApp = activeWindows.filter(w => w.appId === app.id);
+          const isOpen = openWindowsForApp.length > 0;
+          const isFocused = openWindowsForApp.some(w => !w.isMinimized && w.zIndex >= highestZIndex);
 
           return (
             <div 
@@ -215,7 +216,55 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
               {isOpen && (
                 <span aria-hidden="true" className="absolute -bottom-2 w-1.5 h-1.5 rounded-full bg-[#10F4A0] shadow-sm shadow-[#10F4A0]/50" />
               )}
-              <div role="tooltip" className="absolute -top-14 scale-0 group-hover:scale-100 transition-transform px-3 py-1.5 glass-panel text-xs font-semibold rounded-xl shadow-xl pointer-events-none whitespace-nowrap z-50 text-white">{app.title}</div>
+              
+              {/* Hover Window Peek Card (daedalOS & macOS Style) */}
+              <div 
+                role="tooltip" 
+                className="absolute -top-24 scale-0 group-hover:scale-100 transition-all duration-150 origin-bottom pointer-events-auto z-50 flex items-center gap-1.5"
+              >
+                {isOpen ? (
+                  <div className="flex items-center gap-1.5 p-1.5 glass-panel rounded-2xl border border-white/20 bg-neutral-900/90 shadow-2xl backdrop-blur-xl">
+                    {openWindowsForApp.map((w) => (
+                      <div
+                        key={w.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (w.isMinimized || w.zIndex < highestZIndex) {
+                            focusWindow(w.id);
+                          } else {
+                            minimizeWindow(w.id);
+                          }
+                        }}
+                        className="group/peek flex flex-col items-center p-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 transition-all cursor-pointer min-w-[90px] max-w-[130px]"
+                      >
+                        <div className="flex items-center justify-between w-full mb-1">
+                          <span className="text-[10px] font-medium text-white/90 truncate flex-1">{w.title || app.title}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              closeWindow(w.id);
+                            }}
+                            className="p-0.5 rounded-full hover:bg-rose-500/20 text-white/40 hover:text-rose-400 transition-colors ml-1"
+                            title="Close window"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                        <div className="w-full h-8 rounded-lg bg-neutral-950/60 border border-white/10 flex items-center justify-center relative overflow-hidden">
+                          <AppIcon icon={app.icon} iconImage={app.iconImage} className="w-4 h-4 opacity-80" />
+                          {w.isMinimized && (
+                            <span className="absolute bottom-0.5 right-1 text-[7px] px-1 rounded bg-amber-500/20 text-amber-300 font-mono">min</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="px-3 py-1.5 glass-panel text-xs font-semibold rounded-xl shadow-xl pointer-events-none whitespace-nowrap text-white">
+                    {app.title}
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}

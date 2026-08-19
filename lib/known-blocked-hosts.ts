@@ -29,6 +29,10 @@ export const KNOWN_BLOCKED_HOSTS = new Set([
   'medium.com',
   'spotify.com', 'open.spotify.com',
   'slack.com', 'app.slack.com',
+  // Search engines (all send X-Frame-Options: SAMEORIGIN — must proxy/extension)
+  'duckduckgo.com', 'www.duckduckgo.com',
+  'google.com', 'www.google.com',
+  'bing.com', 'www.bing.com',
 ]);
 
 /** Get the hostname of a URL, or '' on failure. */

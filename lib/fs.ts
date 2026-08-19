@@ -78,6 +78,17 @@ function inferMimeType(name: string): string {
   return MIME_BY_EXT[ext] || 'application/octet-stream';
 }
 
+export interface GitHubMount {
+  id: string;
+  owner: string;
+  repo: string;
+  branch: string;
+  mountedAt: number;
+}
+
+const GITHUB_MOUNTS_KEY = 'continua_github_mounts';
+const githubTreeCache = new Map<string, { tree: Array<{ path: string; mode: string; type: string; sha: string; size?: number }>; timestamp: number }>();
+
 // Abstraction for File System operations allowing seamless pivot to Tauri.
 export interface LocalFile {
   id: string;
@@ -100,6 +111,72 @@ export const FS = {
     }
   },
 
+  listGitHubMounts: async (): Promise<GitHubMount[]> => {
+    try {
+      const saved = await get(GITHUB_MOUNTS_KEY);
+      if (Array.isArray(saved)) return saved;
+    } catch {}
+    return [];
+  },
+
+  mountGitHub: async (owner: string, repo: string, branch = 'main'): Promise<GitHubMount> => {
+    const cleanOwner = owner.trim().replace(/^https:\/\/github\.com\//, '').split('/')[0]!;
+    const cleanRepo = (repo.trim().split('/')[1] || repo.trim()).replace(/\.git$/, '');
+    const id = `${cleanOwner}/${cleanRepo}`;
+    const mounts = await FS.listGitHubMounts();
+    const existing = mounts.find(m => m.id.toLowerCase() === id.toLowerCase());
+    if (existing) return existing;
+    const newMount: GitHubMount = {
+      id,
+      owner: cleanOwner,
+      repo: cleanRepo,
+      branch,
+      mountedAt: Date.now(),
+    };
+    const updated = [...mounts, newMount];
+    await set(GITHUB_MOUNTS_KEY, updated);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path: 'GitHub' } }));
+    }
+    return newMount;
+  },
+
+  unmountGitHub: async (id: string): Promise<void> => {
+    const mounts = await FS.listGitHubMounts();
+    const updated = mounts.filter(m => m.id.toLowerCase() !== id.toLowerCase());
+    await set(GITHUB_MOUNTS_KEY, updated);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path: 'GitHub' } }));
+    }
+  },
+
+  _getGitHubMountBranch: async (owner: string, repo: string): Promise<string> => {
+    const mounts = await FS.listGitHubMounts();
+    const found = mounts.find(m => m.owner.toLowerCase() === owner.toLowerCase() && m.repo.toLowerCase() === repo.toLowerCase());
+    return found?.branch || 'main';
+  },
+
+  _fetchGitHubTree: async (owner: string, repo: string, branch: string) => {
+    const cacheKey = `${owner}/${repo}:${branch}`;
+    const cached = githubTreeCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < 300000) {
+      return cached.tree;
+    }
+    try {
+      const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.tree)) {
+          githubTreeCache.set(cacheKey, { tree: data.tree, timestamp: Date.now() });
+          return data.tree;
+        }
+      }
+    } catch (err) {
+      console.warn(`[GitHubVFS] Failed to fetch tree for ${owner}/${repo}`, err);
+    }
+    return cached?.tree || [];
+  },
+
   // Helper to resolve nested directories in OPFS
   _resolvePath: async (path: string, createDirs = false) => {
      const parts = path.split('/').filter(Boolean);
@@ -114,6 +191,34 @@ export const FS = {
 
   // Read a file using OPFS or fallback to IndexedDB.
   read: async (path: string): Promise<LocalFile | null> => {
+    // Handle GitHub Virtual Filesystem: github/{owner}/{repo}/path/to/file
+    const normPath = (path || '').replace(/^[/\\]+/, '');
+    if (normPath.toLowerCase().startsWith('github/')) {
+      const parts = normPath.split('/');
+      if (parts.length >= 4) {
+        const owner = parts[1]!;
+        const repo = parts[2]!;
+        const filePath = parts.slice(3).join('/');
+        const branch = await FS._getGitHubMountBranch(owner, repo);
+        try {
+          const res = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`);
+          if (res.ok) {
+            const mime = inferMimeType(filePath);
+            const text = await res.text();
+            return {
+              id: path,
+              name: filePath.split('/').pop() || filePath,
+              content: text,
+              mimeType: mime,
+              size: text.length,
+            };
+          }
+        } catch (err) {
+          console.warn(`[GitHubVFS] Failed to fetch remote file: ${path}`, err);
+        }
+      }
+    }
+
     try {
       if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
         const { dir, name } = await FS._resolvePath(path);
@@ -244,6 +349,70 @@ export const FS = {
 
   // List directory contents (non-recursive for top-level display)
   readDir: async (dirPath: string = ''): Promise<LocalFile[]> => {
+    const normDir = (dirPath || '').replace(/^[/\\]+/, '');
+
+    // Handle GitHub root directory: list all mounted repositories
+    if (normDir.toLowerCase() === 'github') {
+      const mounts = await FS.listGitHubMounts();
+      return mounts.map(m => ({
+        id: `GitHub/${m.owner}/${m.repo}`,
+        name: `${m.owner}/${m.repo}`,
+        isFolder: true,
+        mimeType: 'inode/directory',
+        modified: m.mountedAt,
+      }));
+    }
+
+    // Handle GitHub repository subdirectories: GitHub/{owner}/{repo}/...
+    if (normDir.toLowerCase().startsWith('github/')) {
+      const parts = normDir.split('/');
+      if (parts.length === 2) {
+        const owner = parts[1]!;
+        const mounts = await FS.listGitHubMounts();
+        return mounts.filter(m => m.owner.toLowerCase() === owner.toLowerCase()).map(m => ({
+          id: `GitHub/${m.owner}/${m.repo}`,
+          name: m.repo,
+          isFolder: true,
+          mimeType: 'inode/directory',
+          modified: m.mountedAt,
+        }));
+      }
+      if (parts.length >= 3) {
+        const owner = parts[1]!;
+        const repo = parts[2]!;
+        const subPath = parts.slice(3).join('/');
+        const branch = await FS._getGitHubMountBranch(owner, repo);
+        const entries = await FS._fetchGitHubTree(owner, repo, branch);
+
+        const childMap = new Map<string, LocalFile>();
+        for (const item of entries) {
+          const itemPath = item.path;
+          let relPath = itemPath;
+          if (subPath) {
+            if (!itemPath.startsWith(`${subPath}/`)) continue;
+            relPath = itemPath.slice(subPath.length + 1);
+          }
+          const itemParts = relPath.split('/');
+          const immediateName = itemParts[0]!;
+          if (!immediateName) continue;
+
+          const isDir = itemParts.length > 1 || item.type === 'tree';
+          const fullChildId = subPath ? `GitHub/${owner}/${repo}/${subPath}/${immediateName}` : `GitHub/${owner}/${repo}/${immediateName}`;
+          if (!childMap.has(immediateName)) {
+            childMap.set(immediateName, {
+              id: fullChildId,
+              name: immediateName,
+              isFolder: isDir,
+              mimeType: isDir ? 'inode/directory' : inferMimeType(immediateName),
+              size: item.size || 0,
+              modified: Date.now(),
+            });
+          }
+        }
+        return Array.from(childMap.values());
+      }
+    }
+
     const files: LocalFile[] = [];
     try {
       if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
@@ -255,7 +424,7 @@ export const FS = {
            if (depth > MAX_RECURSION_DEPTH) return;
            for await (const [name, handle] of currentDir.entries()) {
               const fullPath = currentPath ? `${currentPath}/${name}` : name;
-              if (visited.has(fullPath)) continue; // Symlink / loop protection (Issue 70)
+              if (visited.has(fullPath)) continue; // Symlink / loop protection
               visited.add(fullPath);
 
               if (handle.kind === 'file') {
@@ -301,10 +470,10 @@ export const FS = {
                    name: name,
                    mimeType: 'inode/directory',
                    isFolder: true,
-                   modified: Date.now() - 3600000, // mock a slightly older date for folders so files appear first/separately
+                   modified: Date.now() - 3600000,
                  });
-                 // Only traverse deeper if depth > 0 (1 = immediate children only, 0 = recursive)
-                 if (depth > 0) {
+                 // Only traverse deeper if explicitly requested (depth > 1)
+                 if (depth > 1) {
                    await traverse(handle, fullPath, depth - 1);
                  }
               }
@@ -313,20 +482,27 @@ export const FS = {
 
         let rootDir = await navigator.storage.getDirectory();
         if (dirPath) {
-           const { dir, name } = await FS._resolvePath(dirPath);
-           rootDir = await dir.getDirectoryHandle(name);
+           try {
+             const { dir, name } = await FS._resolvePath(dirPath);
+             rootDir = await dir.getDirectoryHandle(name);
+           } catch (notFound) {
+             // Directory does not exist yet — return empty listing
+             return [];
+           }
         }
-        // depth=1 means immediate children only (non-recursive listing)
+        // depth=1 lists immediate children only
         await traverse(rootDir, dirPath, 1);
         
-        if (files.length > 0) return files;
+        return files;
       }
     } catch (e) {
       console.warn('OPFS readDir failed, falling back to IndexedDB', e);
     }
     
+    // IndexedDB Fallback with path filtering
     const allKeys = await keys();
-    const fileKeys = allKeys.filter(k => typeof k === 'string' && k.startsWith('file_'));
+    const prefix = dirPath ? `file_${dirPath}/` : 'file_';
+    const fileKeys = allKeys.filter(k => typeof k === 'string' && k.startsWith(prefix));
     const idbFiles = await Promise.all(fileKeys.map(k => get(k as string)));
     return idbFiles.filter((f): f is LocalFile => f !== null && f !== undefined);
   },
