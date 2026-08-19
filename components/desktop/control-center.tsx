@@ -67,7 +67,7 @@ interface ControlCenterProps {
 }
 
 export function ControlCenter({ onClose }: ControlCenterProps) {
-  const { openWindow } = useWindowStore();
+  const openWindow = useWindowStore((s) => s.openWindow);
   const { performanceMode, setPerformanceMode, colorMode, setColorMode } = useThemeStore();
   const { notifications, clearAll, markAllRead } = useNotificationStore();
   const { isSyncing, connectedDevices, startSync, stopSync } = useSyncStore();

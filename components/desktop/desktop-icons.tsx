@@ -7,7 +7,7 @@ import { useFileStore } from '@/lib/stores/file.store';
 import { FileText, Film } from 'lucide-react';
 
 export function DesktopIcons() {
-  const { openWindow } = useWindowStore();
+  const openWindow = useWindowStore((s) => s.openWindow);
   const [desktopFiles, setDesktopFiles] = useState<LocalFile[]>([]);
 
   const refreshDesktop = async () => {

@@ -145,6 +145,12 @@ export const FS = {
     const mounts = await FS.listGitHubMounts();
     const updated = mounts.filter(m => m.id.toLowerCase() !== id.toLowerCase());
     await set(GITHUB_MOUNTS_KEY, updated);
+    // Clean tree cache for this unmounted repo
+    for (const key of githubTreeCache.keys()) {
+      if (key.toLowerCase().startsWith(id.toLowerCase())) {
+        githubTreeCache.delete(key);
+      }
+    }
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path: 'GitHub' } }));
     }
@@ -167,6 +173,10 @@ export const FS = {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.tree)) {
+          if (githubTreeCache.size >= 20) {
+            const firstKey = githubTreeCache.keys().next().value;
+            if (firstKey) githubTreeCache.delete(firstKey);
+          }
           githubTreeCache.set(cacheKey, { tree: data.tree, timestamp: Date.now() });
           return data.tree;
         }

@@ -48,9 +48,11 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
   const streamRef = useRef<MediaStream | null>(null);
   const isRecordingRef = useRef(false);
   const mimeTypeRef = useRef<string | null>(null);
+  const recordedUrlRef = useRef<string | null>(null);
 
   useEffect(() => { streamRef.current = stream; }, [stream]);
   useEffect(() => { isRecordingRef.current = isRecording; }, [isRecording]);
+  useEffect(() => { recordedUrlRef.current = recordedUrl; }, [recordedUrl]);
 
   const stopRecording = useCallback(() => {
     if (timerRef.current) {
@@ -86,6 +88,10 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
     return () => {
       stopRecording();
       stopAllTracks();
+      if (recordedUrlRef.current) {
+        URL.revokeObjectURL(recordedUrlRef.current);
+        recordedUrlRef.current = null;
+      }
     };
   }, [stopRecording, stopAllTracks]);
 
@@ -181,7 +187,11 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
 
         const ext = mimeTypeRef.current?.includes('mp4') ? 'mp4' : 'webm';
         const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || 'video/webm' });
+        if (recordedUrlRef.current) {
+          URL.revokeObjectURL(recordedUrlRef.current);
+        }
         const url = URL.createObjectURL(blob);
+        recordedUrlRef.current = url;
         setRecordedUrl(url);
 
         try {

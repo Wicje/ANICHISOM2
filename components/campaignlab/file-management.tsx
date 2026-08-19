@@ -40,6 +40,16 @@ export function AssetsLibrary({ window: osWindow }: { window?: any }) {
   const [search, setSearch] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const createdUrlsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    return () => {
+      createdUrlsRef.current.forEach((url) => {
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+      });
+      createdUrlsRef.current.clear();
+    };
+  }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -65,11 +75,14 @@ export function AssetsLibrary({ window: osWindow }: { window?: any }) {
       else if (file.type.startsWith('video/')) type = 'video';
       else if (file.name.endsWith('.ai') || file.name.endsWith('.psd') || file.name.endsWith('.fig')) type = 'design';
 
+      const previewUrl = URL.createObjectURL(file);
+      createdUrlsRef.current.add(previewUrl);
+
       newFiles.push({
         id: fileId,
         name: file.name,
         type,
-        url: URL.createObjectURL(file), // create local preview
+        url: previewUrl, // create local preview
         size: (file.size / 1024 / 1024).toFixed(1) + ' MB',
         date: 'Just now'
       });
@@ -89,7 +102,14 @@ export function AssetsLibrary({ window: osWindow }: { window?: any }) {
   };
 
   const handleDelete = (id: string) => {
-    setFiles(prev => prev.filter(f => f.id !== id));
+    setFiles(prev => {
+      const target = prev.find(f => f.id === id);
+      if (target?.url && target.url.startsWith('blob:')) {
+        URL.revokeObjectURL(target.url);
+        createdUrlsRef.current.delete(target.url);
+      }
+      return prev.filter(f => f.id !== id);
+    });
   };
 
   const filteredFiles = files.filter(f => 

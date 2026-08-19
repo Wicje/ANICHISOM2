@@ -224,7 +224,16 @@ Tailor the phases, deliverables, and approach to this specific project scope and
 
           {generated && (
             <div className="flex gap-2">
-              <button onClick={() => { const content = aiContent || projectScope; const blob = new Blob([`PROPOSAL FOR: ${clientName}\n\n${content}`], { type: 'text/plain' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Proposal-${clientName.replace(/\s+/g, '_')}.txt`; a.click(); }} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/70">
+              <button onClick={() => {
+                const content = aiContent || projectScope;
+                const blob = new Blob([`PROPOSAL FOR: ${clientName}\n\n${content}`], { type: 'text/plain' });
+                const a = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                a.href = url;
+                a.download = `Proposal-${clientName.replace(/\s+/g, '_')}.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/70">
                 <Download className="w-4 h-4" />
               </button>
               <button onClick={handleSend} className="px-4 py-1.5 bg-blue-500 hover:bg-blue-400 text-white rounded-lg text-xs font-medium flex items-center gap-2 transition-colors shadow-lg">

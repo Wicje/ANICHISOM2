@@ -37,17 +37,26 @@ export function HomeWidgetPanel({ className }: ControlCenterProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
+    let rafId: number | null = null;
+
     const handleMouseMove = (e: MouseEvent) => {
-      const edgeThreshold = 18; // px from right edge
-      if (e.clientX >= window.innerWidth - edgeThreshold) {
-        setIsProximityActive(true);
-      } else if (e.clientX < window.innerWidth - 380 && !isHovered) {
-        setIsProximityActive(false);
-      }
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const edgeThreshold = 18; // px from right edge
+        if (e.clientX >= window.innerWidth - edgeThreshold) {
+          setIsProximityActive(true);
+        } else if (e.clientX < window.innerWidth - 380 && !isHovered) {
+          setIsProximityActive(false);
+        }
+      });
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, [isHovered]);
 
   useEffect(() => {
