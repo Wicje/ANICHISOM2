@@ -16,6 +16,7 @@ import { useClipboardUIStore } from '@/lib/stores/clipboard.store';
 import { useMemoryStore } from '@/lib/stores/memory.store';
 import { useAIStore } from '@/lib/stores/ai.store';
 import { slashSkills } from '@/lib/skills/slash-skills';
+import { WEB_APP_CATALOG } from '@/lib/web-app-catalog';
 import { cn } from '@/lib/utils';
 
 export function CommandPalette() {
@@ -192,17 +193,29 @@ export function CommandPalette() {
       });
     });
 
-    // Applications
-    allowedApps.forEach((entry) => {
-       cmds.push({
-          id: `app-${entry.id}`,
-          name: `Open ${entry.title}`,
-          type: 'Application',
-          icon: entry.icon,
-          iconImage: entry.iconImage,
-          action: () => openWindow(entry.id)
-       });
-    });
+     // Native Applications
+     allowedApps.forEach((entry) => {
+        cmds.push({
+           id: `app-${entry.id}`,
+           name: `Open ${entry.title}`,
+           type: 'Application',
+           icon: entry.icon,
+           iconImage: entry.iconImage,
+           action: () => openWindow(entry.id)
+        });
+     });
+
+     // Third-Party Web Apps (35 Curated Apps)
+     WEB_APP_CATALOG.forEach((webApp) => {
+        cmds.push({
+           id: `webapp-${webApp.id}`,
+           name: `Open ${webApp.name}`,
+           type: 'Web App',
+           icon: webApp.icon,
+           iconImage: webApp.iconImage,
+           action: () => openWindow('web-app', webApp.name, { url: webApp.url, appId: webApp.id, title: webApp.name, iconImage: webApp.iconImage })
+        });
+     });
 
     // Open Windows
     windows.forEach(win => {

@@ -16,6 +16,10 @@ vi.mock('@/lib/os-context', () => ({
   useOS: mockUseOS,
 }));
 
+vi.mock('@/lib/web-app-catalog', () => ({
+  WEB_APP_CATALOG: [],
+}));
+
 vi.mock('@/lib/app-manifest', () => ({
   APP_MANIFEST: [
     { id: 'terminal', title: 'Terminal', icon: () => <svg />, category: 'utility', isCore: true, roles: ['admin', 'user'] },
@@ -39,14 +43,14 @@ vi.mock('@/lib/fs', () => ({
 }));
 
 vi.mock('lucide-react', () => {
-  const icon = (p: any) => <svg {...p} />;
+  const MockIcon = (props: any) => <svg {...props} />;
   return {
-    Terminal: icon, Folder: icon, Globe: icon, Sparkles: icon,
-    Image: icon, Search: icon, Archive: icon, Clipboard: icon,
-    AppWindow: icon, File: icon, Music: icon, Layout: icon,
-    Sun: icon, Moon: icon, Maximize2: icon, Minimize2: icon,
-    Trash2: icon, Settings: icon, Volume2: icon, VolumeX: icon,
-    Bell: icon, Eye: icon, Camera: icon,
+    Terminal: MockIcon, Folder: MockIcon, Globe: MockIcon, Sparkles: MockIcon,
+    Image: MockIcon, Search: MockIcon, Archive: MockIcon, Clipboard: MockIcon,
+    AppWindow: MockIcon, File: MockIcon, Music: MockIcon, Layout: MockIcon,
+    Sun: MockIcon, Moon: MockIcon, Maximize2: MockIcon, Minimize2: MockIcon,
+    Trash2: MockIcon, Settings: MockIcon, Volume2: MockIcon, VolumeX: MockIcon,
+    Bell: MockIcon, Eye: MockIcon, Camera: MockIcon, Code: MockIcon,
   };
 });
 

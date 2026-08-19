@@ -8,6 +8,16 @@ import { WEB_APP_CATALOG, WebAppCatalogItem } from '@/lib/web-app-catalog';
 
 export { WEB_APP_CATALOG };
 
+const CATEGORIES: { id: string; label: string }[] = [
+  { id: 'all', label: 'All Apps' },
+  { id: 'developer', label: '💻 Developer' },
+  { id: 'design', label: '🎨 Designer' },
+  { id: 'business', label: '💼 Business & PM' },
+  { id: 'student', label: '🎓 Student & STEM' },
+  { id: 'writer', label: '✍️ Writer & Editor' },
+  { id: 'media', label: '🎵 Media' },
+];
+
 export function AppStoreApp() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<string>('all');
@@ -44,7 +54,7 @@ export function AppStoreApp() {
       new CustomEvent('os:notify', {
         detail: {
           title: installed ? 'App Uninstalled' : 'App Installed',
-          description: `${installed ? 'Removed' : 'Added'} to your OS.`,
+          description: `${installed ? 'Removed' : 'Added'} to your OS Launchpad & Dock.`,
           type: installed ? 'info' : 'success',
         },
       })
@@ -52,7 +62,7 @@ export function AppStoreApp() {
   };
 
   const handleLaunch = (app: WebAppCatalogItem) => {
-    openWindow('power-browser', app.name, { url: app.url });
+    openWindow('web-app', app.name, { url: app.url, appId: app.id, title: app.name, iconImage: app.iconImage });
   };
 
   const filtered = WEB_APP_CATALOG.filter((app) => {
@@ -72,7 +82,7 @@ export function AppStoreApp() {
           <div>
             <h2 className="font-bold text-base tracking-tight text-white flex items-center gap-2">
               ContinuaOS App Store
-              <span className="text-[10px] font-bold uppercase tracking-widest text-cyan-400 bg-cyan-400/10 px-2 py-0.5 rounded-full border border-cyan-400/20">Verified</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-cyan-400 bg-cyan-400/10 px-2 py-0.5 rounded-full border border-cyan-400/20">35+ Apps</span>
             </h2>
             <p className="text-xs text-white/50">Curated Web Apps, PWAs, and Native Extensions</p>
           </div>
@@ -92,27 +102,26 @@ export function AppStoreApp() {
       </div>
 
       {/* Category Pills */}
-      <div className="px-6 py-3 border-b border-white/5 bg-black/20 flex items-center gap-2">
-        {['all', 'productivity', 'design', 'developer', 'media'].map((cat) => (
+      <div className="px-6 py-3 border-b border-white/5 bg-black/20 flex items-center gap-2 overflow-x-auto custom-scrollbar">
+        {CATEGORIES.map((cat) => (
           <button
-            key={cat}
-            onClick={() => setCategory(cat)}
+            key={cat.id}
+            onClick={() => setCategory(cat.id)}
             className={cn(
-              "px-3.5 py-1 rounded-full text-xs font-semibold capitalize transition-all duration-200",
-              category === cat
+              "px-3.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200",
+              category === cat.id
                 ? "bg-gradient-to-r from-cyan-500 to-cyan-600 text-white shadow-lg shadow-cyan-500/25 ring-1 ring-white/30"
                 : "text-white/50 hover:bg-white/10 hover:text-white"
             )}
           >
-            {cat}
+            {cat.label}
           </button>
         ))}
       </div>
 
       {/* Catalog Grid */}
-      <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-4 custom-scrollbar">
         {filtered.map((app) => {
-          const IconComp = app.icon;
           const installed = installedAppIds.includes(app.id);
           return (
             <div
@@ -120,20 +129,25 @@ export function AppStoreApp() {
               className="p-5 rounded-3xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 hover:border-cyan-500/30 transition-all duration-300 flex items-start justify-between gap-4 shadow-2xl backdrop-blur-xl group"
             >
               <div className="flex items-start gap-4">
-                <AppIcon icon={app.icon} iconImage={app.iconImage} className="w-12 h-12 rounded-2xl group-hover:scale-105 transition-transform" />
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-2">
+                <AppIcon icon={app.icon} iconImage={app.iconImage} className="w-12 h-12 rounded-2xl group-hover:scale-105 transition-transform shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-bold text-sm text-white group-hover:text-cyan-300 transition-colors">{app.name}</h3>
                     <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full border border-amber-400/20">
                       ★ {app.rating}
                     </span>
+                    {app.isDirectEmbed && (
+                      <span className="text-[9px] font-bold text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-full border border-emerald-400/20 uppercase tracking-wider">
+                        Direct In-OS
+                      </span>
+                    )}
                   </div>
-                  <p className="text-xs text-white/50 mt-1 leading-relaxed">{app.description}</p>
-                  <span className="text-[10px] text-white/30 font-mono mt-2 truncate max-w-[200px]">{app.url}</span>
+                  <p className="text-xs text-white/50 mt-1 leading-relaxed line-clamp-2">{app.description}</p>
+                  <span className="text-[10px] text-white/30 font-mono mt-2 truncate max-w-[220px]">{app.url}</span>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 shrink-0">
                 <button
                   onClick={() => toggleInstall(app.id)}
                   className={cn(

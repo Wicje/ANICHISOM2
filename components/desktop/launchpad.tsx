@@ -136,7 +136,7 @@ export function Launchpad({ onClose }: LaunchpadProps) {
                   key={app.id}
                   onClick={() => {
                     if ((app as any).url) {
-                       openWindow('web-app', app.title, { url: (app as any).url });
+                       openWindow('web-app', app.title, { url: (app as any).url, appId: app.id, title: app.title, iconImage: app.iconImage });
                     } else {
                        openWindow(app.id);
                     }

@@ -5,6 +5,7 @@ import { Loader2, Heart, SkipBack, Pause, Play, SkipForward, ExternalLink, Zap, 
 import { isTauri, getBrowserName } from '@/lib/platform';
 import { cn } from '@/lib/utils';
 import { isCatalogItemKnownBlocked } from '@/lib/known-blocked-hosts';
+import { WEB_APP_CATALOG } from '@/lib/web-app-catalog';
 
 function isKnownBlocked(url: string): boolean {
   return isCatalogItemKnownBlocked(url);
@@ -12,6 +13,8 @@ function isKnownBlocked(url: string): boolean {
 
 export default function WebApp({ window: osWindow }: { window: any }) {
   const { data } = osWindow;
+  const catalogItem = WEB_APP_CATALOG.find(app => app.id === osWindow.appId || app.id === data?.appId);
+
   const PREDEFINED_URLS: Record<string, string> = {
     figma: 'https://figma.com',
     notion: 'https://notion.so',
@@ -20,7 +23,7 @@ export default function WebApp({ window: osWindow }: { window: any }) {
     vscode: 'https://vscode.dev',
   };
 
-  const url = data?.url || PREDEFINED_URLS[osWindow.appId] || 'https://duckduckgo.com';
+  const url = data?.url || catalogItem?.url || PREDEFINED_URLS[osWindow.appId] || 'https://duckduckgo.com';
   
   const [loading, setLoading] = useState(true);
   const [extensionInstalled, setExtensionInstalled] = useState(
@@ -29,7 +32,7 @@ export default function WebApp({ window: osWindow }: { window: any }) {
       (!!(window as any).__CONTINUA_EXTENSION_ACTIVE__ ||
         !!document.getElementById('continua-extension-marker'))
   );
-  const [initWait, setInitWait] = useState(true);
+  const [initWait, setInitWait] = useState(catalogItem?.isDirectEmbed ? false : true);
   const [showGuide, setShowGuide] = useState(false);
   const [proxyOptIn, setProxyOptIn] = useState(false);
   const [spotifyView, setSpotifyView] = useState<'card' | 'web'>('card');
@@ -87,11 +90,12 @@ export default function WebApp({ window: osWindow }: { window: any }) {
   // Known-blocked hosts require the extension (or Tauri); without it we show a
   // clean guide screen instead of falling back to the broken proxy. Other sites
   // still attempt the proxy as a best-effort fallback.
+  const isDirect = !!catalogItem?.isDirectEmbed;
   const blockedNeedsExtension =
-    !extensionInstalled && !isTauri() && url.startsWith('http') && isKnownBlocked(url) && !proxyOptIn;
+    !isDirect && !extensionInstalled && !isTauri() && url.startsWith('http') && isKnownBlocked(url) && !proxyOptIn;
   const isProxied =
-    !extensionInstalled && !isTauri() && url.startsWith('http') && !blockedNeedsExtension;
-  const finalUrl = isProxied ? `/api/proxy?url=${encodeURIComponent(url)}` : url;
+    !isDirect && !extensionInstalled && !isTauri() && url.startsWith('http') && !blockedNeedsExtension;
+  const finalUrl = isDirect ? url : isProxied ? `/api/proxy?url=${encodeURIComponent(url)}` : url;
 
   if (initWait && !extensionInstalled && !isTauri()) {
     return (

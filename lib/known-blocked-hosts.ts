@@ -6,20 +6,37 @@
  * two never drift apart.
  */
 export const KNOWN_BLOCKED_HOSTS = new Set([
-  // Design / docs
+  // Design / creative
   'figma.com', 'www.figma.com',
-  'docs.google.com', 'drive.google.com',
-  'notion.so', 'www.notion.so',
   'canva.com', 'www.canva.com',
+  'spline.design', 'app.spline.design',
+  'rive.app', 'editor.rive.app',
+  'miro.com', 'www.miro.com',
+  // Docs & productivity
+  'docs.google.com', 'drive.google.com', 'workspace.google.com',
+  'notion.so', 'www.notion.so',
   'airtable.com', 'www.airtable.com',
   'trello.com', 'www.trello.com',
+  'asana.com', 'app.asana.com',
   'linear.app',
-  // Dev / deploy
-  'github.com', 'gitlab.com',
+  'app.grammarly.com', 'grammarly.com',
+  'scrivener.com', 'literatureandlatte.com', 'www.literatureandlatte.com',
+  '750words.com', 'www.750words.com',
+  // Dev & Cloud IDEs
+  'github.com', 'codespaces.new', 'gitlab.com',
+  'replit.com',
+  'web.postman.co', 'postman.com',
   'vercel.com', 'app.vercel.com',
   'netlify.com', 'app.netlify.com',
   'vscode.dev',
-  // Social / media
+  // Student & Reference
+  'quizlet.com', 'www.quizlet.com',
+  'wolframalpha.com', 'www.wolframalpha.com',
+  'mendeley.com', 'www.mendeley.com',
+  'forestapp.cc', 'www.forestapp.cc',
+  // Social & communication
+  'slack.com', 'app.slack.com',
+  'discord.com',
   'youtube.com', 'www.youtube.com',
   'twitter.com', 'x.com', 'www.x.com',
   'facebook.com', 'www.facebook.com',
@@ -28,7 +45,6 @@ export const KNOWN_BLOCKED_HOSTS = new Set([
   'reddit.com', 'www.reddit.com',
   'medium.com',
   'spotify.com', 'open.spotify.com',
-  'slack.com', 'app.slack.com',
   // Search engines (all send X-Frame-Options: SAMEORIGIN — must proxy/extension)
   'duckduckgo.com', 'www.duckduckgo.com',
   'google.com', 'www.google.com',
