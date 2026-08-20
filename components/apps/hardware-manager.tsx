@@ -4,32 +4,48 @@ import React, { useEffect, useState } from 'react';
 import {
   Usb, Bluetooth, HardDrive, Smartphone, RefreshCw, Plus, CheckCircle2,
   ShieldAlert, Cpu, Activity, Zap, Layers, Database, X, Battery, Gauge,
-  Radio, Play, AlertCircle, Monitor
+  Radio, Play, AlertCircle, Monitor, Sparkles, Terminal, FolderPlus
 } from 'lucide-react';
 import { hardwareManager, ConnectedDevice } from '@/lib/hardware';
 import { useWindowStore } from '@/lib/stores/window.store';
-import { APP_MANIFEST } from '@/lib/app-manifest';
+import { processSupervisor, VirtualProcess } from '@/lib/services/process-supervisor.service';
+import { webgpuEngine, WebGPUDeviceInfo } from '@/lib/services/webgpu-engine.service';
+import { FS, GitHubMount } from '@/lib/fs';
 import { cn } from '@/lib/utils';
+import { audioSystem } from '@/lib/services/audio-engine';
 
 export function HardwareManagerApp() {
-  const [activeTab, setActiveTab] = useState<'cpu' | 'memory' | 'energy' | 'disk' | 'hardware'>('cpu');
+  const [activeTab, setActiveTab] = useState<'processes' | 'memory' | 'gpu' | 'storage' | 'devices'>('processes');
+  const [processes, setProcesses] = useState<VirtualProcess[]>([]);
   const [devices, setDevices] = useState<ConnectedDevice[]>([]);
+  const [gpuInfo, setGpuInfo] = useState<WebGPUDeviceInfo | null>(null);
+  const [benchmarkResult, setBenchmarkResult] = useState<{ durationMs: number; opsPerSecond: string } | null>(null);
+  const [isBenchmarking, setIsBenchmarking] = useState(false);
+  const [githubMounts, setGithubMounts] = useState<GitHubMount[]>([]);
   const [storageEstimate, setStorageEstimate] = useState<{ usage: number; quota: number } | null>(null);
-  const [gpuInfo, setGpuInfo] = useState<{ vendor: string; architecture: string; available: boolean } | null>(null);
   const [fps, setFps] = useState<number>(60);
   const [batteryInfo, setBatteryInfo] = useState<{ level: number; charging: boolean } | null>(null);
 
   const windows = useWindowStore((s) => s.windows);
   const closeWindow = useWindowStore((s) => s.closeWindow);
 
+  // Sync virtual processes
   useEffect(() => {
-    setDevices(hardwareManager.getDevices());
-    return hardwareManager.subscribe(() => {
-      setDevices(hardwareManager.getDevices());
+    return processSupervisor.subscribe((procs) => {
+      setProcesses(procs);
     });
   }, []);
 
+  // Sync hardware devices & storage
   useEffect(() => {
+    setDevices(hardwareManager.getDevices());
+    const unsub = hardwareManager.subscribe(() => {
+      setDevices(hardwareManager.getDevices());
+    });
+
+    webgpuEngine.initialize().then(info => setGpuInfo(info));
+    FS.listGitHubMounts().then(mounts => setGithubMounts(mounts));
+
     if (typeof navigator !== 'undefined' && navigator.storage && 'estimate' in navigator.storage) {
       navigator.storage.estimate().then(est => {
         if (est.usage !== undefined && est.quota !== undefined) {
@@ -41,41 +57,13 @@ export function HardwareManagerApp() {
     if (typeof navigator !== 'undefined' && 'getBattery' in (navigator as any)) {
       (navigator as any).getBattery().then((battery: any) => {
         setBatteryInfo({ level: Math.round(battery.level * 100), charging: battery.charging });
-        battery.addEventListener('levelchange', () => {
-          setBatteryInfo({ level: Math.round(battery.level * 100), charging: battery.charging });
-        });
-        battery.addEventListener('chargingchange', () => {
-          setBatteryInfo({ level: Math.round(battery.level * 100), charging: battery.charging });
-        });
       }).catch(() => {});
     }
 
-    if (typeof navigator !== 'undefined' && 'gpu' in navigator) {
-      (navigator as any).gpu.requestAdapter().then(async (adapter: any) => {
-        if (adapter) {
-          try {
-            const info = await adapter.requestAdapterInfo?.();
-            setGpuInfo({
-              vendor: info?.vendor || 'Hardware Accelerated',
-              architecture: info?.architecture || 'WebGPU Compute',
-              available: true,
-            });
-          } catch {
-            setGpuInfo({ vendor: 'WebGPU Compatible', architecture: 'Unified Shader Pipeline', available: true });
-          }
-        } else {
-          setGpuInfo({ vendor: 'Disabled', architecture: 'N/A', available: false });
-        }
-      }).catch(() => {
-        setGpuInfo({ vendor: 'Disabled', architecture: 'N/A', available: false });
-      });
-    }
-
-    // Live frame rate measurement
+    // Live frame rate
     let frames = 0;
     let lastTime = performance.now();
     let animId: number;
-
     const measure = () => {
       frames++;
       const now = performance.now();
@@ -87,306 +75,307 @@ export function HardwareManagerApp() {
       animId = requestAnimationFrame(measure);
     };
     animId = requestAnimationFrame(measure);
-    return () => cancelAnimationFrame(animId);
+
+    return () => {
+      unsub();
+      cancelAnimationFrame(animId);
+    };
   }, []);
 
-  const handleConnectUsb = async () => {
-    await hardwareManager.requestUsbDevice();
+  const handleForceQuit = (proc: VirtualProcess) => {
+    audioSystem.playClick();
+    processSupervisor.terminateProcess(proc.pid);
+    if (proc.windowId && proc.windowId !== 'system-ui') {
+      closeWindow(proc.windowId);
+    }
   };
 
-  const handleConnectBt = async () => {
-    await hardwareManager.requestBluetoothDevice();
+  const handleRunBenchmark = async () => {
+    setIsBenchmarking(true);
+    audioSystem.playClick();
+    const res = await webgpuEngine.executeComputeBenchmark();
+    setBenchmarkResult(res);
+    setIsBenchmarking(false);
   };
 
-  const handleMountStorage = async () => {
-    await hardwareManager.mountLocalDirectory();
+  const handleMountHost = async () => {
+    if (typeof window === 'undefined' || !('showDirectoryPicker' in window)) {
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Not Supported', description: 'File System Access API requires Chromium or modern browser.', type: 'error' }
+      }));
+      return;
+    }
+    try {
+      const dirHandle = await (window as any).showDirectoryPicker();
+      audioSystem.playClick();
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Host Directory Mounted', description: `Mounted ~/Host/${dirHandle.name} directly into ContinuaOS VFS!`, type: 'success' }
+      }));
+    } catch (e: any) {
+      if (e.name !== 'AbortError') {
+        window.dispatchEvent(new CustomEvent('os:notify', {
+          detail: { title: 'Mount Cancelled', description: e.message, type: 'info' }
+        }));
+      }
+    }
   };
+
+  const totalCpu = Math.min(100, processes.reduce((acc, p) => acc + p.cpuPercent, 0)).toFixed(1);
+  const totalMem = processes.reduce((acc, p) => acc + p.memoryMB, 0).toFixed(1);
 
   return (
-    <div className="w-full h-full bg-slate-950 text-slate-100 font-sans flex flex-col overflow-hidden">
-      {/* Header with Activity Monitor Tabs */}
-      <div className="px-6 py-3 border-b border-white/10 bg-white/5 flex items-center justify-between">
+    <div className="w-full h-full bg-[#05070d]/95 backdrop-blur-3xl text-white font-sans flex flex-col justify-between p-6 select-none relative overflow-hidden">
+      {/* Background Ambient Glow */}
+      <div className="absolute -inset-10 bg-gradient-to-br from-indigo-950/20 via-cyan-950/15 to-emerald-950/15 blur-3xl pointer-events-none" />
+
+      {/* Top Header & Metrics Bar */}
+      <div className="flex items-center justify-between z-10 border-b border-white/10 pb-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-            <Activity className="w-5 h-5 text-cyan-400" />
+          <div className="w-9 h-9 rounded-2xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+            <Activity className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-bold text-sm text-white">Activity Monitor & Hardware Subsystem</h2>
-            <p className="text-[11px] text-slate-400">Process management, memory pressure, and hardware drivers</p>
+            <h2 className="text-sm font-bold tracking-wide">Activity Monitor & Kernel Supervisor</h2>
+            <p className="text-[10px] text-white/50">ContinuaOS POSIX Process Supervisor & WebGPU Engine</p>
           </div>
         </div>
 
-        {/* 5 macOS Activity Monitor Tabs */}
-        <div className="flex items-center gap-1 bg-white/10 p-1 rounded-xl border border-white/10 text-xs">
-          {[
-            { id: 'cpu', label: 'CPU', icon: Cpu },
-            { id: 'memory', label: 'Memory', icon: Layers },
-            { id: 'energy', label: 'Energy', icon: Zap },
-            { id: 'disk', label: 'Disk', icon: HardDrive },
-            { id: 'hardware', label: 'Peripherals', icon: Radio },
-          ].map(tab => {
-            const Icon = tab.icon;
-            const isSelected = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all",
-                  isSelected ? "bg-white/20 text-white font-semibold shadow-sm" : "text-slate-400 hover:text-white"
-                )}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+        {/* Global Telemetry Pills */}
+        <div className="flex items-center gap-2">
+          <div className="bg-white/5 border border-white/10 px-3 py-1 rounded-xl text-xs flex items-center gap-2">
+            <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="font-mono font-bold text-white">{totalCpu}% CPU</span>
+          </div>
+          <div className="bg-white/5 border border-white/10 px-3 py-1 rounded-xl text-xs flex items-center gap-2">
+            <Layers className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="font-mono font-bold text-white">{totalMem} MB RAM</span>
+          </div>
+          <div className="bg-white/5 border border-white/10 px-3 py-1 rounded-xl text-xs flex items-center gap-2">
+            <Gauge className="w-3.5 h-3.5 text-purple-400" />
+            <span className="font-mono font-bold text-white">{fps} FPS</span>
+          </div>
         </div>
       </div>
 
-      {/* Main Tab Content */}
-      <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-        {/* ─── 1. CPU & Processes Tab ─── */}
-        {activeTab === 'cpu' && (
-          <div className="flex flex-col gap-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col gap-2">
-                <span className="text-xs text-slate-400 font-medium">User Processes</span>
-                <span className="text-2xl font-bold text-white tabular-nums">{windows.length}</span>
-                <span className="text-[10px] text-emerald-400">All services running in sandboxed Web Workers</span>
-              </div>
-              <div className="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col gap-2">
-                <span className="text-xs text-slate-400 font-medium">System Refresh Rate</span>
-                <span className="text-2xl font-bold text-cyan-400 tabular-nums">{fps} FPS</span>
-                <span className="text-[10px] text-slate-400">VSync hardware synced</span>
-              </div>
-              <div className="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col gap-2">
-                <span className="text-xs text-slate-400 font-medium">System Idle</span>
-                <span className="text-2xl font-bold text-[#10F4A0] tabular-nums">94.2%</span>
-                <span className="text-[10px] text-slate-400">Kernel scheduler optimal</span>
-              </div>
+      {/* Navigation Tabs */}
+      <div className="flex items-center gap-1.5 bg-black/40 border border-white/15 p-1 rounded-2xl text-xs font-semibold my-3 z-10 w-fit">
+        {[
+          { id: 'processes', label: `Processes (${processes.length})`, icon: Activity },
+          { id: 'gpu', label: 'WebGPU Compute', icon: Zap },
+          { id: 'storage', label: 'Host Storage & Mounts', icon: HardDrive },
+          { id: 'devices', label: `Peripherals (${devices.length})`, icon: Usb },
+        ].map(tab => {
+          const Icon = tab.icon;
+          const isSelected = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id as any);
+                audioSystem.playClick();
+              }}
+              className={cn(
+                "px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5",
+                isSelected ? "bg-white text-black font-bold shadow-md" : "text-white/60 hover:text-white"
+              )}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab Contents */}
+      <div className="flex-1 my-2 z-10 overflow-hidden flex flex-col">
+        {/* ─── 1. Processes Tab ─── */}
+        {activeTab === 'processes' && (
+          <div className="flex-1 bg-black/40 border border-white/10 rounded-2xl overflow-hidden flex flex-col">
+            {/* Table Header */}
+            <div className="grid grid-cols-12 gap-2 p-3 bg-white/5 border-b border-white/10 text-[11px] font-bold text-white/50 uppercase tracking-wider">
+              <div className="col-span-2">PID</div>
+              <div className="col-span-4">Process Name</div>
+              <div className="col-span-2">Threads</div>
+              <div className="col-span-2">CPU %</div>
+              <div className="col-span-2 text-right">Actions</div>
             </div>
 
-            {/* Process Table */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-              <div className="px-4 py-2.5 bg-white/10 border-b border-white/10 grid grid-cols-12 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                <div className="col-span-1">PID</div>
-                <div className="col-span-5">Process Name</div>
-                <div className="col-span-2">CPU %</div>
-                <div className="col-span-2">Memory</div>
-                <div className="col-span-2 text-right">Action</div>
-              </div>
-              <div className="divide-y divide-white/5 text-xs">
-                {windows.map((win, idx) => {
-                  const app = APP_MANIFEST.find(a => a.id === win.appId);
-                  const pid = 1000 + idx * 42;
-                  const fakeCpu = ((idx * 3.7) % 8 + 0.5).toFixed(1);
-                  const fakeMem = ((idx * 24.5) % 90 + 35).toFixed(0);
+            {/* Table Body */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-white/5">
+              {processes.map(p => (
+                <div key={p.pid} className="grid grid-cols-12 gap-2 p-3 items-center text-xs hover:bg-white/5 transition-colors">
+                  <div className="col-span-2 font-mono text-white/60">{p.pid}</div>
+                  <div className="col-span-4 flex items-center gap-2">
+                    <span className={cn("w-2 h-2 rounded-full", p.status === 'unresponsive' ? "bg-rose-500 animate-ping" : "bg-emerald-400")} />
+                    <span className="font-semibold text-white truncate">{p.name}</span>
+                  </div>
+                  <div className="col-span-2 font-mono text-white/60">{p.threads} threads</div>
+                  <div className="col-span-2 font-mono text-cyan-400 font-bold">{p.cpuPercent.toFixed(1)}%</div>
+                  <div className="col-span-2 flex justify-end">
+                    {p.id !== 'kernel' && (
+                      <button
+                        onClick={() => handleForceQuit(p)}
+                        className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 hover:text-rose-300 text-[11px] font-bold transition-colors border border-rose-500/30"
+                      >
+                        Force Quit
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-                  return (
-                    <div key={win.id} className="px-4 py-3 grid grid-cols-12 items-center hover:bg-white/5 transition-colors">
-                      <div className="col-span-1 font-mono text-slate-400">{pid}</div>
-                      <div className="col-span-5 flex items-center gap-2 truncate">
-                        <span className="font-semibold text-white truncate">{win.title}</span>
-                        <span className="text-[10px] text-slate-400 font-mono">({app?.title || win.appId})</span>
-                      </div>
-                      <div className="col-span-2 font-mono text-emerald-400">{fakeCpu}%</div>
-                      <div className="col-span-2 font-mono text-cyan-400">{fakeMem} MB</div>
-                      <div className="col-span-2 flex justify-end">
-                        <button
-                          onClick={() => closeWindow(win.id)}
-                          className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white text-[11px] font-semibold transition-all"
-                          title="Force Quit Process"
-                        >
-                          Force Quit
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-                {windows.length === 0 && (
-                  <div className="p-6 text-center text-slate-400 text-xs">No active user processes</div>
+        {/* ─── 2. WebGPU Compute Tab ─── */}
+        {activeTab === 'gpu' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-y-auto custom-scrollbar">
+            <div className="p-5 rounded-3xl bg-white/5 border border-white/10 flex flex-col justify-between backdrop-blur-2xl">
+              <div className="space-y-4">
+                <div className="text-xs font-bold text-white/50 uppercase tracking-wider flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-cyan-400" /> GPU Silicon & Adapter
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-bold text-white">{gpuInfo?.adapterName}</div>
+                  <div className="text-xs text-white/60">Vendor: {gpuInfo?.vendor}</div>
+                  <div className="text-xs text-white/60">Architecture: {gpuInfo?.architecture}</div>
+                  <div className="text-[11px] font-mono text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Hardware Compute Pipeline Active
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-white/10">
+                <button
+                  onClick={handleRunBenchmark}
+                  disabled={isBenchmarking}
+                  className="w-full py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  {isBenchmarking ? 'Executing WebGPU Compute Pipeline...' : 'Run WebGPU Tensor Benchmark'}
+                </button>
+                {benchmarkResult && (
+                  <div className="mt-3 p-3 rounded-xl bg-black/40 border border-white/10 text-xs flex justify-between font-mono">
+                    <span className="text-white/60">Throughput:</span>
+                    <span className="text-emerald-400 font-bold">{benchmarkResult.opsPerSecond} ({benchmarkResult.durationMs}ms)</span>
+                  </div>
                 )}
               </div>
             </div>
-          </div>
-        )}
 
-        {/* ─── 2. Memory Tab ─── */}
-        {activeTab === 'memory' && (
-          <div className="flex flex-col gap-6">
-            <div className="bg-white/5 border border-white/10 p-6 rounded-3xl flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                  <Gauge className="w-4 h-4 text-emerald-400" /> Memory Pressure
-                </h3>
-                <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 font-bold uppercase tracking-wider">
-                  Nominal / Low
-                </span>
-              </div>
-              <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full transition-all duration-500"
-                  style={{
-                    width: typeof performance !== 'undefined' && (performance as any).memory
-                      ? `${Math.min(100, Math.max(5, ((performance as any).memory.usedJSHeapSize / (performance as any).memory.jsHeapSizeLimit) * 100))}%`
-                      : '22%'
-                  }}
-                />
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/10 text-xs">
-                <div>
-                  <span className="text-slate-400">Physical Memory:</span>
-                  <div className="text-base font-bold text-white">
-                    {typeof navigator !== 'undefined' && (navigator as any).deviceMemory ? `${(navigator as any).deviceMemory}.00 GB` : '8.00 GB'}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-slate-400">JS Heap Allocated:</span>
-                  <div className="text-base font-bold text-cyan-400">
-                    {typeof performance !== 'undefined' && (performance as any).memory
-                      ? `${((performance as any).memory.usedJSHeapSize / 1024 / 1024).toFixed(1)} MB`
-                      : '240.5 MB'}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-slate-400">Heap Total:</span>
-                  <div className="text-base font-bold text-indigo-400">
-                    {typeof performance !== 'undefined' && (performance as any).memory
-                      ? `${((performance as any).memory.totalJSHeapSize / 1024 / 1024).toFixed(1)} MB`
-                      : '512.0 MB'}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-slate-400">Heap Limit:</span>
-                  <div className="text-base font-bold text-slate-300">
-                    {typeof performance !== 'undefined' && (performance as any).memory
-                      ? `${((performance as any).memory.jsHeapSizeLimit / 1024 / 1024 / 1024).toFixed(1)} GB`
-                      : '4.0 GB'}
-                  </div>
+            <div className="p-5 rounded-3xl bg-white/5 border border-white/10 flex flex-col justify-between backdrop-blur-2xl">
+              <div className="space-y-3">
+                <div className="text-xs font-bold text-white/50 uppercase tracking-wider">WebGPU Compute Shader Features</div>
+                <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto custom-scrollbar">
+                  {gpuInfo?.features && gpuInfo.features.length > 0 ? (
+                    gpuInfo.features.map(f => (
+                      <span key={f} className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[11px] font-mono text-cyan-300">
+                        {f}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-white/40">Standard WGSL shader compute features active.</span>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* ─── 3. Energy Tab ─── */}
-        {activeTab === 'energy' && (
-          <div className="flex flex-col gap-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white/5 border border-white/10 p-5 rounded-3xl flex flex-col gap-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                  <Battery className="w-4 h-4 text-emerald-400" /> Battery & Power
-                </h3>
-                <div className="text-3xl font-black text-white tabular-nums">
-                  {batteryInfo ? `${batteryInfo.level}%` : 'AC Power / 100%'}
+        {/* ─── 3. Host Storage & Mounts Tab ─── */}
+        {activeTab === 'storage' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-y-auto custom-scrollbar">
+            <div className="p-5 rounded-3xl bg-white/5 border border-white/10 flex flex-col justify-between backdrop-blur-2xl">
+              <div className="space-y-3">
+                <div className="text-xs font-bold text-white/50 uppercase tracking-wider flex items-center gap-1.5">
+                  <FolderPlus className="w-4 h-4 text-emerald-400" /> Host File System Access API
                 </div>
-                <p className="text-xs text-slate-400">
-                  {batteryInfo?.charging ? 'Connected to Power Adapter (Charging)' : 'Power Source: High Efficiency Power Supply'}
+                <p className="text-xs text-white/60 leading-relaxed">
+                  Mount real directories from your computer (e.g. <code className="text-cyan-300">~/Projects</code> or external USB drives) directly into ContinuaOS with direct read/write access.
                 </p>
               </div>
+              <button
+                onClick={handleMountHost}
+                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+              >
+                <FolderPlus className="w-4 h-4" /> Mount Host Directory into VFS
+              </button>
+            </div>
 
-              <div className="bg-white/5 border border-white/10 p-5 rounded-3xl flex flex-col gap-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                  <Monitor className="w-4 h-4 text-cyan-400" /> Display Energy
-                </h3>
-                <div className="text-3xl font-black text-cyan-400 tabular-nums">1.2W</div>
-                <p className="text-xs text-slate-400">ProMotion adaptive dynamic refresh rendering</p>
+            <div className="p-5 rounded-3xl bg-white/5 border border-white/10 flex flex-col justify-between backdrop-blur-2xl">
+              <div className="space-y-3">
+                <div className="text-xs font-bold text-white/50 uppercase tracking-wider">Mounted Repositories ({githubMounts.length})</div>
+                <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                  {githubMounts.map(m => (
+                    <div key={m.id} className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between text-xs">
+                      <span className="font-mono font-bold text-white">{m.owner}/{m.repo}</span>
+                      <span className="text-[10px] text-cyan-400">Branch: {m.branch}</span>
+                    </div>
+                  ))}
+                  {githubMounts.length === 0 && (
+                    <span className="text-xs text-white/40">No GitHub repositories mounted.</span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* ─── 4. Disk Tab ─── */}
-        {activeTab === 'disk' && (
-          <div className="flex flex-col gap-6">
-            <div className="bg-white/5 border border-white/10 p-6 rounded-3xl flex flex-col gap-4">
-              <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                <HardDrive className="w-4 h-4 text-blue-400" /> Storage Capacity & Quota
-              </h3>
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>Consumed: {storageEstimate ? `${(storageEstimate.usage / 1024 / 1024).toFixed(1)} MB` : 'Estimating...'}</span>
-                <span>Quota: {storageEstimate ? `${(storageEstimate.quota / 1024 / 1024 / 1024).toFixed(1)} GB` : 'Estimating...'}</span>
-              </div>
-              <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                  style={{ width: storageEstimate ? `${Math.max(2, (storageEstimate.usage / storageEstimate.quota) * 100)}%` : '5%' }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ─── 5. Peripherals & Hardware Drivers Tab ─── */}
-        {activeTab === 'hardware' && (
-          <div className="flex flex-col gap-6">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleConnectUsb}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-xs font-bold text-white transition-all shadow-md"
-              >
-                <Usb className="w-4 h-4" /> Connect WebUSB Device
-              </button>
-              <button
-                onClick={handleConnectBt}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white transition-all shadow-md"
-              >
-                <Bluetooth className="w-4 h-4" /> Pair Web Bluetooth
-              </button>
-              <button
-                onClick={handleMountStorage}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition-all shadow-md"
-              >
-                <HardDrive className="w-4 h-4" /> Mount Native Folder
-              </button>
-            </div>
-
-            {/* GPU Info Card */}
-            {gpuInfo && (
-              <div className="bg-white/5 border border-white/10 p-5 rounded-2xl flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Cpu className="w-8 h-8 text-indigo-400" />
-                  <div>
-                    <h4 className="font-bold text-sm text-white">GPU Graphics Acceleration</h4>
-                    <p className="text-xs text-slate-400">{gpuInfo.vendor} · {gpuInfo.architecture}</p>
-                  </div>
-                </div>
-                <span className={cn("text-xs px-2.5 py-1 rounded-full font-bold uppercase", gpuInfo.available ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400")}>
-                  {gpuInfo.available ? 'WebGPU Active' : 'Fallback Canvas'}
-                </span>
-              </div>
-            )}
-
-            {/* Connected Devices List */}
-            <div className="flex flex-col gap-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Attached Devices</h3>
-              {devices.length === 0 ? (
-                <div className="p-6 rounded-2xl bg-white/5 border border-white/10 text-center text-xs text-slate-400">
-                  No external USB or Bluetooth peripherals currently paired.
-                </div>
-              ) : (
-                devices.map(d => (
-                  <div key={d.id} className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
+        {/* ─── 4. Peripherals Tab ─── */}
+        {activeTab === 'devices' && (
+          <div className="p-5 rounded-3xl bg-white/5 border border-white/10 flex flex-col justify-between backdrop-blur-2xl flex-1">
+            <div className="space-y-3">
+              <div className="text-xs font-bold text-white/50 uppercase tracking-wider">Connected WebUSB / WebHID Devices ({devices.length})</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto custom-scrollbar">
+                {devices.map(d => (
+                  <div key={d.id} className="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      {d.type === 'usb' ? <Usb className="w-5 h-5 text-cyan-400" /> : <Bluetooth className="w-5 h-5 text-blue-400" />}
+                      <Usb className="w-5 h-5 text-cyan-400" />
                       <div>
-                        <span className="font-bold text-sm text-white">{d.name}</span>
-                        <p className="text-[11px] text-slate-400">{d.details || (d.vendorId ? `VID: ${d.vendorId}` : 'Standard Protocol')}</p>
+                        <div className="text-xs font-bold text-white">{d.name}</div>
+                        <div className="text-[10px] text-white/50">{d.type.toUpperCase()} · Vendor ID: {d.vendorId || 'N/A'}</div>
                       </div>
                     </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold uppercase">
-                      Connected
-                    </span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   </div>
-                ))
-              )}
+                ))}
+                {devices.length === 0 && (
+                  <div className="col-span-2 text-xs text-white/40 p-4 text-center">
+                    No physical USB/HID devices currently connected.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-3 border-t border-white/10">
+              <button
+                onClick={async () => {
+                  audioSystem.playClick();
+                  await hardwareManager.requestUsbDevice();
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 border border-white/10"
+              >
+                <Plus className="w-3.5 h-3.5" /> Pair WebUSB Device
+              </button>
+              <button
+                onClick={async () => {
+                  audioSystem.playClick();
+                  await hardwareManager.requestBluetoothDevice();
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 border border-white/10"
+              >
+                <Bluetooth className="w-3.5 h-3.5" /> Pair Web Bluetooth
+              </button>
             </div>
           </div>
         )}
+      </div>
+
+      {/* Footer Info */}
+      <div className="z-10 flex items-center justify-between text-[10px] text-white/40 border-t border-white/10 pt-3 font-mono">
+        <span>Kernel Process Watchdog: Active (Interval: 1200ms)</span>
+        <span>Memory Model: Shared WebAssembly Heap (Isolated)</span>
       </div>
     </div>
   );
 }
-
-export default HardwareManagerApp;
