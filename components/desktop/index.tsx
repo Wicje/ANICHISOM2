@@ -55,6 +55,7 @@ import { TimeMachine } from './time-machine';
 import { AudioVisualizer } from './audio-visualizer';
 import { AirDropModal } from './airdrop-modal';
 import { HotCorners } from './hot-corners';
+import { TrackpadGestures } from './trackpad-gestures';
 import { AIAgentBar } from '@/components/overlays/ai-agent-bar';
 import { DragShelf } from '@/components/overlays/drag-shelf';
 import { TelemetryHUD } from '@/components/overlays/telemetry-hud';
@@ -624,16 +625,58 @@ export function Desktop() {
       const curWorkspace = activeWorkspaceRef.current;
       const curZIndex = highestZIndexRef.current;
 
-      // Ctrl+Tab window switcher
-      if (e.ctrlKey && e.key === 'Tab') {
+      // macOS ⌘+Tab / Ctrl+Tab / Alt+Tab Window Switcher
+      if ((e.ctrlKey || e.metaKey || e.altKey) && e.key === 'Tab') {
         e.preventDefault();
         setShowSwitcher(true);
         setSwitcherIndex(prev => {
           const activeW = curWindows.filter(w => w.workspace === curWorkspace || w.workspace === undefined);
           if (activeW.length === 0) return 0;
-          return (prev + 1) % activeW.length;
+          return e.shiftKey ? (prev - 1 + activeW.length) % activeW.length : (prev + 1) % activeW.length;
         });
         return;
+      }
+
+      // During active Switcher, handle Q (Quit), H (Hide), `~` (Reverse), Arrow keys
+      if (showSwitcher) {
+        const activeW = curWindows.filter(w => w.workspace === curWorkspace || w.workspace === undefined);
+        const currentWin = activeW[switcherIndex];
+        if (e.key === 'q' || e.key === 'Q') {
+          e.preventDefault();
+          if (currentWin) {
+            closeWindow(currentWin.id);
+            setSwitcherIndex(prev => Math.max(0, prev - 1));
+          }
+          return;
+        }
+        if (e.key === 'h' || e.key === 'H') {
+          e.preventDefault();
+          if (currentWin) {
+            minimizeWindow(currentWin.id);
+          }
+          return;
+        }
+        if (e.key === '`' || e.key === '~') {
+          e.preventDefault();
+          if (activeW.length > 0) {
+            setSwitcherIndex(prev => (prev - 1 + activeW.length) % activeW.length);
+          }
+          return;
+        }
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (activeW.length > 0) {
+            setSwitcherIndex(prev => (prev + 1) % activeW.length);
+          }
+          return;
+        }
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (activeW.length > 0) {
+            setSwitcherIndex(prev => (prev - 1 + activeW.length) % activeW.length);
+          }
+          return;
+        }
       }
 
       const keys = [];
@@ -699,8 +742,8 @@ export function Desktop() {
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Control' || e.key === 'Tab') {
-        if (!e.ctrlKey) {
+      if (e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta' || e.key === 'Tab') {
+        if (!e.ctrlKey && !e.metaKey && !e.altKey) {
           setShowSwitcher(false);
           setSwitcherIndex(currentIdx => {
             const curWindows = windowsRef.current;
@@ -836,13 +879,12 @@ export function Desktop() {
             window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Error', description: 'Failed to create folder', type: 'error' } }));
           }
         }},
+        { label: 'Edit Widgets...', icon: LayoutGrid, onClick: () => window.dispatchEvent(new Event('os:toggle-widget-stack')) },
         { label: 'Change Wallpaper', onClick: () => openWindow('settings') },
         { label: 'Open Terminal', onClick: () => openWindow('terminal') },
         { label: 'Open File Manager', onClick: () => openWindow('files') },
         { label: 'Screenshot', icon: Activity, onClick: () => startScreenshot() },
         { label: 'Toggle Focus Mode', onClick: () => toggleFocus() },
-        { label: 'Add Sticky Note', icon: StickyNote, onClick: () => setWidgets(prev => [...prev, { id: Date.now().toString(), type: 'notes', x: e.clientX, y: e.clientY, content: '' }]) },
-        { label: 'Add CPU Monitor', icon: Activity, onClick: () => setWidgets(prev => [...prev, { id: Date.now().toString(), type: 'cpu', x: e.clientX, y: e.clientY }]) },
       ]
     });
   }, [openWindow, logActivity, startScreenshot, toggleFocus]);
@@ -1096,6 +1138,7 @@ export function Desktop() {
       <DragShelf />
       <TelemetryHUD />
       <HotCorners setShowMissionControl={setShowMissionControl} setShowLaunchpad={setShowLaunchpad} setShowControlCenter={setShowControlCenter} />
+      <TrackpadGestures setShowMissionControl={setShowMissionControl} setShowLaunchpad={setShowLaunchpad} />
 
       <Toaster
         position="bottom-right"
@@ -1125,3 +1168,8 @@ function StickyNote({ className }: { className?: string }) {
 function Activity({ className }: { className?: string }) {
   return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg>;
 }
+
+function LayoutGrid({ className }: { className?: string }) {
+  return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>;
+}
+

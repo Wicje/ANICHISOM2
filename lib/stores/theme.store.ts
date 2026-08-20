@@ -29,6 +29,9 @@ type ThemeState = {
   ambientSound: AmbientPreset;
   dynamicWallpaper: boolean;
   showNotch: boolean;
+  brightness: number;
+  nightShift: boolean;
+  nightShiftTemperature: number;
   setWallpaper: (url: string) => void;
   setThemeColor: (color: string) => void;
   setFontFamily: (font: string) => void;
@@ -37,6 +40,9 @@ type ThemeState = {
   setColorMode: (mode: ColorMode) => void;
   setVolume: (vol: number) => void;
   setMuted: (muted: boolean) => void;
+  setBrightness: (brightness: number) => void;
+  setNightShift: (enabled: boolean) => void;
+  setNightShiftTemperature: (temp: number) => void;
   setAnimationsEnabled: (enabled: boolean) => void;
   setGlassmorphism: (enabled: boolean) => void;
   setAeroSnap: (enabled: boolean) => void;
@@ -56,6 +62,9 @@ const DEFAULTS = {
   colorMode: 'light' as ColorMode,
   volume: 80,
   muted: false,
+  brightness: 100,
+  nightShift: false,
+  nightShiftTemperature: 50,
   animationsEnabled: true,
   glassmorphism: true,
   aeroSnap: true,
@@ -125,6 +134,27 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   },
   setVolume: (volume) => { set({ volume }); persistTheme({ ...get(), volume }); },
   setMuted: (muted) => { set({ muted }); persistTheme({ ...get(), muted }); },
+  setBrightness: (brightness) => {
+    set({ brightness });
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.setProperty('--os-brightness', `${brightness}%`);
+    }
+    persistTheme({ ...get(), brightness });
+  },
+  setNightShift: (nightShift) => {
+    set({ nightShift });
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle('night-shift-active', nightShift);
+    }
+    persistTheme({ ...get(), nightShift });
+  },
+  setNightShiftTemperature: (nightShiftTemperature) => {
+    set({ nightShiftTemperature });
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.setProperty('--os-night-shift-temp', `${nightShiftTemperature}`);
+    }
+    persistTheme({ ...get(), nightShiftTemperature });
+  },
   setAnimationsEnabled: (animationsEnabled) => { set({ animationsEnabled }); persistTheme({ ...get(), animationsEnabled }); },
   setGlassmorphism: (glassmorphism) => { set({ glassmorphism }); persistTheme({ ...get(), glassmorphism }); },
   setAeroSnap: (aeroSnap) => { set({ aeroSnap }); persistTheme({ ...get(), aeroSnap }); },

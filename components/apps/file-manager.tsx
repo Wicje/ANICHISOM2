@@ -187,6 +187,61 @@ export function FileManager({ window: osWindow }: { window: OSWindow }) {
   const [openWithApps, setOpenWithApps] = useState<{ appId: string; label: string }[]>([]);
   const [openWithFile, setOpenWithFile] = useState<LocalFile | null>(null);
 
+  // View Mode & Tags (Finder Parity)
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'columns'>('grid');
+  const activeTagFilter = useFileStore(s => s.activeTagFilter);
+  const setActiveTagFilter = useFileStore(s => s.setActiveTagFilter);
+  const tagMap = useFileStore(s => s.tagMap);
+  const setFileTags = useFileStore(s => s.setFileTags);
+
+  // Miller Column Cascade Navigation State
+  const [columnTrail, setColumnTrail] = useState<{ path: string; items: LocalFile[]; selectedName: string | null }[]>([]);
+  const [selectedColumnFile, setSelectedColumnFile] = useState<LocalFile | null>(null);
+
+  const initColumns = useCallback(async (rootPath: string) => {
+    try {
+      const items = await FS.readDir(rootPath === 'Root' ? '' : rootPath);
+      setColumnTrail([{ path: rootPath, items: items || [], selectedName: null }]);
+      setSelectedColumnFile(null);
+    } catch {
+      setColumnTrail([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (viewMode === 'columns' && selectedSource === 'local') {
+      initColumns(currentPath);
+    }
+  }, [viewMode, currentPath, selectedSource, initColumns]);
+
+  const handleColumnItemClick = async (colIndex: number, item: LocalFile) => {
+    const currentCol = columnTrail[colIndex];
+    if (!currentCol) return;
+
+    const nextTrail = columnTrail.slice(0, colIndex + 1);
+    nextTrail[colIndex] = {
+      path: currentCol.path,
+      items: currentCol.items,
+      selectedName: item.name,
+    };
+
+    if (item.isFolder || item.mimeType === 'inode/directory') {
+      const parentPath = currentCol.path;
+      const subPath = item.path || (parentPath === 'Root' ? item.name : `${parentPath}/${item.name}`);
+      try {
+        const subItems = await FS.readDir(subPath);
+        nextTrail.push({ path: subPath, items: subItems || [], selectedName: null });
+        setColumnTrail(nextTrail);
+        setSelectedColumnFile(null);
+      } catch {
+        setColumnTrail(nextTrail);
+      }
+    } else {
+      setColumnTrail(nextTrail);
+      setSelectedColumnFile(item);
+    }
+  };
+
   // Virtual GitHub Mount State
   const [gitHubMounts, setGitHubMounts] = useState<GitHubMount[]>([]);
   const [showMountGitHub, setShowMountGitHub] = useState(false);
@@ -985,7 +1040,30 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
     fetchFiles();
   };
 
-  const filteredFiles = useMemo(() => files.filter(f => f.name.toLowerCase().includes(search.toLowerCase())), [files, search]);
+  const COLOR_TAGS = [
+    { id: 'red' as const, label: 'Red', colorClass: 'bg-rose-500', hex: '#f43f5e' },
+    { id: 'orange' as const, label: 'Orange', colorClass: 'bg-orange-500', hex: '#f97316' },
+    { id: 'yellow' as const, label: 'Yellow', colorClass: 'bg-amber-400', hex: '#fbbf24' },
+    { id: 'green' as const, label: 'Green', colorClass: 'bg-emerald-500', hex: '#10b981' },
+    { id: 'blue' as const, label: 'Blue', colorClass: 'bg-sky-500', hex: '#0ea5e9' },
+    { id: 'purple' as const, label: 'Purple', colorClass: 'bg-purple-500', hex: '#a855f7' },
+    { id: 'gray' as const, label: 'Gray', colorClass: 'bg-slate-400', hex: '#94a3b8' },
+  ];
+
+  const filteredFiles = useMemo(() => {
+    let list = files;
+    if (activeTagFilter) {
+      list = list.filter(f => {
+        const tags = tagMap[f.id] || tagMap[f.name] || tagMap[f.path || ''] || [];
+        return tags.includes(activeTagFilter);
+      });
+    }
+    if (search) {
+      list = list.filter(f => f.name.toLowerCase().includes(search.toLowerCase()));
+    }
+    return list;
+  }, [files, search, activeTagFilter, tagMap]);
+
   const filteredCloudFiles = useMemo(() => cloudFiles.filter(f => f.name.toLowerCase().includes(search.toLowerCase())), [cloudFiles, search]);
 
   const isViewingLocal = selectedSource === 'local';
@@ -1007,20 +1085,59 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
           {/* Local storage */}
           <div className="px-3 mb-1.5 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-[var(--os-text-muted)]">Local Disk</div>
           <div className="flex flex-col gap-1 px-2">
-            {['Root', 'Desktop', 'Documents', 'Downloads', 'Media'].map(loc => (
+            {['Root', 'Desktop', 'Documents', 'Downloads', 'Media', 'Trash'].map(loc => (
               <button
                 key={loc}
-                onClick={() => { setCurrentPath(loc); setSelectedSource('local'); }}
+                onClick={() => { setCurrentPath(loc); setSelectedSource('local'); setActiveTagFilter(null); }}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
-                  isViewingLocal && currentPath === loc ? "bg-[var(--os-active)] text-[var(--os-primary)]" : "text-[var(--os-text-muted)] hover:bg-[var(--os-hover)] hover:text-[var(--os-text)]",
+                  isViewingLocal && currentPath === loc && !activeTagFilter ? "bg-[var(--os-active)] text-[var(--os-primary)] font-medium" : "text-[var(--os-text-muted)] hover:bg-[var(--os-hover)] hover:text-[var(--os-text)]",
                   !isViewingLocal && "text-[var(--os-text-muted)] opacity-60"
                 )}
               >
-                <Folder className={cn("w-4 h-4", isViewingLocal && currentPath === loc ? "text-[var(--os-primary)]" : "text-[var(--os-primary)]")} fill="currentColor" />
+                {loc === 'Trash' ? (
+                  <Trash2 className="w-4 h-4 text-rose-400" />
+                ) : (
+                  <Folder className={cn("w-4 h-4", isViewingLocal && currentPath === loc ? "text-[var(--os-primary)]" : "text-[var(--os-primary)]")} fill="currentColor" />
+                )}
                 {loc}
               </button>
             ))}
+          </div>
+
+          {/* Color Tags Section (Finder Parity) */}
+          <div className="px-3 mt-5 mb-1.5 flex items-center justify-between">
+            <div className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-[var(--os-text-muted)]">Tags</div>
+            {activeTagFilter && (
+              <button
+                onClick={() => setActiveTagFilter(null)}
+                className="text-[10px] text-[var(--os-primary)] hover:underline"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <div className="flex flex-col gap-1 px-2">
+            {COLOR_TAGS.map(tag => {
+              const count = files.filter(f => (tagMap[f.id] || tagMap[f.name] || tagMap[f.path || ''] || []).includes(tag.id)).length;
+              const isActive = activeTagFilter === tag.id;
+              return (
+                <button
+                  key={tag.id}
+                  onClick={() => {
+                    setActiveTagFilter(isActive ? null : tag.id);
+                  }}
+                  className={cn(
+                    "flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs transition-colors",
+                    isActive ? "bg-[var(--os-active)] text-[var(--os-text)] font-semibold" : "text-[var(--os-text-muted)] hover:bg-[var(--os-hover)] hover:text-[var(--os-text)]"
+                  )}
+                >
+                  <span className={cn("w-2.5 h-2.5 rounded-full shrink-0 shadow-sm", tag.colorClass)} />
+                  <span className="flex-1 text-left truncate">{tag.label}</span>
+                  {count > 0 && <span className="text-[10px] opacity-60 font-mono">{count}</span>}
+                </button>
+              );
+            })}
           </div>
 
           {/* External Hardware Mounts */}
@@ -1265,6 +1382,40 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
               />
             </div>
 
+            {/* View Mode Switcher (macOS Finder Parity) */}
+            <div className="flex items-center bg-[var(--os-hover)] p-0.5 rounded-lg border border-[var(--os-border)]">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={cn(
+                  "p-1.5 rounded-md transition-colors",
+                  viewMode === 'grid' ? "bg-[var(--os-active)] text-[var(--os-primary)] shadow-sm" : "text-[var(--os-text-muted)] hover:text-[var(--os-text)]"
+                )}
+                title="Grid View"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={cn(
+                  "p-1.5 rounded-md transition-colors",
+                  viewMode === 'list' ? "bg-[var(--os-active)] text-[var(--os-primary)] shadow-sm" : "text-[var(--os-text-muted)] hover:text-[var(--os-text)]"
+                )}
+                title="List View"
+              >
+                <ListIcon className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setViewMode('columns')}
+                className={cn(
+                  "p-1.5 rounded-md transition-colors",
+                  viewMode === 'columns' ? "bg-[var(--os-active)] text-[var(--os-primary)] shadow-sm" : "text-[var(--os-text-muted)] hover:text-[var(--os-text)]"
+                )}
+                title="Miller Column View"
+              >
+                <Columns3 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
             <div className="h-6 w-px bg-[var(--os-border)] mx-1"></div>
 
             <button onClick={() => { isViewingLocal ? fetchFiles() : fetchCloudFiles(selectedSource, cloudPath); }} className="p-1.5 rounded-md text-[var(--os-text-muted)] hover:text-[var(--os-text)] hover:bg-[var(--os-hover)] transition-colors" title="Refresh">
@@ -1428,6 +1579,125 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
                   </div>
                 </div>
               )}
+            </div>
+          ) : isViewingLocal && viewMode === 'columns' ? (
+            /* Miller Columns Cascade Mode (macOS Finder Parity) */
+            <div className="w-full h-full flex overflow-x-auto divide-x divide-[var(--os-border)] custom-scrollbar pb-6">
+              {columnTrail.map((col, idx) => (
+                <div key={idx} className="w-64 min-w-[240px] max-w-[280px] h-full flex flex-col bg-black/5 dark:bg-black/20 shrink-0">
+                  <div className="p-2.5 text-[11px] font-bold uppercase tracking-wider text-[var(--os-text-muted)] border-b border-[var(--os-border)] flex items-center justify-between">
+                    <span className="truncate">{col.path.split('/').pop() || 'Root'}</span>
+                    <span className="text-[10px] opacity-60 font-mono">{col.items.length} items</span>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-1.5 flex flex-col gap-0.5 custom-scrollbar">
+                    {col.items.map(item => {
+                      const isSelected = col.selectedName === item.name;
+                      const isDir = item.isFolder || item.mimeType === 'inode/directory';
+                      const tags = tagMap[item.id] || tagMap[item.name] || tagMap[item.path || ''] || [];
+                      return (
+                        <div
+                          key={item.id || item.name}
+                          onClick={() => handleColumnItemClick(idx, item)}
+                          onDoubleClick={() => handleFileOpen(item)}
+                          onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, file: item }); }}
+                          className={cn(
+                            "flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors",
+                            isSelected ? "bg-[var(--os-primary)] text-white font-medium" : "hover:bg-[var(--os-hover)] text-[var(--os-text)]"
+                          )}
+                        >
+                          {isDir ? (
+                            <Folder className={cn("w-4 h-4 shrink-0", isSelected ? "text-white" : "text-cyan-400")} fill="currentColor" />
+                          ) : (
+                            <FileText className={cn("w-4 h-4 shrink-0", isSelected ? "text-white" : "text-[var(--os-text-muted)]")} />
+                          )}
+                          <span className="flex-1 truncate">{item.name}</span>
+                          {tags.length > 0 && (
+                            <div className="flex items-center gap-1">
+                              {tags.map(t => {
+                                const tagObj = COLOR_TAGS.find(ct => ct.id === t);
+                                return tagObj ? <span key={t} className={cn("w-1.5 h-1.5 rounded-full", tagObj.colorClass)} /> : null;
+                              })}
+                            </div>
+                          )}
+                          {isDir && <ChevronRight className={cn("w-3.5 h-3.5 shrink-0 opacity-60", isSelected && "opacity-100 text-white")} />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              {/* Terminal Inspector for Selected Column File */}
+              {selectedColumnFile && (
+                <div className="w-80 min-w-[300px] h-full flex flex-col p-6 bg-black/10 dark:bg-black/30 shrink-0 border-l border-[var(--os-border)] items-center text-center justify-center gap-4">
+                  <div className="w-24 h-24 rounded-2xl bg-[var(--os-surface-elevated)] border border-[var(--os-border)] flex items-center justify-center shadow-lg overflow-hidden">
+                    {selectedColumnFile.mimeType?.startsWith('image/') && selectedColumnFile.content ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={selectedColumnFile.content} alt={selectedColumnFile.name} className="w-24 h-24 object-cover" />
+                    ) : (
+                      <FileText className="w-12 h-12 text-[var(--os-primary)]" />
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1 w-full">
+                    <h4 className="font-semibold text-sm text-[var(--os-text)] truncate">{selectedColumnFile.name}</h4>
+                    <p className="text-[11px] text-[var(--os-text-muted)]">{selectedColumnFile.mimeType || 'Document'} · {selectedColumnFile.size ? `${(selectedColumnFile.size / 1024).toFixed(1)} KB` : 'Unknown size'}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleFileOpen(selectedColumnFile)}
+                      className="px-4 py-1.5 rounded-lg bg-[var(--os-primary)] text-white text-xs font-semibold hover:opacity-90 shadow-md transition-all"
+                    >
+                      Open in App
+                    </button>
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent('os:quick-look', { detail: { file: selectedColumnFile } }))}
+                      className="px-4 py-1.5 rounded-lg bg-[var(--os-hover)] border border-[var(--os-border)] text-xs text-[var(--os-text)] hover:bg-[var(--os-active)] transition-all"
+                    >
+                      Quick Look
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : isViewingLocal && viewMode === 'list' ? (
+            /* Finder List View Mode */
+            <div className="w-full flex flex-col divide-y divide-[var(--os-border)] pb-12">
+              <div className="grid grid-cols-12 px-4 py-2 text-[11px] font-bold text-[var(--os-text-muted)] uppercase tracking-wider bg-black/5 dark:bg-white/5 sticky top-0 backdrop-blur-md z-10">
+                <div className="col-span-6">Name</div>
+                <div className="col-span-2">Kind</div>
+                <div className="col-span-2">Size</div>
+                <div className="col-span-2">Tags</div>
+              </div>
+              {filteredFiles.map(file => {
+                const isFolder = file.isFolder === true || file.mimeType === 'inode/directory';
+                const tags = tagMap[file.id] || tagMap[file.name] || tagMap[file.path || ''] || [];
+                const isSelected = selectedFileIds.has(file.id);
+                return (
+                  <div
+                    key={file.id}
+                    onClick={(e) => toggleFileSelection(file.id, e.ctrlKey || e.metaKey, e.shiftKey)}
+                    onDoubleClick={() => handleFileOpen(file)}
+                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, file }); }}
+                    className={cn(
+                      "grid grid-cols-12 px-4 py-2.5 text-xs items-center cursor-pointer transition-colors",
+                      isSelected ? "bg-[var(--os-primary)]/15 text-[var(--os-primary)]" : "hover:bg-[var(--os-hover)] text-[var(--os-text)]"
+                    )}
+                  >
+                    <div className="col-span-6 flex items-center gap-2 truncate">
+                      {isFolder ? <Folder className="w-4 h-4 text-cyan-400 shrink-0" fill="currentColor" /> : <FileText className="w-4 h-4 text-[var(--os-text-muted)] shrink-0" />}
+                      <span className="truncate font-medium">{file.name}</span>
+                    </div>
+                    <div className="col-span-2 text-[var(--os-text-muted)] text-[11px] truncate">{isFolder ? 'Folder' : file.mimeType || 'File'}</div>
+                    <div className="col-span-2 text-[var(--os-text-muted)] text-[11px] font-mono">{isFolder ? '--' : file.size ? `${(file.size / 1024).toFixed(1)} KB` : '--'}</div>
+                    <div className="col-span-2 flex items-center gap-1">
+                      {tags.map(t => {
+                        const tagObj = COLOR_TAGS.find(ct => ct.id === t);
+                        return tagObj ? <span key={t} className={cn("w-2 h-2 rounded-full", tagObj.colorClass)} /> : null;
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : isViewingLocal ? (
             // Local files grid grouped by date
@@ -1706,26 +1976,99 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
         </div>
       </div>
 
-      {/* Context Menu */}
+      {/* Context Menu (macOS Finder Parity) */}
       {contextMenu && (
         <div
-          className="fixed z-[9999] bg-[var(--os-glass-bg)] backdrop-blur-xl border border-[var(--os-glass-border)] rounded-xl shadow-2xl py-1 w-56"
+          className="fixed z-[9999] bg-[var(--os-glass-bg)] backdrop-blur-2xl border border-[var(--os-glass-border)] rounded-2xl shadow-2xl py-1.5 w-60 overflow-hidden"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => setContextMenu(null)}
         >
+          {/* 7-Color Finder Tag Selector */}
+          <div className="px-3 py-1.5 border-b border-[var(--os-border)]">
+            <div className="text-[10px] font-bold text-[var(--os-text-muted)] uppercase tracking-wider mb-1.5">Tags</div>
+            <div className="flex items-center justify-between">
+              {COLOR_TAGS.map(t => {
+                const targetKey = contextMenu.file.id || contextMenu.file.name;
+                const fileTags = tagMap[targetKey] || tagMap[contextMenu.file.name] || tagMap[contextMenu.file.path || ''] || [];
+                const isTagged = fileTags.includes(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const next = isTagged ? fileTags.filter(x => x !== t.id) : [...fileTags, t.id];
+                      setFileTags(targetKey, next);
+                      if (contextMenu.file.name) setFileTags(contextMenu.file.name, next);
+                      if (contextMenu.file.path) setFileTags(contextMenu.file.path, next);
+                    }}
+                    className={cn(
+                      "w-4 h-4 rounded-full transition-transform hover:scale-125 flex items-center justify-center shadow-sm",
+                      t.colorClass,
+                      isTagged ? "ring-2 ring-white ring-offset-1 ring-offset-black scale-110" : "opacity-80 hover:opacity-100"
+                    )}
+                    title={`Tag as ${t.label}`}
+                  >
+                    {isTagged && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Quick Look action */}
+          <button
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('os:quick-look', { detail: { file: contextMenu.file } }));
+              setContextMenu(null);
+            }}
+            className="w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--os-hover)] flex items-center justify-between text-[var(--os-text)] font-medium"
+          >
+            <span className="flex items-center gap-2">
+              <Eye className="w-3.5 h-3.5 text-[var(--os-primary)]" /> Quick Look
+            </span>
+            <span className="text-[10px] font-mono text-[var(--os-text-muted)]">Space</span>
+          </button>
+
+          {/* Put Back action when in Trash */}
+          {currentPath === 'Trash' && (
+            <button
+              onClick={async () => {
+                const trashPath = contextMenu.file.path || `Trash/${contextMenu.file.name}`;
+                const origPath = useFileStore.getState().getTrashPutBack(trashPath) || contextMenu.file.name;
+                setContextMenu(null);
+                try {
+                  await FS.move(trashPath, origPath);
+                  fetchFiles();
+                  window.dispatchEvent(new CustomEvent('os:notify', {
+                    detail: { title: 'Restored File', description: `Restored "${contextMenu.file.name}" to ${origPath}`, type: 'success' }
+                  }));
+                } catch (err: any) {
+                  window.dispatchEvent(new CustomEvent('os:notify', {
+                    detail: { title: 'Restore Failed', description: err.message, type: 'error' }
+                  }));
+                }
+              }}
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-emerald-400 font-semibold"
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> Put Back (Restore)
+            </button>
+          )}
+
+          <div className="border-t border-[var(--os-border)] my-1" />
+
           {contextMenu.file.isFolder ? (
             <button
               onClick={() => handleFileOpen(contextMenu.file)}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
             >
-              <ExternalLink className="w-3.5 h-3.5" /> Open
+              <ExternalLink className="w-3.5 h-3.5" /> Open Folder
             </button>
           ) : (
             <>
               <button
                 onClick={() => handleFileOpen(contextMenu.file)}
-                className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
               >
                 <ExternalLink className="w-3.5 h-3.5" /> Open
               </button>
@@ -1735,7 +2078,7 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
                   setShowOpenWith(true);
                   setContextMenu(null);
                 }}
-                className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
               >
                 <Eye className="w-3.5 h-3.5" /> Open With...
               </button>
@@ -1747,20 +2090,20 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
               setRenameValue(contextMenu.file.name);
               setContextMenu(null);
             }}
-            className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
+            className="w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
           >
             <Pencil className="w-3.5 h-3.5" /> Rename
           </button>
           <div className="border-t border-[var(--os-border)] my-1" />
           <button
             onClick={() => { setClipboard({ paths: [contextMenu.file.id], mode: 'cut' }); setContextMenu(null); }}
-            className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
+            className="w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
           >
             <Pencil className="w-3.5 h-3.5" /> Cut
           </button>
           <button
             onClick={() => { setClipboard({ paths: [contextMenu.file.id], mode: 'copy' }); setContextMenu(null); }}
-            className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
+            className="w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
           >
             <Copy className="w-3.5 h-3.5" /> Copy
           </button>
@@ -1782,7 +2125,7 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
                     }));
                   }
                 }}
-                className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-emerald-400 font-medium"
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-emerald-400 font-medium"
               >
                 <FileText className="w-3.5 h-3.5" /> Convert to AI Markdown
               </button>
@@ -1801,23 +2144,24 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
                     }));
                   }
                 }}
-                className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-cyan-400 font-medium"
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-cyan-400 font-medium"
               >
                 <Sparkles className="w-3.5 h-3.5" /> Ingest to AI Memory
               </button>
               <button
                 onClick={() => downloadFile(contextMenu.file, { stopPropagation: () => {} } as any)}
-                className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--os-hover)] flex items-center gap-2 text-[var(--os-text)]"
               >
                 <Download className="w-3.5 h-3.5" /> Download
               </button>
             </>
           )}
+          <div className="border-t border-[var(--os-border)] my-1" />
           <button
             onClick={() => deleteFile(contextMenu.file.id, { stopPropagation: () => {} } as any)}
-            className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--os-error)]/20 text-[var(--os-error)] flex items-center gap-2"
+            className="w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--os-error)]/20 text-[var(--os-error)] flex items-center gap-2 font-medium"
           >
-            <Trash2 className="w-3.5 h-3.5" /> Delete
+            <Trash2 className="w-3.5 h-3.5" /> {currentPath === 'Trash' ? 'Delete Immediately' : 'Move to Trash'}
           </button>
         </div>
       )}

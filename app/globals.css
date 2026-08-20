@@ -186,3 +186,15 @@ body.performance-light .glass-panel-active {
 .tiptap-editor .ProseMirror ul,
 .tiptap-editor .ProseMirror ol { padding: 0 1rem; }
 .tiptap-editor .ProseMirror blockquote { border-left: 3px solid rgba(13, 13, 13, 0.1); padding-left: 1rem; }
+
+/* macOS Night Shift / Blue Light Filter & Brightness */
+html.night-shift-active {
+  filter: sepia(calc(var(--os-night-shift-temp, 50) * 0.007)) hue-rotate(-12deg) brightness(calc(var(--os-brightness, 100) * 0.01));
+  transition: filter 0.4s ease;
+}
+
+html:not(.night-shift-active) {
+  filter: brightness(calc(var(--os-brightness, 100) * 0.01));
+  transition: filter 0.4s ease;
+}
+

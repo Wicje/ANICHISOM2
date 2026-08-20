@@ -47,6 +47,7 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
   'screen-recorder': () => import('@/components/apps/screen-recorder'),
   'media-player': () => import('@/components/apps/media-player'),
   'hardware-manager': () => import('@/components/apps/hardware-manager'),
+  'shortcuts': () => import('@/components/apps/shortcuts-app'),
   'virtual-display-manager': () => import('@/components/apps/virtual-display-manager'),
   'asset-pipeline': () => import('@/components/apps/asset-pipeline'),
   'config-manager': () => import('@/components/apps/config-manager'),
@@ -106,6 +107,9 @@ const ICO = {
   // Campaign Lab — Dark obsidian notebook with glowing emerald seal
   campaign: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%2318181b'/%3E%3Cstop offset='100%25' stop-color='%2309090b'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='120' height='120' rx='28' fill='url(%23bg)' stroke='%2327272a' stroke-width='2'/%3E%3Cpath d='M30 90V30l30-12 30 12v60l-30 12z' fill='%23ffffff' fill-opacity='.9'/%3E%3Cpath d='M30 30l30 12 30-12' fill='none' stroke='%2318181b' stroke-width='4'/%3E%3Cline x1='60' y1='42' x2='60' y2='102' stroke='%2318181b' stroke-width='4'/%3E%3C/svg%3E",
   
+  // Shortcuts — macOS pink-violet gradient with glowing lightning bolt
+  shortcuts: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23ec4899'/%3E%3Cstop offset='100%25' stop-color='%238b5cf6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='120' height='120' rx='28' fill='url(%23bg)'/%3E%3Cpath d='M65 24L35 68h24l-6 28 30-44H59z' fill='%23ffffff' stroke='%23ffffff' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E",
+
   // Productivity Suite — Google Workspace multi-color tiles
   productivity: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='28' fill='%23ffffff'/%3E%3Crect x='22' y='22' width='34' height='34' rx='10' fill='%233b82f6'/%3E%3Crect x='64' y='22' width='34' height='34' rx='10' fill='%23ef4444'/%3E%3Crect x='22' y='64' width='34' height='34' rx='10' fill='%2322c55e'/%3E%3Crect x='64' y='64' width='34' height='34' rx='10' fill='%23eab308'/%3E%3C/svg%3E",
   
@@ -191,6 +195,7 @@ export const APP_MANIFEST: AppManifestEntry[] = [
   // Productivity
   { id: 'campaign', component: null as any, icon: Zap, iconImage: ICO.campaign, title: 'Campaign Lab', roles: ['admin', 'filmmaker', 'user', 'technician', 'photographer', 'developer', 'designer', 'marketer', 'business', 'student', 'other'], isCore: false, category: 'productivity', description: 'Campaign management and analytics' },
   { id: 'productivity', component: null as any, icon: Grid, iconImage: ICO.productivity, title: 'Productivity Suite', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'All-in-one productivity tools' },
+  { id: 'shortcuts', component: null as any, icon: Zap, iconImage: ICO.shortcuts, title: 'Shortcuts', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: true, category: 'productivity', description: 'Visual automation and custom workflows engine' },
   { id: 'proposal-generator', component: null as any, icon: FileText, iconImage: ICO.proposal, title: 'Proposal Generator', roles: ['admin', 'filmmaker', 'user'], isCore: false, category: 'productivity', description: 'Generate proposals and estimates' },
   { id: 'side-gigs', component: null as any, icon: Briefcase, iconImage: ICO.briefcase, title: 'Side Gigs', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'Manage side projects and gigs' },
   { id: 'calls', component: null as any, icon: Phone, iconImage: ICO.phone, title: 'Calls', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'Video and voice calls' },
