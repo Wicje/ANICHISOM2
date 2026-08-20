@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useOS, OSWindow } from '@/lib/os-context';
-import { Monitor, Square, Circle, Download, X, Sparkles, Keyboard, MousePointer, Film, Save, Check } from 'lucide-react';
+import { Monitor, Square, Circle, Download, X, Sparkles, Keyboard, MousePointer, Film, Check, FolderOpen, Play } from 'lucide-react';
 import { FS } from '@/lib/fs';
 import { cn } from '@/lib/utils';
 
@@ -24,11 +24,12 @@ function getSupportedMimeType(): string | null {
 }
 
 export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
-  const { notify } = useOS();
+  const { notify, openWindow } = useOS();
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [lastSavedPath, setLastSavedPath] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [savedToOs, setSavedToOs] = useState(false);
@@ -104,29 +105,24 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
   const startShare = async () => {
     try {
       setError(null);
-      let displayStream: MediaStream;
-      try {
-        displayStream = await navigator.mediaDevices.getDisplayMedia({
-          video: { displaySurface: 'monitor' },
-          audio: true
-        });
-      } catch {
-        displayStream = await navigator.mediaDevices.getDisplayMedia({
-          video: { displaySurface: 'monitor' },
-          audio: false
-        });
-      }
-      streamRef.current = displayStream;
-      setStream(displayStream);
+      setRecordedUrl(null);
+      setLastSavedPath(null);
+      setSavedToOs(false);
+      
+      const mediaStream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          displaySurface: 'monitor',
+          frameRate: { ideal: 60, max: 60 },
+        },
+        audio: true
+      });
 
-      displayStream.getVideoTracks()[0]?.addEventListener('ended', () => {
+      setStream(mediaStream);
+
+      mediaStream.getVideoTracks()[0]?.addEventListener('ended', () => {
         const recording = isRecordingRef.current;
         if (recording) {
-          if (mediaRecorderRef.current?.state === 'recording') {
-            mediaRecorderRef.current.requestData();
-          }
           stopRecording();
-          window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Recording Interrupted', description: 'Screen share was stopped externally.', type: 'warning' }}));
         }
         streamRef.current = null;
         setStream(null);
@@ -187,6 +183,7 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
 
         const ext = mimeTypeRef.current?.includes('mp4') ? 'mp4' : 'webm';
         const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || 'video/webm' });
+        setRecordedBlob(blob);
         if (recordedUrlRef.current) {
           URL.revokeObjectURL(recordedUrlRef.current);
         }
@@ -198,8 +195,10 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
           await FS.mkdir('Recordings');
           const filename = `Recordings/Screen_Recording_${new Date().toISOString().replace(/[:.]/g, '-')}.${ext}`;
           await FS.write(filename, blob, mimeTypeRef.current || 'video/webm');
+          setLastSavedPath(filename);
+          setSavedToOs(true);
           window.dispatchEvent(new CustomEvent('os:notify', {
-            detail: { title: 'Recording Saved', description: `Saved to ${filename}`, type: 'success' },
+            detail: { title: 'Recording Saved to File Manager', description: `Saved to ${filename}`, type: 'success' },
           }));
           window.dispatchEvent(new CustomEvent('os:activity', {
             detail: { type: 'file-save', title: 'Screen recording saved', detail: filename },
@@ -207,7 +206,7 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
         } catch (fsErr) {
           console.warn('Failed to save recording to FS:', fsErr);
           window.dispatchEvent(new CustomEvent('os:notify', {
-            detail: { title: 'Save Failed', description: 'Recording captured but could not be saved to the file system.', type: 'error' },
+            detail: { title: 'Save Warning', description: 'Recording captured in memory. Use "Save to Disk" to export.', type: 'warning' },
           }));
         }
 
@@ -274,27 +273,44 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
     if (recordedUrl) {
       URL.revokeObjectURL(recordedUrl);
       setRecordedUrl(null);
+      setLastSavedPath(null);
+      setSavedToOs(false);
+    }
+  };
+
+  const openInFileManager = () => {
+    openWindow('files', 'File Manager', { initialPath: 'Recordings' });
+  };
+
+  const openInMediaPlayer = () => {
+    if (recordedUrl) {
+      openWindow('media-player', 'Media Player', { fileId: lastSavedPath || 'Recording.webm', src: recordedUrl });
     }
   };
 
   return (
-    <div className="flex flex-col w-full h-full bg-neutral-950 text-white font-sans overflow-hidden">
+    <div className="flex flex-col w-full h-full bg-[var(--os-bg)] text-[var(--os-text)] font-sans overflow-hidden select-none">
       
       {/* Toolbar */}
-      <div className="h-14 border-b border-white/10 bg-white/5 flex items-center justify-between px-4 shrink-0">
+      <div className="h-14 border-b border-[var(--os-border)] bg-[var(--os-surface)] flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <Film className="w-5 h-5 text-emerald-400" />
-            <span className="font-semibold text-sm">Screenize Studio</span>
+            <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              <Film className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-bold text-sm text-[var(--os-text)]">Screenize Studio</span>
+              <p className="text-[10px] text-[var(--os-text-muted)]">Capture, zoom effects &amp; auto-save</p>
+            </div>
           </div>
 
-          {/* Studio Effects Toggles (Screenize Pattern) */}
-          <div className="hidden sm:flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-white/10 text-xs">
+          {/* Studio Effects Toggles */}
+          <div className="hidden md:flex items-center gap-1 bg-[var(--os-surface-dim)] p-1 rounded-xl border border-[var(--os-border)] text-xs">
             <button
               onClick={() => setEnableSmartZoom(!enableSmartZoom)}
               className={cn(
-                "flex items-center gap-1 px-2.5 py-1 rounded transition-colors",
-                enableSmartZoom ? "bg-emerald-500/20 text-emerald-400 font-semibold" : "text-white/40 hover:text-white/70"
+                "flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all",
+                enableSmartZoom ? "bg-emerald-500/20 text-emerald-400 font-bold" : "text-[var(--os-text-muted)] hover:text-[var(--os-text)]"
               )}
               title="Smooth zoom on cursor click areas"
             >
@@ -303,8 +319,8 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
             <button
               onClick={() => setEnableKeystrokes(!enableKeystrokes)}
               className={cn(
-                "flex items-center gap-1 px-2.5 py-1 rounded transition-colors",
-                enableKeystrokes ? "bg-emerald-500/20 text-emerald-400 font-semibold" : "text-white/40 hover:text-white/70"
+                "flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all",
+                enableKeystrokes ? "bg-emerald-500/20 text-emerald-400 font-bold" : "text-[var(--os-text-muted)] hover:text-[var(--os-text)]"
               )}
               title="Show floating keyboard shortcuts badge"
             >
@@ -313,8 +329,8 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
             <button
               onClick={() => setEnableCursorHalo(!enableCursorHalo)}
               className={cn(
-                "flex items-center gap-1 px-2.5 py-1 rounded transition-colors",
-                enableCursorHalo ? "bg-emerald-500/20 text-emerald-400 font-semibold" : "text-white/40 hover:text-white/70"
+                "flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all",
+                enableCursorHalo ? "bg-emerald-500/20 text-emerald-400 font-bold" : "text-[var(--os-text-muted)] hover:text-[var(--os-text)]"
               )}
               title="Pulse glowing ring on clicks"
             >
@@ -327,7 +343,7 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
           {!stream ? (
             <button 
               onClick={startShare}
-              className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-1.5 rounded-md text-xs font-medium transition-colors"
+              className="flex items-center gap-2 bg-[var(--os-primary)] text-slate-950 font-bold px-4 py-1.5 rounded-xl text-xs transition-all shadow-sm hover:brightness-110"
             >
               <Monitor className="w-4 h-4" />
               Select Screen
@@ -335,7 +351,7 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
           ) : (
             <button
               onClick={handleStopShare}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-1.5 rounded-md text-xs font-medium transition-colors border border-white/10"
+              className="flex items-center gap-2 bg-[var(--os-surface-dim)] hover:bg-[var(--os-hover)] text-[var(--os-text)] px-4 py-1.5 rounded-xl text-xs font-semibold transition-all border border-[var(--os-border)]"
             >
               <X className="w-4 h-4" />
               Stop Sharing
@@ -345,7 +361,7 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
           {stream && !isRecording && (
             <button 
               onClick={startRecording}
-              className="flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-4 py-1.5 rounded-md text-xs font-medium transition-colors shadow-lg shadow-rose-500/30"
+              className="flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-white font-bold px-4 py-1.5 rounded-xl text-xs transition-all shadow-lg shadow-rose-500/30"
             >
               <Circle className="w-3 h-3 fill-white" />
               Record Studio
@@ -354,12 +370,12 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
           
           {isRecording && (
             <div className="flex items-center gap-3">
-              <span className="text-xs font-mono font-medium text-rose-500">{Math.floor(recordingSeconds / 60).toString().padStart(2, '0')}:{(recordingSeconds % 60).toString().padStart(2, '0')} / 10:00</span>
+              <span className="text-xs font-mono font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/30">{Math.floor(recordingSeconds / 60).toString().padStart(2, '0')}:{(recordingSeconds % 60).toString().padStart(2, '0')} / 10:00</span>
               <button 
                 onClick={stopRecording}
-                className="flex items-center gap-2 bg-rose-500/20 hover:bg-rose-500/40 text-rose-500 px-4 py-1.5 rounded-md text-xs font-bold transition-colors border border-rose-500/30 animate-pulse"
+                className="flex items-center gap-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 px-4 py-1.5 rounded-xl text-xs font-bold transition-all border border-rose-500/40 animate-pulse shadow-md"
               >
-                <Square className="w-3 h-3 fill-rose-500" />
+                <Square className="w-3 h-3 fill-rose-400" />
                 Stop Recording
               </button>
             </div>
@@ -368,21 +384,90 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
+      <div className="flex-1 p-5 flex flex-col gap-5 overflow-y-auto custom-scrollbar bg-[var(--os-surface-dim)]">
         {error && (
-          <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm">
+          <div className="p-3.5 bg-rose-500/15 border border-rose-500/40 rounded-2xl text-rose-300 text-xs font-medium">
             {error}
+          </div>
+        )}
+
+        {/* Highlighted Saved Recording Card */}
+        {recordedUrl && (
+          <div className="p-5 bg-[var(--os-surface)] border border-[var(--os-border)] rounded-2xl shadow-xl flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-[var(--os-border)]">
+               <div>
+                  <div className="flex items-center gap-2">
+                    <span className="p-1 rounded-lg bg-emerald-500/20 text-emerald-400">
+                      <Check className="w-4 h-4" />
+                    </span>
+                    <h3 className="font-bold text-sm text-[var(--os-text)]">Screen Recording Completed</h3>
+                  </div>
+                  {lastSavedPath && (
+                    <p className="text-xs text-[var(--os-text-muted)] mt-1 flex items-center gap-1.5 font-mono">
+                      <FolderOpen className="w-3.5 h-3.5 text-[var(--os-primary)]" />
+                      Saved in Continua OS: <span className="text-[var(--os-text)] font-semibold">{lastSavedPath}</span>
+                    </p>
+                  )}
+               </div>
+               <div className="flex flex-wrap items-center gap-2">
+                 <button 
+                   onClick={downloadRecording} 
+                   className="flex items-center gap-1.5 text-xs bg-[var(--os-primary)] text-slate-950 font-bold hover:brightness-110 px-3.5 py-1.5 rounded-xl transition-all shadow-sm"
+                 >
+                   <Download className="w-3.5 h-3.5" /> Save to PC Downloads
+                 </button>
+                 <button 
+                   onClick={openInFileManager} 
+                   className="flex items-center gap-1.5 text-xs bg-[var(--os-surface-dim)] hover:bg-[var(--os-hover)] text-[var(--os-text)] font-semibold border border-[var(--os-border)] px-3.5 py-1.5 rounded-xl transition-all"
+                 >
+                   <FolderOpen className="w-3.5 h-3.5 text-[var(--os-primary)]" /> View in File Manager
+                 </button>
+                 <button 
+                   onClick={openInMediaPlayer} 
+                   className="flex items-center gap-1.5 text-xs bg-[var(--os-surface-dim)] hover:bg-[var(--os-hover)] text-[var(--os-text)] font-semibold border border-[var(--os-border)] px-3.5 py-1.5 rounded-xl transition-all"
+                 >
+                   <Play className="w-3.5 h-3.5 text-blue-400" /> Play
+                 </button>
+                 <button 
+                   onClick={clearRecording} 
+                   className="p-1.5 text-[var(--os-text-muted)] hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors"
+                   title="Discard Recording"
+                 >
+                   <X className="w-4 h-4" />
+                 </button>
+               </div>
+            </div>
+            
+            <div className="w-full aspect-video bg-black rounded-xl border border-[var(--os-border)] overflow-hidden relative shadow-inner max-h-72">
+              <video 
+                src={recordedUrl}
+                controls 
+                className="w-full h-full object-contain"
+              />
+            </div>
           </div>
         )}
 
         {/* Live Preview with Screenize Overlays */}
         <div className="flex flex-col gap-2">
-          <div className="text-xs font-bold text-white/50 uppercase tracking-wider">Live Preview</div>
-          <div className="w-full aspect-video bg-black rounded-xl border border-white/10 overflow-hidden relative shadow-inner">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-[var(--os-text-muted)] uppercase tracking-wider">Live Capture Preview</span>
+            {stream && (
+              <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Display Media Connected
+              </span>
+            )}
+          </div>
+          <div className="w-full aspect-video bg-black rounded-2xl border border-[var(--os-border)] overflow-hidden relative shadow-md">
             {!stream ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-white/30 gap-3">
-                <Monitor className="w-12 h-12" />
-                <p className="text-sm">No screen selected</p>
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-[var(--os-text-muted)] gap-3 bg-[var(--os-surface)]">
+                <div className="p-4 rounded-2xl bg-[var(--os-surface-dim)] border border-[var(--os-border)]">
+                  <Monitor className="w-8 h-8 opacity-60" />
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-bold text-[var(--os-text)]">No screen stream selected</p>
+                  <p className="text-[11px] text-[var(--os-text-muted)] mt-0.5">Click "Select Screen" in toolbar to share full screen or window</p>
+                </div>
               </div>
             ) : (
               <video 
@@ -394,10 +479,10 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
             )}
             
             {isRecording && (
-              <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+              <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 shadow-lg">
                 <div className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
                 <div className="w-2 h-2 rounded-full bg-red-500 absolute" />
-                <span className="text-xs font-bold text-red-500 tracking-wider">REC STUDIO</span>
+                <span className="text-[11px] font-bold text-red-400 tracking-wider">REC STUDIO</span>
               </div>
             )}
 
@@ -410,29 +495,6 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
           </div>
         </div>
 
-        {/* Saved Recording */}
-        {recordedUrl && (
-          <div className="flex flex-col gap-2 pt-6 border-t border-white/10 mt-2">
-            <div className="flex items-center justify-between">
-               <div className="text-xs font-bold text-white/50 uppercase tracking-wider">Last Recording</div>
-               <div className="flex gap-2">
-                 <button onClick={downloadRecording} className="flex items-center gap-1.5 text-xs bg-blue-500 hover:bg-blue-600 px-3 py-1 rounded text-white transition-colors">
-                   <Download className="w-3.5 h-3.5" /> Save to Disk
-                 </button>
-                 <button onClick={clearRecording} className="flex items-center gap-1.5 text-xs bg-white/10 hover:bg-white/20 px-3 py-1 rounded text-white transition-colors">
-                   <X className="w-3.5 h-3.5" /> Discard
-                 </button>
-               </div>
-            </div>
-            <div className="w-full aspect-video bg-black rounded-xl border border-white/10 overflow-hidden relative shadow-inner">
-              <video 
-                src={recordedUrl}
-                controls 
-                className="w-full h-full object-contain"
-              />
-            </div>
-          </div>
-        )}
       </div>
 
     </div>

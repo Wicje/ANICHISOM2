@@ -41,11 +41,15 @@ vi.mock('@/lib/stores/workspace.store', () => {
   return { useWorkspaceStore: store };
 });
 
-vi.mock('lucide-react', () => ({
-  Grid: (p: any) => <svg data-testid="icon-grid" {...p} />,
-  Layers: (p: any) => <svg data-testid="icon-layers" {...p} />,
-  Folder: (p: any) => <svg data-testid="icon-folder" {...p} />,
-}));
+vi.mock('lucide-react', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, any>>();
+  return {
+    ...actual,
+    Grid: (p: any) => <svg data-testid="icon-grid" {...p} />,
+    Layers: (p: any) => <svg data-testid="icon-layers" {...p} />,
+    Folder: (p: any) => <svg data-testid="icon-folder" {...p} />,
+  };
+});
 
 vi.mock('@/lib/app-manifest', () => ({
   APP_MANIFEST: [

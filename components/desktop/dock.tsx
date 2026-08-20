@@ -10,6 +10,7 @@ import { Grid, Layers, Folder, Globe, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNotificationStore } from '@/lib/stores/notification.store';
 import { APP_MANIFEST } from '@/lib/app-manifest';
+import { WEB_APP_CATALOG } from '@/lib/web-app-catalog';
 import { AppIcon } from '@/components/ui/app-icon';
 import { getAllPlugins, isPluginActive } from '@/lib/plugin-registry';
 
@@ -28,6 +29,7 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
   const windows = useWindowStore((s) => s.windows);
   const highestZIndex = useWindowStore((s) => s.highestZIndex);
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
+  const installedApps = useWorkspaceStore((s) => s.installedApps);
   const unreadCount = useNotificationStore((s) => s.notifications.filter(n => !n.read).length);
 
   const [mouseX, setMouseX] = React.useState<number | null>(null);
@@ -38,7 +40,7 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
     [windows, activeWorkspace]
   );
 
-  // Dock shows: pinned apps + currently open apps (deduplicated)
+  // Dock shows: pinned apps + currently open apps + installed store apps (deduplicated)
   const dockApps = useMemo(() => {
     const openAppIds = new Set(activeWindows.map(w => w.appId));
     
@@ -55,16 +57,36 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
       icon: Globe,
       roles: ['user', 'admin'],
       description: `Installed Web App: ${app.url}`,
-      url: app.url // attach URL for onClick
+      url: app.url
     }));
 
-    const combinedManifest = [...APP_MANIFEST, ...customAppsFormatted];
+    // Format web apps from App Store catalog
+    const installedStoreApps = installedApps
+      .map(id => WEB_APP_CATALOG.find(app => app.id === id))
+      .filter((app): app is (typeof WEB_APP_CATALOG)[number] => !!app)
+      .map(app => ({
+        id: app.id,
+        title: app.name,
+        iconImage: app.iconImage,
+        icon: app.icon,
+        roles: ['user', 'admin'],
+        description: app.description,
+        url: app.url,
+      }));
+
+    const combinedManifest = [...APP_MANIFEST, ...customAppsFormatted, ...installedStoreApps];
     
     // Open apps that are not in the pinned list
     const openNotPinned = combinedManifest.filter(app => openAppIds.has(app.id) && !PINNED_APPS.includes(app.id));
     
-    return [...pinned, ...openNotPinned];
-  }, [activeWindows]);
+    // De-duplicate by id
+    const seen = new Set<string>();
+    return [...pinned, ...openNotPinned].filter(app => {
+      if (seen.has(app.id)) return false;
+      seen.add(app.id);
+      return true;
+    });
+  }, [activeWindows, installedApps]);
 
   const isAnyWindowMaximized = useMemo(
     () => activeWindows.some((w) => w.isMaximized && !w.isMinimized),
@@ -200,7 +222,7 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
                     }
                   } else {
                     if ((app as any).url) {
-                      openWindow('web-app', app.title, { url: (app as any).url });
+                      openWindow('web-app', app.title, { url: (app as any).url, appId: app.id, title: app.title, iconImage: app.iconImage });
                     } else {
                       openWindow(app.id);
                     }

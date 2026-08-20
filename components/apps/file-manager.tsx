@@ -819,32 +819,46 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFiles = e.target.files;
-    e.target.value = '';
-    if (!uploadedFiles || uploadedFiles.length === 0) return;
-
-    let imported = 0;
     try {
-      for (let i = 0; i < uploadedFiles.length; i++) {
-        const file = uploadedFiles[i]!;
-        const filePath = currentPath === 'Root' ? file.name : `${currentPath}/${file.name}`;
-        await FS.write(filePath, file, file.type);
-        imported++;
+      e.preventDefault();
+      e.stopPropagation();
+      const filesList = e.target.files;
+      if (!filesList || filesList.length === 0) return;
+      const uploadedFiles = Array.from(filesList);
+      e.target.value = '';
 
-        // Prompt sync for large files (>5MB)
-        if (file.size > 5 * 1024 * 1024) {
-          setSyncPromptFile({ name: file.name, size: file.size, type: file.type, file });
+      let imported = 0;
+      for (const file of uploadedFiles) {
+        try {
+          const filePath = currentPath === 'Root' ? file.name : `${currentPath}/${file.name}`;
+          await FS.write(filePath, file, file.type);
+          imported++;
+
+          // Prompt sync for large files (>5MB)
+          if (file.size > 5 * 1024 * 1024) {
+            setSyncPromptFile({ name: file.name, size: file.size, type: file.type, file });
+          }
+        } catch (singleErr) {
+          console.warn('Single file write failed:', singleErr);
         }
       }
-      fetchFiles();
+
+      await fetchFiles();
+      if (imported > 0) {
+        window.dispatchEvent(new CustomEvent('os:notify', {
+          detail: {
+            title: 'Files Uploaded',
+            description: `Successfully imported ${imported} file${imported === 1 ? '' : 's'} to ${currentPath}`,
+            type: 'success',
+          },
+        }));
+      }
     } catch (err) {
       console.error('Upload failed:', err);
       window.dispatchEvent(new CustomEvent('os:notify', {
         detail: {
           title: 'Upload Failed',
-          description: imported > 0
-            ? `${imported} of ${uploadedFiles.length} files saved, but the rest could not be stored.`
-            : 'Your files could not be saved. Check that browser storage is available.',
+          description: 'Your files could not be saved. Check that browser storage is available.',
           type: 'error',
         },
       }));

@@ -232,109 +232,126 @@ export const FS = {
     try {
       if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
         const { dir, name } = await FS._resolvePath(path);
-        const handle = await dir.getFileHandle(name);
-        const file = await handle.getFile();
-        
-        // Read mimeType: try file.type, then .meta companion, then infer from extension
-        let mimeType = file.type;
-        if (!mimeType) {
-          try {
-            const metaHandle = await dir.getFileHandle(`${name}.meta`);
-            const metaFile = await metaHandle.getFile();
-            const meta = JSON.parse(await metaFile.text());
-            mimeType = meta.mimeType || '';
-          } catch {
-            mimeType = inferMimeType(name);
+        try {
+          const handle = await dir.getFileHandle(name);
+          const file = await handle.getFile();
+          
+          // Read mimeType: try file.type, then .meta companion, then infer from extension
+          let mimeType = file.type;
+          if (!mimeType) {
+            try {
+              const metaHandle = await dir.getFileHandle(`${name}.meta`);
+              const metaFile = await metaHandle.getFile();
+              const meta = JSON.parse(await metaFile.text());
+              mimeType = meta.mimeType || '';
+            } catch {
+              mimeType = inferMimeType(name);
+            }
           }
-        }
 
-        let content = '';
-        // Use Object URLs for large binaries to prevent RAM exhaustion. Text files use raw strings.
-        if (mimeType.startsWith('image/') || mimeType.startsWith('video/') || mimeType.includes('pdf') || mimeType.includes('octet-stream')) {
-           content = rememberObjectUrl(`read:${path}`, file);
-        } else {
-           content = await file.text(); 
+          let content = '';
+          // Use Object URLs for large binaries to prevent RAM exhaustion. Text files use raw strings.
+          if (mimeType.startsWith('image/') || mimeType.startsWith('video/') || mimeType.includes('pdf') || mimeType.includes('octet-stream')) {
+             content = rememberObjectUrl(`read:${path}`, file);
+          } else {
+             content = await file.text(); 
+          }
+          
+          return {
+            id: path,
+            name: file.name,
+            content,
+            size: file.size,
+            mimeType
+          };
+        } catch {
+          // File not in OPFS, will check IndexedDB below
         }
-        
-        return {
-          id: path,
-          name: file.name,
-          content,
-          size: file.size,
-          mimeType
-        };
       }
     } catch (e) {
       console.warn(`OPFS read failed for ${path}, falling back to IndexedDB`, e);
     }
     
     // IndexedDB Fallback
-    const file = await get(`file_${path}`);
-    if (!file) return null;
-    if (file.content instanceof Blob) {
-      const mime = file.mimeType || file.content.type || inferMimeType(file.name);
-      let content = '';
-      if (mime.startsWith('image/') || mime.startsWith('video/') || mime.includes('pdf') || mime.includes('octet-stream')) {
-        content = rememberObjectUrl(`read:${path}`, file.content);
-      } else {
-        content = await file.content.text();
+    try {
+      const file = await get(`file_${path}`);
+      if (!file) return null;
+      if (file.content instanceof Blob) {
+        const mime = file.mimeType || file.content.type || inferMimeType(file.name);
+        let content = '';
+        if (mime.startsWith('image/') || mime.startsWith('video/') || mime.includes('pdf') || mime.includes('octet-stream')) {
+          content = rememberObjectUrl(`read:${path}`, file.content);
+        } else {
+          content = await file.content.text();
+        }
+        return { ...file, content, mimeType: mime };
       }
-      return { ...file, content, mimeType: mime };
+      return file;
+    } catch {
+      return null;
     }
-    return file;
   },
 
   // Write a file to OPFS or IndexedDB
   write: async (path: string, content: string | Blob | File, mimeType?: string): Promise<void> => {
     const resolvedMime = mimeType || (content instanceof File ? content.type : '') || inferMimeType(path.split('/').pop() || '');
+    let opfsWritten = false;
+
     try {
       if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
         const { dir, name } = await FS._resolvePath(path, true);
         const handle = await dir.getFileHandle(name, { create: true });
         
-        // @ts-ignore
-        const writable = await handle.createWritable();
-        try {
-          await writable.write(content);
-          await writable.close();
-        } catch (e) {
-          try { await writable.close(); } catch { /* ignore close error */ }
-          throw e;
-        }
-
-        // Write .meta companion file to persist mimeType
-        try {
-          const metaHandle = await dir.getFileHandle(`${name}.meta`, { create: true });
-          // @ts-ignore
-          const metaWritable = await metaHandle.createWritable();
+        // Firefox on main thread does not support createWritable; check before invoking
+        if (typeof (handle as any).createWritable === 'function') {
+          const writable = await (handle as any).createWritable();
           try {
-            await metaWritable.write(JSON.stringify({ mimeType: resolvedMime }));
-            await metaWritable.close();
-          } catch {
-            try { await metaWritable.close(); } catch { /* ignore */ }
+            await writable.write(content);
+            await writable.close();
+            opfsWritten = true;
+          } catch (e) {
+            try { await writable.close(); } catch { /* ignore close error */ }
+            throw e;
           }
-        } catch { /* meta write is best-effort */ }
 
-        revokeObjectUrlForKey(`read:${path}`);
-        revokeObjectUrlForKey(`dir:${path}`);
+          // Write .meta companion file to persist mimeType
+          try {
+            const metaHandle = await dir.getFileHandle(`${name}.meta`, { create: true });
+            if (typeof (metaHandle as any).createWritable === 'function') {
+              const metaWritable = await (metaHandle as any).createWritable();
+              try {
+                await metaWritable.write(JSON.stringify({ mimeType: resolvedMime }));
+                await metaWritable.close();
+              } catch {
+                try { await metaWritable.close(); } catch { /* ignore */ }
+              }
+            }
+          } catch { /* meta write is best-effort */ }
 
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path } }));
+          revokeObjectUrlForKey(`read:${path}`);
+          revokeObjectUrlForKey(`dir:${path}`);
         }
-        return;
       }
     } catch (e) {
-      console.warn(`OPFS write failed for ${path}, falling back to IndexedDB`, e);
+      console.warn(`OPFS write failed for ${path}, using IndexedDB store`, e);
     }
     
-    // IndexedDB Fallback — natively supports storing Blob objects and text strings
-    await set(`file_${path}`, {
-      id: path,
-      name: path.split('/').pop() || 'unknown',
-      content: content, // Store Blob or string directly
-      mimeType: resolvedMime,
-      size: typeof content === 'string' ? content.length : content.size,
-    });
+    // Always persist to IndexedDB as primary/fallback storage
+    try {
+      const storedContent = content instanceof File ? new Blob([content], { type: resolvedMime }) : content;
+      await set(`file_${path}`, {
+        id: path,
+        name: path.split('/').pop() || 'unknown',
+        content: storedContent,
+        mimeType: resolvedMime,
+        size: typeof content === 'string' ? content.length : content.size,
+        modified: Date.now(),
+      });
+    } catch (idbErr) {
+      console.error(`IndexedDB write failed for ${path}:`, idbErr);
+      if (!opfsWritten) throw idbErr;
+    }
+
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('os:fs-changed', { detail: { path } }));
     }
@@ -424,6 +441,8 @@ export const FS = {
     }
 
     const files: LocalFile[] = [];
+    const seenIds = new Set<string>();
+
     try {
       if (typeof navigator !== 'undefined' && navigator.storage && 'getDirectory' in navigator.storage) {
         
@@ -470,6 +489,7 @@ export const FS = {
                       isFolder: false,
                       modified: file.lastModified,
                     });
+                    seenIds.add(fullPath);
                  } catch (err) {
                     // Ignore unreadable files
                  }
@@ -482,6 +502,7 @@ export const FS = {
                    isFolder: true,
                    modified: Date.now() - 3600000,
                  });
+                 seenIds.add(fullPath);
                  // Only traverse deeper if explicitly requested (depth > 1)
                  if (depth > 1) {
                    await traverse(handle, fullPath, depth - 1);
@@ -495,26 +516,69 @@ export const FS = {
            try {
              const { dir, name } = await FS._resolvePath(dirPath);
              rootDir = await dir.getDirectoryHandle(name);
+             await traverse(rootDir, dirPath, 1);
            } catch (notFound) {
-             // Directory does not exist yet — return empty listing
-             return [];
+             // Directory not in OPFS, will check IndexedDB
            }
+        } else {
+           await traverse(rootDir, dirPath, 1);
         }
-        // depth=1 lists immediate children only
-        await traverse(rootDir, dirPath, 1);
-        
-        return files;
       }
     } catch (e) {
       console.warn('OPFS readDir failed, falling back to IndexedDB', e);
     }
     
-    // IndexedDB Fallback with path filtering
-    const allKeys = await keys();
-    const prefix = dirPath ? `file_${dirPath}/` : 'file_';
-    const fileKeys = allKeys.filter(k => typeof k === 'string' && k.startsWith(prefix));
-    const idbFiles = await Promise.all(fileKeys.map(k => get(k as string)));
-    return idbFiles.filter((f): f is LocalFile => f !== null && f !== undefined);
+    // Merge with IndexedDB entries
+    try {
+      const allKeys = await keys();
+      const prefix = dirPath ? `file_${dirPath}/` : 'file_';
+      const fileKeys = allKeys.filter(k => typeof k === 'string' && k.startsWith(prefix));
+      for (const k of fileKeys) {
+        const rawFile = await get(k as string);
+        if (rawFile && typeof rawFile === 'object') {
+          const rawId = rawFile.id || (k as string).replace(/^file_/, '');
+          const relativeRest = rawId.slice(dirPath ? dirPath.length + 1 : 0);
+          const parts = relativeRest.split('/');
+          const immediateName = parts[0];
+          if (!immediateName) continue;
+          const isDir = parts.length > 1;
+          const entryId = dirPath ? `${dirPath}/${immediateName}` : immediateName;
+
+          if (!seenIds.has(entryId)) {
+            seenIds.add(entryId);
+            if (isDir) {
+              files.push({
+                id: entryId,
+                name: immediateName,
+                mimeType: 'inode/directory',
+                isFolder: true,
+                modified: rawFile.modified || Date.now(),
+              });
+            } else {
+              let contentUrl = '';
+              const mime = rawFile.mimeType || inferMimeType(immediateName);
+              if (rawFile.content instanceof Blob && (mime.startsWith('image/') || mime.startsWith('video/'))) {
+                contentUrl = rememberObjectUrl(`dir:${entryId}`, rawFile.content);
+              }
+              files.push({
+                id: entryId,
+                name: immediateName,
+                size: rawFile.size || 0,
+                mimeType: mime,
+                content: contentUrl,
+                isFolder: false,
+                modified: rawFile.modified || Date.now(),
+              });
+            }
+          }
+        }
+      }
+    } catch (idbErr) {
+      console.warn('IndexedDB merge in readDir failed:', idbErr);
+    }
+
+    return files;
+
   },
 
   // Delete a file or directory
