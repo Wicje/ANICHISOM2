@@ -5,6 +5,12 @@
   "description": "Captures browser context and syncs it to your Continua workspace. Strips X-Frame-Options so sites embed inside ContinuaOS, and routes downloads back into the OS.",
   "permissions": ["activeTab", "tabs", "scripting", "storage", "declarativeNetRequest"],
   "host_permissions": ["<all_urls>"],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "continua-context-bridge@continua.app",
+      "strict_min_version": "109.0"
+    }
+  },
   "declarative_net_request": {
     "rule_resources": [
       {

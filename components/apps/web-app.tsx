@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Loader2, Heart, SkipBack, Pause, Play, SkipForward, ExternalLink, Zap, X, Check, ShieldAlert, Globe, Download, Copy } from 'lucide-react';
+import { Loader2, Heart, SkipBack, Pause, Play, SkipForward, ExternalLink, Zap, X, Check, ShieldAlert, Globe, Download, Copy, RefreshCw } from 'lucide-react';
 import { isTauri, getBrowserName } from '@/lib/platform';
 import { cn } from '@/lib/utils';
 import { isCatalogItemKnownBlocked } from '@/lib/known-blocked-hosts';
@@ -206,28 +206,48 @@ export default function WebApp({ window: osWindow }: { window: any }) {
         </div>
       )}
 
-      {isProxied && (
-        <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-1.5 bg-slate-900 border-b border-white/10 text-slate-300">
-          <span className="truncate text-[11px] font-mono flex items-center gap-1.5">
-            <Zap className="w-3 h-3 fill-amber-500 text-amber-500 shrink-0" />
-            <span className="truncate">{url}</span>
+      {/* Modern OS WebApp Browser Toolbar */}
+      <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-1.5 bg-[var(--os-surface)] border-b border-[var(--os-border)] text-[var(--os-text)] select-none">
+        <div className="flex items-center gap-2 min-w-0">
+          <button
+            onClick={() => {
+              setLoading(true);
+              const iframe = document.querySelector(`iframe[title="${osWindow.title}"]`) as HTMLIFrameElement;
+              if (iframe) iframe.src = finalUrl;
+            }}
+            className="p-1 hover:bg-[var(--os-hover)] rounded-lg text-[var(--os-text-muted)] hover:text-[var(--os-text)] transition-colors"
+            title="Reload App"
+          >
+            <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
+          </button>
+          <span className="truncate text-[11px] font-mono flex items-center gap-1.5 text-[var(--os-text-muted)] bg-[var(--os-surface-dim)] px-2 py-0.5 rounded-lg border border-[var(--os-border)]">
+            <Globe className="w-3 h-3 text-[var(--os-primary)] shrink-0" />
+            <span className="truncate max-w-[160px] sm:max-w-[280px]">{url}</span>
           </span>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={() => window.open(url, '_blank')}
-              className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md bg-white/10 hover:bg-white/20 transition-colors"
-            >
-              <ExternalLink className="w-3 h-3" /> Open in New Tab
-            </button>
+          <span className={cn("hidden sm:flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border", extensionInstalled ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20")}>
+            <span className={cn("w-1.5 h-1.5 rounded-full animate-pulse", extensionInstalled ? "bg-emerald-400" : "bg-amber-400")} />
+            {extensionInstalled ? "Native Bridge Active" : "Live Proxy Stream"}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={() => window.open(url, '_blank')}
+            className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-xl bg-[var(--os-surface-dim)] hover:bg-[var(--os-hover)] text-[var(--os-text)] border border-[var(--os-border)] transition-colors"
+            title="Open in external browser window (recommended for external OAuth / Login pages)"
+          >
+            <ExternalLink className="w-3 h-3 text-[var(--os-primary)]" /> External Tab
+          </button>
+          {!extensionInstalled && (
             <button
               onClick={() => setShowGuide(true)}
-              className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md bg-cyan-600 hover:bg-cyan-500 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-xl bg-[var(--os-primary)] hover:brightness-110 text-slate-950 transition-all shadow-sm"
+              title="Activate Continua Context Bridge Extension"
             >
-              <Zap className="w-3 h-3" /> Enable Extension
+              <Zap className="w-3 h-3 fill-current" /> Enable Extension
             </button>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
       <iframe
         src={finalUrl}
