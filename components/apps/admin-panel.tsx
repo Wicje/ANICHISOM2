@@ -256,58 +256,63 @@ export function AdminPanel({ window: osWindow }: { window: OSWindow }) {
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#0a0a0a] text-white font-sans overflow-hidden">
-      <div className="p-4 border-b border-white/10 flex items-center justify-between shrink-0">
-         <div className="flex items-center gap-6">
-           <h2 className="text-lg font-medium flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              OS Configuration
-           </h2>
-            <div className="flex items-center gap-2 text-sm bg-white/5 p-1 rounded-lg">
-              <button onClick={() => setActiveTab('dashboard')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'dashboard' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>Dashboard</button>
-              <button onClick={() => setActiveTab('users')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'users' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>Users</button>
-              <button onClick={() => setActiveTab('invites')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'invites' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>Invites</button>
-               <button onClick={() => setActiveTab('apps')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'apps' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>App Registry</button>
-               <button onClick={() => setActiveTab('marketplace')} className={cn("px-4 py-1.5 rounded-md transition-colors", activeTab === 'marketplace' ? "bg-white/20 text-white" : "text-white/60 hover:text-white/90")}>Marketplace</button>
-            </div>
+    <div className="w-full h-full flex flex-col bg-[var(--os-bg)] text-[var(--os-text)] font-sans overflow-hidden select-none">
+      <div className="h-14 border-b border-[var(--os-border)] px-4 flex items-center justify-between shrink-0 bg-[var(--os-surface)]">
+         <div className="flex items-center gap-4">
+           <div className="flex items-center gap-3">
+             <div className="p-2 rounded-xl bg-[var(--os-primary)]/15 text-[var(--os-primary)] border border-[var(--os-primary)]/30">
+               <ShieldCheck className="w-4 h-4" />
+             </div>
+             <div>
+               <h2 className="text-sm font-bold text-[var(--os-text)]">OS Administration &amp; Registry</h2>
+               <p className="text-[10px] text-[var(--os-text-muted)]">Users, Invites, Telemetry &amp; System Policy</p>
+             </div>
+           </div>
+           <div className="flex items-center gap-1.5 text-xs bg-[var(--os-surface-dim)] p-1 rounded-xl border border-[var(--os-border)]">
+             <button onClick={() => setActiveTab('dashboard')} className={cn("px-3 py-1 rounded-lg font-semibold transition-all", activeTab === 'dashboard' ? "bg-[var(--os-primary)] text-slate-950 font-bold shadow-sm" : "text-[var(--os-text-muted)] hover:text-[var(--os-text)]")}>Dashboard</button>
+             <button onClick={() => setActiveTab('users')} className={cn("px-3 py-1 rounded-lg font-semibold transition-all", activeTab === 'users' ? "bg-[var(--os-primary)] text-slate-950 font-bold shadow-sm" : "text-[var(--os-text-muted)] hover:text-[var(--os-text)]")}>Users</button>
+             <button onClick={() => setActiveTab('invites')} className={cn("px-3 py-1 rounded-lg font-semibold transition-all", activeTab === 'invites' ? "bg-[var(--os-primary)] text-slate-950 font-bold shadow-sm" : "text-[var(--os-text-muted)] hover:text-[var(--os-text)]")}>Invites</button>
+             <button onClick={() => setActiveTab('apps')} className={cn("px-3 py-1 rounded-lg font-semibold transition-all", activeTab === 'apps' ? "bg-[var(--os-primary)] text-slate-950 font-bold shadow-sm" : "text-[var(--os-text-muted)] hover:text-[var(--os-text)]")}>Registry</button>
+             <button onClick={() => setActiveTab('marketplace')} className={cn("px-3 py-1 rounded-lg font-semibold transition-all", activeTab === 'marketplace' ? "bg-[var(--os-primary)] text-slate-950 font-bold shadow-sm" : "text-[var(--os-text-muted)] hover:text-[var(--os-text)]")}>Marketplace</button>
+           </div>
          </div>
-          {activeTab === 'users' ?(
-            <button onClick={fetchUsers} className="p-1.5 hover:bg-white/10 rounded transition-colors text-white/50 hover:text-white">
+          {activeTab === 'users' ? (
+            <button onClick={fetchUsers} className="p-2 hover:bg-[var(--os-hover)] rounded-xl transition-colors text-[var(--os-text-muted)] hover:text-[var(--os-text)]">
                <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
             </button>
           ) : activeTab === 'invites' ? (
-            <button onClick={fetchInvites} className="p-1.5 hover:bg-white/10 rounded transition-colors text-white/50 hover:text-white">
+            <button onClick={fetchInvites} className="p-2 hover:bg-[var(--os-hover)] rounded-xl transition-colors text-[var(--os-text-muted)] hover:text-[var(--os-text)]">
                <RefreshCw className="w-4 h-4" />
             </button>
           ) : activeTab === 'marketplace' ? (
-            <button onClick={fetchSubmissions} className="p-1.5 hover:bg-white/10 rounded transition-colors text-white/50 hover:text-white">
+            <button onClick={fetchSubmissions} className="p-2 hover:bg-[var(--os-hover)] rounded-xl transition-colors text-[var(--os-text-muted)] hover:text-[var(--os-text)]">
                <RefreshCw className="w-4 h-4" />
             </button>
           ) : (
-           <button onClick={handleAddApp} className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded transition-colors">
+           <button onClick={handleAddApp} className="flex items-center gap-2 text-xs font-bold px-3.5 py-1.5 bg-[var(--os-primary)] text-slate-950 rounded-xl hover:brightness-110 shadow-sm transition-all">
               <Plus className="w-4 h-4" /> Add App
            </button>
          )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[var(--os-surface-dim)] custom-scrollbar">
          {activeTab === 'dashboard' && (
            <div className="flex flex-col gap-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                 <div className="bg-[#111] border border-white/10 rounded-xl p-5 shadow-lg">
-                    <div className="flex items-center gap-2 text-white/50 mb-2 text-sm"><Activity className="w-4 h-4 text-emerald-400" /> System Load</div>
-                    <div className="text-3xl font-bold">42%</div>
+                 <div className="bg-[var(--os-surface)] border border-[var(--os-border)] rounded-2xl p-5 shadow-sm">
+                    <div className="flex items-center gap-2 text-[var(--os-text-muted)] mb-2 text-xs uppercase font-bold"><Activity className="w-4 h-4 text-emerald-400" /> System Load</div>
+                    <div className="text-3xl font-bold text-[var(--os-text)]">42%</div>
                     <div className="text-xs text-emerald-400 mt-2">Optimal performance</div>
                  </div>
-                 <div className="bg-[#111] border border-white/10 rounded-xl p-5 shadow-lg">
-                    <div className="flex items-center gap-2 text-white/50 mb-2 text-sm"><HardDrive className="w-4 h-4 text-blue-400" /> Database I/O</div>
-                    <div className="text-3xl font-bold">12.4k</div>
-                    <div className="text-xs text-blue-400 mt-2">Operations / minute</div>
+                 <div className="bg-[var(--os-surface)] border border-[var(--os-border)] rounded-2xl p-5 shadow-sm">
+                    <div className="flex items-center gap-2 text-[var(--os-text-muted)] mb-2 text-xs uppercase font-bold"><HardDrive className="w-4 h-4 text-[var(--os-primary)]" /> DB Health</div>
+                    <div className="text-3xl font-bold text-[var(--os-text)]">Online</div>
+                    <div className="text-xs text-[var(--os-primary)] mt-2">Postgres &amp; Realtime connected</div>
                  </div>
-                 <div className="bg-[#111] border border-white/10 rounded-xl p-5 shadow-lg">
-                    <div className="flex items-center gap-2 text-white/50 mb-2 text-sm"><Cpu className="w-4 h-4 text-emerald-400" /> Active Sessions</div>
-                    <div className="text-3xl font-bold">84</div>
-                    <div className="text-xs text-emerald-400 mt-2">Across 3 regions</div>
+                 <div className="bg-[var(--os-surface)] border border-[var(--os-border)] rounded-2xl p-5 shadow-sm">
+                    <div className="flex items-center gap-2 text-[var(--os-text-muted)] mb-2 text-xs uppercase font-bold"><Cpu className="w-4 h-4 text-blue-400" /> Total Users</div>
+                    <div className="text-3xl font-bold text-[var(--os-text)]">{users.length || 1}</div>
+                    <div className="text-xs text-blue-400 mt-2">Registered in workspace</div>
                  </div>
               </div>
               

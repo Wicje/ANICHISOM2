@@ -96,12 +96,19 @@ export function SideGigsPack({ window: osWindow }: { window: OSWindow }) {
   }, []);
 
   return (
-    <div className="w-full h-full flex flex-col bg-white text-gray-900 overflow-hidden">
+    <div className="w-full h-full flex flex-col bg-[var(--os-bg)] text-[var(--os-text)] font-sans overflow-hidden select-none">
       {/* Header */}
-      <div className="h-14 border-b border-gray-200 flex items-center px-4 shrink-0 bg-gray-50">
-        <Briefcase className="w-5 h-5 text-emerald-600 mr-3" />
-        <h1 className="font-bold text-sm tracking-wide hidden sm:block">Side Gigs</h1>
-        <div className="ml-8 flex gap-1 overflow-x-auto no-scrollbar">
+      <div className="h-14 border-b border-[var(--os-border)] flex items-center px-4 shrink-0 bg-[var(--os-surface)] justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-[var(--os-primary)]/15 text-[var(--os-primary)] border border-[var(--os-primary)]/30">
+            <Briefcase className="w-4 h-4" />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold text-[var(--os-text)]">Freelance &amp; Side Gigs</h1>
+            <p className="text-[10px] text-[var(--os-text-muted)]">Time Tracking, Client Invoicing &amp; P&amp;L</p>
+          </div>
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto custom-scrollbar">
           {([
             { id: 'dashboard' as Tab, icon: <TrendingUp className="w-3.5 h-3.5" />, label: 'Dashboard' },
             { id: 'time' as Tab, icon: <Clock className="w-3.5 h-3.5" />, label: 'Time' },
@@ -112,10 +119,10 @@ export function SideGigsPack({ window: osWindow }: { window: OSWindow }) {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 whitespace-nowrap",
+                "px-3 py-1.5 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap border",
                 activeTab === tab.id
-                  ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                  : "text-gray-500 hover:bg-gray-100 hover:text-gray-700 border border-transparent"
+                  ? "bg-[var(--os-primary)] text-slate-950 border-[var(--os-primary)] font-bold shadow-sm"
+                  : "text-[var(--os-text-muted)] hover:bg-[var(--os-hover)] hover:text-[var(--os-text)] border-transparent"
               )}
             >
               {tab.icon}
@@ -126,7 +133,7 @@ export function SideGigsPack({ window: osWindow }: { window: OSWindow }) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-5">
+      <div className="flex-1 overflow-y-auto p-5 bg-[var(--os-surface-dim)] custom-scrollbar">
         {activeTab === 'dashboard' && <DashboardTab />}
         {activeTab === 'time' && <TimeTrackingTab />}
         {activeTab === 'invoices' && <InvoicesTab />}

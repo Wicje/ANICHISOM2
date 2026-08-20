@@ -99,12 +99,19 @@ export function DeveloperPack({ window: osWindow }: { window: OSWindow }) {
   }, []);
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#0d1117] text-gray-300 font-mono overflow-hidden">
+    <div className="w-full h-full flex flex-col bg-[var(--os-bg)] text-[var(--os-text)] font-sans overflow-hidden select-none">
       {/* Header */}
-      <div className="h-14 border-b border-gray-800 flex items-center px-4 shrink-0 bg-[#010409]">
-        <Code className="w-5 h-5 text-blue-400 mr-3" />
-        <h1 className="font-bold tracking-wide hidden sm:block">DevOps Pack</h1>
-        <div className="ml-8 flex gap-2 overflow-x-auto no-scrollbar">
+      <div className="h-14 border-b border-[var(--os-border)] flex items-center px-4 shrink-0 bg-[var(--os-surface)] justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-[var(--os-primary)]/15 text-[var(--os-primary)] border border-[var(--os-primary)]/30">
+            <Code className="w-4 h-4" />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold text-[var(--os-text)]">DevOps &amp; Cloud Operations</h1>
+            <p className="text-[10px] text-[var(--os-text-muted)]">Deployments, Code Review, Health Telemetry &amp; CI/CD</p>
+          </div>
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto custom-scrollbar">
           {([
             { id: 'deployments' as Tab, icon: <Server className="w-3.5 h-3.5" /> },
             { id: 'reviews' as Tab, icon: <GitPullRequest className="w-3.5 h-3.5" /> },
@@ -115,10 +122,10 @@ export function DeveloperPack({ window: osWindow }: { window: OSWindow }) {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "px-3 py-1.5 text-xs font-semibold rounded-md capitalize transition-colors flex items-center gap-1.5 whitespace-nowrap",
+                "px-3 py-1.5 text-xs font-semibold rounded-xl capitalize transition-all flex items-center gap-1.5 whitespace-nowrap border",
                 activeTab === tab.id
-                  ? "bg-gray-800 text-white border border-gray-700"
-                  : "text-gray-400 hover:bg-gray-800/50 hover:text-gray-300 border border-transparent"
+                  ? "bg-[var(--os-primary)] text-slate-950 border-[var(--os-primary)] font-bold shadow-sm"
+                  : "text-[var(--os-text-muted)] hover:bg-[var(--os-hover)] hover:text-[var(--os-text)] border-transparent"
               )}
             >
               {tab.icon}
@@ -129,7 +136,7 @@ export function DeveloperPack({ window: osWindow }: { window: OSWindow }) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-5">
+      <div className="flex-1 overflow-y-auto p-5 bg-[var(--os-surface-dim)] custom-scrollbar">
         {activeTab === 'deployments' && <DeploymentsTab />}
         {activeTab === 'reviews' && <ReviewsTab />}
         {activeTab === 'monitor' && <ApiMonitorTab />}

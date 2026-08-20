@@ -1,16 +1,15 @@
-'use client';
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { OSWindow } from '@/lib/os-context';
+import { OSWindow, useOS } from '@/lib/os-context';
 import {
   Eye, Palette, FileText, MessageSquare, LayoutGrid, CheckCircle2,
-  Clock, ChevronDown, ChevronRight, Send, ExternalLink,
+  Clock, ChevronDown, ChevronRight, Send, ExternalLink, Sparkles, Folder
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBrandStore, BrandGuidelines } from '@/lib/stores/brand.store';
 import { useMoodboardStore, MoodboardBoard } from '@/lib/stores/moodboard.store';
 import { useCampaignStore } from '@/lib/stores/campaign.store';
 import { useAuthStore } from '@/lib/stores/auth.store';
+import { StorageAdapter } from '@/lib/storage';
 
 type PortalTab = 'overview' | 'moodboard' | 'proposals' | 'brand' | 'comments';
 
@@ -22,15 +21,36 @@ interface PortalComment {
   section?: string;
 }
 
+interface StoredProposal {
+  clientName?: string;
+  projectScope?: string;
+  budget?: string;
+  generated?: boolean;
+  aiContent?: string;
+  phases?: string[];
+  generatedAt?: number;
+}
+
 export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
-  
+  const { workspaceMode } = useOS();
   const [activeTab, setActiveTab] = useState<PortalTab>('overview');
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<PortalComment[]>([]);
   const [proposalStatus, setProposalStatus] = useState('Pending Review');
+  const [realProposal, setRealProposal] = useState<StoredProposal | null>(null);
+  const [selectedBrandId, setSelectedBrandId] = useState<string>('');
+  const [selectedBoardId, setSelectedBoardId] = useState<string>('');
 
   const projectId = osWindow.data?.projectId || 'global';
   const storageKey = `client-portal-comments-${projectId}`;
+
+  // Load real proposal from StorageAdapter
+  useEffect(() => {
+    const storage = new StorageAdapter('proposal-generator', workspaceMode);
+    storage.get('current-proposal').then((data: StoredProposal | null) => {
+      if (data) setRealProposal(data);
+    });
+  }, [workspaceMode]);
 
   useEffect(() => {
     const saved = localStorage.getItem(storageKey);
@@ -49,8 +69,16 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
   const boards = useMoodboardStore((s) => Object.values(s.boards));
   const currentUser = useAuthStore((s) => s.currentUser);
   const { pages, getCampaignPages } = useCampaignStore();
-  const linkedBrand = brands[0] || null;
-  const linkedBoard = boards[0] || null;
+
+  const linkedBrand = useMemo(() => {
+    if (selectedBrandId) return brands.find(b => b.id === selectedBrandId) || brands[0] || null;
+    return brands[0] || null;
+  }, [brands, selectedBrandId]);
+
+  const linkedBoard = useMemo(() => {
+    if (selectedBoardId) return boards.find(b => b.id === selectedBoardId) || boards[0] || null;
+    return boards[0] || null;
+  }, [boards, selectedBoardId]);
 
   // Derive campaign from first campaign-level page
   const campaignPage = pages.find(p => p.level === 'campaign' && !p.trash);
@@ -92,23 +120,27 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#0a0a0a] text-white font-sans overflow-hidden">
+    <div className="w-full h-full flex flex-col bg-[var(--os-bg)] text-[var(--os-text)] font-sans overflow-hidden select-none">
       {/* Header */}
-      <div className="h-14 border-b border-white/10 bg-white/5 flex items-center px-6 shrink-0 gap-4">
-        <Eye className="w-5 h-5 text-blue-400" />
-        <div>
-          <h1 className="text-sm font-bold">Client Portal</h1>
-          <p className="text-[10px] text-white/40">Read-only view for {campaign.name}</p>
+      <div className="h-14 border-b border-[var(--os-border)] bg-[var(--os-surface)] flex items-center px-6 shrink-0 justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-[var(--os-primary)]/15 text-[var(--os-primary)] border border-[var(--os-primary)]/25">
+            <Eye className="w-4 h-4" />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold text-[var(--os-text)]">Client Portal</h1>
+            <p className="text-[10px] text-[var(--os-text-muted)]">Verified Stakeholder View • {campaign.name}</p>
+          </div>
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" /> {campaign.status}
+        <div className="flex items-center gap-2">
+          <span className="px-3 py-1 bg-[var(--os-primary)]/15 text-[var(--os-primary)] border border-[var(--os-primary)]/30 text-[10px] font-bold rounded-full flex items-center gap-1.5 shadow-sm">
+            <CheckCircle2 className="w-3.5 h-3.5" /> {campaign.status}
           </span>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-white/10 bg-white/[0.02] flex px-4 shrink-0">
+      <div className="border-b border-[var(--os-border)] bg-[var(--os-surface-dim)] flex px-4 shrink-0 overflow-x-auto custom-scrollbar">
         {([
           { id: 'overview', label: 'Overview', icon: LayoutGrid },
           { id: 'moodboard', label: 'Moodboard', icon: Palette },
@@ -120,43 +152,48 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "px-4 py-3 text-xs font-bold flex items-center gap-1.5 transition-colors border-b-2 -mb-px",
-              activeTab === tab.id ? "text-white border-blue-400" : "text-white/40 border-transparent hover:text-white/70",
+              "px-4 py-3 text-xs font-semibold flex items-center gap-2 transition-all border-b-2 -mb-px whitespace-nowrap",
+              activeTab === tab.id 
+                ? "text-[var(--os-primary)] border-[var(--os-primary)] font-bold bg-[var(--os-surface)] rounded-t-xl" 
+                : "text-[var(--os-text-muted)] border-transparent hover:text-[var(--os-text)] hover:bg-[var(--os-hover)]",
             )}
           >
-            <tab.icon className="w-3 h-3" /> {tab.label}
+            <tab.icon className="w-3.5 h-3.5" /> {tab.label}
           </button>
         ))}
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-3xl mx-auto">
+      <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+        <div className="max-w-3xl mx-auto space-y-6">
 
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              <h2 className="text-lg font-bold">Campaign Progress</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold text-[var(--os-text)]">Campaign Progress &amp; Deliverables</h2>
+                <span className="text-xs font-mono text-[var(--os-text-muted)]">{campaign.phases.length} Total Phases</span>
+              </div>
               <div className="space-y-3">
                 {campaign.phases.map((phase, i) => (
-                  <div key={i} className="bg-white/5 border border-white/10 rounded-lg p-4">
+                  <div key={i} className="bg-[var(--os-surface)] border border-[var(--os-border)] rounded-2xl p-4 shadow-sm">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-bold">{phase.name}</span>
+                      <span className="text-xs sm:text-sm font-semibold text-[var(--os-text)]">{phase.name}</span>
                       <span className={cn(
-                        "text-[10px] font-bold px-2 py-0.5 rounded",
-                        phase.status === 'completed' ? "bg-emerald-500/20 text-emerald-400" :
-                        phase.status === 'in-progress' ? "bg-blue-500/20 text-blue-400" :
-                        "bg-white/10 text-white/40",
+                        "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider",
+                        phase.status === 'completed' ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" :
+                        phase.status === 'in-progress' ? "bg-[var(--os-primary)]/20 text-[var(--os-primary)] border border-[var(--os-primary)]/30" :
+                        "bg-[var(--os-surface-dim)] text-[var(--os-text-muted)]",
                       )}>
                         {phase.status}
                       </span>
                     </div>
-                    <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-[var(--os-surface-dim)] rounded-full overflow-hidden">
                       <div
                         className={cn(
-                          "h-full rounded-full transition-all",
+                          "h-full rounded-full transition-all duration-500",
                           phase.status === 'completed' ? "bg-emerald-500" :
-                          phase.status === 'in-progress' ? "bg-blue-500" :
+                          phase.status === 'in-progress' ? "bg-[var(--os-primary)]" :
                           "bg-white/10",
                         )}
                         style={{ width: `${phase.progress}%` }}
@@ -166,16 +203,39 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
                 ))}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/5 border border-white/10 rounded-lg p-4">
-                  <div className="text-xs font-bold text-white/50 mb-1">Brand Guidelines</div>
-                  <div className="text-lg font-bold">{linkedBrand ? linkedBrand.brandName : 'Not linked'}</div>
-                  {linkedBrand && <div className="text-[10px] text-white/40 mt-1">{linkedBrand.colors.length} colors defined</div>}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-[var(--os-surface)] border border-[var(--os-border)] rounded-2xl p-5 shadow-sm">
+                  <div className="text-xs font-bold uppercase tracking-wider text-[var(--os-text-muted)] mb-1 flex items-center justify-between">
+                    <span>Brand Guidelines</span>
+                    {brands.length > 1 && (
+                      <select 
+                        value={selectedBrandId} 
+                        onChange={(e) => setSelectedBrandId(e.target.value)}
+                        className="bg-[var(--os-surface-dim)] border border-[var(--os-border)] rounded-lg text-[10px] px-2 py-0.5 text-[var(--os-text)] outline-none"
+                      >
+                        {brands.map(b => <option key={b.id} value={b.id}>{b.brandName}</option>)}
+                      </select>
+                    )}
+                  </div>
+                  <div className="text-base font-bold text-[var(--os-text)] mt-2">{linkedBrand ? linkedBrand.brandName : 'No brand linked'}</div>
+                  {linkedBrand && <div className="text-xs text-[var(--os-text-muted)] mt-1">{linkedBrand.colors.length} brand colors • {linkedBrand.typography.headingFont}</div>}
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-lg p-4">
-                  <div className="text-xs font-bold text-white/50 mb-1">Moodboard</div>
-                  <div className="text-lg font-bold">{linkedBoard ? linkedBoard.name : 'No boards'}</div>
-                  {linkedBoard && <div className="text-[10px] text-white/40 mt-1">{approvedNodes.length} approved assets</div>}
+
+                <div className="bg-[var(--os-surface)] border border-[var(--os-border)] rounded-2xl p-5 shadow-sm">
+                  <div className="text-xs font-bold uppercase tracking-wider text-[var(--os-text-muted)] mb-1 flex items-center justify-between">
+                    <span>Moodboard Studio</span>
+                    {boards.length > 1 && (
+                      <select 
+                        value={selectedBoardId} 
+                        onChange={(e) => setSelectedBoardId(e.target.value)}
+                        className="bg-[var(--os-surface-dim)] border border-[var(--os-border)] rounded-lg text-[10px] px-2 py-0.5 text-[var(--os-text)] outline-none"
+                      >
+                        {boards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                      </select>
+                    )}
+                  </div>
+                  <div className="text-base font-bold text-[var(--os-text)] mt-2">{linkedBoard ? linkedBoard.name : 'No boards'}</div>
+                  {linkedBoard && <div className="text-xs text-[var(--os-text-muted)] mt-1">{linkedBoard.nodes.length} assets • {approvedNodes.length} client-approved</div>}
                 </div>
               </div>
             </div>
@@ -184,32 +244,45 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
           {/* Moodboard Tab */}
           {activeTab === 'moodboard' && (
             <div className="space-y-6">
-              <h2 className="text-lg font-bold">Moodboard</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold text-[var(--os-text)]">Approved Moodboard &amp; Visual Direction</h2>
+                {boards.length > 1 && (
+                  <select 
+                    value={selectedBoardId} 
+                    onChange={(e) => setSelectedBoardId(e.target.value)}
+                    className="bg-[var(--os-surface)] border border-[var(--os-border)] rounded-xl text-xs px-3 py-1.5 text-[var(--os-text)] outline-none"
+                  >
+                    {boards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                )}
+              </div>
               {!linkedBoard ? (
-                <div className="text-center py-12 text-white/30">
-                  <Palette className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">No moodboard linked to this campaign.</p>
+                <div className="text-center py-12 bg-[var(--os-surface)] border border-[var(--os-border)] rounded-2xl text-[var(--os-text-muted)]">
+                  <Palette className="w-10 h-10 mx-auto mb-3 opacity-40 text-[var(--os-primary)]" />
+                  <p className="text-sm font-medium">No moodboard linked to this campaign.</p>
                 </div>
               ) : (
                 <>
-                  <div className="text-xs text-white/50">{linkedBoard.name} — {linkedBoard.nodes.length} assets</div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="text-xs text-[var(--os-text-muted)]">{linkedBoard.name} — {linkedBoard.nodes.length} total nodes</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {linkedBoard.nodes.map((node) => (
-                      <div key={node.id} className="bg-white/5 border border-white/10 rounded-lg overflow-hidden group">
+                      <div key={node.id} className="bg-[var(--os-surface)] border border-[var(--os-border)] rounded-2xl overflow-hidden group shadow-sm hover:border-[var(--os-primary)]/40 transition-all">
                         {node.type === 'image' && node.content ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img loading="lazy" src={node.content} alt={node.label || 'Asset'} className="w-full h-32 object-cover" />
+                          <img loading="lazy" src={node.content} alt={node.label || 'Asset'} className="w-full h-36 object-cover" />
                         ) : (
-                          <div className="w-full h-32 bg-white/5 flex items-center justify-center text-white/20 text-xs">
-                            {node.type === 'text' ? 'Text' : node.type === 'video' ? 'Video' : 'Embed'}
+                          <div className="w-full h-36 bg-[var(--os-surface-dim)] flex items-center justify-center text-[var(--os-text-muted)] text-xs font-mono">
+                            {node.type === 'text' ? (node.content?.slice(0, 40) || 'Text Note') : node.type === 'video' ? 'Video Asset' : 'Embed'}
                           </div>
                         )}
-                        <div className="p-2">
-                          <div className="text-[10px] font-bold truncate">{node.label || 'Untitled'}</div>
+                        <div className="p-3">
+                          <div className="text-xs font-semibold text-[var(--os-text)] truncate">{node.label || 'Design Element'}</div>
                           {node.reactions && (
-                            <div className="flex gap-1 mt-1">
+                            <div className="flex gap-1.5 mt-2 flex-wrap">
                               {Object.entries(node.reactions).map(([emoji, users]) => (
-                                <span key={emoji} className="text-[9px] text-white/40">{emoji} {Array.isArray(users) ? users.length : users as number}</span>
+                                <span key={emoji} className="text-[10px] bg-[var(--os-surface-dim)] border border-[var(--os-border)] px-1.5 py-0.5 rounded-md text-[var(--os-text)]">
+                                  {emoji} {Array.isArray(users) ? users.length : users as number}
+                                </span>
                               ))}
                             </div>
                           )}
@@ -225,39 +298,71 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
           {/* Proposals Tab */}
           {activeTab === 'proposals' && (
             <div className="space-y-6">
-              <h2 className="text-lg font-bold">Proposals</h2>
-              <div className="bg-white/5 border border-white/10 rounded-lg p-6">
-                <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-[var(--os-text)]">Project Scope &amp; Commercial Proposal</h2>
+              <div className="bg-[var(--os-surface)] border border-[var(--os-border)] rounded-2xl p-6 shadow-md space-y-4">
+                <div className="flex items-center justify-between border-b border-[var(--os-border)] pb-4">
                   <div>
-                    <div className="text-sm font-bold">Q3 Brand Campaign Proposal</div>
-                    <div className="text-[10px] text-white/40">Generated by AI — $25,000</div>
+                    <h3 className="text-base font-bold text-[var(--os-text)]">
+                      {realProposal?.clientName ? `${realProposal.clientName} Brand Proposal` : `${campaign.name} Proposal`}
+                    </h3>
+                    <p className="text-xs text-[var(--os-text-muted)] mt-0.5">
+                      Scope: {realProposal?.projectScope || 'Visual Identity & Multi-Channel Marketing Campaign'} • Budget: ${realProposal?.budget || '25,000'}
+                    </p>
                   </div>
-                  <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-[10px] font-bold rounded">Pending Review</span>
+                  <span className={cn(
+                    "px-3 py-1 text-xs font-bold rounded-full border shadow-sm",
+                    proposalStatus === 'Approved' ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
+                    proposalStatus === 'Changes Requested' ? "bg-amber-500/20 text-amber-400 border-amber-500/30" :
+                    "bg-[var(--os-primary)]/20 text-[var(--os-primary)] border-[var(--os-primary)]/30"
+                  )}>
+                    {proposalStatus}
+                  </span>
                 </div>
-                <div className="text-xs text-white/60 leading-relaxed mb-4">
-                  Comprehensive brand campaign including visual identity redesign, digital experience development, and strategic marketing rollout for Q3 2026.
+
+                <div className="text-xs text-[var(--os-text)] leading-relaxed bg-[var(--os-surface-dim)] p-4 rounded-xl border border-[var(--os-border)] whitespace-pre-wrap font-sans">
+                  {realProposal?.aiContent || 
+                    "Comprehensive brand campaign execution including visual identity redesign, digital experience architecture, and multi-channel creative rollout."}
                 </div>
-                <div className="space-y-2">
-                  {campaign.phases.map((phase, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs">
-                      <CheckCircle2 className={cn("w-3.5 h-3.5", phase.status === 'completed' ? "text-emerald-400" : "text-white/20")} />
-                      <span className={cn(phase.status === 'completed' ? "text-white/80" : "text-white/40")}>{phase.name}</span>
+
+                <div className="space-y-2 pt-2">
+                  <div className="text-xs font-bold uppercase tracking-wider text-[var(--os-text-muted)]">Commercial Milestones</div>
+                  {(realProposal?.phases && realProposal.phases.length > 0 ? realProposal.phases : campaign.phases.map(p => p.name)).map((phaseName, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs text-[var(--os-text)] bg-[var(--os-bg)] p-2.5 rounded-xl border border-[var(--os-border)]">
+                      <CheckCircle2 className="w-4 h-4 text-[var(--os-primary)] shrink-0" />
+                      <span className="font-medium">{typeof phaseName === 'string' ? phaseName : (phaseName as any)?.name}</span>
                     </div>
                   ))}
                 </div>
-                <div className="mt-4 pt-4 border-t border-white/10 flex gap-2">
+
+                <div className="mt-6 pt-4 border-t border-[var(--os-border)] flex items-center justify-between flex-wrap gap-3">
                   {proposalStatus === 'Pending Review' ? (
-                    <>
-                      <button onClick={() => { setProposalStatus('Approved'); window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Proposal Approved', description: 'Client approved the proposal for ' + campaign.name, type: 'success' }})) }} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-xs font-bold rounded transition-colors flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3 h-3" /> Approve
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => { 
+                          setProposalStatus('Approved'); 
+                          window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Proposal Approved', description: 'Client verified and approved the scope of work.', type: 'success' }}));
+                        }} 
+                        className="px-5 py-2 bg-[var(--os-primary)] text-slate-950 text-xs font-bold rounded-xl hover:brightness-110 transition-all shadow-md shadow-[var(--os-primary)]/20 flex items-center gap-2 active:scale-95"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Approve Scope
                       </button>
-                      <button onClick={() => { setProposalStatus('Changes Requested'); window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Changes Requested', description: 'Change request sent to the team', type: 'info' }})) }} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-xs font-bold rounded transition-colors border border-white/10">
+                      <button 
+                        onClick={() => { 
+                          setProposalStatus('Changes Requested'); 
+                          window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Changes Requested', description: 'Feedback noted for the agency creative team.', type: 'info' }}));
+                        }} 
+                        className="px-4 py-2 bg-[var(--os-surface-dim)] hover:bg-[var(--os-hover)] text-[var(--os-text)] text-xs font-semibold rounded-xl border border-[var(--os-border)] transition-all active:scale-95"
+                      >
                         Request Changes
                       </button>
-                    </>
+                    </div>
                   ) : (
-                    <div className="text-sm font-medium text-white/50">Status: {proposalStatus}</div>
+                    <div className="text-xs font-semibold text-[var(--os-text-muted)] flex items-center gap-2">
+                      <span>Status:</span> <strong className="text-[var(--os-primary)]">{proposalStatus}</strong>
+                    </div>
                   )}
+
+                  <span className="text-[10px] text-[var(--os-text-muted)]">Signed digitally via Continua Client Portal</span>
                 </div>
               </div>
             </div>
@@ -266,54 +371,63 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
           {/* Brand Tab */}
           {activeTab === 'brand' && (
             <div className="space-y-6">
-              <h2 className="text-lg font-bold">Brand Guidelines</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold text-[var(--os-text)]">Brand Guidelines &amp; Style Directives</h2>
+                {brands.length > 1 && (
+                  <select 
+                    value={selectedBrandId} 
+                    onChange={(e) => setSelectedBrandId(e.target.value)}
+                    className="bg-[var(--os-surface)] border border-[var(--os-border)] rounded-xl text-xs px-3 py-1.5 text-[var(--os-text)] outline-none"
+                  >
+                    {brands.map(b => <option key={b.id} value={b.id}>{b.brandName}</option>)}
+                  </select>
+                )}
+              </div>
               {!linkedBrand ? (
-                <div className="text-center py-12 text-white/30">
-                  <Palette className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <div className="text-center py-12 bg-[var(--os-surface)] border border-[var(--os-border)] rounded-2xl text-[var(--os-text-muted)]">
+                  <Palette className="w-10 h-10 mx-auto mb-3 opacity-40 text-[var(--os-primary)]" />
                   <p className="text-sm">No brand guidelines linked.</p>
                 </div>
               ) : (
-                <>
-                  <div className="bg-white/5 border border-white/10 rounded-lg p-4">
-                    <div className="text-sm font-bold mb-1">{linkedBrand.brandName}</div>
-                    <div className="text-[10px] text-white/40">Last updated {new Date(linkedBrand.updatedAt).toLocaleDateString()}</div>
+                <div className="space-y-4">
+                  <div className="bg-[var(--os-surface)] border border-[var(--os-border)] rounded-2xl p-5 shadow-sm">
+                    <h3 className="text-sm font-bold text-[var(--os-text)]">{linkedBrand.brandName}</h3>
+                    <p className="text-[10px] text-[var(--os-text-muted)] mt-0.5">Updated {new Date(linkedBrand.updatedAt).toLocaleDateString()}</p>
                   </div>
 
-                  <div>
-                    <h3 className="text-xs font-bold text-white/60 mb-2">Color Palette</h3>
-                    <div className="flex gap-2 flex-wrap">
+                  <div className="bg-[var(--os-surface)] border border-[var(--os-border)] rounded-2xl p-5 shadow-sm space-y-3">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--os-text-muted)]">Color Palette</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {linkedBrand.colors.map((c) => (
-                        <div key={c.id} className="text-center">
-                          <div className="w-12 h-12 rounded-lg border border-white/10 mb-1" style={{ backgroundColor: c.hex }} />
-                          <div className="text-[9px] text-white/40">{c.name}</div>
+                        <div key={c.id} className="bg-[var(--os-surface-dim)] p-2.5 rounded-xl border border-[var(--os-border)] flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg border border-black/10 shadow-sm shrink-0" style={{ backgroundColor: c.hex }} />
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-[var(--os-text)] truncate">{c.name}</div>
+                            <div className="text-[10px] font-mono text-[var(--os-text-muted)] uppercase">{c.hex}</div>
+                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div>
-                    <h3 className="text-xs font-bold text-white/60 mb-2">Typography</h3>
-                    <div className="bg-white/5 border border-white/10 rounded-lg p-3 space-y-1">
-                      <div className="text-xs"><span className="text-white/40">Heading:</span> {linkedBrand.typography.headingFont} ({linkedBrand.typography.headingWeight})</div>
-                      <div className="text-xs"><span className="text-white/40">Body:</span> {linkedBrand.typography.bodyFont} ({linkedBrand.typography.bodyWeight})</div>
-                      <div className="text-xs"><span className="text-white/40">Accent:</span> {linkedBrand.typography.accentFont}</div>
+                  <div className="bg-[var(--os-surface)] border border-[var(--os-border)] rounded-2xl p-5 shadow-sm space-y-3">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--os-text-muted)]">Typography Standards</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="p-3 bg-[var(--os-surface-dim)] rounded-xl border border-[var(--os-border)]">
+                        <div className="text-[10px] text-[var(--os-text-muted)] uppercase font-bold">Heading Font</div>
+                        <div className="text-xs font-bold text-[var(--os-text)] mt-1">{linkedBrand.typography.headingFont} ({linkedBrand.typography.headingWeight})</div>
+                      </div>
+                      <div className="p-3 bg-[var(--os-surface-dim)] rounded-xl border border-[var(--os-border)]">
+                        <div className="text-[10px] text-[var(--os-text-muted)] uppercase font-bold">Body Font</div>
+                        <div className="text-xs font-bold text-[var(--os-text)] mt-1">{linkedBrand.typography.bodyFont} ({linkedBrand.typography.bodyWeight})</div>
+                      </div>
+                      <div className="p-3 bg-[var(--os-surface-dim)] rounded-xl border border-[var(--os-border)]">
+                        <div className="text-[10px] text-[var(--os-text-muted)] uppercase font-bold">Accent Font</div>
+                        <div className="text-xs font-bold text-[var(--os-text)] mt-1">{linkedBrand.typography.accentFont}</div>
+                      </div>
                     </div>
                   </div>
-
-                  <div>
-                    <h3 className="text-xs font-bold text-white/60 mb-2">Voice</h3>
-                    <div className="bg-white/5 border border-white/10 rounded-lg p-3 space-y-2">
-                      <div className="text-xs"><span className="text-white/40">Tone:</span> {linkedBrand.voice.tone}</div>
-                      {linkedBrand.voice.personality.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {linkedBrand.voice.personality.map((p, i) => (
-                            <span key={i} className="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-[9px] rounded">{p}</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </>
+                </div>
               )}
             </div>
           )}
@@ -321,20 +435,28 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
           {/* Comments Tab */}
           {activeTab === 'comments' && (
             <div className="space-y-6">
-              <h2 className="text-lg font-bold">Comments</h2>
+              <h2 className="text-base font-bold text-[var(--os-text)]">Stakeholder Review &amp; Client Feedback</h2>
               <div className="space-y-3">
-                {comments.map((c) => (
-                  <div key={c.id} className={cn(
-                    "rounded-lg p-3 border",
-                    c.author === 'Client' ? "bg-blue-500/5 border-blue-500/10 ml-8" : "bg-white/5 border-white/10 mr-8",
-                  )}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-bold">{c.author}</span>
-                      <span className="text-[9px] text-white/30">{new Date(c.timestamp).toLocaleString()}</span>
-                    </div>
-                    <p className="text-xs text-white/70">{c.text}</p>
+                {comments.length === 0 ? (
+                  <div className="text-center py-8 bg-[var(--os-surface)] border border-[var(--os-border)] rounded-2xl text-xs text-[var(--os-text-muted)]">
+                    No comments yet. Leave a note below for the creative team.
                   </div>
-                ))}
+                ) : (
+                  comments.map((c) => (
+                    <div key={c.id} className={cn(
+                      "rounded-2xl p-4 border shadow-sm transition-all",
+                      c.author === 'Client' 
+                        ? "bg-[var(--os-primary)]/10 border-[var(--os-primary)]/20 ml-6" 
+                        : "bg-[var(--os-surface)] border-[var(--os-border)] mr-6",
+                    )}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold text-[var(--os-text)]">{c.author}</span>
+                        <span className="text-[10px] text-[var(--os-text-muted)] font-mono">{new Date(c.timestamp).toLocaleString()}</span>
+                      </div>
+                      <p className="text-xs text-[var(--os-text)] leading-relaxed">{c.text}</p>
+                    </div>
+                  ))
+                )}
               </div>
 
               <div className="flex gap-2">
@@ -342,12 +464,12 @@ export function ClientPortal({ window: osWindow }: { window: OSWindow }) {
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                  placeholder="Add a comment..."
-                  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-xs outline-none focus:border-blue-400"
+                  placeholder="Add feedback for the agency team..."
+                  className="flex-1 bg-[var(--os-surface)] border border-[var(--os-border)] rounded-xl px-4 py-2.5 text-xs text-[var(--os-text)] placeholder-[var(--os-text-muted)] outline-none focus:border-[var(--os-primary)] shadow-inner"
                 />
                 <button
                   onClick={handleAddComment}
-                  className="px-4 py-2.5 bg-blue-500 hover:bg-blue-400 rounded-lg transition-colors"
+                  className="px-4 py-2.5 bg-[var(--os-primary)] text-slate-950 rounded-xl transition-all font-bold hover:brightness-110 shadow-md shadow-[var(--os-primary)]/20 flex items-center justify-center active:scale-95"
                 >
                   <Send className="w-3.5 h-3.5" />
                 </button>

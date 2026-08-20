@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Loader2, Heart, SkipBack, Pause, Play, SkipForward, ExternalLink, Zap, X, Check, ShieldAlert, Globe } from 'lucide-react';
+import { Loader2, Heart, SkipBack, Pause, Play, SkipForward, ExternalLink, Zap, X, Check, ShieldAlert, Globe, Download, Copy } from 'lucide-react';
 import { isTauri, getBrowserName } from '@/lib/platform';
 import { cn } from '@/lib/utils';
 import { isCatalogItemKnownBlocked } from '@/lib/known-blocked-hosts';
@@ -108,39 +108,38 @@ export default function WebApp({ window: osWindow }: { window: any }) {
 
   if (blockedNeedsExtension) {
     return (
-      <div className="w-full h-full relative bg-slate-900 text-slate-100 flex flex-col items-center justify-center font-sans p-6 text-center overflow-y-auto">
-        <div className="max-w-md w-full flex flex-col items-center gap-4 py-4">
-          <div className="p-4 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300">
+      <div className="w-full h-full relative bg-[var(--os-bg)] text-[var(--os-text)] flex flex-col items-center justify-center font-sans p-6 text-center overflow-y-auto select-none custom-scrollbar">
+        <div className="max-w-md w-full flex flex-col items-center gap-4 py-6 bg-[var(--os-surface)] border border-[var(--os-border)] rounded-3xl p-8 shadow-2xl">
+          <div className="p-4 rounded-2xl bg-[var(--os-primary)]/15 border border-[var(--os-primary)]/30 text-[var(--os-primary)]">
             <ShieldAlert className="w-9 h-9" />
           </div>
           <div>
-            <h3 className="font-bold text-base text-white flex items-center justify-center gap-2">
-              <Globe className="w-4 h-4 text-cyan-400" /> {osWindow.title || 'This app'}
+            <h3 className="font-bold text-base text-[var(--os-text)] flex items-center justify-center gap-2">
+              <Globe className="w-4 h-4 text-[var(--os-primary)]" /> {osWindow.title || 'This Web App'}
             </h3>
-            <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
-              This site blocks embedding in iframes. Install the Continua extension to open it natively in your OS,
-              or open it in a new browser tab.
+            <p className="text-xs text-[var(--os-text-muted)] mt-1.5 leading-relaxed">
+              This service enforces browser iframe restrictions. Launch directly with zero install via our stream proxy, or enable the Continua extension for native zero-latency framing.
             </p>
-            <p className="text-[10px] font-mono text-slate-500 mt-2 truncate">{url}</p>
+            <p className="text-[10px] font-mono text-[var(--os-text-muted)] mt-2 truncate max-w-[280px] bg-[var(--os-surface-dim)] px-2 py-0.5 rounded-lg border border-[var(--os-border)] mx-auto">{url}</p>
           </div>
-          <div className="flex flex-col gap-2 w-full max-w-[260px]">
+          <div className="flex flex-col gap-2.5 w-full max-w-[280px]">
+            <button
+              onClick={() => setProxyOptIn(true)}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-[var(--os-primary)] hover:brightness-110 text-slate-950 transition-all active:scale-95 shadow-md shadow-[var(--os-primary)]/20"
+            >
+              <Zap className="w-3.5 h-3.5 fill-current" /> Live In-OS Mode (Zero-Install)
+            </button>
             <button
               onClick={() => setShowGuide(true)}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 hover:brightness-110 text-white transition-all active:scale-95 shadow-lg shadow-cyan-600/20"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl bg-[var(--os-surface-dim)] hover:bg-[var(--os-hover)] text-[var(--os-text)] border border-[var(--os-border)] transition-all active:scale-95"
             >
-              <Zap className="w-3.5 h-3.5 fill-white" /> Enable Extension
+              <Download className="w-3.5 h-3.5 text-[var(--os-primary)]" /> 1-Click Extension Setup
             </button>
             <button
               onClick={() => window.open(url, '_blank')}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold rounded-xl bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-all active:scale-95"
+              className="flex items-center justify-center gap-2 px-4 py-2 text-[11px] font-medium rounded-xl hover:bg-[var(--os-hover)] text-[var(--os-text-muted)] hover:text-[var(--os-text)] transition-all"
             >
-              <ExternalLink className="w-3.5 h-3.5" /> Open in New Tab
-            </button>
-            <button
-              onClick={() => setProxyOptIn(true)}
-              className="flex items-center justify-center gap-1.5 px-4 py-2 text-[11px] font-medium rounded-xl bg-transparent hover:bg-white/5 text-slate-400 hover:text-slate-200 transition-all"
-            >
-              Try limited proxy view anyway
+              <ExternalLink className="w-3.5 h-3.5" /> Open in External Browser Tab
             </button>
           </div>
         </div>
@@ -314,40 +313,42 @@ function ExtensionGuideModal({
 }) {
   const browser = getBrowserName();
   const isFirefox = browser === 'firefox';
-  const installSteps = isFirefox
-    ? [
-        'Open about:debugging#/runtime/this-firefox in Firefox.',
-        'Click "Load Temporary Add-on..." and select the manifest.json file inside the chrome-extension folder.',
-        'The extension (Continua Context Bridge) now appears under Temporary Extensions and strips framing headers in real time.',
-      ]
-    : [
-        'Open chrome://extensions in Chrome, Brave, or Edge.',
-        'Turn ON Developer mode in the top right corner.',
-        'Click Load unpacked and select the chrome-extension folder in this project.',
-      ];
+  const [copied, setCopied] = useState(false);
+
+  const downloadUrl = isFirefox 
+    ? '/api/extension/download?format=xpi' 
+    : '/api/extension/download?format=zip';
+
+  const handleCopyFolder = async () => {
+    try {
+      await navigator.clipboard.writeText('chrome-extension');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
 
   return (
     <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in"
       onClick={onClose}
     >
       <div
-        className="bg-slate-900 text-slate-100 rounded-2xl border border-white/10 shadow-2xl max-w-lg w-full overflow-hidden"
+        className="bg-[var(--os-surface)] text-[var(--os-text)] rounded-3xl border border-[var(--os-border)] shadow-2xl max-w-lg w-full overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-slate-950/50">
+        <div className="px-6 py-4 border-b border-[var(--os-border)] flex items-center justify-between bg-[var(--os-surface-dim)]">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-              <Zap className="w-5 h-5 fill-cyan-400" />
+            <div className="p-2.5 rounded-2xl bg-[var(--os-primary)]/15 text-[var(--os-primary)] border border-[var(--os-primary)]/30">
+              <Zap className="w-5 h-5 fill-current" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-white">Continua Context Bridge Extension</h3>
-              <p className="text-xs text-slate-400">Unlock native iframe embedding for Notion, Figma &amp; more</p>
+              <h3 className="font-bold text-sm text-[var(--os-text)]">Continua Context Bridge Extension</h3>
+              <p className="text-xs text-[var(--os-text-muted)]">Zero-friction iframe embedding &amp; context sync</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-1.5 rounded-xl text-[var(--os-text-muted)] hover:text-[var(--os-text)] hover:bg-[var(--os-hover)] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -355,46 +356,81 @@ function ExtensionGuideModal({
 
         <div className="p-6 space-y-4">
           {extensionInstalled ? (
-            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3 text-emerald-400">
+            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3 text-emerald-400">
               <Check className="w-6 h-6 shrink-0" />
               <div>
                 <h4 className="font-bold text-sm text-emerald-300">Extension is Active &amp; Connected</h4>
-                <p className="text-xs text-emerald-400/80">Framing headers are stripped in real time. Reload this window if the page still fails to load.</p>
+                <p className="text-xs text-emerald-400/80">Framing restrictions are stripped in real time. Reload this window if the page still fails to load.</p>
               </div>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-xs leading-relaxed">
-                Sites like Notion and Figma set security headers that block standard iframe embeds. The Continua extension removes them in real time.
+              <div className="p-3.5 rounded-2xl bg-[var(--os-primary)]/10 border border-[var(--os-primary)]/20 text-[var(--os-primary)] text-xs leading-relaxed">
+                Sites like Notion and Figma enforce strict framing headers. The Continua extension removes them instantly so they run as native in-OS desktop apps.
               </div>
-              <div className="space-y-3">
-                {installSteps.map((step, i) => (
-                  <div key={step} className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
-                      {i + 1}
-                    </div>
-                    <div className="text-xs text-slate-300">{step}</div>
+
+              {/* 1-Click Automated Download Card */}
+              <div className="bg-[var(--os-surface-dim)] border border-[var(--os-border)] rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-[var(--os-text)]">1-Click Package Download</div>
+                    <div className="text-[10px] text-[var(--os-text-muted)]">Detected browser: <strong className="capitalize text-[var(--os-primary)]">{browser}</strong></div>
                   </div>
-                ))}
+                  <a
+                    href={downloadUrl}
+                    download={isFirefox ? "continua-context-bridge.xpi" : "continua-context-bridge.zip"}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--os-primary)] hover:brightness-110 text-slate-950 text-xs font-bold rounded-xl transition-all shadow-sm"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Download {isFirefox ? '.XPI' : '.ZIP'}
+                  </a>
+                </div>
+
+                <div className="pt-2 border-t border-[var(--os-border)] flex items-center justify-between text-[11px] text-[var(--os-text-muted)]">
+                  <span>Target directory: <code className="text-[10px] font-mono text-[var(--os-text)]">chrome-extension/</code></span>
+                  <button 
+                    onClick={handleCopyFolder}
+                    className="flex items-center gap-1 text-[10px] text-[var(--os-primary)] hover:underline font-semibold"
+                  >
+                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />} {copied ? 'Copied' : 'Copy Path'}
+                  </button>
+                </div>
               </div>
+
+              <div className="space-y-2.5">
+                <div className="text-xs font-bold text-[var(--os-text)] uppercase tracking-wider">Quick Setup (10 Seconds)</div>
+                {isFirefox ? (
+                  <ol className="space-y-2 text-xs text-[var(--os-text-muted)] list-decimal list-inside leading-relaxed">
+                    <li>Click <strong className="text-[var(--os-text)]">Download .XPI</strong> above.</li>
+                    <li>Firefox will prompt <strong className="text-[var(--os-text)]">"Add Continua Context Bridge?"</strong> — click Add.</li>
+                    <li>All web apps now embed natively with zero configuration!</li>
+                  </ol>
+                ) : (
+                  <ol className="space-y-2 text-xs text-[var(--os-text-muted)] list-decimal list-inside leading-relaxed">
+                    <li>Download &amp; unzip the package, or locate <code className="text-[10px] text-[var(--os-text)]">chrome-extension/</code>.</li>
+                    <li>Open <code className="text-[10px] text-[var(--os-primary)]">chrome://extensions</code> (or <code className="text-[10px] text-[var(--os-primary)]">brave://extensions</code>) and toggle <strong className="text-[var(--os-text)]">Developer mode</strong> ON.</li>
+                    <li>Click <strong className="text-[var(--os-text)]">Load unpacked</strong> and select the folder.</li>
+                  </ol>
+                )}
+              </div>
+
               <button
                 onClick={() => window.open(url, '_blank')}
-                className="w-full flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold bg-[var(--os-surface-dim)] hover:bg-[var(--os-hover)] text-[var(--os-text)] rounded-xl border border-[var(--os-border)] transition-colors"
               >
-                <ExternalLink className="w-3.5 h-3.5" /> Or open this app in a new browser tab
+                <ExternalLink className="w-3.5 h-3.5" /> Or open this app in an external browser tab
               </button>
             </div>
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-white/10 bg-slate-950/50 flex items-center justify-between">
-          <span className={cn("flex items-center gap-2 text-xs", extensionInstalled ? "text-emerald-400" : "text-amber-400")}>
+        <div className="px-6 py-4 border-t border-[var(--os-border)] bg-[var(--os-surface-dim)] flex items-center justify-between">
+          <span className={cn("flex items-center gap-2 text-xs font-semibold", extensionInstalled ? "text-emerald-400" : "text-amber-400")}>
             <span className={cn("w-2 h-2 rounded-full animate-pulse", extensionInstalled ? "bg-emerald-400" : "bg-amber-400")} />
-            {extensionInstalled ? 'Bridge Active' : 'Not Detected'}
+            {extensionInstalled ? 'Bridge Active' : 'Extension Not Detected'}
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors"
+            className="px-5 py-2 text-xs font-bold bg-[var(--os-surface)] hover:bg-[var(--os-hover)] text-[var(--os-text)] border border-[var(--os-border)] rounded-xl transition-colors"
           >
             Close
           </button>

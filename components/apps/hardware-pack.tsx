@@ -41,18 +41,25 @@ export function HardwarePack({ window: osWindow }: { window: OSWindow }) {
   }, [components, bomData.length]);
   
   return (
-    <div className="w-full h-full flex flex-col bg-[var(--os-bg)] text-white font-mono overflow-hidden">
-      <div className="h-14 border-b border-white/10 flex items-center px-4 shrink-0 bg-[#0a0a0a]">
-        <Cpu className="w-5 h-5 text-emerald-400 mr-3" />
-        <h1 className="font-bold tracking-wider hidden sm:block">Hardware EDA Studio</h1>
-        <div className="ml-8 flex gap-2 overflow-x-auto no-scrollbar">
+    <div className="w-full h-full flex flex-col bg-[var(--os-bg)] text-[var(--os-text)] font-sans overflow-hidden select-none">
+      <div className="h-14 border-b border-[var(--os-border)] flex items-center px-4 shrink-0 bg-[var(--os-surface)] justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-[var(--os-primary)]/15 text-[var(--os-primary)] border border-[var(--os-primary)]/30">
+            <Cpu className="w-4 h-4" />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold text-[var(--os-text)]">Hardware EDA Studio</h1>
+            <p className="text-[10px] text-[var(--os-text-muted)]">Schematic, PCB Layout, 3D Models &amp; BOM</p>
+          </div>
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto custom-scrollbar">
           {(['schematic', 'pcb-layout', '3d-viewer', 'bom', 'firmware'] as const).map(tab => (
             <button 
               key={tab} 
               onClick={() => setActiveTab(tab)} 
               className={cn(
-                "px-3 py-1.5 text-xs font-semibold rounded-md uppercase tracking-wider transition-colors flex items-center gap-2", 
-                activeTab === tab ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]" : "text-white/50 hover:bg-white/5 hover:text-white/80 border border-transparent"
+                "px-3 py-1.5 text-xs font-semibold rounded-xl uppercase tracking-wider transition-all flex items-center gap-1.5 border", 
+                activeTab === tab ? "bg-[var(--os-primary)] text-slate-950 border-[var(--os-primary)] font-bold shadow-sm" : "text-[var(--os-text-muted)] hover:bg-[var(--os-hover)] hover:text-[var(--os-text)] border-transparent"
               )}
             >
               {tab === 'schematic' && <Zap className="w-3.5 h-3.5" />}
@@ -65,7 +72,7 @@ export function HardwarePack({ window: osWindow }: { window: OSWindow }) {
           ))}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto bg-[var(--os-surface-dim)] p-4 custom-scrollbar">
         {activeTab === 'schematic' && <SchematicTab components={components} />}
         {activeTab === 'pcb-layout' && <PcbLayoutTab />}
         {activeTab === '3d-viewer' && <Prototype3DTab />}

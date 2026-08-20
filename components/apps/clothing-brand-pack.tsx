@@ -34,18 +34,27 @@ export function ClothingBrandPack({ window: osWindow }: { window: OSWindow }) {
   }, []);
 
   return (
-    <div className="w-full h-full flex flex-col bg-white text-black font-sans overflow-hidden">
-      <div className="h-14 border-b border-black/10 flex items-center px-4 shrink-0 bg-gray-50">
-        <Shirt className="w-5 h-5 mr-3" />
-        <h1 className="font-bold hidden sm:block">Clothing Brand Pack</h1>
-        <div className="ml-8 flex gap-2 overflow-x-auto no-scrollbar">
+    <div className="w-full h-full flex flex-col bg-[var(--os-bg)] text-[var(--os-text)] font-sans overflow-hidden select-none">
+      <div className="h-14 border-b border-[var(--os-border)] flex items-center px-4 shrink-0 bg-[var(--os-surface)] justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-[var(--os-primary)]/15 text-[var(--os-primary)] border border-[var(--os-primary)]/30">
+            <Shirt className="w-4 h-4" />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold text-[var(--os-text)]">Apparel &amp; Fashion Studio</h1>
+            <p className="text-[10px] text-[var(--os-text-muted)]">Design, 3D Mockups, Production &amp; Storefront</p>
+          </div>
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto custom-scrollbar">
           {(['sketching', 'drafting', '3d-prototype', 'production', 'shopify'] as const).map(tab => (
             <button 
               key={tab} 
               onClick={() => setActiveTab(tab)} 
               className={cn(
-                "px-3 py-1 text-xs font-semibold rounded-md capitalize whitespace-nowrap transition-colors", 
-                activeTab === tab ? "bg-black text-white" : "hover:bg-gray-200 text-gray-700"
+                "px-3 py-1.5 text-xs font-semibold rounded-xl capitalize whitespace-nowrap transition-all border", 
+                activeTab === tab 
+                  ? "bg-[var(--os-primary)] text-slate-950 border-[var(--os-primary)] font-bold shadow-sm" 
+                  : "border-transparent text-[var(--os-text-muted)] hover:bg-[var(--os-hover)] hover:text-[var(--os-text)]"
               )}
             >
               {tab.replace('-', ' ')}
@@ -53,7 +62,7 @@ export function ClothingBrandPack({ window: osWindow }: { window: OSWindow }) {
           ))}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto bg-gray-50/50">
+      <div className="flex-1 overflow-y-auto bg-[var(--os-surface-dim)] p-4 custom-scrollbar">
         {activeTab === 'sketching' && <SketchingTab windowId={osWindow.id} collab={collab} designs={Object.values(designs)} selectedDesignId={selectedDesignId} onSelectDesign={setSelectedDesignId} onCreateDesign={createDesign} onUpdateDesign={updateDesign} />}
         {activeTab === 'drafting' && <DraftingTab />}
         {activeTab === '3d-prototype' && <Prototype3DTab />}

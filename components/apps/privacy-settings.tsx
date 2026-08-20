@@ -59,61 +59,63 @@ export function PrivacySettings() {
   }, [setWorkspaceDefault]);
 
   return (
-    <div className="p-6 bg-gray-900 min-h-screen text-white">
+    <div className="p-6 bg-[var(--os-bg)] min-h-screen text-[var(--os-text)] font-sans select-none custom-scrollbar">
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <Shield className="w-8 h-8 text-blue-400" />
+          <div className="p-2.5 rounded-2xl bg-[var(--os-primary)]/15 text-[var(--os-primary)] border border-[var(--os-primary)]/30">
+            <Shield className="w-6 h-6" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold">Privacy & Security</h1>
-            <p className="text-sm text-gray-400">Control who can see your apps and data</p>
+            <h1 className="text-xl font-bold text-[var(--os-text)]">Privacy &amp; Security Shield</h1>
+            <p className="text-xs text-[var(--os-text-muted)]">Control application visibility, access boundaries &amp; permissions</p>
           </div>
         </div>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-            <div className="flex items-center gap-2 text-green-400 mb-2">
+          <div className="bg-[var(--os-surface)] rounded-2xl p-4 border border-[var(--os-border)] shadow-sm">
+            <div className="flex items-center gap-2 text-emerald-400 mb-2">
               <Users className="w-4 h-4" />
-              <span className="text-sm font-medium">Shared</span>
+              <span className="text-xs font-semibold uppercase tracking-wider">Shared</span>
             </div>
-            <div className="text-2xl font-bold">{summary.shared}</div>
-            <div className="text-xs text-gray-500">apps visible to all</div>
+            <div className="text-2xl font-bold text-[var(--os-text)]">{summary.shared}</div>
+            <div className="text-[10px] text-[var(--os-text-muted)] mt-1">apps visible to all</div>
           </div>
-          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-            <div className="flex items-center gap-2 text-red-400 mb-2">
+          <div className="bg-[var(--os-surface)] rounded-2xl p-4 border border-[var(--os-border)] shadow-sm">
+            <div className="flex items-center gap-2 text-rose-400 mb-2">
               <EyeOff className="w-4 h-4" />
-              <span className="text-sm font-medium">Private</span>
+              <span className="text-xs font-semibold uppercase tracking-wider">Private</span>
             </div>
-            <div className="text-2xl font-bold">{summary.private}</div>
-            <div className="text-xs text-gray-500">apps visible to you</div>
+            <div className="text-2xl font-bold text-[var(--os-text)]">{summary.private}</div>
+            <div className="text-[10px] text-[var(--os-text-muted)] mt-1">apps visible to you</div>
           </div>
-          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-            <div className="flex items-center gap-2 text-yellow-400 mb-2">
+          <div className="bg-[var(--os-surface)] rounded-2xl p-4 border border-[var(--os-border)] shadow-sm">
+            <div className="flex items-center gap-2 text-amber-400 mb-2">
               <Lock className="w-4 h-4" />
-              <span className="text-sm font-medium">Restricted</span>
+              <span className="text-xs font-semibold uppercase tracking-wider">Restricted</span>
             </div>
-            <div className="text-2xl font-bold">{summary.restricted}</div>
-            <div className="text-xs text-gray-500">apps with user limits</div>
+            <div className="text-2xl font-bold text-[var(--os-text)]">{summary.restricted}</div>
+            <div className="text-[10px] text-[var(--os-text-muted)] mt-1">apps with user limits</div>
           </div>
         </div>
 
         {/* Workspace Defaults */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
+        <div className="bg-[var(--os-surface)] rounded-2xl border border-[var(--os-border)] p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Settings className="w-4 h-4 text-gray-400" />
-              <span className="font-medium">Workspace Default</span>
+              <Settings className="w-4 h-4 text-[var(--os-primary)]" />
+              <span className="font-bold text-sm text-[var(--os-text)]">Workspace Default</span>
             </div>
             <button
               onClick={() => setShowWorkspaceDefaults(!showWorkspaceDefaults)}
-              className="text-sm text-blue-400 hover:text-blue-300"
+              className="text-xs font-bold text-[var(--os-primary)] hover:underline"
             >
               Change
             </button>
           </div>
-          <div className="text-sm text-gray-400">
-            New apps will default to: <span className="text-white font-medium capitalize">{workspaceDefaults.level}</span>
+          <div className="text-xs text-[var(--os-text-muted)]">
+            New apps will default to: <span className="text-[var(--os-primary)] font-bold capitalize">{workspaceDefaults.level}</span>
           </div>
 
           {showWorkspaceDefaults && (
@@ -122,18 +124,18 @@ export function PrivacySettings() {
                 <button
                   key={pl.level}
                   onClick={() => handleWorkspaceDefault(pl.level)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${
                     workspaceDefaults.level === pl.level
-                      ? 'bg-blue-600/20 border-blue-500 text-blue-400'
-                      : 'bg-gray-700/50 border-gray-600 hover:bg-gray-700 text-gray-300'
+                      ? 'bg-[var(--os-primary)]/15 border-[var(--os-primary)]/40 text-[var(--os-primary)]'
+                      : 'bg-[var(--os-surface-dim)] border-[var(--os-border)] hover:bg-[var(--os-hover)] text-[var(--os-text)]'
                   }`}
                 >
                   {pl.icon}
                   <div className="text-left">
-                    <div className="font-medium">{pl.label}</div>
-                    <div className="text-xs text-gray-500">{pl.description}</div>
+                    <div className="font-semibold text-xs text-[var(--os-text)]">{pl.label}</div>
+                    <div className="text-[10px] text-[var(--os-text-muted)]">{pl.description}</div>
                   </div>
-                  {workspaceDefaults.level === pl.level && <Check className="w-4 h-4 ml-auto" />}
+                  {workspaceDefaults.level === pl.level && <Check className="w-4 h-4 ml-auto text-[var(--os-primary)]" />}
                 </button>
               ))}
             </div>
@@ -141,9 +143,9 @@ export function PrivacySettings() {
         </div>
 
         {/* Per-App Privacy */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
-          <h3 className="font-medium mb-3">App Privacy Overrides</h3>
-          <p className="text-sm text-gray-400 mb-4">Override the workspace default for individual apps</p>
+        <div className="bg-[var(--os-surface)] rounded-2xl border border-[var(--os-border)] p-5 shadow-sm">
+          <h3 className="font-bold text-sm text-[var(--os-text)] mb-1">App Privacy Overrides</h3>
+          <p className="text-xs text-[var(--os-text-muted)] mb-4">Override the workspace default for individual apps</p>
 
           <div className="space-y-2">
             {availableApps.map((app) => {
@@ -155,54 +157,54 @@ export function PrivacySettings() {
               return (
                 <div key={app.id}>
                   <div
-                    className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                      isExpanded ? 'bg-blue-600/10 border-blue-500' : 'bg-gray-700/30 border-gray-600'
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                      isExpanded ? 'bg-[var(--os-primary)]/10 border-[var(--os-primary)]/30' : 'bg-[var(--os-surface-dim)] border-[var(--os-border)]'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${
-                        level === 'private' ? 'bg-red-400' : level === 'restricted' ? 'bg-yellow-400' : 'bg-green-400'
+                      <div className={`w-2.5 h-2.5 rounded-full ${
+                        level === 'private' ? 'bg-rose-400' : level === 'restricted' ? 'bg-amber-400' : 'bg-emerald-400'
                       }`} />
-                      <span className="font-medium">{app.name}</span>
+                      <span className="font-medium text-xs text-[var(--os-text)]">{app.name}</span>
                       {isOverridden && (
-                        <span className="text-xs bg-blue-600/30 text-blue-300 px-2 py-0.5 rounded">overridden</span>
+                        <span className="text-[10px] bg-[var(--os-primary)]/20 text-[var(--os-primary)] px-2 py-0.5 rounded-full border border-[var(--os-primary)]/30 font-bold">overridden</span>
                       )}
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 capitalize">{level}</span>
+                      <span className="text-[10px] text-[var(--os-text-muted)] capitalize font-semibold">{level}</span>
                       <button
                         onClick={() => setSelectedApp(isExpanded ? null : app.id)}
-                        className="text-gray-400 hover:text-white"
+                        className="text-[var(--os-text-muted)] hover:text-[var(--os-text)] p-1 rounded"
                       >
                         <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                       </button>
                     </div>
                   </div>
                   {isExpanded && (
-                    <div className="ml-6 mt-1 mb-2 p-2 bg-gray-700/20 rounded-lg border border-gray-600/50 space-y-1">
+                    <div className="ml-4 mt-1.5 mb-2 p-2 bg-[var(--os-surface-dim)] rounded-xl border border-[var(--os-border)] space-y-1.5">
                       {PRIVACY_LEVELS.map((pl) => (
                         <button
                           key={pl.level}
                           onClick={() => handleSetPrivacy(app.id, pl.level)}
-                          className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors ${
+                          className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-all ${
                             level === pl.level
-                              ? 'bg-blue-600/20 text-blue-400'
-                              : 'hover:bg-gray-700/50 text-gray-300'
+                              ? 'bg-[var(--os-primary)]/15 text-[var(--os-primary)] font-bold'
+                              : 'hover:bg-[var(--os-hover)] text-[var(--os-text)]'
                           }`}
                         >
                           {pl.icon}
                           <div className="flex-1">
                             <div className="text-xs font-medium">{pl.label}</div>
-                            <div className="text-[10px] text-gray-500">{pl.description}</div>
+                            <div className="text-[10px] text-[var(--os-text-muted)]">{pl.description}</div>
                           </div>
-                          {level === pl.level && <Check className="w-3 h-3" />}
+                          {level === pl.level && <Check className="w-3.5 h-3.5 text-[var(--os-primary)]" />}
                         </button>
                       ))}
                       {isOverridden && (
                         <button
                           onClick={() => handleRemoveOverride(app.id)}
-                          className="w-full flex items-center gap-2 p-2 text-xs text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                          className="w-full flex items-center gap-2 p-2 text-xs text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
                         >
                           <X className="w-3 h-3" /> Remove override (use workspace default)
                         </button>
@@ -216,20 +218,20 @@ export function PrivacySettings() {
         </div>
 
         {/* Privacy Enforcement Info */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
-          <h3 className="font-medium mb-2">How Privacy Works</h3>
-          <ul className="text-sm text-gray-400 space-y-2">
-            <li className="flex items-start gap-2">
-              <EyeOff className="w-4 h-4 mt-0.5 text-red-400 shrink-0" />
-              <span><strong className="text-white">Private:</strong> Your app data stays hidden from all collaborators. Only you can see and access it.</span>
+        <div className="bg-[var(--os-surface)] rounded-2xl border border-[var(--os-border)] p-5 shadow-sm">
+          <h3 className="font-bold text-sm text-[var(--os-text)] mb-3">How Privacy Works</h3>
+          <ul className="text-xs text-[var(--os-text-muted)] space-y-2.5">
+            <li className="flex items-start gap-2.5">
+              <EyeOff className="w-4 h-4 mt-0.5 text-rose-400 shrink-0" />
+              <span><strong className="text-[var(--os-text)]">Private:</strong> Your app data stays hidden from all collaborators. Only you can see and access it.</span>
             </li>
-            <li className="flex items-start gap-2">
-              <Users className="w-4 h-4 mt-0.5 text-green-400 shrink-0" />
-              <span><strong className="text-white">Shared:</strong> All workspace collaborators can see and interact with this app.</span>
+            <li className="flex items-start gap-2.5">
+              <Users className="w-4 h-4 mt-0.5 text-emerald-400 shrink-0" />
+              <span><strong className="text-[var(--os-text)]">Shared:</strong> All workspace collaborators can see and interact with this app.</span>
             </li>
-            <li className="flex items-start gap-2">
-              <Lock className="w-4 h-4 mt-0.5 text-yellow-400 shrink-0" />
-              <span><strong className="text-white">Restricted:</strong> Only specific users you choose can see this app.</span>
+            <li className="flex items-start gap-2.5">
+              <Lock className="w-4 h-4 mt-0.5 text-amber-400 shrink-0" />
+              <span><strong className="text-[var(--os-text)]">Restricted:</strong> Only specific users you choose can see this app.</span>
             </li>
           </ul>
         </div>

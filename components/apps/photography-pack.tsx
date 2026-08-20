@@ -149,19 +149,26 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
   };
   
   return (
-    <div className="w-full h-full flex flex-col bg-zinc-50 text-zinc-900 font-sans">
-      <div className="h-14 border-b border-zinc-200 flex items-center px-4 shrink-0 bg-white">
-        <Camera className="w-5 h-5 text-cyan-500 mr-3" />
-        <h1 className="font-bold hidden sm:block">Photography Studio Pack</h1>
-        <div className="ml-8 flex gap-2 overflow-x-auto no-scrollbar">
+    <div className="w-full h-full flex flex-col bg-[var(--os-bg)] text-[var(--os-text)] font-sans overflow-hidden select-none">
+      <div className="h-14 border-b border-[var(--os-border)] flex items-center px-4 shrink-0 bg-[var(--os-surface)] justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-[var(--os-primary)]/15 text-[var(--os-primary)] border border-[var(--os-primary)]/30">
+            <Camera className="w-4 h-4" />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold text-[var(--os-text)]">Photography Studio Pack</h1>
+            <p className="text-[10px] text-[var(--os-text-muted)]">OPFS Asset Pipeline, Watermarking &amp; Proof Delivery</p>
+          </div>
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto custom-scrollbar">
           {(['gallery', 'delivery', 'watermark', 'prints'] as const).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={cn("px-4 py-1.5 text-xs font-bold rounded-full capitalize whitespace-nowrap transition-all", activeTab === tab ? "bg-cyan-600 text-white shadow-md shadow-cyan-600/20" : "hover:bg-zinc-100 text-zinc-600")}>
+            <button key={tab} onClick={() => setActiveTab(tab)} className={cn("px-4 py-1.5 text-xs font-bold rounded-xl capitalize whitespace-nowrap transition-all border", activeTab === tab ? "bg-[var(--os-primary)] text-slate-950 border-[var(--os-primary)] shadow-sm" : "border-transparent text-[var(--os-text-muted)] hover:bg-[var(--os-hover)] hover:text-[var(--os-text)]")}>
               {tab}
             </button>
           ))}
         </div>
       </div>
-      <div className="flex-1 p-6 overflow-y-auto">
+      <div className="flex-1 p-6 overflow-y-auto bg-[var(--os-surface-dim)] custom-scrollbar">
         {activeTab === 'gallery' && (
           <div className="flex flex-col gap-6">
              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
