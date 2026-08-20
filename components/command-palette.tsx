@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useTransition, useMemo, useRef, useCallback } from 'react';
 import { useOS } from '@/lib/os-context';
-import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Search, Archive, Clipboard, AppWindow, File, Music, Layout, Sun, Moon, Maximize2, Minimize2, Trash2, Settings, Volume2, VolumeX, Eye, Camera } from 'lucide-react';
+import { Terminal, Folder, Globe, Sparkles, Image as ImageIcon, Search, Archive, Clipboard, AppWindow, File, Music, Layout, Sun, Moon, Maximize2, Minimize2, Trash2, Settings, Volume2, VolumeX, Eye, Camera, Calculator, ArrowRight, Check, Copy } from 'lucide-react';
 import { APP_MANIFEST as APPS } from '@/lib/app-manifest';
 import { AppIconInline } from '@/components/ui/app-icon';
 import { FS, LocalFile } from '@/lib/fs';
@@ -18,6 +18,137 @@ import { useAIStore } from '@/lib/stores/ai.store';
 import { slashSkills } from '@/lib/skills/slash-skills';
 import { WEB_APP_CATALOG } from '@/lib/web-app-catalog';
 import { cn } from '@/lib/utils';
+
+function evaluateMathExpression(query: string): { expression: string; result: string } | null {
+  const trimmed = query.trim();
+  if (!trimmed || trimmed.length < 2) return null;
+
+  // Percentage expressions like "15% of 850" or "20% 500"
+  const percentMatch = trimmed.match(/^([\d.]+)\s*%\s*(?:of)?\s*([\d.]+)$/i);
+  if (percentMatch) {
+    const p = parseFloat(percentMatch[1]!);
+    const total = parseFloat(percentMatch[2]!);
+    if (!isNaN(p) && !isNaN(total)) {
+      const res = (p / 100) * total;
+      return { expression: `${p}% of ${total}`, result: String(Number(res.toFixed(6))) };
+    }
+  }
+
+  let sanitized = trimmed.toLowerCase()
+    .replace(/sqrt\(([^)]+)\)/g, 'Math.sqrt($1)')
+    .replace(/sin\(([^)]+)\)/g, 'Math.sin(($1) * Math.PI / 180)')
+    .replace(/cos\(([^)]+)\)/g, 'Math.cos(($1) * Math.PI / 180)')
+    .replace(/tan\(([^)]+)\)/g, 'Math.tan(($1) * Math.PI / 180)')
+    .replace(/log\(([^)]+)\)/g, 'Math.log10($1)')
+    .replace(/ln\(([^)]+)\)/g, 'Math.log($1)')
+    .replace(/abs\(([^)]+)\)/g, 'Math.abs($1)')
+    .replace(/\^/g, '**')
+    .replace(/pi\b/g, 'Math.PI')
+    .replace(/e\b/g, 'Math.E');
+
+  if (!/^[0-9+\-*/().,% MathPIEsqrtancosltgb*]+$/.test(sanitized)) {
+    return null;
+  }
+  if (!/[+\-*/^%*]|Math\./.test(sanitized)) {
+    return null;
+  }
+
+  try {
+    const fn = new Function(`return (${sanitized});`);
+    const val = fn();
+    if (typeof val === 'number' && !isNaN(val) && isFinite(val)) {
+      return {
+        expression: trimmed,
+        result: String(Number(val.toFixed(8)).toString()),
+      };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function evaluateUnitConversion(query: string): { from: string; to: string; result: string } | null {
+  const trimmed = query.trim().toLowerCase();
+  const match = trimmed.match(/^([\d.]+)\s*([a-zA-Z$€£¥]+)\s*(?:in|to|=)\s*([a-zA-Z$€£¥]+)$/i);
+  if (!match) return null;
+
+  const val = parseFloat(match[1]!);
+  const from = match[2]!.toLowerCase();
+  const to = match[3]!.toLowerCase();
+  if (isNaN(val)) return null;
+
+  // Temperature
+  if ((from === 'f' || from === 'fahrenheit') && (to === 'c' || to === 'celsius')) {
+    const c = ((val - 32) * 5) / 9;
+    return { from: `${val}°F`, to: 'Celsius', result: `${c.toFixed(2)}°C` };
+  }
+  if ((from === 'c' || from === 'celsius') && (to === 'f' || to === 'fahrenheit')) {
+    const f = (val * 9) / 5 + 32;
+    return { from: `${val}°C`, to: 'Fahrenheit', result: `${f.toFixed(2)}°F` };
+  }
+
+  // Length
+  const lengthToMeters: Record<string, number> = {
+    m: 1, meter: 1, meters: 1,
+    km: 1000, kilometer: 1000, kilometers: 1000,
+    cm: 0.01, centimeter: 0.01,
+    mm: 0.001, millimeter: 0.001,
+    mi: 1609.344, mile: 1609.344, miles: 1609.344,
+    yd: 0.9144, yard: 0.9144, yards: 0.9144,
+    ft: 0.3048, foot: 0.3048, feet: 0.3048,
+    in: 0.0254, inch: 0.0254, inches: 0.0254,
+  };
+  if (lengthToMeters[from] && lengthToMeters[to]) {
+    const inMeters = val * lengthToMeters[from]!;
+    const converted = inMeters / lengthToMeters[to]!;
+    return { from: `${val} ${from}`, to, result: `${Number(converted.toFixed(4))} ${to}` };
+  }
+
+  // Mass / Weight
+  const massToGrams: Record<string, number> = {
+    g: 1, gram: 1, grams: 1,
+    kg: 1000, kilogram: 1000, kilograms: 1000,
+    mg: 0.001, milligram: 0.001,
+    lb: 453.59237, lbs: 453.59237, pound: 453.59237, pounds: 453.59237,
+    oz: 28.349523, ounce: 28.349523, ounces: 28.349523,
+  };
+  if (massToGrams[from] && massToGrams[to]) {
+    const inGrams = val * massToGrams[from]!;
+    const converted = inGrams / massToGrams[to]!;
+    return { from: `${val} ${from}`, to, result: `${Number(converted.toFixed(4))} ${to}` };
+  }
+
+  // Digital Storage
+  const storageToBytes: Record<string, number> = {
+    b: 1, byte: 1, bytes: 1,
+    kb: 1024, kilobyte: 1024,
+    mb: 1024 * 1024, megabyte: 1024 * 1024,
+    gb: 1024 * 1024 * 1024, gigabyte: 1024 * 1024 * 1024,
+    tb: 1024 * 1024 * 1024 * 1024, terabyte: 1024 * 1024 * 1024 * 1024,
+  };
+  if (storageToBytes[from] && storageToBytes[to]) {
+    const inBytes = val * storageToBytes[from]!;
+    const converted = inBytes / storageToBytes[to]!;
+    return { from: `${val} ${from.toUpperCase()}`, to: to.toUpperCase(), result: `${Number(converted.toFixed(4))} ${to.toUpperCase()}` };
+  }
+
+  // Currency conversion approximation
+  const ratesToUSD: Record<string, number> = {
+    usd: 1, '$': 1,
+    eur: 1.08, '€': 1.08,
+    gbp: 1.28, '£': 1.28,
+    jpy: 0.0068, '¥': 0.0068,
+    cad: 0.74, aud: 0.65, chf: 1.13, cny: 0.14,
+  };
+  if (ratesToUSD[from] && ratesToUSD[to]) {
+    const inUSD = val * ratesToUSD[from]!;
+    const converted = inUSD / ratesToUSD[to]!;
+    return { from: `${val} ${from.toUpperCase()}`, to: to.toUpperCase(), result: `${converted.toFixed(2)} ${to.toUpperCase()}` };
+  }
+
+  return null;
+}
 
 export function CommandPalette() {
   const { openWindow, windows, focusWindow, installedApps, currentUser } = useOS();
@@ -323,12 +454,52 @@ export function CommandPalette() {
       }
     }
 
+    // Live Math / Calculator Evaluation (macOS Spotlight Parity)
+    const mathResult = evaluateMathExpression(query);
+    if (mathResult) {
+      cmds.unshift({
+        id: 'math-calc',
+        name: `${mathResult.expression} = ${mathResult.result}`,
+        type: 'Calculation',
+        icon: Calculator,
+        action: async () => {
+          try {
+            await navigator.clipboard.writeText(mathResult.result);
+            window.dispatchEvent(new CustomEvent('os:notify', {
+              detail: { title: 'Result Copied', description: `Copied "${mathResult.result}" to clipboard`, type: 'success' }
+            }));
+          } catch {}
+        },
+        hideOnEmpty: true,
+      });
+    }
+
+    // Live Unit & Currency Conversion (macOS Spotlight Parity)
+    const unitResult = evaluateUnitConversion(query);
+    if (unitResult) {
+      cmds.unshift({
+        id: 'unit-conv',
+        name: `${unitResult.from} = ${unitResult.result}`,
+        type: 'Conversion',
+        icon: Calculator,
+        action: async () => {
+          try {
+            await navigator.clipboard.writeText(unitResult.result);
+            window.dispatchEvent(new CustomEvent('os:notify', {
+              detail: { title: 'Conversion Copied', description: `Copied "${unitResult.result}" to clipboard`, type: 'success' }
+            }));
+          } catch {}
+        },
+        hideOnEmpty: true,
+      });
+    }
+
     return cmds;
   }, [allowedApps, windows, localFiles, clipboardText, query, openWindow, focusWindow]);
 
   const filtered = useMemo(() => commands.filter(c => {
     if (c.hideOnEmpty && !query) return false;
-    if (c.id === 'search' || c.id === 'ai-ask' || c.id === 'slash-exec') return true;
+    if (c.id === 'search' || c.id === 'ai-ask' || c.id === 'slash-exec' || c.id === 'math-calc' || c.id === 'unit-conv') return true;
     return c.name.toLowerCase().includes(query.toLowerCase());
   }), [commands, query]);
 

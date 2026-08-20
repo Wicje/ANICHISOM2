@@ -6,7 +6,7 @@ import {
   Folder, File as FileIcon, FileText, Image as ImageIcon, Video, Box, Search,
   Plus, Trash2, HardDrive, RefreshCw, ChevronRight, Download, Upload,
   Cloud, Link, Unlink, Loader2, ExternalLink, Lock, Eye, Pencil, Copy, CheckCircle,
-  Sparkles, GitBranch, Check, CheckSquare, Square, ArrowRight
+  Sparkles, GitBranch, Check, CheckSquare, Square, ArrowRight, LayoutGrid, List as ListIcon, Columns3, Tag as TagIcon, Undo2, RotateCcw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FS, LocalFile, GitHubMount } from '@/lib/fs';
@@ -1441,6 +1441,14 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
                   const id = Array.from(selectedFileIds)[0];
                   const file = files.find(f => f.id === id);
                   if (file) { setRenamingId(file.id); setRenameValue(file.name); }
+                }
+                if ((e.key === ' ' || e.code === 'Space') && selectedFileIds.size === 1) {
+                  e.preventDefault();
+                  const id = Array.from(selectedFileIds)[0];
+                  const file = files.find(f => f.id === id);
+                  if (file) {
+                    window.dispatchEvent(new CustomEvent('os:quick-look', { detail: { file } }));
+                  }
                 }
                 if (isInputFocused) return;
                 if ((e.key === 'Delete' || e.key === 'Backspace') && selectedFileIds.size > 0) {

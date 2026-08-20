@@ -219,6 +219,20 @@ export function MenuBar({
                   <div className="h-px my-1" style={{ background: 'var(--os-border)' }}></div>
                   <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors text-rose-400 font-semibold" onClick={(e) => { e.stopPropagation(); setOpenMenu(null); closeWindow(focusedWindow.id); }}>Close Editor (⌘W)</button>
                 </>
+              ) : focusedWindow?.appId === 'productivity' ? (
+                <>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); window.dispatchEvent(new CustomEvent('os:doc-new')); }}>New Document (⌘N)</button>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); window.dispatchEvent(new CustomEvent('os:doc-save')); }}>Save Document (⌘S)</button>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); window.dispatchEvent(new CustomEvent('os:doc-export-pdf')); }}>Export as PDF (⌘P)</button>
+                  <div className="h-px my-1" style={{ background: 'var(--os-border)' }}></div>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors text-rose-400 font-semibold" onClick={(e) => { e.stopPropagation(); setOpenMenu(null); closeWindow(focusedWindow.id); }}>Close Document (⌘W)</button>
+                </>
+              ) : focusedWindow?.appId === 'media-player' ? (
+                <>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); openWindow('files', 'Select Audio File', { initialPath: 'Media' }); }}>Open Media File (⌘O)</button>
+                  <div className="h-px my-1" style={{ background: 'var(--os-border)' }}></div>
+                  <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors text-rose-400 font-semibold" onClick={(e) => { e.stopPropagation(); setOpenMenu(null); closeWindow(focusedWindow.id); }}>Close Media Player (⌘W)</button>
+                </>
               ) : focusedWindow?.appId === 'browser' ? (
                 <>
                   <button role="menuitem" className="w-full text-left px-4 py-1.5 transition-colors" style={{ color: 'var(--os-text-muted)' }} onClick={(e) => { e.stopPropagation(); setOpenMenu(null); window.dispatchEvent(new CustomEvent('os:browser-new-tab')); }}>New Tab (⌘T)</button>

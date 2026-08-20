@@ -54,6 +54,7 @@ import { SpatialStage } from './spatial-stage';
 import { TimeMachine } from './time-machine';
 import { AudioVisualizer } from './audio-visualizer';
 import { AirDropModal } from './airdrop-modal';
+import { HotCorners } from './hot-corners';
 import { AIAgentBar } from '@/components/overlays/ai-agent-bar';
 import { DragShelf } from '@/components/overlays/drag-shelf';
 import { TelemetryHUD } from '@/components/overlays/telemetry-hud';
@@ -1094,6 +1095,7 @@ export function Desktop() {
       <AIAgentBar />
       <DragShelf />
       <TelemetryHUD />
+      <HotCorners setShowMissionControl={setShowMissionControl} setShowLaunchpad={setShowLaunchpad} setShowControlCenter={setShowControlCenter} />
 
       <Toaster
         position="bottom-right"

@@ -5,6 +5,7 @@ import { useWindowStore } from '@/lib/stores/window.store';
 import { FS, LocalFile } from '@/lib/fs';
 import { useFileStore } from '@/lib/stores/file.store';
 import { FileText, Film } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export function DesktopIcons() {
   const openWindow = useWindowStore((s) => s.openWindow);
@@ -78,15 +79,49 @@ Because the OS uses IndexedDB, your assets remain fully private and instantly ac
     return () => window.removeEventListener('os:refresh-desktop', handleRefresh);
   }, []);
 
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = document.activeElement?.tagName.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || (document.activeElement as HTMLElement)?.isContentEditable) return;
+
+      if ((e.key === ' ' || e.code === 'Space') && selectedFileName) {
+        e.preventDefault();
+        const file = desktopFiles.find(f => f.name === selectedFileName);
+        if (file) {
+          window.dispatchEvent(new CustomEvent('os:quick-look', { detail: { file } }));
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedFileName, desktopFiles]);
+
   return (
-    <div className="absolute inset-0 p-6 flex flex-col flex-wrap gap-6 items-start content-start z-0 pointer-events-auto">
+    <div 
+      className="absolute inset-0 p-6 flex flex-col flex-wrap gap-6 items-start content-start z-0 pointer-events-auto select-none"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) setSelectedFileName(null);
+      }}
+    >
       {desktopFiles.map((file, i) => {
         const isMedia = file.mimeType?.startsWith('video/') || file.mimeType?.startsWith('audio/');
         const isImage = file.mimeType?.startsWith('image/');
+        const isSelected = selectedFileName === file.name;
+
         return (
           <div
             key={i}
-            className="w-20 flex flex-col items-center gap-1.5 p-2 rounded-lg hover:bg-white/10 cursor-pointer group transition-colors"
+            className={cn(
+              "w-20 flex flex-col items-center gap-1.5 p-2 rounded-xl cursor-pointer group transition-all",
+              isSelected ? "bg-white/20 ring-1 ring-[#10F4A0]/60 shadow-lg shadow-black/40" : "hover:bg-white/10"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedFileName(file.name);
+            }}
             onDoubleClick={() => {
               const appId = useFileStore.getState().resolveSmartRoute(file.mimeType || '', file.name);
               if (appId) {
@@ -98,13 +133,16 @@ Because the OS uses IndexedDB, your assets remain fully private and instantly ac
           >
             {isImage && file.content ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img loading="lazy" src={file.content} alt={file.name} className="w-12 h-12 object-cover rounded shadow-lg" />
+              <img loading="lazy" src={file.content} alt={file.name} className="w-12 h-12 object-cover rounded-lg shadow-lg group-hover:scale-105 transition-transform" />
             ) : isMedia ? (
-              <Film className="w-12 h-12 text-rose-400 drop-shadow-md" />
+              <Film className="w-12 h-12 text-rose-400 drop-shadow-md group-hover:scale-105 transition-transform" />
             ) : (
-              <FileText className="w-12 h-12 text-white/80 drop-shadow-md" />
+              <FileText className="w-12 h-12 text-white/90 drop-shadow-md group-hover:scale-105 transition-transform" />
             )}
-            <span className="text-xs text-center font-medium text-white drop-shadow-md px-1 bg-black/30 rounded leading-tight line-clamp-2">
+            <span className={cn(
+              "text-[11px] text-center font-medium text-white drop-shadow-md px-1.5 py-0.5 rounded-md leading-tight line-clamp-2",
+              isSelected ? "bg-[#10F4A0]/30 text-white font-semibold" : "bg-black/40"
+            )}>
               {file.name}
             </span>
           </div>

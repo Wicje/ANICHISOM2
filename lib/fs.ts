@@ -93,6 +93,7 @@ const githubTreeCache = new Map<string, { tree: Array<{ path: string; mode: stri
 export interface LocalFile {
   id: string;
   name: string;
+  path?: string;
   content?: string;
   size?: number;
   mimeType?: string;

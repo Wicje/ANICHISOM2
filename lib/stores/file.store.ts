@@ -47,16 +47,23 @@ export type FileVersionEntry = {
   mimeType: string;
 };
 
+export type FileColorTag = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'gray';
+
 export type FileState = {
   // Navigation
   currentSource: FileSource;
   currentPath: string;
   files: FileItem[];
   selectedFiles: Set<string>;
-  viewMode: 'list' | 'grid';
+  viewMode: 'list' | 'grid' | 'columns';
   sortBy: 'name' | 'date' | 'size';
   sortDir: 'asc' | 'desc';
   searchQuery: string;
+  activeTagFilter: FileColorTag | null;
+
+  // Metadata & Tags (Finder Parity)
+  tagMap: Record<string, FileColorTag[]>;
+  trashPutBackMap: Record<string, { originalPath: string; deletedAt: number }>;
 
   // Source connections
   connectedSources: FileSource[];
@@ -75,10 +82,15 @@ export type FileState = {
   toggleFileSelection: (fileId: string) => void;
   selectAllFiles: () => void;
   clearSelection: () => void;
-  setViewMode: (mode: 'list' | 'grid') => void;
+  setViewMode: (mode: 'list' | 'grid' | 'columns') => void;
   setSortBy: (sort: 'name' | 'date' | 'size') => void;
   toggleSortDir: () => void;
   setSearchQuery: (query: string) => void;
+  setActiveTagFilter: (tag: FileColorTag | null) => void;
+  setFileTags: (pathOrId: string, tags: FileColorTag[]) => void;
+  getFileTags: (pathOrId: string) => FileColorTag[];
+  recordTrashPutBack: (trashPath: string, originalPath: string) => void;
+  getTrashPutBack: (trashPath: string) => string | null;
   connectSource: (source: FileSource) => void;
   disconnectSource: (source: FileSource) => void;
   setLocalFolderName: (name: string | null) => void;
@@ -170,6 +182,11 @@ export const useFileStore = create<FileState>((set, get) => ({
   sortBy: 'name',
   sortDir: 'asc',
   searchQuery: '',
+  activeTagFilter: null,
+
+  // Metadata & Tags (Finder Parity)
+  tagMap: {},
+  trashPutBackMap: {},
 
   // Sources
   connectedSources: ['opfs'],
@@ -205,6 +222,25 @@ export const useFileStore = create<FileState>((set, get) => ({
   setSortBy: (sort) => set({ sortBy: sort }),
   toggleSortDir: () => set(state => ({ sortDir: state.sortDir === 'asc' ? 'desc' : 'asc' })),
   setSearchQuery: (query) => set({ searchQuery: query }),
+  setActiveTagFilter: (tag) => set({ activeTagFilter: tag }),
+  
+  setFileTags: (pathOrId, tags) => set(state => ({
+    tagMap: { ...state.tagMap, [pathOrId]: tags }
+  })),
+
+  getFileTags: (pathOrId) => {
+    return get().tagMap[pathOrId] || [];
+  },
+
+  recordTrashPutBack: (trashPath, originalPath) => set(state => ({
+    trashPutBackMap: { ...state.trashPutBackMap, [trashPath]: { originalPath, deletedAt: Date.now() } }
+  })),
+
+  getTrashPutBack: (trashPath) => {
+    const entry = get().trashPutBackMap[trashPath];
+    return entry ? entry.originalPath : null;
+  },
+
   connectSource: (source) => set(state => ({
     connectedSources: state.connectedSources.includes(source)
       ? state.connectedSources
@@ -268,8 +304,15 @@ export const useFileStore = create<FileState>((set, get) => ({
 
   // Filtered files
   getFilteredFiles: () => {
-    const { files, searchQuery, sortBy, sortDir } = get();
+    const { files, searchQuery, sortBy, sortDir, activeTagFilter, tagMap } = get();
     let filtered = files;
+
+    if (activeTagFilter) {
+      filtered = filtered.filter(f => {
+        const tags = tagMap[f.id] || tagMap[f.path] || [];
+        return tags.includes(activeTagFilter);
+      });
+    }
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
