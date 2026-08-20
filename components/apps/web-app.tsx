@@ -87,70 +87,17 @@ export default function WebApp({ window: osWindow }: { window: any }) {
   }, [url, osWindow.appId]);
 
   // For native-feeling PWAs, we strip X-Frame-Options via extension or Tauri natively.
-  // Known-blocked hosts require the extension (or Tauri); without it we show a
-  // clean guide screen instead of falling back to the broken proxy. Other sites
-  // still attempt the proxy as a best-effort fallback.
+  // When no extension is detected, we automatically default to Live In-OS Stream Mode (via /api/proxy)
+  // so the user is NEVER blocked by an error screen!
   const isDirect = !!catalogItem?.isDirectEmbed;
-  const blockedNeedsExtension =
-    !isDirect && !extensionInstalled && !isTauri() && url.startsWith('http') && isKnownBlocked(url) && !proxyOptIn;
-  const isProxied =
-    !isDirect && !extensionInstalled && !isTauri() && url.startsWith('http') && !blockedNeedsExtension;
+  const isProxied = !isDirect && !extensionInstalled && !isTauri() && url.startsWith('http');
   const finalUrl = isDirect ? url : isProxied ? `/api/proxy?url=${encodeURIComponent(url)}` : url;
 
   if (initWait && !extensionInstalled && !isTauri()) {
     return (
-      <div className="w-full h-full relative bg-slate-900 text-slate-100 flex flex-col items-center justify-center font-sans p-6 gap-3">
-        <Loader2 className="w-7 h-7 text-cyan-400 animate-spin" />
-        <span className="text-xs font-medium text-slate-400">Initializing app view...</span>
-      </div>
-    );
-  }
-
-  if (blockedNeedsExtension) {
-    return (
-      <div className="w-full h-full relative bg-[var(--os-bg)] text-[var(--os-text)] flex flex-col items-center justify-center font-sans p-6 text-center overflow-y-auto select-none custom-scrollbar">
-        <div className="max-w-md w-full flex flex-col items-center gap-4 py-6 bg-[var(--os-surface)] border border-[var(--os-border)] rounded-3xl p-8 shadow-2xl">
-          <div className="p-4 rounded-2xl bg-[var(--os-primary)]/15 border border-[var(--os-primary)]/30 text-[var(--os-primary)]">
-            <ShieldAlert className="w-9 h-9" />
-          </div>
-          <div>
-            <h3 className="font-bold text-base text-[var(--os-text)] flex items-center justify-center gap-2">
-              <Globe className="w-4 h-4 text-[var(--os-primary)]" /> {osWindow.title || 'This Web App'}
-            </h3>
-            <p className="text-xs text-[var(--os-text-muted)] mt-1.5 leading-relaxed">
-              This service enforces browser iframe restrictions. Launch directly with zero install via our stream proxy, or enable the Continua extension for native zero-latency framing.
-            </p>
-            <p className="text-[10px] font-mono text-[var(--os-text-muted)] mt-2 truncate max-w-[280px] bg-[var(--os-surface-dim)] px-2 py-0.5 rounded-lg border border-[var(--os-border)] mx-auto">{url}</p>
-          </div>
-          <div className="flex flex-col gap-2.5 w-full max-w-[280px]">
-            <button
-              onClick={() => setProxyOptIn(true)}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-[var(--os-primary)] hover:brightness-110 text-slate-950 transition-all active:scale-95 shadow-md shadow-[var(--os-primary)]/20"
-            >
-              <Zap className="w-3.5 h-3.5 fill-current" /> Live In-OS Mode (Zero-Install)
-            </button>
-            <button
-              onClick={() => setShowGuide(true)}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl bg-[var(--os-surface-dim)] hover:bg-[var(--os-hover)] text-[var(--os-text)] border border-[var(--os-border)] transition-all active:scale-95"
-            >
-              <Download className="w-3.5 h-3.5 text-[var(--os-primary)]" /> 1-Click Extension Setup
-            </button>
-            <button
-              onClick={() => window.open(url, '_blank')}
-              className="flex items-center justify-center gap-2 px-4 py-2 text-[11px] font-medium rounded-xl hover:bg-[var(--os-hover)] text-[var(--os-text-muted)] hover:text-[var(--os-text)] transition-all"
-            >
-              <ExternalLink className="w-3.5 h-3.5" /> Open in External Browser Tab
-            </button>
-          </div>
-        </div>
-
-        {showGuide && (
-          <ExtensionGuideModal
-            url={url}
-            extensionInstalled={extensionInstalled}
-            onClose={() => setShowGuide(false)}
-          />
-        )}
+      <div className="w-full h-full relative bg-[var(--os-bg)] text-[var(--os-text)] flex flex-col items-center justify-center font-sans p-6 gap-3 select-none">
+        <Loader2 className="w-7 h-7 text-[var(--os-primary)] animate-spin" />
+        <span className="text-xs font-semibold text-[var(--os-text-muted)]">Connecting to {catalogItem?.name || osWindow.title || 'App'}...</span>
       </div>
     );
   }
@@ -397,13 +344,40 @@ function ExtensionGuideModal({
               </div>
 
               <div className="space-y-2.5">
-                <div className="text-xs font-bold text-[var(--os-text)] uppercase tracking-wider">Quick Setup (10 Seconds)</div>
+                <div className="text-xs font-bold text-[var(--os-text)] uppercase tracking-wider">Quick Setup (15 Seconds)</div>
                 {isFirefox ? (
-                  <ol className="space-y-2 text-xs text-[var(--os-text-muted)] list-decimal list-inside leading-relaxed">
-                    <li>Click <strong className="text-[var(--os-text)]">Download .XPI</strong> above.</li>
-                    <li>Firefox will prompt <strong className="text-[var(--os-text)]">"Add Continua Context Bridge?"</strong> — click Add.</li>
-                    <li>All web apps now embed natively with zero configuration!</li>
-                  </ol>
+                  <div className="space-y-3">
+                    <ol className="space-y-2 text-xs text-[var(--os-text-muted)] list-decimal list-inside leading-relaxed">
+                      <li>Click <strong className="text-[var(--os-text)]">Download .XPI</strong> above (saves to your PC Downloads).</li>
+                      <li>In a new Firefox tab, open <code className="text-[11px] font-mono text-[var(--os-primary)] bg-[var(--os-surface)] px-1.5 py-0.5 rounded border border-[var(--os-border)]">about:addons</code> (or <code className="text-[11px] font-mono text-[var(--os-primary)] bg-[var(--os-surface)] px-1.5 py-0.5 rounded border border-[var(--os-border)]">about:debugging#/runtime/this-firefox</code>).</li>
+                      <li>Click the ⚙️ <strong className="text-[var(--os-text)]">Gear icon</strong> at the top right &rarr; select <strong className="text-[var(--os-text)]">"Install Add-on From File..."</strong> (or "Load Temporary Add-on").</li>
+                      <li>Select the downloaded <code className="text-[10px] text-[var(--os-text)] font-mono">continua-context-bridge.xpi</code> file.</li>
+                    </ol>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText('about:addons');
+                            window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Copied', description: 'Copied "about:addons" to clipboard. Paste in a new browser tab.', type: 'info' } }));
+                          } catch {}
+                        }}
+                        className="px-3 py-1.5 bg-[var(--os-surface)] hover:bg-[var(--os-hover)] text-[var(--os-text)] text-xs rounded-xl border border-[var(--os-border)] font-semibold transition-all flex items-center gap-1.5"
+                      >
+                        <Copy className="w-3 h-3 text-[var(--os-primary)]" /> Copy "about:addons"
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText('about:debugging#/runtime/this-firefox');
+                            window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Copied', description: 'Copied "about:debugging" to clipboard. Paste in a new browser tab.', type: 'info' } }));
+                          } catch {}
+                        }}
+                        className="px-3 py-1.5 bg-[var(--os-surface)] hover:bg-[var(--os-hover)] text-[var(--os-text)] text-xs rounded-xl border border-[var(--os-border)] font-semibold transition-all flex items-center gap-1.5"
+                      >
+                        <Copy className="w-3 h-3 text-[var(--os-primary)]" /> Copy "about:debugging"
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <ol className="space-y-2 text-xs text-[var(--os-text-muted)] list-decimal list-inside leading-relaxed">
                     <li>Download &amp; unzip the package, or locate <code className="text-[10px] text-[var(--os-text)]">chrome-extension/</code>.</li>
