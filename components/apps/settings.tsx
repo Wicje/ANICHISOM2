@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { useFileStore } from '@/lib/stores/file.store';
 import { useOS, OSWindow } from '@/lib/os-context';
-import { Image as ImageIcon, Palette, Save, Type, Eye, Settings2, Monitor, User, Volume2, VolumeX, Shield, Keyboard, CloudRain, Coffee, Trees, Radio, Download, Upload, HardDrive, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, Palette, Save, Type, Eye, Settings2, Monitor, User, Volume2, VolumeX, Shield, Keyboard, CloudRain, Coffee, Trees, Radio, Download, Upload, HardDrive, Trash2, Github, Sparkles, ExternalLink, Loader2, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useAuthStore } from '@/lib/stores/auth.store';
 import { usePrivacyStore } from '@/lib/stores/privacy.store';
 import { audioSystem } from '@/lib/services/audio-engine';
 import { ambientSounds, type AmbientPreset } from '@/lib/services/ambient-sounds';
+import { githubDeviceFlow, DeviceCodeResponse, GitHubProfile } from '@/lib/services/github-device-flow.service';
+import { GoogleSSOService, GoogleUser } from '@/lib/services/google-sso.service';
 
 const PRESET_WALLPAPERS = [
   { name: 'Tahoe Mesh', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop' },
@@ -80,6 +82,88 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
 
   const [storageInfo, setStorageInfo] = useState<{ usage: number; quota: number }>({ usage: 0, quota: 1024 * 1024 * 1024 * 10 });
   const [cleaningCache, setCleaningCache] = useState(false);
+  const [deviceCodeData, setDeviceCodeData] = useState<DeviceCodeResponse | null>(null);
+  const [isAuthorizingGithub, setIsAuthorizingGithub] = useState(false);
+  const [githubProfile, setGithubProfile] = useState<GitHubProfile | null>(null);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [googleProfile, setGoogleProfile] = useState<GoogleUser | null>(null);
+
+  React.useEffect(() => {
+    try {
+      const gh = localStorage.getItem('continuaos_github_profile');
+      if (gh) setGithubProfile(JSON.parse(gh));
+      const gUser = localStorage.getItem('continuaos_google_user');
+      if (gUser) setGoogleProfile(JSON.parse(gUser));
+    } catch {}
+  }, []);
+
+  const handleStartGithubDeviceFlow = async () => {
+    try {
+      setIsAuthorizingGithub(true);
+      audioSystem.playClick();
+      const codeRes = await githubDeviceFlow.requestDeviceCode();
+      setDeviceCodeData(codeRes);
+      
+      // Open verification URI in a new tab
+      if (typeof window !== 'undefined') {
+        window.open(codeRes.verification_uri, '_blank');
+      }
+
+      githubDeviceFlow.pollForToken(
+        codeRes.device_code,
+        codeRes.interval,
+        (profile) => {
+          setGithubProfile(profile);
+          setIsAuthorizingGithub(false);
+          setDeviceCodeData(null);
+          audioSystem.playClick();
+          if (currentUser) {
+            const updated = { ...currentUser, name: profile.name || profile.login, avatarUrl: profile.avatar_url };
+            setCurrentUser(updated);
+            setAuthUser(updated);
+          }
+          window.dispatchEvent(new CustomEvent('os:notify', {
+            detail: { title: 'GitHub Connected', description: `Authenticated as @${profile.login}`, type: 'success' }
+          }));
+        },
+        (err) => {
+          setIsAuthorizingGithub(false);
+          setDeviceCodeData(null);
+          window.dispatchEvent(new CustomEvent('os:notify', {
+            detail: { title: 'GitHub Auth Failed', description: err, type: 'error' }
+          }));
+        }
+      );
+    } catch (e: any) {
+      setIsAuthorizingGithub(false);
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Auth Error', description: e.message, type: 'error' }
+      }));
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsGoogleLoading(true);
+      audioSystem.playClick();
+      const gUser = await GoogleSSOService.signInWithGoogleOneTap();
+      setGoogleProfile(gUser);
+      setIsGoogleLoading(false);
+      if (currentUser) {
+        const updated = { ...currentUser, name: gUser.name, avatarUrl: gUser.picture };
+        setCurrentUser(updated);
+        setAuthUser(updated);
+      }
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Google Connected', description: `Signed in as ${gUser.email}`, type: 'success' }
+      }));
+    } catch (e: any) {
+      setIsGoogleLoading(false);
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Google Sign-In Error', description: e.message, type: 'error' }
+      }));
+    }
+  };
 
   React.useEffect(() => {
     if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.estimate) {
@@ -684,38 +768,93 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                 </div>
 
                 <div className="space-y-3">
+                  {/* GitHub Device Flow Card */}
+                  <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-neutral-900 border border-white/20 rounded flex items-center justify-center text-white">
+                          <Github className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-sm">GitHub (Device Flow RFC 8628)</h3>
+                          {githubProfile ? (
+                            <p className="text-xs text-emerald-400 mt-0.5 flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Connected as @{githubProfile.login} ({githubProfile.public_repos} repos)
+                            </p>
+                          ) : (
+                            <p className="text-xs text-white/40 mt-0.5">1-Click Code Confirmation (No OAuth app setup needed)</p>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleStartGithubDeviceFlow}
+                        disabled={isAuthorizingGithub}
+                        className="text-sm px-4 py-1.5 rounded-lg border border-white/20 hover:bg-white/10 transition-colors flex items-center gap-1.5"
+                      >
+                        {isAuthorizingGithub ? (
+                          <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Authorizing...</>
+                        ) : githubProfile ? (
+                          'Reconnect'
+                        ) : (
+                          'Connect GitHub'
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Active Device Code Display Banner */}
+                    {deviceCodeData && (
+                      <div className="p-3 rounded-xl bg-black/60 border border-cyan-500/40 flex flex-col gap-2 animate-in fade-in">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-300">Enter this code on GitHub:</span>
+                          <span className="font-mono font-black text-sm text-cyan-400 tracking-widest bg-cyan-950/60 px-2.5 py-0.5 rounded border border-cyan-400/40">
+                            {deviceCodeData.user_code}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-slate-400">
+                          <span>Waiting for your approval on GitHub...</span>
+                          <a
+                            href={deviceCodeData.verification_uri}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-cyan-400 underline flex items-center gap-1"
+                          >
+                            Open github.com/login/device <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Google SSO Card */}
                   <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
-                        <img loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/d/da/Google_Drive_logo.png" alt="Google Drive" className="w-5 h-5" />
+                        <img loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" className="w-5 h-5" />
                       </div>
                       <div>
-                        <h3 className="font-medium text-sm">Google Drive</h3>
-                        {connectedSources.includes('google-drive') ? (
-                          <p className="text-xs text-green-400 mt-1">Connected</p>
+                        <h3 className="font-medium text-sm">Google Account (Identity Services)</h3>
+                        {googleProfile ? (
+                          <p className="text-xs text-emerald-400 mt-0.5 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Signed in as {googleProfile.email}
+                          </p>
                         ) : (
-                          <p className="text-xs text-white/40 mt-1">Not Connected</p>
+                          <p className="text-xs text-white/40 mt-0.5">1-Click Google Profile & Drive Sync</p>
                         )}
                       </div>
                     </div>
-                    <button className="text-sm px-4 py-1.5 rounded-lg border border-white/20 hover:bg-white/10 transition-colors">Manage</button>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-[#0061ff] rounded flex items-center justify-center text-white font-bold font-serif italic text-lg">
-                        db
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-sm">Dropbox</h3>
-                        {connectedSources.includes('dropbox') ? (
-                          <p className="text-xs text-green-400 mt-1">Connected</p>
-                        ) : (
-                          <p className="text-xs text-white/40 mt-1">Not Connected</p>
-                        )}
-                      </div>
-                    </div>
-                    <button className="text-sm px-4 py-1.5 rounded-lg border border-blue-500/50 text-blue-400 hover:bg-blue-500/10 transition-colors">Connect</button>
+                    <button
+                      onClick={handleGoogleSignIn}
+                      disabled={isGoogleLoading}
+                      className="text-sm px-4 py-1.5 rounded-lg border border-white/20 hover:bg-white/10 transition-colors flex items-center gap-1.5"
+                    >
+                      {isGoogleLoading ? (
+                        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Signing in...</>
+                      ) : googleProfile ? (
+                        'Switch Account'
+                      ) : (
+                        'Sign in with Google'
+                      )}
+                    </button>
                   </div>
                 </div>
               </section>
