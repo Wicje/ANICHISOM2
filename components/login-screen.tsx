@@ -168,55 +168,54 @@ export function LoginScreen() {
     setError('');
     setIsLoading(true);
     try {
-      if (provider === 'google') {
-        const { GoogleSSOService } = await import('@/lib/services/google-sso.service');
-        const gUser = await GoogleSSOService.signInWithGoogleOneTap();
-        setCurrentUser({
-          id: gUser.id,
-          name: gUser.name,
-          email: gUser.email,
-          avatarUrl: gUser.picture,
-          role: 'user',
-        });
-        window.dispatchEvent(new CustomEvent('os:fresh-sign-in'));
-        setIsLoading(false);
-        return;
-      }
-
-      if (provider === 'github') {
-        const { githubDeviceFlow } = await import('@/lib/services/github-device-flow.service');
-        const codeRes = await githubDeviceFlow.requestDeviceCode();
-        window.open(codeRes.verification_uri, '_blank');
-        githubDeviceFlow.pollForToken(
-          codeRes.device_code,
-          codeRes.interval,
-          (profile) => {
-            setCurrentUser({
-              id: String(profile.id),
-              name: profile.name || profile.login,
-              email: profile.email || `${profile.login}@github.com`,
-              avatarUrl: profile.avatar_url,
-              role: 'user',
-            });
-            window.dispatchEvent(new CustomEvent('os:fresh-sign-in'));
-            setIsLoading(false);
-          },
-          () => {
-            setIsLoading(false);
-          }
-        );
-        return;
-      }
-    } catch {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=/os`,
+          queryParams: provider === 'google' ? { access_type: 'offline', prompt: 'consent' } : undefined,
+        },
+      });
+      if (error) throw error;
+    } catch (err: unknown) {
+      console.warn('[SSO] Supabase OAuth redirect failed, trying client-side fallback:', err);
       try {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider,
-          options: {
-            redirectTo: `${window.location.origin}/`,
-          },
-        });
-        if (error) throw error;
-      } catch (err: unknown) {
+        if (provider === 'google') {
+          const { GoogleSSOService } = await import('@/lib/services/google-sso.service');
+          const gUser = await GoogleSSOService.signInWithGoogleOneTap();
+          setCurrentUser({
+            id: gUser.id,
+            name: gUser.name,
+            email: gUser.email,
+            avatarUrl: gUser.picture,
+            role: 'user',
+          });
+          window.dispatchEvent(new CustomEvent('os:fresh-sign-in'));
+          setIsLoading(false);
+          return;
+        }
+        if (provider === 'github') {
+          const { githubDeviceFlow } = await import('@/lib/services/github-device-flow.service');
+          const codeRes = await githubDeviceFlow.requestDeviceCode();
+          window.open(codeRes.verification_uri, '_blank');
+          githubDeviceFlow.pollForToken(
+            codeRes.device_code,
+            codeRes.interval,
+            (profile) => {
+              setCurrentUser({
+                id: String(profile.id),
+                name: profile.name || profile.login,
+                email: profile.email || `${profile.login}@github.com`,
+                avatarUrl: profile.avatar_url,
+                role: 'user',
+              });
+              window.dispatchEvent(new CustomEvent('os:fresh-sign-in'));
+              setIsLoading(false);
+            },
+            () => setIsLoading(false)
+          );
+          return;
+        }
+      } catch (fallbackErr) {
         const message = err instanceof Error ? err.message : 'SSO failed';
         setError(message);
         setIsLoading(false);
