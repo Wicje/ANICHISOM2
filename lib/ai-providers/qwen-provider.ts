@@ -41,7 +41,7 @@ export class QwenProvider implements IAiProvider {
   private baseUrl: string;
 
   constructor(apiKey?: string, baseUrl?: string) {
-    this.apiKey = apiKey || process.env.QWEN_API_KEY || process.env.DASHSCOPE_API_KEY || '';
+    this.apiKey = apiKey || (typeof window !== 'undefined' ? (localStorage.getItem('continuaos_ai_qwen_key') || localStorage.getItem('continuaos_qwen_api_key') || '') : '') || process.env.QWEN_API_KEY || process.env.DASHSCOPE_API_KEY || '';
     this.baseUrl = baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
   }
 

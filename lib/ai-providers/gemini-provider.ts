@@ -44,7 +44,7 @@ export class GeminiProvider implements IAiProvider {
   private apiKey: string;
 
   constructor(apiKey?: string) {
-    this.apiKey = apiKey || process.env.GEMINI_API_KEY || '';
+    this.apiKey = apiKey || (typeof window !== 'undefined' ? (localStorage.getItem('continuaos_ai_gemini_key') || localStorage.getItem('continuaos_gemini_api_key') || '') : '') || process.env.GEMINI_API_KEY || '';
   }
 
   async isAvailable(): Promise<boolean> {

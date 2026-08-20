@@ -45,7 +45,7 @@ export class OpenAIProvider implements IAiProvider {
   private baseUrl: string;
 
   constructor(apiKey?: string, baseUrl?: string) {
-    this.apiKey = apiKey || process.env.OPENAI_API_KEY || '';
+    this.apiKey = apiKey || (typeof window !== 'undefined' ? (localStorage.getItem('continuaos_ai_openai_key') || localStorage.getItem('continuaos_openai_api_key') || '') : '') || process.env.OPENAI_API_KEY || '';
     this.baseUrl = baseUrl || 'https://api.openai.com/v1';
   }
 

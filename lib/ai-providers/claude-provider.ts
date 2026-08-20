@@ -45,7 +45,7 @@ export class ClaudeProvider implements IAiProvider {
   private baseUrl: string;
 
   constructor(apiKey?: string, baseUrl?: string) {
-    this.apiKey = apiKey || process.env.ANTHROPIC_API_KEY || '';
+    this.apiKey = apiKey || (typeof window !== 'undefined' ? (localStorage.getItem('continuaos_ai_claude_key') || localStorage.getItem('continuaos_claude_api_key') || '') : '') || process.env.ANTHROPIC_API_KEY || '';
     this.baseUrl = baseUrl || 'https://api.anthropic.com/v1';
   }
 

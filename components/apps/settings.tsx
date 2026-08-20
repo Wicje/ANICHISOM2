@@ -88,12 +88,19 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [googleProfile, setGoogleProfile] = useState<GoogleUser | null>(null);
 
+  const [geminiKey, setGeminiKey] = useState('');
+  const [openaiKey, setOpenaiKey] = useState('');
+  const [claudeKey, setClaudeKey] = useState('');
+
   React.useEffect(() => {
     try {
       const gh = localStorage.getItem('continuaos_github_profile');
       if (gh) setGithubProfile(JSON.parse(gh));
       const gUser = localStorage.getItem('continuaos_google_user');
       if (gUser) setGoogleProfile(JSON.parse(gUser));
+      setGeminiKey(localStorage.getItem('continuaos_ai_gemini_key') || '');
+      setOpenaiKey(localStorage.getItem('continuaos_ai_openai_key') || '');
+      setClaudeKey(localStorage.getItem('continuaos_ai_claude_key') || '');
     } catch {}
   }, []);
 
@@ -855,6 +862,112 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                         'Sign in with Google'
                       )}
                     </button>
+                  </div>
+                </div>
+              </section>
+
+              {/* Personal AI Intelligence Keys (BYOK) */}
+              <section className="space-y-6">
+                <div className="flex items-center gap-2 pb-2 border-b border-white/10">
+                  <Sparkles className="w-5 h-5 text-cyan-400" />
+                  <div>
+                    <h2 className="text-lg font-medium">Personal AI Intelligence (Bring Your Own Key)</h2>
+                    <p className="text-xs text-white/40">Each user can use their personal AI accounts. Keys are stored locally in your browser and never shared.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {/* Google Gemini */}
+                  <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-white flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Google Gemini API Key
+                      </span>
+                      <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline flex items-center gap-1">
+                        Get free key at Google AI Studio <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        placeholder="AIzaSy..."
+                        value={geminiKey}
+                        onChange={(e) => setGeminiKey(e.target.value)}
+                        className="flex-1 bg-black/40 border border-white/15 px-3 py-1.5 rounded-lg text-xs text-white placeholder-white/30 focus:outline-none focus:border-cyan-400"
+                      />
+                      <button
+                        onClick={() => {
+                          localStorage.setItem('continuaos_ai_gemini_key', geminiKey.trim());
+                          audioSystem.playClick();
+                          window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Gemini Key Saved', description: 'Personal Gemini key active for your session', type: 'success' } }));
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-semibold"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* OpenAI */}
+                  <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-white flex items-center gap-1.5">
+                        OpenAI API Key (GPT-4o)
+                      </span>
+                      <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline flex items-center gap-1">
+                        Get OpenAI key <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        placeholder="sk-..."
+                        value={openaiKey}
+                        onChange={(e) => setOpenaiKey(e.target.value)}
+                        className="flex-1 bg-black/40 border border-white/15 px-3 py-1.5 rounded-lg text-xs text-white placeholder-white/30 focus:outline-none focus:border-cyan-400"
+                      />
+                      <button
+                        onClick={() => {
+                          localStorage.setItem('continuaos_ai_openai_key', openaiKey.trim());
+                          audioSystem.playClick();
+                          window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'OpenAI Key Saved', description: 'Personal OpenAI key active for your session', type: 'success' } }));
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-semibold"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Anthropic Claude */}
+                  <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-white flex items-center gap-1.5">
+                        Anthropic Claude API Key
+                      </span>
+                      <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline flex items-center gap-1">
+                        Get Claude key <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        placeholder="sk-ant-..."
+                        value={claudeKey}
+                        onChange={(e) => setClaudeKey(e.target.value)}
+                        className="flex-1 bg-black/40 border border-white/15 px-3 py-1.5 rounded-lg text-xs text-white placeholder-white/30 focus:outline-none focus:border-cyan-400"
+                      />
+                      <button
+                        onClick={() => {
+                          localStorage.setItem('continuaos_ai_claude_key', claudeKey.trim());
+                          audioSystem.playClick();
+                          window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Claude Key Saved', description: 'Personal Claude key active for your session', type: 'success' } }));
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-semibold"
+                      >
+                        Save
+                      </button>
+                    </div>
                   </div>
                 </div>
               </section>

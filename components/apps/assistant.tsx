@@ -498,6 +498,58 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
         </div>
       </div>
 
+      {/* In-App BYOK AI Settings Drawer */}
+      {showSettings && (
+        <div className="p-4 bg-slate-900/95 border-b border-white/10 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" /> Personal AI Keys (Saved in your browser)
+            </span>
+            <button onClick={() => setShowSettings(false)} className="text-white/50 hover:text-white text-xs">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <label className="text-[10px] text-white/50 block mb-1">Google Gemini Key</label>
+              <input
+                type="password"
+                placeholder="AIzaSy..."
+                defaultValue={typeof window !== 'undefined' ? (localStorage.getItem('continuaos_ai_gemini_key') || '') : ''}
+                onChange={(e) => {
+                  if (typeof window !== 'undefined') localStorage.setItem('continuaos_ai_gemini_key', e.target.value.trim());
+                }}
+                className="w-full bg-black/50 border border-white/15 px-2.5 py-1 rounded text-xs text-white placeholder:text-white/20 focus:border-cyan-400 outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-white/50 block mb-1">OpenAI Key (GPT-4o)</label>
+              <input
+                type="password"
+                placeholder="sk-..."
+                defaultValue={typeof window !== 'undefined' ? (localStorage.getItem('continuaos_ai_openai_key') || '') : ''}
+                onChange={(e) => {
+                  if (typeof window !== 'undefined') localStorage.setItem('continuaos_ai_openai_key', e.target.value.trim());
+                }}
+                className="w-full bg-black/50 border border-white/15 px-2.5 py-1 rounded text-xs text-white placeholder:text-white/20 focus:border-cyan-400 outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-white/50 block mb-1">Anthropic Claude Key</label>
+              <input
+                type="password"
+                placeholder="sk-ant-..."
+                defaultValue={typeof window !== 'undefined' ? (localStorage.getItem('continuaos_ai_claude_key') || '') : ''}
+                onChange={(e) => {
+                  if (typeof window !== 'undefined') localStorage.setItem('continuaos_ai_claude_key', e.target.value.trim());
+                }}
+                className="w-full bg-black/50 border border-white/15 px-2.5 py-1 rounded text-xs text-white placeholder:text-white/20 focus:border-cyan-400 outline-none"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Chat History */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg, i) => (
