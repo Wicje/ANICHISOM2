@@ -97,7 +97,7 @@ export function CommandCenter({ window: osWindow, onSelectCampaign }: { window?:
                     >
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="text-3xl">{campaign.icon || '🎯'}</div>
+                          <div className="text-3xl">{campaign.icon || 'target'}</div>
                           <div>
                             <h3 className="font-bold text-slate-800 text-base">{campaign.title || 'Untitled'}</h3>
                             <span className="text-xs text-slate-500 flex items-center gap-1"><Clock className="w-3 h-3" /> Updated {new Date(campaign.updatedAt).toLocaleDateString()}</span>

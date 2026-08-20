@@ -340,7 +340,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
             <div className="text-xs font-semibold text-[#37352f]/50 uppercase tracking-wider mb-2">Tools</div>
             <div className="flex flex-col gap-1">
               <button onClick={() => setCoverPickerOpen(true)} className="flex items-center gap-2 text-xs text-[#37352f]/70 hover:bg-black/5 p-2 rounded text-left">
-                <span>🎨</span> Cover Picker
+                <span>Cover</span> Picker
               </button>
               <button onClick={() => setShareModalOpen(true)} className="flex items-center gap-2 text-xs text-[#37352f]/70 hover:bg-black/5 p-2 rounded text-left">
                 <Share2 className="w-4 h-4 text-blue-500" /> Share & Permissions
@@ -584,8 +584,8 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
                  <button
                   className="flex items-center gap-1 text-sm text-[#37352f]/50 hover:bg-black/5 px-2 py-1 rounded transition-colors"
                   onClick={() => {
-                     const icons = ['📄', '🎯', '📝', '✨', '🚀', '💡', '🔥', '🎨', '📦', '📅', '🏭', '📸', '⚙️', '📋', '💻'];
-                     const randomIcon = '📄';
+                     const icons = ['doc', 'target', 'note', 'sparkles', 'rocket', 'idea', 'fire', 'palette', 'package', 'calendar', 'factory', 'camera', 'settings', 'clipboard', 'laptop'];
+                     const randomIcon = 'doc';
                      updatePage(activePage.id, { icon: randomIcon });
                   }}
                  >
@@ -678,7 +678,7 @@ export function CampaignLab({ window: osWindow }: { window: OSWindow }) {
           </div>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-[#37352f]/40 text-sm gap-4">
-            <div className="text-6xl">🎯</div>
+            <div className="text-6xl text-cyan-400 font-bold">C</div>
             <div className="text-lg font-medium text-[#37352f]/60">Select or create a campaign document</div>
             <div className="flex gap-2">
               {TEMPLATES.slice(0, 4).map(t => (

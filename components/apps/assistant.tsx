@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { OSWindow } from '@/lib/os-context';
-import { Sparkles, Send, Bot, User, Settings2, Loader2, AlertCircle, ChevronDown, Home, Bookmark, Zap, Layout, Mic, X } from 'lucide-react';
+import { Sparkles, Send, Bot, User, Settings2, Loader2, AlertCircle, ChevronDown, Home, Bookmark, Zap, Layout, Mic, X, Check } from 'lucide-react';
 import { useOS } from '@/lib/os-context';
 import { useWindowStore } from '@/lib/stores/window.store';
 import { StorageAdapter } from '@/lib/storage';
@@ -376,7 +376,7 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
               <div key={card.id} className="group p-3 bg-white/5 border border-white/10 rounded-xl hover:border-white/20 transition-all">
                 <div className="flex items-start gap-2">
                   <button onClick={() => toggleFutureCard(card.id)} className={cn('mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all', card.done ? 'bg-green-500 border-green-500' : 'border-white/30 hover:border-white/50')}>
-                    {card.done && <span className="text-[10px] text-white">✓</span>}
+                    {card.done && <Check className="w-3 h-3 text-white" />}
                   </button>
                   <span className={cn('text-sm flex-1', card.done && 'line-through text-white/30')}>{card.text}</span>
                   <button onClick={() => deleteFutureCard(card.id)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all">
@@ -446,7 +446,7 @@ When a user asks to open an app, respond naturally like "Opening [app name] for 
               onClick={() => setIsVoiceActive(false)} 
               className="w-5 h-5 rounded-full bg-rose-500/20 hover:bg-rose-500/40 text-rose-400 font-bold text-[10px] flex items-center justify-center transition-colors"
             >
-              ✕
+              <X className="w-3 h-3" />
             </button>
           </div>
         </div>

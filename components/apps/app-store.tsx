@@ -10,12 +10,12 @@ export { WEB_APP_CATALOG };
 
 const CATEGORIES: { id: string; label: string }[] = [
   { id: 'all', label: 'All Apps' },
-  { id: 'developer', label: '💻 Developer' },
-  { id: 'design', label: '🎨 Designer' },
-  { id: 'business', label: '💼 Business & PM' },
-  { id: 'student', label: '🎓 Student & STEM' },
-  { id: 'writer', label: '✍️ Writer & Editor' },
-  { id: 'media', label: '🎵 Media' },
+  { id: 'developer', label: 'Developer' },
+  { id: 'design', label: 'Designer' },
+  { id: 'business', label: 'Business & PM' },
+  { id: 'student', label: 'Student & STEM' },
+  { id: 'writer', label: 'Writer & Editor' },
+  { id: 'media', label: 'Media' },
 ];
 
 export function AppStoreApp() {

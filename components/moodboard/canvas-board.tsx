@@ -122,10 +122,10 @@ export function CanvasBoard({ window: osWindow }: { window: any }) {
         <div className="flex items-center gap-3 bg-white/80 backdrop-blur-lg rounded-2xl px-5 py-2.5 shadow-lg border border-gray-200">
           {[
             { icon: '⊞', label: 'Grid' },
-            { icon: '🎨', label: 'Style' },
-            { icon: '💬', label: 'Comment' },
-            { icon: '📎', label: 'Attach' },
-            { icon: '🗑', label: 'Delete' },
+            { icon: 'palette', label: 'Style' },
+            { icon: 'message-square', label: 'Comment' },
+            { icon: 'paperclip', label: 'Attach' },
+            { icon: 'trash-2', label: 'Delete' },
           ].map((item, i) => (
             <button key={i} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors text-sm">
               {item.icon}

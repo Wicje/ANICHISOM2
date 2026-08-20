@@ -407,11 +407,11 @@ export function AdminPanel({ window: osWindow }: { window: OSWindow }) {
                   <div>
                     <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Role</label>
                     <select value={inviteRole} onChange={e => setInviteRole(e.target.value)} className="w-full bg-black border border-white/20 rounded px-3 py-2 text-xs text-white outline-none focus:border-emerald-400">
-                      <option value="beta">🎟️ Beta Tester (Beta Boys)</option>
-                      <option value="user">👤 Standard User</option>
-                      <option value="filmmaker">🎬 Filmmaker</option>
+                      <option value="beta">Beta Tester (Beta Boys)</option>
+                      <option value="user">Standard User</option>
+                      <option value="filmmaker">Filmmaker</option>
                       <option value="technician">⚡ Technician</option>
-                      <option value="admin">👑 Admin</option>
+                      <option value="admin">Admin</option>
                     </select>
                   </div>
                   <div>

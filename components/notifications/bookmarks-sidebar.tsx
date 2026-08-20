@@ -21,7 +21,7 @@ const bookmarks: BookmarkItem[] = [
   {
     name: 'Ethan',
     handle: '@liamdesi',
-    avatar: '🐱',
+    avatar: 'KT',
     avatarColor: 'bg-emerald-200',
     text: 'Design Notes is a show that teaches us, hosted by...',
     tags: [
@@ -34,7 +34,7 @@ const bookmarks: BookmarkItem[] = [
   {
     name: 'Sofia',
     handle: '@Sofia',
-    avatar: '🐸',
+    avatar: 'FG',
     avatarColor: 'bg-green-200',
     text: 'How seven design problems — from inception to goi...',
     tags: [
@@ -47,7 +47,7 @@ const bookmarks: BookmarkItem[] = [
   {
     name: 'Zara',
     handle: '@Zara',
-    avatar: '🟢',
+    avatar: 'US',
     avatarColor: 'bg-green-100',
     text: 'Just the usual, you know...',
     tags: [],

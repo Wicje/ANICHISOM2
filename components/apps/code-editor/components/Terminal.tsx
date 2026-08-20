@@ -85,7 +85,7 @@ export function TerminalPanel({ terminalOpen, setTerminalOpen, projectId }: Term
             <span className="text-[11px] uppercase tracking-wider text-white/50 hover:text-white cursor-pointer pb-2">Ports</span>
          </div>
          <div className="flex gap-2 pb-2">
-            <button onClick={() => setTerminalOpen(false)} className="text-white/50 hover:text-white">✖</button>
+            <button onClick={() => setTerminalOpen(false)} className="text-white/50 hover:text-white">X</button>
          </div>
       </div>
       <div className="p-3 flex-1 overflow-y-auto" onClick={() => inputRef.current?.focus()}>

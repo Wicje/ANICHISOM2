@@ -1179,7 +1179,7 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
                   </button>
                   <button onClick={() => {
                     const voteNodes = nodes.filter(n => n.type === 'image' || n.type === 'embed');
-                    if (voteNodes[currentVoteIndex]) addNodeReaction(voteNodes[currentVoteIndex].id, '❤️');
+                    if (voteNodes[currentVoteIndex]) addNodeReaction(voteNodes[currentVoteIndex].id, 'like');
                     setCurrentVoteIndex(c => c + 1);
                   }} className="w-16 h-16 rounded-full bg-white/10 backdrop-blur border border-white/20 text-emerald-400 flex items-center justify-center hover:bg-emerald-500 hover:border-emerald-500 hover:text-white transition-all shadow-xl">
                     <Heart className="w-8 h-8 fill-current" />
@@ -1190,7 +1190,7 @@ export function Moodboard({ window: osWindow }: { window: OSWindow }) {
               <div className="text-center bg-white/5 border border-white/10 p-8 rounded-2xl max-w-md w-full">
                 <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
                 <h3 className="text-xl font-bold text-white mb-2">Voting Complete</h3>
-                <p className="text-white/60 text-sm mb-6">Taste profile generated. Approved items have ❤️ reactions.</p>
+                <p className="text-white/60 text-sm mb-6">Taste profile generated. Approved items have liked reactions.</p>
                 <button onClick={() => setVoteMode(false)} className="px-6 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-medium rounded-lg transition-colors">Return to Canvas</button>
               </div>
             )

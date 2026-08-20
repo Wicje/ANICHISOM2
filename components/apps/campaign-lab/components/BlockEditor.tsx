@@ -7,7 +7,7 @@ import { GripVertical, CheckSquare, Square, Image as ImageIcon, Trash2, AtSign, 
 import { cn } from '@/lib/utils';
 import { useOS } from '@/lib/os-context';
 
-const CALLOUT_ICONS = ['💡', '⚠️', '📌', '✅', '❌', '🔥', '📝', '🎯', '💬', '⭐'];
+const CALLOUT_ICONS = ['idea', 'warning', 'pin', 'check', 'x', 'fire', 'note', 'target', 'comment', 'star'];
 const CODE_LANGUAGES = ['plaintext', 'javascript', 'typescript', 'python', 'html', 'css', 'json', 'bash', 'sql', 'markdown'];
 
 interface BlockEditorProps {
@@ -195,7 +195,7 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
          extra.language = 'plaintext';
        }
        if (cmdId === 'callout') {
-         extra.icon = '💡';
+         extra.icon = 'idea';
        }
        newBlocks[index] = { ...block, type: cmdId as BlockType, content: textBeforeSlash, ...extra };
     }
@@ -295,12 +295,12 @@ export function BlockEditor({ blocks, onChange, databaseStore, onUpdateDatabase,
              )}
              {block.type === 'callout' && (
                 <div className="mt-5 mr-3 shrink-0 text-xl ml-2 cursor-pointer group/callout relative" onClick={() => {
-                  const currentIcon = block.icon || '💡';
+                  const currentIcon = block.icon || 'idea';
                   const currentIdx = CALLOUT_ICONS.indexOf(currentIcon);
                   const nextIcon = CALLOUT_ICONS[(currentIdx + 1) % CALLOUT_ICONS.length];
                   updateBlock(index, { icon: nextIcon });
                 }}>
-                  {block.icon || '💡'}
+                  {block.icon || 'idea'}
                   <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] text-black/30 opacity-0 group-hover/callout:opacity-100 transition-opacity whitespace-nowrap">click to change</span>
                 </div>
              )}

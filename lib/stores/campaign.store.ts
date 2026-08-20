@@ -100,7 +100,7 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
       id: generateId(),
       parentId,
       title: '',
-      icon: '📄',
+      icon: 'file-text',
       blocks: [{ id: generateId(), type: 'p', content: '' }],
       updatedAt: Date.now(),
       createdAt: Date.now(),

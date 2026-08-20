@@ -59,10 +59,10 @@ describe('Campaign Store', () => {
     it('updates a page', () => {
       const { addPage } = useCampaignStore.getState();
       const page = addPage(null, 'campaign');
-      useCampaignStore.getState().updatePage(page.id, { title: 'My Campaign', icon: '🚀' });
+      useCampaignStore.getState().updatePage(page.id, { title: 'My Campaign', icon: 'rocket' });
       const updated = useCampaignStore.getState().pages;
       expect(updated[0]!.title).toBe('My Campaign');
-      expect(updated[0]!.icon).toBe('🚀');
+      expect(updated[0]!.icon).toBe('rocket');
     });
 
     it('soft-deletes a page and its children', () => {
@@ -138,7 +138,7 @@ describe('Campaign Store', () => {
       useCampaignStore.getState().updateDatabase('db-test', {
         id: 'db-test',
         name: 'Test DB',
-        icon: '🧪',
+        icon: 'test-tube',
         properties: [],
         rows: [],
       });
@@ -149,7 +149,7 @@ describe('Campaign Store', () => {
       useCampaignStore.getState().addDatabase({
         id: 'db-new',
         name: 'New DB',
-        icon: '📦',
+        icon: 'package',
         properties: [],
         rows: [],
       });

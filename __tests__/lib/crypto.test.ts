@@ -57,7 +57,7 @@ describe('Crypto Service', () => {
   describe('encrypt / decrypt', () => {
     it('should encrypt and decrypt text', async () => {
       const key = await generateKey();
-      const plaintext = 'Hello, World! 🔐';
+      const plaintext = 'Hello, World! SecurityTest';
       const payload = await encrypt(key, plaintext);
       const decrypted = await decrypt(key, payload);
       expect(decrypted).toBe(plaintext);

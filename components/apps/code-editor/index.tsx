@@ -259,7 +259,7 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
                        className="ml-auto opacity-0 group-hover:opacity-100 hover:opacity-100 hover:bg-white/10 rounded p-0.5 text-xs text-white/50 hover:text-white transition-opacity"
                        title="Close tab"
                      >
-                       ✖
+                       X
                      </button>
                    )}
                  </div>

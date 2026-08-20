@@ -256,7 +256,7 @@ export function DraggableNode({
 
       {/* Quick action bar (appears on hover) */}
       <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 bg-white shadow-md rounded-full px-1 py-0.5 border border-black/10 z-20">
-        <button onClick={() => setShowReactions(!showReactions)} className="w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-slate-100" onPointerDown={(e) => e.stopPropagation()} title="React">😊</button>
+        <button onClick={() => setShowReactions(!showReactions)} className="w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-slate-100" onPointerDown={(e) => e.stopPropagation()} title="React">:)</button>
         <button onClick={() => setShowComments(!showComments)} className="w-6 h-6 rounded flex items-center justify-center hover:bg-slate-100 text-black/50" onPointerDown={(e) => e.stopPropagation()} title="Comment">
           <MessageSquare className="w-3 h-3" />
         </button>

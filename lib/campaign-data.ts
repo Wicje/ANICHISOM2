@@ -48,7 +48,7 @@ export const DEFAULT_DATABASES: DatabaseSchema[] = [
   {
     id: 'db-deliverables',
     name: 'Deliverables',
-    icon: '📦',
+    icon: 'package',
     properties: [
       { id: 'prop-name', name: 'Name', type: 'text' },
       { id: 'prop-status', name: 'Status', type: 'select', options: [
@@ -81,7 +81,7 @@ export const DEFAULT_DATABASES: DatabaseSchema[] = [
   {
     id: 'db-suppliers',
     name: 'Supplier Contacts',
-    icon: '🏭',
+    icon: 'factory',
     properties: [
       { id: 'sup-name', name: 'Company', type: 'text' },
       { id: 'sup-contact', name: 'Contact Person', type: 'text' },
@@ -108,7 +108,7 @@ export const DEFAULT_DATABASES: DatabaseSchema[] = [
   {
     id: 'db-bom',
     name: 'BOM Tracker',
-    icon: '📋',
+    icon: 'clipboard',
     properties: [
       { id: 'bom-part', name: 'Part Name', type: 'text' },
       { id: 'bom-qty', name: 'Quantity', type: 'number' },
@@ -138,7 +138,7 @@ export const DEFAULT_PAGES: Page[] = [
     id: '1',
     parentId: null,
     title: 'Brand Strategy Q4',
-    icon: '🎯',
+    icon: 'target',
     coverGradient: 'from-cyan-500 to-emerald-600',
     expanded: true,
     level: 'campaign',
@@ -160,7 +160,7 @@ export const DEFAULT_PAGES: Page[] = [
     id: '2',
     parentId: '1',
     title: 'Design Sync',
-    icon: '📝',
+    icon: 'note',
     level: 'phase',
     campaignId: '1',
     sortOrder: 0,
@@ -176,7 +176,7 @@ export const DEFAULT_PAGES: Page[] = [
     id: '3',
     parentId: '2',
     title: 'Finalize Launch Email',
-    icon: '✉️',
+    icon: 'mail',
     level: 'task',
     campaignId: '1',
     sortOrder: 0,
@@ -247,23 +247,23 @@ export const TEAM_MEMBERS = ['@Founder', '@CreativeDir', '@Designer', '@Develope
 export const TEMPLATES = [
   {
     name: 'ContinuaOS Campaign',
-    icon: '✨',
+    icon: 'sparkles',
     coverGradient: 'from-cyan-500 to-emerald-600',
     description: 'Full campaign workflow from brief to delivery',
     hierarchy: true as const,
     pages: [
-      { title: 'Discovery & Brief', icon: '📝', level: 'phase' as PageLevel, blocks: [
+      { title: 'Discovery & Brief', icon: 'note', level: 'phase' as PageLevel, blocks: [
         { id: 't1', type: 'h1', content: 'Client Brief' },
-        { id: 't1a', type: 'callout', content: 'Key insight from client meeting', icon: '💡' },
+        { id: 't1a', type: 'callout', content: 'Key insight from client meeting', icon: 'idea' },
         { id: 't1b', type: 'p', content: '' },
       ] },
-      { title: 'Moodboard & Visuals', icon: '🎨', level: 'phase' as PageLevel, blocks: [
+      { title: 'Moodboard & Visuals', icon: 'palette', level: 'phase' as PageLevel, blocks: [
         { id: 't2', type: 'h1', content: 'Art Direction' },
       ] },
-      { title: 'Deliverables', icon: '📦', level: 'phase' as PageLevel, blocks: [
+      { title: 'Deliverables', icon: 'package', level: 'phase' as PageLevel, blocks: [
         { id: 't3', type: 'database', content: '', databaseId: 'db-deliverables' },
       ] },
-      { title: 'Supplier Contacts', icon: '🏭', level: 'phase' as PageLevel, blocks: [
+      { title: 'Supplier Contacts', icon: 'factory', level: 'phase' as PageLevel, blocks: [
         { id: 't4', type: 'database', content: '', databaseId: 'db-suppliers' },
       ] },
     ],
@@ -271,19 +271,19 @@ export const TEMPLATES = [
   },
   {
     name: 'Clothing Drop',
-    icon: '👕',
+    icon: 'shirt',
     coverGradient: 'from-emerald-400 to-teal-600',
     description: 'Collection planning, suppliers, and lookbook',
     hierarchy: true as const,
     pages: [
-      { title: 'Collection Planner', icon: '📅', level: 'phase' as PageLevel, blocks: [
+      { title: 'Collection Planner', icon: 'calendar', level: 'phase' as PageLevel, blocks: [
         { id: 't5', type: 'h1', content: 'Season Concept' },
         { id: 't5a', type: 'database', content: '', databaseId: 'db-deliverables', databaseViewConfig: { viewType: 'board', filters: [], sorts: [], hiddenProperties: [], boardGroupProperty: 'prop-status' } },
       ] },
-      { title: 'Supplier Contacts', icon: '🏭', level: 'phase' as PageLevel, blocks: [
+      { title: 'Supplier Contacts', icon: 'factory', level: 'phase' as PageLevel, blocks: [
         { id: 't6', type: 'database', content: '', databaseId: 'db-suppliers' },
       ] },
-      { title: 'Lookbook', icon: '📸', level: 'phase' as PageLevel, blocks: [
+      { title: 'Lookbook', icon: 'camera', level: 'phase' as PageLevel, blocks: [
         { id: 't7', type: 'h2', content: 'Gallery View' },
         { id: 't7a', type: 'gallery', content: '', databaseId: 'db-deliverables', databaseViewConfig: { viewType: 'gallery', filters: [], sorts: [], hiddenProperties: [], cardPreviewProperty: 'prop-name' } },
       ] },
@@ -297,14 +297,14 @@ export const TEMPLATES = [
     description: 'BOM tracking, firmware specs, and iteration log',
     hierarchy: true as const,
     pages: [
-      { title: 'BOM Tracker', icon: '📋', level: 'phase' as PageLevel, blocks: [
+      { title: 'BOM Tracker', icon: 'clipboard', level: 'phase' as PageLevel, blocks: [
         { id: 't8', type: 'database', content: '', databaseId: 'db-bom' },
       ] },
-      { title: 'Firmware Specs', icon: '💻', level: 'phase' as PageLevel, blocks: [
+      { title: 'Firmware Specs', icon: 'laptop', level: 'phase' as PageLevel, blocks: [
         { id: 't9', type: 'h1', content: 'v2.0 Logic' },
         { id: 't9a', type: 'code', content: '// Entry point\nvoid main() {\n  init_hardware();\n  run_loop();\n}', language: 'c' },
       ] },
-      { title: 'Iteration Timeline', icon: '📈', level: 'phase' as PageLevel, blocks: [
+      { title: 'Iteration Timeline', icon: 'trending-up', level: 'phase' as PageLevel, blocks: [
         { id: 't10', type: 'timeline', content: '', databaseId: 'db-bom', databaseViewConfig: { viewType: 'timeline', filters: [], sorts: [{ propertyId: 'bom-lead', direction: 'ascending' }], hiddenProperties: [] } },
       ] },
     ],
@@ -312,17 +312,17 @@ export const TEMPLATES = [
   },
   {
     name: 'Creative Brief',
-    icon: '💡',
+    icon: 'idea',
     coverGradient: 'from-pink-400 to-rose-600',
     description: 'Lightweight brief with to-dos and notes',
     hierarchy: false as const,
     pages: [
-      { title: 'Brief Notes', icon: '📝', level: 'phase' as PageLevel, blocks: [
+      { title: 'Brief Notes', icon: 'note', level: 'phase' as PageLevel, blocks: [
         { id: 't11', type: 'h1', content: 'Creative Brief' },
-        { id: 't11a', type: 'callout', content: 'Target audience: 18-35, design-conscious, values authenticity', icon: '🎯' },
+        { id: 't11a', type: 'callout', content: 'Target audience: 18-35, design-conscious, values authenticity', icon: 'target' },
         { id: 't11b', type: 'p', content: '' },
       ] },
-      { title: 'Tasks', icon: '✅', level: 'phase' as PageLevel, blocks: [
+      { title: 'Tasks', icon: 'check', level: 'phase' as PageLevel, blocks: [
         { id: 't12', type: 'todo', content: 'Research competitors', checked: false },
         { id: 't12a', type: 'todo', content: 'Define tone of voice', checked: false },
         { id: 't12b', type: 'todo', content: 'Create initial mockups', checked: false },
@@ -332,14 +332,14 @@ export const TEMPLATES = [
   },
   {
     name: 'Meeting Notes',
-    icon: '📅',
+    icon: 'calendar',
     coverGradient: 'from-cyan-400 to-blue-600',
     description: 'Structured meeting notes with action items',
     hierarchy: false as const,
     pages: [
-      { title: 'Meeting Notes', icon: '📋', level: 'phase' as PageLevel, blocks: [
+      { title: 'Meeting Notes', icon: 'clipboard', level: 'phase' as PageLevel, blocks: [
         { id: 't13', type: 'h1', content: 'Meeting Notes' },
-        { id: 't13a', type: 'callout', content: 'Date: Today | Attendees: @Founder, @CreativeDir', icon: '📅' },
+        { id: 't13a', type: 'callout', content: 'Date: Today | Attendees: @Founder, @CreativeDir', icon: 'calendar' },
         { id: 't13b', type: 'h2', content: 'Discussion Points' },
         { id: 't13c', type: 'bullet', content: '' },
         { id: 't13d', type: 'h2', content: 'Action Items' },
@@ -350,25 +350,25 @@ export const TEMPLATES = [
   },
   {
     name: 'Video Production',
-    icon: '🎬',
+    icon: 'film',
     coverGradient: 'from-red-400 to-rose-600',
     description: 'Pre-production, shoot days, post-production pipeline',
     hierarchy: true as const,
     pages: [
-      { title: 'Pre-Production', icon: '📋', level: 'phase' as PageLevel, blocks: [
+      { title: 'Pre-Production', icon: 'clipboard', level: 'phase' as PageLevel, blocks: [
         { id: 'vp1', type: 'h1', content: 'Pre-Production' },
-        { id: 'vp1a', type: 'callout', content: 'Storyboard, shot list, talent booking, location scouting', icon: '🎬' },
+        { id: 'vp1a', type: 'callout', content: 'Storyboard, shot list, talent booking, location scouting', icon: 'film' },
         { id: 'vp1b', type: 'database', content: '', databaseId: 'db-deliverables', databaseViewConfig: { viewType: 'board', filters: [{ propertyId: 'prop-status', operator: 'is-not', value: 's-done' }], sorts: [], hiddenProperties: ['prop-created'], boardGroupProperty: 'prop-status' } },
       ] },
-      { title: 'Shoot Day 1', icon: '🎥', level: 'task' as PageLevel, blocks: [
+      { title: 'Shoot Day 1', icon: 'video', level: 'task' as PageLevel, blocks: [
         { id: 'vp2', type: 'h1', content: 'Shoot Day' },
-        { id: 'vp2a', type: 'callout', content: 'Location: Studio A | Time: 9AM-6PM | Crew call: 8AM', icon: '📍' },
+        { id: 'vp2a', type: 'callout', content: 'Location: Studio A | Time: 9AM-6PM | Crew call: 8AM', icon: 'map-pin' },
         { id: 'vp2b', type: 'h2', content: 'Shot List' },
         { id: 'vp2c', type: 'todo', content: 'Wide establishing shot', checked: false },
         { id: 'vp2d', type: 'todo', content: 'Product close-ups', checked: false },
         { id: 'vp2e', type: 'todo', content: 'Hero shots with talent', checked: false },
       ] },
-      { title: 'Post-Production', icon: '✂️', level: 'phase' as PageLevel, blocks: [
+      { title: 'Post-Production', icon: 'scissors', level: 'phase' as PageLevel, blocks: [
         { id: 'vp3', type: 'h1', content: 'Post-Production' },
         { id: 'vp3a', type: 'p', content: 'Edit, color grade, sound design, final export.' },
         { id: 'vp3b', type: 'database', content: '', databaseId: 'db-deliverables' },
@@ -378,20 +378,20 @@ export const TEMPLATES = [
   },
   {
     name: 'Photo Shoot',
-    icon: '📸',
+    icon: 'camera',
     coverGradient: 'from-cyan-400 to-sky-600',
     description: 'Mood board, shot list, and gallery delivery',
     hierarchy: true as const,
     pages: [
-      { title: 'Mood & Direction', icon: '🎨', level: 'phase' as PageLevel, blocks: [
+      { title: 'Mood & Direction', icon: 'palette', level: 'phase' as PageLevel, blocks: [
         { id: 'ps1', type: 'h1', content: 'Visual Direction' },
-        { id: 'ps1a', type: 'callout', content: 'References: brutalist, muted tones, natural light', icon: '🎨' },
+        { id: 'ps1a', type: 'callout', content: 'References: brutalist, muted tones, natural light', icon: 'palette' },
       ] },
-      { title: 'Shot List', icon: '📋', level: 'phase' as PageLevel, blocks: [
+      { title: 'Shot List', icon: 'clipboard', level: 'phase' as PageLevel, blocks: [
         { id: 'ps2', type: 'h1', content: 'Shot List' },
         { id: 'ps2a', type: 'database', content: '', databaseId: 'db-deliverables', databaseViewConfig: { viewType: 'board', filters: [], sorts: [], hiddenProperties: [], boardGroupProperty: 'prop-status' } },
       ] },
-      { title: 'Delivery Gallery', icon: '🖼️', level: 'phase' as PageLevel, blocks: [
+      { title: 'Delivery Gallery', icon: 'image', level: 'phase' as PageLevel, blocks: [
         { id: 'ps3', type: 'gallery', content: '', databaseId: 'db-deliverables', databaseViewConfig: { viewType: 'gallery', filters: [], sorts: [], hiddenProperties: [], cardPreviewProperty: 'prop-name' } },
       ] },
     ],
@@ -399,22 +399,22 @@ export const TEMPLATES = [
   },
   {
     name: 'Social Campaign',
-    icon: '📱',
+    icon: 'smartphone',
     coverGradient: 'from-emerald-400 to-teal-600',
     description: 'Content calendar, platform strategy, and scheduling',
     hierarchy: true as const,
     pages: [
-      { title: 'Platform Strategy', icon: '📊', level: 'phase' as PageLevel, blocks: [
+      { title: 'Platform Strategy', icon: 'bar-chart', level: 'phase' as PageLevel, blocks: [
         { id: 'sc1', type: 'h1', content: 'Platform Strategy' },
         { id: 'sc1a', type: 'h2', content: 'Instagram' },
         { id: 'sc1b', type: 'p', content: 'Reels + Stories focus. 3-5 posts/week.' },
         { id: 'sc1c', type: 'h2', content: 'TikTok' },
         { id: 'sc1d', type: 'p', content: 'Behind-the-scenes + trends. 5-7 posts/week.' },
       ] },
-      { title: 'Content Calendar', icon: '📅', level: 'phase' as PageLevel, blocks: [
+      { title: 'Content Calendar', icon: 'calendar', level: 'phase' as PageLevel, blocks: [
         { id: 'sc2', type: 'calendar', content: '', databaseId: 'db-deliverables', databaseViewConfig: { viewType: 'calendar', filters: [], sorts: [{ propertyId: 'prop-date', direction: 'ascending' }], hiddenProperties: [] } },
       ] },
-      { title: 'Performance', icon: '📈', level: 'phase' as PageLevel, blocks: [
+      { title: 'Performance', icon: 'trending-up', level: 'phase' as PageLevel, blocks: [
         { id: 'sc3', type: 'h1', content: 'Performance Metrics' },
         { id: 'sc3a', type: 'p', content: 'Track reach, engagement rate, follower growth.' },
         { id: 'sc3b', type: 'database', content: '', databaseId: 'db-deliverables', databaseViewConfig: { viewType: 'table', filters: [], sorts: [{ propertyId: 'prop-priority', direction: 'descending' }], hiddenProperties: [] } },

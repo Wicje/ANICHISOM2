@@ -8,7 +8,7 @@ describe('MoodboardExportService', () => {
   const sampleNodes = [
     { id: '1', type: 'text', x: 0, y: 0, width: 300, height: 200, content: 'Hello' },
     { id: '2', type: 'image', x: 320, y: 0, width: 300, height: 200, content: 'img.png', label: 'Photo' },
-    { id: '3', type: 'text', x: 0, y: 220, width: 300, height: 200, content: 'World', reactions: { '👍': ['u1', 'u2'] } },
+    { id: '3', type: 'text', x: 0, y: 220, width: 300, height: 200, content: 'World', reactions: { 'thumbs-up': ['u1', 'u2'] } },
   ];
 
   const sampleConnections = [

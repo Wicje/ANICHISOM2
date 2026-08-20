@@ -573,7 +573,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
       {selectedImage !== null && (
         <div className="absolute inset-0 bg-black/90 backdrop-blur-xl z-50 flex flex-col md:flex-row" onClick={() => setSelectedImage(null)}>
            <div className="flex-1 p-4 md:p-12 flex items-center justify-center relative">
-              <button className="absolute top-6 right-6 text-white/50 hover:text-white md:hidden bg-black/50 p-2 rounded-full backdrop-blur">✖</button>
+              <button className="absolute top-6 right-6 text-white/50 hover:text-white md:hidden bg-black/50 p-2 rounded-full backdrop-blur">X</button>
               <div className="w-full h-full max-h-[80vh] bg-black/50 rounded-2xl border border-white/10 shadow-2xl flex items-center justify-center overflow-hidden">
                  {selectedImage.content ? (
                     <img loading="lazy" src={selectedImage.content as string} className="w-full h-full object-contain" alt={selectedImage.name} />
@@ -585,7 +585,7 @@ export function PhotographyPack({ window: osWindow }: { window: OSWindow }) {
            <div className="w-full md:w-96 bg-zinc-900 border-l border-zinc-800 p-8 flex flex-col overflow-y-auto text-zinc-300" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-start mb-8">
                  <h3 className="text-2xl font-bold text-white break-words">{selectedImage.name}</h3>
-                 <button onClick={() => setSelectedImage(null)} className="hidden md:block text-zinc-500 hover:text-white">✖</button>
+                 <button onClick={() => setSelectedImage(null)} className="hidden md:block text-zinc-500 hover:text-white">X</button>
               </div>
               
               <div className="space-y-8">

@@ -182,9 +182,9 @@ export function SamurAIBoard({ window: osWindow }: { window: any }) {
         {/* File icons */}
         <div className="flex gap-2">
           {[
-            { icon: '📄', label: 'Sales', sub: '4 Total', color: 'bg-orange-100' },
-            { icon: '❌', label: 'Patents', sub: '3 Total', color: 'bg-gray-100' },
-            { icon: '📊', label: 'Alpha Data', sub: '5 Total', color: 'bg-gray-100' },
+            { icon: 'file', label: 'Sales', sub: '4 Total', color: 'bg-orange-100' },
+            { icon: 'x', label: 'Patents', sub: '3 Total', color: 'bg-gray-100' },
+            { icon: 'bar-chart', label: 'Alpha Data', sub: '5 Total', color: 'bg-gray-100' },
           ].map((item, i) => (
             <div key={i} className={cn("flex-1 rounded-lg p-2 flex flex-col items-center", item.color)}>
               <span className="text-lg mb-1">{item.icon}</span>

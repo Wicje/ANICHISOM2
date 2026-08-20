@@ -8,7 +8,7 @@ import { CloudFile, CloudFileContent } from './storage-connector';
 export class LocalFolderConnector {
   readonly id = 'local-folder';
   readonly name = 'Local Folder';
-  readonly icon = '📁';
+  readonly icon = 'folder';
 
   private rootHandle: FileSystemDirectoryHandle | null = null;
   private mountedPath: string | null = null;

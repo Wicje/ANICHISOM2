@@ -1,21 +1,42 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Music, Settings, Play, Pause, SkipBack, SkipForward, LayoutGrid, Wifi, Bluetooth, Moon, Sun, Monitor, Bell, Battery, EyeOff } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Music, Settings, Play, Pause, SkipBack, SkipForward,
+  LayoutGrid, Wifi, Bluetooth, Sun, Moon, Volume2, EyeOff,
+  Folder, Share2, Trash2, Radio, Camera, Sparkles, X, FileText
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FS, LocalFile } from '@/lib/fs';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { motion, AnimatePresence } from 'motion/react';
+import { audioSystem } from '@/lib/services/audio-engine';
 
 export function NotchNook({ window: osWindow }: { window?: any }) {
   const setShowNotch = useThemeStore((s) => s.setShowNotch);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioFiles, setAudioFiles] = useState<LocalFile[]>([]);
   const [currentTrack, setCurrentTrack] = useState(0);
-  const [activeTab, setActiveTab] = useState<'nook' | 'tray'>('nook');
+  const [activeTab, setActiveTab] = useState<'media' | 'shelf' | 'toggles'>('media');
   const [isExpanded, setIsExpanded] = useState(false);
-  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [droppedFiles, setDroppedFiles] = useState<Array<{ id: string; name: string; size: string }>>([]);
+  const [cameraActive, setCameraActive] = useState(false);
 
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Detect live camera usage across the OS
+  useEffect(() => {
+    const handleCameraState = (e: any) => {
+      if (e.detail?.active !== undefined) setCameraActive(!!e.detail.active);
+    };
+    window.addEventListener('os:camera-state', handleCameraState);
+    return () => window.removeEventListener('os:camera-state', handleCameraState);
+  }, []);
+
+  // Load real audio files
   useEffect(() => {
     const loadAudio = async () => {
       try {
@@ -27,64 +48,75 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
         }
         const unique = Array.from(new Map(all.map(f => [f.id, f])).values());
         setAudioFiles(unique);
-      } catch { /* ignore */ }
+      } catch {}
     };
     loadAudio();
   }, []);
 
   const track = audioFiles[currentTrack];
-  const trackTitle = track?.name?.replace(/\.[^.]+$/, '') || 'No track loaded';
-  const trackArtist = track ? 'Local File' : 'Add audio files to play';
+  const trackTitle = track?.name?.replace(/\.[^.]+$/, '') || 'Continua Focus Beats';
+  const trackArtist = track ? 'Local Workspace Audio' : 'Ambient Lo-Fi Stream';
 
-  const [spotifyToken, setSpotifyToken] = useState<string | null>(null);
-  const [spotifyTrack, setSpotifyTrack] = useState<any>(null);
-  const openSpotifyApp = () => {
-    try {
-      const { useWindowStore } = require('@/lib/stores/window.store');
-      useWindowStore.getState().openWindow('spotify', 'Spotify Player');
-    } catch {}
+  // Handle deliberate hover with 180ms debounce
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    hoverTimerRef.current = setTimeout(() => {
+      setIsExpanded(true);
+    }, 180);
   };
 
-  useEffect(() => {
-    // Default active track or Spotify session
-    setSpotifyTrack({
-      title: 'High Art Studio Session',
-      artist: 'Terence Howard',
-      cover: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300&auto=format&fit=crop',
-    });
-
-    const handler = (e: any) => {
-      if (e.detail) {
-        setIsPlaying(!!e.detail.isPlaying);
-        setSpotifyTrack({
-          title: e.detail.title || 'High Art Studio Session',
-          artist: e.detail.artist || 'Terence Howard',
-          cover: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300&auto=format&fit=crop',
-        });
-      }
-    };
-    window.addEventListener('os:spotify-track-change', handler);
-    return () => window.removeEventListener('os:spotify-track-change', handler);
-  }, []);
-
-  useEffect(() => {
-    if (!audioRef.current || spotifyToken) return;
-    if (isPlaying && track?.content) {
-      audioRef.current.src = track.content;
-      audioRef.current.play().catch(() => {});
-    } else {
-      audioRef.current.pause();
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    if (!isDragOver) {
+      setIsExpanded(false);
     }
-  }, [isPlaying, currentTrack, track, spotifyToken]);
+  };
+
+  // Drag & drop shelf handling
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+    setIsExpanded(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    audioSystem.playClick();
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const files = Array.from(e.dataTransfer.files).map((f, i) => ({
+        id: `drop-${Date.now()}-${i}`,
+        name: f.name,
+        size: `${(f.size / 1024).toFixed(1)} KB`
+      }));
+      setDroppedFiles(prev => [...prev, ...files]);
+      setActiveTab('shelf');
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'File Staged to Notch Shelf', description: `${files.length} item(s) ready to share or airDrop.`, type: 'success' }
+      }));
+    }
+  };
 
   const playPrev = () => {
     if (audioFiles.length === 0) return;
     setCurrentTrack(prev => (prev - 1 + audioFiles.length) % audioFiles.length);
+    audioSystem.playClick();
   };
 
   const playNext = () => {
     if (audioFiles.length === 0) return;
     setCurrentTrack(prev => (prev + 1) % audioFiles.length);
+    audioSystem.playClick();
   };
 
   const now = new Date();
@@ -97,184 +129,218 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
   });
 
   return (
-    <div className="w-full flex justify-center pointer-events-none pt-0"
-         onMouseEnter={() => setIsExpanded(true)}
-         onMouseLeave={() => setIsExpanded(false)}>
+    <div
+      className="w-full flex justify-center pointer-events-none pt-0 select-none font-sans"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <audio ref={audioRef} onEnded={playNext} />
-      
-      <motion.div 
+
+      <motion.div
         layout
-        initial={{ y: -50, scale: 0.9, opacity: 0 }}
-        animate={{ y: 0, scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 380 }}
         className={cn(
-          "bg-black backdrop-blur-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.1)] origin-top pointer-events-auto transition-all overflow-hidden",
-          isExpanded ? "rounded-[40px] px-6 py-5 w-[640px] mt-2" : "rounded-b-[16px] px-4 py-1.5 w-[320px] cursor-pointer h-[32px]"
+          "bg-black text-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.15)] origin-top pointer-events-auto transition-all overflow-hidden border border-black",
+          isExpanded
+            ? "rounded-b-[32px] px-6 py-5 w-[660px] max-w-[95vw] mt-0"
+            : isPlaying
+            ? "rounded-b-[20px] px-4 py-1.5 w-[280px] h-[34px] cursor-pointer"
+            : isDragOver
+            ? "rounded-b-[24px] px-4 py-2 w-[340px] h-[48px] ring-2 ring-cyan-400 bg-slate-950"
+            : "rounded-b-[18px] px-3.5 py-1 w-[180px] h-[32px] cursor-pointer"
         )}
       >
         <AnimatePresence mode="wait">
           {!isExpanded ? (
-            <motion.div 
+            /* ─── Compact / Dynamic Island Pill Mode ─── */
+            <motion.div
               key="collapsed"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="flex items-center justify-between h-8"
+              className="flex items-center justify-between h-full w-full"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 rounded-full flex items-center justify-center shadow-inner overflow-hidden relative" style={{ background: spotifyTrack ? '#1db954' : 'linear-gradient(to bottom right, #00f0ff, #10F4A0)' }}>
-                  {spotifyTrack ? (
-                    <img src={spotifyTrack.cover} alt="Cover" className="absolute inset-0 w-full h-full object-cover" />
-                  ) : (
-                    <Music className="w-3 h-3 text-white relative z-10" />
+              {/* Left: Camera Bezel & Privacy Dot / Music Wave */}
+              <div className="flex items-center gap-2">
+                <div className="w-3.5 h-3.5 rounded-full bg-neutral-900 border border-neutral-700/80 relative flex items-center justify-center shadow-inner">
+                  <div className="w-1.5 h-1.5 rounded-full bg-neutral-950" />
+                  {cameraActive && (
+                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                   )}
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-semibold text-white/90 truncate max-w-[120px] leading-tight">
-                    {spotifyTrack ? spotifyTrack.title : trackTitle}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
+
+                {cameraActive && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" title="Camera Active" />
+                )}
+
                 {isPlaying && (
-                  <div className="flex gap-[2px] items-end h-3">
-                    {[1,2,3].map(i => (
-                      <motion.div key={i} animate={{ height: ['3px', '10px', '3px'] }} transition={{ repeat: Infinity, duration: 0.6 + (i * 0.2) }} className="w-[3px] bg-white rounded-t-sm opacity-80" />
-                    ))}
+                  <div className="flex items-center gap-1.5 pl-1">
+                    <Music className="w-3 h-3 text-[#10F4A0] animate-pulse" />
+                    <span className="text-[11px] font-semibold text-white/90 truncate max-w-[120px]">
+                      {trackTitle}
+                    </span>
                   </div>
                 )}
-                <div className="flex gap-2 text-white/40 items-center">
-                  <Battery className="w-4 h-4" />
-                  <Wifi className="w-4 h-4" />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowNotch(false);
-                      window.dispatchEvent(new CustomEvent('os:notify', {
-                        detail: { title: 'Notch Hidden', description: 'You can re-enable the notch anytime from Control Center or Settings.', type: 'info' },
-                      }));
-                    }}
-                    className="p-1 rounded hover:bg-white/10 hover:text-white transition-colors ml-1"
-                    title="Hide Notch (Re-enable from Control Center)"
-                  >
-                    <EyeOff className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+
+                {isDragOver && (
+                  <span className="text-xs font-bold text-cyan-400 animate-pulse flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5" /> Drop file here
+                  </span>
+                )}
+              </div>
+
+              {/* Right: Audio Waveform or Minimal Pill Indicator */}
+              <div className="flex items-center gap-2">
+                {isPlaying ? (
+                  <div className="flex gap-[2px] items-end h-3">
+                    {[1, 2, 3, 4].map(i => (
+                      <motion.div
+                        key={i}
+                        animate={{ height: ['3px', '12px', '3px'] }}
+                        transition={{ repeat: Infinity, duration: 0.5 + i * 0.15 }}
+                        className="w-[2.5px] bg-[#10F4A0] rounded-t-sm"
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 text-white/40 hover:text-white transition-colors">
+                    <span className="text-[10px] font-mono font-medium">Notch</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowNotch(false);
+                        window.dispatchEvent(new CustomEvent('os:notify', {
+                          detail: { title: 'Notch Hidden', description: 'Re-enable anytime from Control Center or Settings.', type: 'info' }
+                        }));
+                      }}
+                      className="p-0.5 rounded hover:bg-white/10 hover:text-white transition-colors"
+                      title="Hide Hardware Notch"
+                    >
+                      <EyeOff className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
           ) : (
-            <motion.div 
+            /* ─── Expanded Bento Hub (NotchNook Pro) ─── */
+            <motion.div
               key="expanded"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18 }}
               className="flex flex-col gap-4 text-white"
             >
-              {/* Notch Header with Nook / Tray Tabs & Settings Gear (ref_ui1.jpg inspired) */}
-              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                <div className="flex items-center gap-2 bg-white/10 p-1 rounded-xl">
-                  <button 
-                    onClick={() => setActiveTab('nook')} 
-                    className={cn("px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5", activeTab === 'nook' ? "bg-white text-black shadow-md" : "text-white/60 hover:text-white")}
-                  >
-                    <Music className="w-3.5 h-3.5" /> Nook
-                  </button>
-                  <button 
-                    onClick={() => setActiveTab('tray')} 
-                    className={cn("px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5", activeTab === 'tray' ? "bg-white text-black shadow-md" : "text-white/60 hover:text-white")}
-                  >
-                    <LayoutGrid className="w-3.5 h-3.5" /> Tray
-                  </button>
+              {/* Top Navigation Tabs */}
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div className="flex items-center gap-1.5 bg-white/10 p-1 rounded-xl">
+                  {[
+                    { id: 'media', label: 'Media Player', icon: Music },
+                    { id: 'shelf', label: `Drop Shelf (${droppedFiles.length})`, icon: Folder },
+                    { id: 'toggles', label: 'Quick Tools', icon: LayoutGrid },
+                  ].map(tab => {
+                    const Icon = tab.icon;
+                    const isSelected = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => {
+                          setActiveTab(tab.id as any);
+                          audioSystem.playClick();
+                        }}
+                        className={cn(
+                          "px-3 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5",
+                          isSelected ? "bg-white text-black shadow-md" : "text-white/60 hover:text-white"
+                        )}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={openSpotifyApp}
-                    className="w-7 h-7 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 flex items-center justify-center transition-colors"
-                    title="Open Spotify Web App"
-                  >
-                    <Music className="w-3.5 h-3.5" />
-                  </button>
-                  <button 
+                <div className="flex items-center gap-1.5">
+                  <button
                     onClick={() => {
-                      try {
-                        const { useWindowStore } = require('@/lib/stores/window.store');
-                        useWindowStore.getState().openWindow('settings', 'Settings');
-                      } catch {}
+                      setShowNotch(false);
+                      window.dispatchEvent(new CustomEvent('os:notify', {
+                        detail: { title: 'Notch Hidden', description: 'Re-enable anytime from Control Center or Settings.', type: 'info' }
+                      }));
                     }}
-                    className="w-7 h-7 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 flex items-center justify-center transition-colors"
-                    title="Notch Settings"
+                    className="w-7 h-7 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center transition-colors"
+                    title="Hide Notch"
                   >
-                    <Settings className="w-3.5 h-3.5" />
+                    <EyeOff className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setIsExpanded(false)}
+                    className="w-7 h-7 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center transition-colors"
+                    title="Collapse"
+                  >
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
 
-
-              {activeTab === 'nook' && (
-                <>
-                  <div className="flex items-center gap-5 shrink-0">
-                    <div className="w-16 h-16 rounded-[20px] overflow-hidden bg-gradient-to-br from-cyan-900 to-black relative ring-1 ring-white/20 shadow-2xl group">
-                      {spotifyTrack ? (
-                        <img src={spotifyTrack.cover} alt="Cover" className={cn("absolute inset-0 w-full h-full object-cover transition-transform duration-1000", isPlaying ? "scale-110" : "scale-100")} />
-                      ) : (
-                        <>
-                          <div className={cn("absolute inset-0 bg-gradient-to-br from-cyan-500/50 via-emerald-500/50 to-pink-500/50 transition-transform duration-1000", isPlaying ? "scale-110 rotate-3" : "scale-100 rotate-0")} />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <Music className="w-7 h-7 text-white shadow-lg" />
-                          </div>
-                        </>
-                      )}
+              {/* ─── 1. Media Player Tab ─── */}
+              {activeTab === 'media' && (
+                <div className="flex items-center justify-between gap-6">
+                  {/* Left: Track Information & Controls */}
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-900 via-purple-950 to-black border border-white/20 flex items-center justify-center shadow-xl shrink-0 relative overflow-hidden">
+                      <Music className={cn("w-7 h-7 text-indigo-400 transition-transform duration-700", isPlaying && "scale-110 rotate-6")} />
                     </div>
-                    <div className="flex flex-col min-w-[140px] max-w-[180px]">
-                      <span className="text-sm font-bold text-white tracking-wide truncate">{spotifyTrack ? spotifyTrack.title : trackTitle}</span>
-                      <span className="text-xs font-medium text-white/50 truncate mt-0.5 flex items-center gap-1">
-                        {spotifyTrack ? (
-                           <>
-                             <svg className="w-3 h-3 text-[#1db954]" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.84.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15.001 10.62 18.66 12.84c.361.181.54.84.301 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.38 4.2-1.2 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.56.3z"/></svg>
-                             {spotifyTrack.artist}
-                           </>
-                        ) : trackArtist}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 ml-2">
-                      <button onClick={playPrev} className="p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors">
-                        <SkipBack className="w-4 h-4 fill-current" />
-                      </button>
-                      <button
-                        onClick={() => setIsPlaying(!isPlaying)}
-                        className="w-12 h-12 flex items-center justify-center rounded-full bg-white text-black hover:scale-105 active:scale-95 transition-all shadow-lg shadow-white/10"
-                      >
-                        {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-1" />}
-                      </button>
-                      <button onClick={playNext} className="p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors">
-                        <SkipForward className="w-4 h-4 fill-current" />
-                      </button>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-sm font-bold text-white truncate tracking-tight">{trackTitle}</span>
+                      <span className="text-xs text-white/50 truncate mt-0.5">{trackArtist}</span>
+                      <div className="flex items-center gap-2 mt-2">
+                        <button
+                          onClick={playPrev}
+                          className="p-1.5 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                        >
+                          <SkipBack className="w-4 h-4 fill-current" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsPlaying(!isPlaying);
+                            audioSystem.playClick();
+                          }}
+                          className="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-md"
+                        >
+                          {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                        </button>
+                        <button
+                          onClick={playNext}
+                          className="p-1.5 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                        >
+                          <SkipForward className="w-4 h-4 fill-current" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="w-px h-16 bg-white/10 mx-2" />
+                  <div className="w-px h-16 bg-white/10" />
 
-                  {/* Calendar Widget */}
-                  <div className="flex flex-col shrink-0 min-w-[160px]">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-white/70 uppercase tracking-wider">
-                        {now.toLocaleString('en', { month: 'short', year: 'numeric' })}
-                      </span>
-                    </div>
+                  {/* Right: Calendar Strip */}
+                  <div className="flex flex-col shrink-0 min-w-[170px]">
+                    <span className="text-xs font-bold text-white/70 uppercase tracking-wider mb-2">
+                      {now.toLocaleString('en', { month: 'short', year: 'numeric' })}
+                    </span>
                     <div className="flex items-center gap-1.5 justify-between">
                       {dates.map((d, i) => (
                         <div key={i} className="flex flex-col items-center gap-1">
-                          <span className={cn("text-[8px] font-bold tracking-widest", d === now.getDate() ? "text-cyan-400" : "text-white/30")}>
+                          <span className={cn("text-[9px] font-bold", d === now.getDate() ? "text-cyan-400" : "text-white/30")}>
                             {days[i]}
                           </span>
                           <span className={cn(
-                            "text-xs font-bold transition-all w-6 h-6 flex items-center justify-center rounded-full",
-                            d === now.getDate()
-                              ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/50"
-                              : "text-white/50"
+                            "text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full transition-all",
+                            d === now.getDate() ? "bg-cyan-500 text-white shadow-md shadow-cyan-500/50" : "text-white/60"
                           )}>
                             {d}
                           </span>
@@ -282,11 +348,60 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                       ))}
                     </div>
                   </div>
-                </>
+                </div>
               )}
 
-              {activeTab === 'tray' && (
-                <div className="flex items-center gap-4 min-w-[380px] w-full">
+              {/* ─── 2. Notch Drop Shelf Tab ─── */}
+              {activeTab === 'shelf' && (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span>Drag & drop files from your desktop or Finder to stage them here.</span>
+                    {droppedFiles.length > 0 && (
+                      <button
+                        onClick={() => setDroppedFiles([])}
+                        className="text-rose-400 hover:text-rose-300 flex items-center gap-1 text-[11px] font-semibold"
+                      >
+                        <Trash2 className="w-3 h-3" /> Clear All
+                      </button>
+                    )}
+                  </div>
+
+                  {droppedFiles.length === 0 ? (
+                    <div className="h-28 rounded-2xl border-2 border-dashed border-white/20 bg-white/5 flex flex-col items-center justify-center gap-2 text-center p-4">
+                      <Folder className="w-6 h-6 text-cyan-400" />
+                      <span className="text-xs font-semibold text-slate-300">Drop Zone Ready</span>
+                      <span className="text-[10px] text-slate-500">Files dropped here stay available across all apps</span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-32 overflow-y-auto custom-scrollbar">
+                      {droppedFiles.map(f => (
+                        <div key={f.id} className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FileText className="w-4 h-4 text-cyan-400 shrink-0" />
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-xs font-semibold text-white truncate">{f.name}</span>
+                              <span className="text-[10px] text-slate-400">{f.size}</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              window.dispatchEvent(new CustomEvent('os:open-airdrop'));
+                            }}
+                            className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white shrink-0"
+                            title="AirDrop"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ─── 3. Quick System Toggles Tab ─── */}
+              {activeTab === 'toggles' && (
+                <div className="flex items-center gap-4 w-full">
                   <div className="grid grid-cols-3 gap-2 flex-1">
                     {[
                       {
@@ -295,7 +410,7 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                         active: typeof navigator !== 'undefined' ? navigator.onLine : true,
                         onClick: () => {
                           window.dispatchEvent(new CustomEvent('os:notify', {
-                            detail: { title: 'Network Status', description: navigator.onLine ? 'Connected to High-Speed Wi-Fi' : 'Offline Mode Active', type: 'info' }
+                            detail: { title: 'Wi-Fi Status', description: navigator.onLine ? 'Connected to high-speed network' : 'Offline mode active', type: 'info' }
                           }));
                         }
                       },
@@ -309,19 +424,6 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                         }
                       },
                       {
-                        label: 'Spotify',
-                        icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.84.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15.001 10.62 18.66 12.84c.361.181.54.84.301 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.38 4.2-1.2 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.56.3z"/></svg>,
-                        active: !!spotifyToken,
-                        onClick: () => {
-                          if (spotifyToken) setSpotifyToken(null);
-                          else {
-                            setSpotifyToken('mock_token_123');
-                            setIsPlaying(true);
-                            window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Spotify Connected', description: 'Listening to Audio Stream', type: 'success' } }));
-                          }
-                        }
-                      },
-                      {
                         label: useThemeStore.getState().colorMode === 'dark' ? 'Dark Mode' : 'Light Mode',
                         icon: <Moon className="w-4 h-4" />,
                         active: useThemeStore.getState().colorMode === 'dark',
@@ -332,14 +434,10 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                       },
                       {
                         label: 'AirDrop',
-                        icon: <Monitor className="w-4 h-4" />,
+                        icon: <Radio className="w-4 h-4" />,
                         active: true,
-                        onClick: async () => {
-                          window.dispatchEvent(new CustomEvent('os:notify', {
-                            detail: { title: 'AirDrop P2P Discovery', description: 'Scanning local WebRTC peers for instant file transfer...', type: 'info' }
-                          }));
-                          const { virtualDisplayManager } = await import('@/lib/virtual-display');
-                          virtualDisplayManager.spawnSecondaryDisplay();
+                        onClick: () => {
+                          window.dispatchEvent(new CustomEvent('os:open-airdrop'));
                         }
                       },
                       {
@@ -349,55 +447,67 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                         onClick: () => {
                           const curr = useThemeStore.getState().screenShader;
                           useThemeStore.getState().setScreenShader(curr === 'amber-warm' ? 'none' : 'amber-warm');
-                          window.dispatchEvent(new CustomEvent('os:notify', {
-                            detail: { title: 'Night Shift', description: curr === 'amber-warm' ? 'Disabled warm screen filter' : 'Enabled warm blue-light screen filter', type: 'info' }
-                          }));
+                        }
+                      },
+                      {
+                        label: 'Continuity',
+                        icon: <Camera className="w-4 h-4" />,
+                        active: true,
+                        onClick: () => {
+                          const { useWindowStore } = require('@/lib/stores/window.store');
+                          useWindowStore.getState().openWindow('continuity-hub', 'iPhone Mirroring & Continuity');
                         }
                       },
                     ].map(({ label, icon, active, onClick }) => (
                       <button
                         key={label}
-                        onClick={onClick}
+                        onClick={() => {
+                          onClick();
+                          audioSystem.playClick();
+                        }}
                         className={cn(
-                          "flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl text-[9px] font-bold transition-all duration-200",
-                          active && label === 'Spotify'
-                            ? "bg-[#1db954]/20 text-[#1db954] ring-1 ring-[#1db954]/30 shadow-inner"
-                            : active
-                            ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/30 shadow-inner"
-                            : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/70"
+                          "flex flex-col items-center justify-center gap-1 p-2.5 rounded-2xl text-[10px] font-bold transition-all",
+                          active
+                            ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/30"
+                            : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/80"
                         )}
                       >
                         {icon}
-                        {label}
+                        <span>{label}</span>
                       </button>
                     ))}
                   </div>
-                  <div className="w-px h-20 bg-white/10 mx-2" />
-                  <div className="flex flex-col gap-4 min-w-[130px]">
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-[9px] text-white/40 font-bold uppercase tracking-widest flex items-center gap-1"><Sun className="w-3 h-3"/> Display</span>
+
+                  <div className="w-px h-20 bg-white/10" />
+
+                  {/* Sliders */}
+                  <div className="flex flex-col gap-3 min-w-[140px]">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] text-white/40 font-bold uppercase tracking-wider flex items-center gap-1">
+                        <Sun className="w-3 h-3" /> Display
+                      </span>
                       <input
                         type="range"
                         min="20"
                         max="100"
-                        defaultValue="80"
+                        defaultValue="90"
                         onChange={(e) => {
-                          if (typeof document !== 'undefined') {
-                            document.documentElement.style.filter = `brightness(${e.target.value}%)`;
-                          }
+                          document.documentElement.style.filter = `brightness(${e.target.value}%)`;
                         }}
-                        className="w-full h-1.5 rounded-full accent-cyan-400 bg-white/10"
+                        className="w-full h-1.5 rounded-full accent-cyan-400 bg-white/10 cursor-pointer"
                       />
                     </div>
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-[9px] text-white/40 font-bold uppercase tracking-widest flex items-center gap-1"><Music className="w-3 h-3"/> Sound</span>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] text-white/40 font-bold uppercase tracking-wider flex items-center gap-1">
+                        <Volume2 className="w-3 h-3" /> Sound
+                      </span>
                       <input
                         type="range"
                         min="0"
                         max="100"
                         value={useThemeStore.getState().volume}
                         onChange={(e) => useThemeStore.getState().setVolume(Number(e.target.value))}
-                        className="w-full h-1.5 rounded-full accent-cyan-400 bg-white/10"
+                        className="w-full h-1.5 rounded-full accent-cyan-400 bg-white/10 cursor-pointer"
                       />
                     </div>
                   </div>

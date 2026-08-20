@@ -126,7 +126,7 @@ describe('CreativePackService', () => {
 
     it('should count approved assets via reactions', () => {
       const nodes: MoodboardNode[] = [
-        makeNode({ id: 'n1', reactions: { '👍': ['user1'] } }),
+        makeNode({ id: 'n1', reactions: { 'thumbs-up': ['user1'] } }),
         makeNode({ id: 'n2', content: 'https://example.com/2.jpg' }),
       ];
       const board = makeBoard({ name: 'Test Board', nodes });
@@ -190,7 +190,7 @@ describe('CreativePackService', () => {
 
     it('should count nodes with reactions', () => {
       const nodes: MoodboardNode[] = [
-        makeNode({ id: 'n1', reactions: { '👍': ['user1'] } }),
+        makeNode({ id: 'n1', reactions: { 'thumbs-up': ['user1'] } }),
         makeNode({ id: 'n2', content: 'https://example.com/2.jpg' }),
       ];
       const board = makeBoard({ name: 'Count Board', nodes });

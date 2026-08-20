@@ -132,12 +132,12 @@ export function DeliverablesTimeline({ project, onDeliverableClick }: Deliverabl
                       <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
                         {deliverable.assigneeId && (
                           <span className="flex items-center gap-1">
-                            👤 Assigned
+                             Assigned
                           </span>
                         )}
                         {deliverable.status === 'approved' && (
                           <span className="flex items-center gap-1 text-green-400">
-                            ✓ Approved
+                            Approved
                           </span>
                         )}
                       </div>

@@ -128,7 +128,7 @@ export function SamurAIView(props: SamurAIViewProps) {
           {[
             { id: 'select' as const, icon: '◇', label: 'Select' },
             { id: 'add' as const, icon: '+', label: 'Add' },
-            { id: 'comment' as const, icon: '💬', label: 'Comment' },
+            { id: 'comment' as const, icon: 'message-square', label: 'Comment' },
           ].map(tool => (
             <button key={tool.id} onClick={() => setActiveTool(tool.id)}
               className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-xs transition-colors",

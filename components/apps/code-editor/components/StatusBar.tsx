@@ -12,7 +12,7 @@ export function StatusBar({ cursorPosition, fileName }: StatusBarProps) {
       <div className="flex items-center gap-4">
         <span className="flex items-center gap-1 cursor-pointer hover:bg-white/10 px-1 rounded"><GitBranch className="w-3 h-3" /> main*</span>
         <span className="flex items-center gap-1 cursor-pointer hover:bg-white/10 px-1 rounded"><RefreshCcw className="w-3 h-3" /> 0 ↓ 2 ↑</span>
-        <span className="cursor-pointer hover:bg-white/10 px-1 rounded">✖ 0  ⚠ 0</span>
+        <span className="cursor-pointer hover:bg-white/10 px-1 rounded">X 0  ⚠ 0</span>
       </div>
       <div className="flex items-center gap-4">
         <span className="cursor-pointer hover:bg-white/10 px-1 rounded">Ln {cursorPosition.line}, Col {cursorPosition.column}</span>

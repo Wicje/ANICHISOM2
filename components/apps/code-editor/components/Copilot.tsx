@@ -21,7 +21,7 @@ export function CopilotPanel({ agentOpen, setAgentOpen }: CopilotProps) {
          <div className="flex items-center gap-2 font-semibold">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Agentic Copilot
          </div>
-         <button onClick={() => setAgentOpen(false)} className="text-white/50 hover:text-white">✖</button>
+         <button onClick={() => setAgentOpen(false)} className="text-white/50 hover:text-white">X</button>
       </div>
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar">
          {agentHistory.map((msg, i) => (

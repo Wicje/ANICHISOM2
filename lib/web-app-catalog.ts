@@ -55,7 +55,7 @@ export interface WebAppCatalogItem {
 
 export const WEB_APP_CATALOG: WebAppCatalogItem[] = [
   // ==========================================
-  // 💻 DEVELOPER APPS
+  // DEVELOPER APPS
   // ==========================================
   {
     id: 'codespaces',
@@ -143,7 +143,7 @@ export const WEB_APP_CATALOG: WebAppCatalogItem[] = [
   },
 
   // ==========================================
-  // 🎨 DESIGNER APPS
+  // DESIGNER APPS
   // ==========================================
   {
     id: 'figma',
@@ -231,7 +231,7 @@ export const WEB_APP_CATALOG: WebAppCatalogItem[] = [
   },
 
   // ==========================================
-  // 💼 BUSINESS & PM APPS
+  // BUSINESS & PM APPS
   // ==========================================
   {
     id: 'trello',
@@ -319,7 +319,7 @@ export const WEB_APP_CATALOG: WebAppCatalogItem[] = [
   },
 
   // ==========================================
-  // 🎓 STUDENT & SCIENCE APPS
+  // STUDENT & SCIENCE APPS
   // ==========================================
   {
     id: 'quizlet',
@@ -407,7 +407,7 @@ export const WEB_APP_CATALOG: WebAppCatalogItem[] = [
   },
 
   // ==========================================
-  // ✍️ WRITER & EDITOR APPS
+  // WRITER & EDITOR APPS
   // ==========================================
   {
     id: 'grammarly',
@@ -495,7 +495,7 @@ export const WEB_APP_CATALOG: WebAppCatalogItem[] = [
   },
 
   // ==========================================
-  // 🎵 MEDIA APPS
+  // MEDIA APPS
   // ==========================================
   {
     id: 'spotify',
