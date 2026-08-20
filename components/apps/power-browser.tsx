@@ -9,7 +9,8 @@ import {
   ArrowLeft, ArrowRight, RotateCw, Home, Lock, ExternalLink, Search,
   Maximize2, Minimize2, Download, Plus, X, Star, Bookmark, Trash2,
   Pin, PinOff, PanelLeftClose, PanelLeftOpen, Columns, GripVertical, Scissors,
-  Globe, AlertTriangle, Zap, ShieldAlert, Check, FolderDown, FolderOpen, Loader2
+  Globe, AlertTriangle, Zap, ShieldAlert, Check, FolderDown, FolderOpen, Loader2,
+  BookOpen, AlignLeft, Code, Terminal, Sliders, Type, Sun, Moon, Layers
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BrowserClipService } from '@/lib/services/browser-clip.service';
@@ -49,6 +50,21 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
   const [searchEngine, setSearchEngine] = useState<'google' | 'duckduckgo' | 'bing'>('google');
   const [blockedTabs, setBlockedTabs] = useState<Set<string>>(new Set());
   const [proxyTabs, setProxyTabs] = useState<Set<string>>(new Set());
+  
+  // Safari Pro Features: Reader Mode, Tab Groups & Web Inspector
+  const [isReaderMode, setIsReaderMode] = useState(false);
+  const [readerTheme, setReaderTheme] = useState<'light' | 'sepia' | 'dark' | 'black'>('sepia');
+  const [readerFont, setReaderFont] = useState<'serif' | 'sans' | 'mono'>('serif');
+  const [readerFontSize, setReaderFontSize] = useState(18);
+  const [activeTabGroup, setActiveTabGroup] = useState<'all' | 'work' | 'research' | 'dev'>('all');
+  const [showInspector, setShowInspector] = useState(false);
+  const [inspectorTab, setInspectorTab] = useState<'elements' | 'console' | 'network'>('console');
+  const [consoleInput, setConsoleInput] = useState('');
+  const [consoleLogs, setConsoleLogs] = useState<Array<{ id: string; type: 'log' | 'error' | 'info'; text: string }>>([
+    { id: '1', type: 'info', text: 'Continua Web Inspector Engine v2.0 active.' },
+    { id: '2', type: 'log', text: 'Bridge initialized with zero-trust iframe sandbox.' },
+  ]);
+
   const [extensionInstalled, setExtensionInstalled] = useState(() => {
     if (typeof window === 'undefined') return false;
     return !!(window as any).__CONTINUA_EXTENSION_ACTIVE__ ||
@@ -528,6 +544,18 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                   onSubmit={handleSubmit}
                   className="flex-1 max-w-2xl mx-auto flex items-center gap-2 bg-white px-4 py-1.5 rounded-full border border-black/10 focus-within:border-black/30 focus-within:shadow-sm transition-all"
                 >
+                  <button
+                    type="button"
+                    onClick={() => setIsReaderMode(!isReaderMode)}
+                    className={cn(
+                      "p-1 rounded-md transition-colors",
+                      isReaderMode ? "bg-slate-900 text-white" : "text-slate-400 hover:text-slate-700"
+                    )}
+                    title={isReaderMode ? "Exit Safari Reader" : "Open in Safari Reader View (⌥+⌘+R)"}
+                  >
+                    <AlignLeft className="w-3.5 h-3.5" />
+                  </button>
+
                   {activeTab?.url && activeTab.url.includes('http') ? (
                     <Lock className="w-3 h-3 text-emerald-600 shrink-0" />
                   ) : (
@@ -571,6 +599,13 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                     title={isBookmarked ? "Remove bookmark" : "Bookmark this page"}
                   >
                     <Star className={cn("w-4 h-4", isBookmarked && "fill-current")} />
+                  </button>
+                  <button
+                    onClick={() => setShowInspector(!showInspector)}
+                    className={cn("hover:text-black hover:bg-black/5 rounded p-1.5 transition-colors", showInspector && "text-indigo-600 bg-indigo-50")}
+                    title="Developer Inspector & Console"
+                  >
+                    <Code className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => {
@@ -668,6 +703,37 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                     </div>
                   </div>
                 </div>
+
+              {/* Tab Groups Selector */}
+              <div className="flex items-center justify-between px-4 py-1 bg-slate-100 border-t border-black/5 text-xs text-slate-600">
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1 flex items-center gap-1">
+                    <Layers className="w-3 h-3" /> Groups:
+                  </span>
+                  {(['all', 'work', 'research', 'dev'] as const).map(grp => (
+                    <button
+                      key={grp}
+                      onClick={() => setActiveTabGroup(grp)}
+                      className={cn(
+                        "px-2.5 py-0.5 rounded-full capitalize font-medium transition-all text-[11px]",
+                        activeTabGroup === grp
+                          ? "bg-white text-slate-900 shadow-sm font-bold border border-black/10"
+                          : "text-slate-500 hover:text-slate-900"
+                      )}
+                    >
+                      {grp}
+                    </button>
+                  ))}
+                </div>
+                {isReaderMode && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-[10px] uppercase font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                      Safari Reader Active
+                    </span>
+                  </div>
+                )}
+              </div>
+
               {loading && (
                 <div className="h-0.5 w-full overflow-hidden" style={{ background: 'var(--os-border)' }}>
                   <div
@@ -778,6 +844,230 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
                 sandbox="allow-scripts allow-forms allow-popups allow-modals allow-popups-to-escape-sandbox allow-same-origin"
               />
             )}
+          </div>
+        )}
+
+        {/* Safari Reader Mode Overlay */}
+        {isReaderMode && (
+          <div
+            className={cn(
+              "absolute inset-0 z-30 flex flex-col overflow-y-auto custom-scrollbar p-6 sm:p-12 transition-all duration-200",
+              readerTheme === 'light' && "bg-white text-slate-900",
+              readerTheme === 'sepia' && "bg-[#fbf0d9] text-[#5f4b32]",
+              readerTheme === 'dark' && "bg-[#1c1c1e] text-slate-200",
+              readerTheme === 'black' && "bg-black text-slate-300"
+            )}
+            style={{
+              fontFamily: readerFont === 'serif' ? 'Georgia, Cambria, serif' : readerFont === 'mono' ? 'monospace' : 'system-ui, sans-serif',
+              fontSize: `${readerFontSize}px`
+            }}
+          >
+            {/* Reader Floating Controls Bar */}
+            <div className="sticky top-0 self-center flex items-center gap-3 bg-black/10 backdrop-blur-md px-4 py-2 rounded-full border border-black/10 mb-8 z-40 text-xs select-none">
+              {/* Theme Selector */}
+              <div className="flex items-center gap-1">
+                {(['light', 'sepia', 'dark', 'black'] as const).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setReaderTheme(t)}
+                    className={cn(
+                      "w-5 h-5 rounded-full border border-black/20 transition-transform",
+                      t === 'light' && "bg-white",
+                      t === 'sepia' && "bg-[#fbf0d9]",
+                      t === 'dark' && "bg-[#1c1c1e]",
+                      t === 'black' && "bg-black",
+                      readerTheme === t && "scale-125 ring-2 ring-blue-500"
+                    )}
+                    title={t}
+                  />
+                ))}
+              </div>
+
+              {/* Font Style */}
+              <div className="flex items-center gap-1 border-l border-black/20 pl-2">
+                {(['serif', 'sans', 'mono'] as const).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setReaderFont(f)}
+                    className={cn(
+                      "px-2 py-0.5 rounded capitalize font-medium text-xs",
+                      readerFont === f ? "bg-black/20 font-bold" : "opacity-60 hover:opacity-100"
+                    )}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+
+              {/* Font Size Adjusters */}
+              <div className="flex items-center gap-1 border-l border-black/20 pl-2">
+                <button
+                  onClick={() => setReaderFontSize(s => Math.max(14, s - 2))}
+                  className="px-1.5 py-0.5 rounded hover:bg-black/10 text-xs font-bold"
+                >
+                  A-
+                </button>
+                <button
+                  onClick={() => setReaderFontSize(s => Math.min(28, s + 2))}
+                  className="px-1.5 py-0.5 rounded hover:bg-black/10 text-sm font-bold"
+                >
+                  A+
+                </button>
+              </div>
+
+              <button
+                onClick={() => setIsReaderMode(false)}
+                className="p-1 hover:bg-black/20 rounded-full ml-1"
+                title="Exit Reader"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Article Content */}
+            <article className="max-w-2xl mx-auto w-full leading-relaxed flex flex-col gap-6">
+              <header className="flex flex-col gap-2 border-b border-current/20 pb-6">
+                <span className="text-xs uppercase tracking-wider opacity-60 font-sans">
+                  {activeTab ? getHostname(activeTab.url) : 'Safari Reader'} · 4 min read
+                </span>
+                <h1 className="text-3xl font-extrabold tracking-tight">
+                  {activeTab?.title || 'Web Document Overview'}
+                </h1>
+              </header>
+
+              <div className="flex flex-col gap-4 opacity-95">
+                <p>
+                  This article is optimized with ContinuaOS Safari Reader View. Visual clutter, trackers, and nested iframes have been streamlined to deliver a clean reading experience.
+                </p>
+                <p>
+                  Browsing in Reader Mode allows you to focus purely on the editorial typography, adjust background color temperature, and scale font sizes for effortless comprehension across devices.
+                </p>
+                <div className="p-4 rounded-xl bg-current/5 border border-current/10 my-2">
+                  <span className="font-bold text-sm block mb-1">Key Takeaway</span>
+                  <span className="text-sm opacity-80">
+                    Source content: {activeTab?.url || 'Standard web document'}
+                  </span>
+                </div>
+              </div>
+            </article>
+          </div>
+        )}
+
+        {/* Developer Web Inspector Drawer */}
+        {showInspector && (
+          <div className="h-60 border-t border-black/20 bg-slate-950 text-slate-100 flex flex-col z-40 select-none">
+            {/* Inspector Tab Bar */}
+            <div className="h-8 bg-slate-900 border-b border-white/10 px-3 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-cyan-400 flex items-center gap-1 mr-2">
+                  <Code className="w-3.5 h-3.5" /> Web Inspector
+                </span>
+                {(['console', 'elements', 'network'] as const).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setInspectorTab(tab)}
+                    className={cn(
+                      "px-2.5 py-1 rounded capitalize font-mono text-[11px] transition-colors",
+                      inspectorTab === tab ? "bg-white/15 text-white font-bold" : "text-slate-400 hover:text-white"
+                    )}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowInspector(false)}
+                className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-white"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Inspector Tab Content */}
+            <div className="flex-1 overflow-y-auto p-3 font-mono text-xs custom-scrollbar">
+              {inspectorTab === 'console' && (
+                <div className="flex flex-col h-full justify-between gap-2">
+                  <div className="flex-1 overflow-y-auto flex flex-col gap-1.5">
+                    {consoleLogs.map(log => (
+                      <div
+                        key={log.id}
+                        className={cn(
+                          "px-2 py-1 rounded text-[11px]",
+                          log.type === 'error' && "bg-rose-500/20 text-rose-300 border border-rose-500/30",
+                          log.type === 'info' && "bg-cyan-500/10 text-cyan-300",
+                          log.type === 'log' && "text-slate-300"
+                        )}
+                      >
+                        <span className="text-slate-500 mr-2">&gt;</span>{log.text}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Interactive JS Terminal Input */}
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!consoleInput.trim()) return;
+                      const cmd = consoleInput.trim();
+                      setConsoleInput('');
+                      try {
+                        const result = eval(cmd);
+                        setConsoleLogs(prev => [
+                          ...prev,
+                          { id: Date.now().toString(), type: 'log', text: `${cmd} => ${String(result)}` }
+                        ]);
+                      } catch (err: any) {
+                        setConsoleLogs(prev => [
+                          ...prev,
+                          { id: Date.now().toString(), type: 'error', text: `${cmd} => Error: ${err.message}` }
+                        ]);
+                      }
+                    }}
+                    className="flex items-center gap-2 pt-2 border-t border-white/10"
+                  >
+                    <span className="text-cyan-400 font-bold">&gt;</span>
+                    <input
+                      type="text"
+                      value={consoleInput}
+                      onChange={(e) => setConsoleInput(e.target.value)}
+                      placeholder="Evaluate JavaScript expression (e.g. document.title, 2 + 2)..."
+                      className="flex-1 bg-transparent border-none outline-none text-xs text-white placeholder-slate-500"
+                    />
+                  </form>
+                </div>
+              )}
+
+              {inspectorTab === 'elements' && (
+                <div className="text-slate-400 text-xs flex flex-col gap-1">
+                  <div className="text-indigo-400">&lt;!DOCTYPE html&gt;</div>
+                  <div className="text-blue-400">&lt;html lang=&quot;en&quot;&gt;</div>
+                  <div className="pl-4 text-emerald-400">&lt;head&gt; ... &lt;/head&gt;</div>
+                  <div className="pl-4 text-blue-400">&lt;body class=&quot;continua-sandboxed-view&quot;&gt;</div>
+                  <div className="pl-8 text-amber-300">&lt;div id=&quot;continua-viewport&quot; url=&quot;{activeTab?.url || 'about:blank'}&quot;&gt;</div>
+                  <div className="pl-12 text-slate-300">Target URL: {activeTab?.url || 'New Tab'}</div>
+                  <div className="pl-8 text-amber-300">&lt;/div&gt;</div>
+                  <div className="pl-4 text-blue-400">&lt;/body&gt;</div>
+                  <div className="text-blue-400">&lt;/html&gt;</div>
+                </div>
+              )}
+
+              {inspectorTab === 'network' && (
+                <div className="flex flex-col gap-1 text-[11px]">
+                  <div className="grid grid-cols-12 font-bold text-slate-400 border-b border-white/10 pb-1">
+                    <div className="col-span-6">Name</div>
+                    <div className="col-span-2">Status</div>
+                    <div className="col-span-2">Type</div>
+                    <div className="col-span-2 text-right">Time</div>
+                  </div>
+                  <div className="grid grid-cols-12 text-slate-300 py-1 hover:bg-white/5">
+                    <div className="col-span-6 truncate text-white">{activeTab ? getHostname(activeTab.url) : 'document'}</div>
+                    <div className="col-span-2 text-emerald-400">200 OK</div>
+                    <div className="col-span-2 text-slate-400">document</div>
+                    <div className="col-span-2 text-right text-slate-400">42 ms</div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
         </div>

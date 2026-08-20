@@ -54,6 +54,7 @@ import { SpatialStage } from './spatial-stage';
 import { TimeMachine } from './time-machine';
 import { AudioVisualizer } from './audio-visualizer';
 import { AirDropModal } from './airdrop-modal';
+import { AccessibilityOverlay } from './accessibility-overlay';
 import { HotCorners } from './hot-corners';
 import { TrackpadGestures } from './trackpad-gestures';
 import { AIAgentBar } from '@/components/overlays/ai-agent-bar';
@@ -219,20 +220,24 @@ export function Desktop() {
   const [showSpatialStage, setShowSpatialStage] = useState(false);
   const [showTimeMachine, setShowTimeMachine] = useState(false);
   const [showAirDrop, setShowAirDrop] = useState(false);
+  const [showAccessibility, setShowAccessibility] = useState(false);
 
   useEffect(() => {
     const handleSpatial = () => setShowSpatialStage(prev => !prev);
     const handleTimeMachine = () => setShowTimeMachine(prev => !prev);
     const handleAirDrop = () => setShowAirDrop(prev => !prev);
+    const handleAccessibility = () => setShowAccessibility(prev => !prev);
 
     window.addEventListener('os:open-spatial', handleSpatial);
     window.addEventListener('os:open-timemachine', handleTimeMachine);
     window.addEventListener('os:open-airdrop', handleAirDrop);
+    window.addEventListener('os:open-accessibility', handleAccessibility);
 
     return () => {
       window.removeEventListener('os:open-spatial', handleSpatial);
       window.removeEventListener('os:open-timemachine', handleTimeMachine);
       window.removeEventListener('os:open-airdrop', handleAirDrop);
+      window.removeEventListener('os:open-accessibility', handleAccessibility);
     };
   }, []);
 
@@ -1133,6 +1138,7 @@ export function Desktop() {
       <SpatialStage isOpen={showSpatialStage} onClose={() => setShowSpatialStage(false)} />
       <TimeMachine isOpen={showTimeMachine} onClose={() => setShowTimeMachine(false)} />
       <AirDropModal isOpen={showAirDrop} onClose={() => setShowAirDrop(false)} />
+      <AccessibilityOverlay isOpen={showAccessibility} onClose={() => setShowAccessibility(false)} />
 
       <AIAgentBar />
       <DragShelf />

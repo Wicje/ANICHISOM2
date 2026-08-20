@@ -198,3 +198,15 @@ html:not(.night-shift-active) {
   transition: filter 0.4s ease;
 }
 
+/* Accessibility Shaders */
+html.os-high-contrast {
+  filter: contrast(150%) brightness(105%);
+}
+html.os-grayscale {
+  filter: grayscale(100%);
+}
+html.os-inverted {
+  filter: invert(100%) hue-rotate(180deg);
+}
+
+

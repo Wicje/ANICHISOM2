@@ -44,6 +44,66 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
   const [lockedByUser, setLockedByUser] = useState<string | null>(null);
   const [isMinimizing, setIsMinimizing] = useState(false);
   const [snapPreview, setSnapPreview] = useState<SnapPreviewMode | null>(null);
+  const [showTilingMenu, setShowTilingMenu] = useState(false);
+  const tilingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const applyTile = (mode: SnapPreviewMode | 'center' | 'fullscreen') => {
+    const screenW = window.innerWidth;
+    const screenH = window.innerHeight;
+    const headerSpace = 32;
+    const halfW = screenW / 2;
+    const halfH = (screenH - headerSpace) / 2;
+
+    if (mode === 'fullscreen') {
+      maximizeWindow(id);
+    } else if (mode === 'center') {
+      if (isMaximized) maximizeWindow(id);
+      const w = Math.min(1000, screenW * 0.75);
+      const h = Math.min(650, (screenH - headerSpace) * 0.8);
+      const newX = (screenW - w) / 2;
+      const newY = headerSpace + ((screenH - headerSpace - h) / 2);
+      setLocalPosition({ x: newX, y: newY });
+      setLocalSize({ w, h });
+      updateWindowDimensions(id, newX, newY, w, h);
+    } else if (mode === 'left') {
+      if (isMaximized) maximizeWindow(id);
+      setLocalPosition({ x: 0, y: headerSpace });
+      setLocalSize({ w: halfW, h: screenH - headerSpace });
+      updateWindowDimensions(id, 0, headerSpace, halfW, screenH - headerSpace);
+    } else if (mode === 'right') {
+      if (isMaximized) maximizeWindow(id);
+      setLocalPosition({ x: halfW, y: headerSpace });
+      setLocalSize({ w: halfW, h: screenH - headerSpace });
+      updateWindowDimensions(id, halfW, headerSpace, halfW, screenH - headerSpace);
+    } else if (mode === 'top') {
+      if (isMaximized) maximizeWindow(id);
+      setLocalPosition({ x: 0, y: headerSpace });
+      setLocalSize({ w: screenW, h: halfH });
+      updateWindowDimensions(id, 0, headerSpace, screenW, halfH);
+    } else if (mode === 'top-left') {
+      if (isMaximized) maximizeWindow(id);
+      setLocalPosition({ x: 0, y: headerSpace });
+      setLocalSize({ w: halfW, h: halfH });
+      updateWindowDimensions(id, 0, headerSpace, halfW, halfH);
+    } else if (mode === 'top-right') {
+      if (isMaximized) maximizeWindow(id);
+      setLocalPosition({ x: halfW, y: headerSpace });
+      setLocalSize({ w: halfW, h: halfH });
+      updateWindowDimensions(id, halfW, headerSpace, halfW, halfH);
+    } else if (mode === 'bottom-left') {
+      if (isMaximized) maximizeWindow(id);
+      setLocalPosition({ x: 0, y: headerSpace + halfH });
+      setLocalSize({ w: halfW, h: halfH });
+      updateWindowDimensions(id, 0, headerSpace + halfH, halfW, halfH);
+    } else if (mode === 'bottom-right') {
+      if (isMaximized) maximizeWindow(id);
+      setLocalPosition({ x: halfW, y: headerSpace + halfH });
+      setLocalSize({ w: halfW, h: halfH });
+      updateWindowDimensions(id, halfW, headerSpace + halfH, halfW, halfH);
+    }
+    setShowTilingMenu(false);
+    setSnapPreview(null);
+  };
 
   useEffect(() => {
     if (!osWindow.data?.fileId) return;
@@ -338,14 +398,127 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
           >
             <Minus className="w-2 h-2 opacity-0 group-hover:opacity-100 text-black" aria-hidden="true" />
           </button>
-          <button
-            aria-label="Maximize window"
-            onClick={(e) => { e.stopPropagation(); audioSystem.playClick(); maximizeWindow(id); }}
-            className="w-3 h-3 rounded-full transition-colors flex items-center justify-center group"
-            style={{ background: '#28C840' }}
+          <div
+            className="relative"
+            onMouseEnter={() => {
+              tilingTimeoutRef.current = setTimeout(() => setShowTilingMenu(true), 250);
+            }}
+            onMouseLeave={() => {
+              if (tilingTimeoutRef.current) clearTimeout(tilingTimeoutRef.current);
+              setShowTilingMenu(false);
+              setSnapPreview(null);
+            }}
           >
-            <Maximize2 className="w-2 h-2 opacity-0 group-hover:opacity-100 text-black shrink-0" aria-hidden="true" />
-          </button>
+            <button
+              aria-label="Maximize window"
+              onClick={(e) => { e.stopPropagation(); audioSystem.playClick(); maximizeWindow(id); }}
+              className="w-3 h-3 rounded-full transition-colors flex items-center justify-center group"
+              style={{ background: '#28C840' }}
+            >
+              <Maximize2 className="w-2 h-2 opacity-0 group-hover:opacity-100 text-black shrink-0" aria-hidden="true" />
+            </button>
+
+            {/* macOS Sequoia Tiling Popover Menu */}
+            {showTilingMenu && (
+              <div
+                className="absolute top-5 left-0 z-[9999] w-64 bg-[var(--os-glass-bg)] backdrop-blur-2xl border border-[var(--os-glass-border)] rounded-2xl shadow-2xl p-2.5 flex flex-col gap-2 pointer-events-auto select-none animate-in fade-in zoom-in-95 duration-150"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--os-text-muted)] px-2">Move & Resize (Sequoia Tiling)</div>
+                
+                {/* 2-Column Split View */}
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    onClick={() => applyTile('left')}
+                    onMouseEnter={() => setSnapPreview('left')}
+                    onMouseLeave={() => setSnapPreview(null)}
+                    className="flex items-center gap-2 p-2 rounded-xl hover:bg-[var(--os-hover)] text-left text-xs text-[var(--os-text)] transition-colors"
+                  >
+                    <div className="w-5 h-4 border border-white/40 rounded flex overflow-hidden">
+                      <div className="w-1/2 h-full bg-[var(--os-primary)]" />
+                    </div>
+                    <span>Left Half</span>
+                  </button>
+                  <button
+                    onClick={() => applyTile('right')}
+                    onMouseEnter={() => setSnapPreview('right')}
+                    onMouseLeave={() => setSnapPreview(null)}
+                    className="flex items-center gap-2 p-2 rounded-xl hover:bg-[var(--os-hover)] text-left text-xs text-[var(--os-text)] transition-colors"
+                  >
+                    <div className="w-5 h-4 border border-white/40 rounded flex overflow-hidden">
+                      <div className="w-1/2 h-full ml-auto bg-[var(--os-primary)]" />
+                    </div>
+                    <span>Right Half</span>
+                  </button>
+                </div>
+
+                {/* Quarters (Top-Left, Top-Right, Bottom-Left, Bottom-Right) */}
+                <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--os-text-muted)] px-2 pt-1 border-t border-[var(--os-border)]">Quarters</div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    onClick={() => applyTile('top-left')}
+                    onMouseEnter={() => setSnapPreview('top-left')}
+                    onMouseLeave={() => setSnapPreview(null)}
+                    className="flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-[var(--os-hover)] text-left text-[11px] text-[var(--os-text)]"
+                  >
+                    <div className="w-4 h-3.5 border border-white/40 rounded flex flex-col overflow-hidden">
+                      <div className="w-1/2 h-1/2 bg-[var(--os-primary)]" />
+                    </div>
+                    <span>Top-Left</span>
+                  </button>
+                  <button
+                    onClick={() => applyTile('top-right')}
+                    onMouseEnter={() => setSnapPreview('top-right')}
+                    onMouseLeave={() => setSnapPreview(null)}
+                    className="flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-[var(--os-hover)] text-left text-[11px] text-[var(--os-text)]"
+                  >
+                    <div className="w-4 h-3.5 border border-white/40 rounded flex flex-col overflow-hidden items-end">
+                      <div className="w-1/2 h-1/2 bg-[var(--os-primary)]" />
+                    </div>
+                    <span>Top-Right</span>
+                  </button>
+                  <button
+                    onClick={() => applyTile('bottom-left')}
+                    onMouseEnter={() => setSnapPreview('bottom-left')}
+                    onMouseLeave={() => setSnapPreview(null)}
+                    className="flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-[var(--os-hover)] text-left text-[11px] text-[var(--os-text)]"
+                  >
+                    <div className="w-4 h-3.5 border border-white/40 rounded flex flex-col justify-end overflow-hidden">
+                      <div className="w-1/2 h-1/2 bg-[var(--os-primary)]" />
+                    </div>
+                    <span>Bottom-Left</span>
+                  </button>
+                  <button
+                    onClick={() => applyTile('bottom-right')}
+                    onMouseEnter={() => setSnapPreview('bottom-right')}
+                    onMouseLeave={() => setSnapPreview(null)}
+                    className="flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-[var(--os-hover)] text-left text-[11px] text-[var(--os-text)]"
+                  >
+                    <div className="w-4 h-3.5 border border-white/40 rounded flex flex-col justify-end items-end overflow-hidden">
+                      <div className="w-1/2 h-1/2 bg-[var(--os-primary)]" />
+                    </div>
+                    <span>Bottom-Right</span>
+                  </button>
+                </div>
+
+                {/* Fill / Center */}
+                <div className="border-t border-[var(--os-border)] pt-1 flex items-center justify-between">
+                  <button
+                    onClick={() => applyTile('center')}
+                    className="px-2.5 py-1 rounded-lg hover:bg-[var(--os-hover)] text-xs text-[var(--os-text)] font-medium"
+                  >
+                    Center (80%)
+                  </button>
+                  <button
+                    onClick={() => applyTile('fullscreen')}
+                    className="px-2.5 py-1 rounded-lg hover:bg-[var(--os-hover)] text-xs text-[var(--os-primary)] font-semibold"
+                  >
+                    Fullscreen
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         
         <div className="font-display text-xs tracking-wider uppercase select-none pointer-events-none flex items-center gap-2" style={{ color: 'var(--os-text-muted)' }}>
