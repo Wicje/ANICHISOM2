@@ -196,8 +196,16 @@ export function Desktop() {
   const recentApps = useWorkspaceStore((s) => s.recentApps);
   const getAppPrivacy = usePrivacyStore((s) => s.getAppPrivacy);
   const { onboarding } = useOnboardingStore();
-
   const dynamicWallpaper = useThemeStore((s) => s.dynamicWallpaper);
+
+  const handleLogout = async () => {
+    const isEphemeral = usePrivacyStore.getState().isEphemeralMode;
+    if (isEphemeral) {
+      await usePrivacyStore.getState().purgeAllDeviceTraces();
+    } else {
+      await logout();
+    }
+  };
   const showNotch = useThemeStore((s) => s.showNotch);
   useDynamicWallpaper(dynamicWallpaper);
 
@@ -1026,7 +1034,7 @@ export function Desktop() {
         applyWorkspaceLayout={applyWorkspaceLayout}
         performanceMode={performanceMode}
         setPerformanceMode={setPerformanceMode}
-        logout={logout}
+        logout={handleLogout}
         wipeSession={wipeSession}
       />
 

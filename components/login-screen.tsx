@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuthStore, OSRole } from '@/lib/stores/auth.store';
+import { usePrivacyStore } from '@/lib/stores/privacy.store';
 import { createClient } from '@/utils/supabase/client';
-import { Loader2, AlertCircle, Mail, Lock, UserPlus, LogIn, Ticket, Fingerprint } from 'lucide-react';
+import { Loader2, AlertCircle, Mail, Lock, UserPlus, LogIn, Ticket, Fingerprint, Shield } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -43,6 +45,7 @@ export function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [passkeySupported, setPasskeySupported] = useState(false);
+  const [isEphemeral, setIsEphemeral] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -441,6 +444,26 @@ export function LoginScreen() {
                 className="h-11 pl-11 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-white/20 focus-visible:border-[#10F4A0]/40"
               />
             </div>
+          </div>
+
+          {/* Zero-Trace Guest / Borrowed Laptop Mode */}
+          <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+            <div className="flex items-center gap-2.5">
+              <Shield className={cn("w-4 h-4 transition-colors", isEphemeral ? "text-[#10F4A0]" : "text-white/30")} />
+              <div className="flex flex-col">
+                <span className="text-xs font-medium text-white/80">Borrowed Laptop (Zero-Trace Mode)</span>
+                <span className="text-[10px] text-white/40">Purges all local cache, history & tokens on logout</span>
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={isEphemeral}
+              onChange={(e) => {
+                setIsEphemeral(e.target.checked);
+                usePrivacyStore.getState().setEphemeralMode(e.target.checked);
+              }}
+              className="w-4 h-4 accent-[#10F4A0] rounded cursor-pointer"
+            />
           </div>
 
           <Button

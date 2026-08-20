@@ -30,8 +30,11 @@ interface PrivacyState {
   appSettings: Record<string, AppPrivacySettings>;
   workspaceDefaults: WorkspacePrivacyDefaults;
   systemPermissions: Record<string, 'ask' | 'allow' | 'deny'>;
+  isEphemeralMode: boolean;
 
   setPermission: (perm: string, val: 'ask' | 'allow' | 'deny') => void;
+  setEphemeralMode: (enabled: boolean) => void;
+  purgeAllDeviceTraces: () => Promise<void>;
 
   // ─── App Privacy ──────────────────────────────────────────────────
   setAppPrivacy: (appId: string, level: PrivacyLevel, allowedUserIds?: string[]) => void;
@@ -65,11 +68,57 @@ export const usePrivacyStore = create<PrivacyState>((set, get) => ({
     Location: 'ask',
     Network: 'allow',
   },
+  isEphemeralMode: false,
 
   setPermission: (perm, val) => {
     set(s => ({
       systemPermissions: { ...s.systemPermissions, [perm]: val }
     }));
+  },
+
+  setEphemeralMode: (enabled) => {
+    set({ isEphemeralMode: enabled });
+    if (typeof window !== 'undefined') {
+      if (enabled) {
+        sessionStorage.setItem('continua_ephemeral_mode', 'true');
+      } else {
+        sessionStorage.removeItem('continua_ephemeral_mode');
+      }
+    }
+  },
+
+  purgeAllDeviceTraces: async () => {
+    try {
+      if (typeof window !== 'undefined') {
+        // 1. Wipe IndexedDB cache
+        try {
+          const { clear } = await import('idb-keyval');
+          await clear();
+        } catch {}
+
+        // 2. Clear all local storage
+        localStorage.clear();
+        sessionStorage.clear();
+
+        // 3. Purge Service Worker caches
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+
+        // 4. Sign out of Supabase SSR
+        try {
+          const { createClient } = await import('@/utils/supabase/client');
+          const supabase = createClient();
+          await supabase.auth.signOut();
+        } catch {}
+
+        // 5. Reload to clear in-memory state
+        window.location.href = '/';
+      }
+    } catch (e) {
+      console.error('Failed to purge device traces:', e);
+    }
   },
 
   // ─── App Privacy ──────────────────────────────────────────────────
