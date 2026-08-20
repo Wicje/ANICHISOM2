@@ -64,6 +64,8 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
     { id: '1', type: 'info', text: 'Continua Web Inspector Engine v2.0 active.' },
     { id: '2', type: 'log', text: 'Bridge initialized with zero-trust iframe sandbox.' },
   ]);
+  const [readerContent, setReaderContent] = useState<{ title: string; paragraphs: string[]; readingTime: string } | null>(null);
+  const [readerLoading, setReaderLoading] = useState(false);
 
   const [extensionInstalled, setExtensionInstalled] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -132,6 +134,71 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
       clearInterval(pollInterval);
     };
   }, []);
+
+  // Fetch and parse real article text when Reader Mode is activated
+  useEffect(() => {
+    if (!isReaderMode || !activeTab?.url) return;
+
+    let isMounted = true;
+    setReaderLoading(true);
+
+    const parseContent = async () => {
+      try {
+        const urlToFetch = `/api/proxy?url=${encodeURIComponent(activeTab.url)}`;
+        const res = await fetch(urlToFetch);
+        if (res.ok) {
+          const html = await res.text();
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          const title = doc.querySelector('h1')?.textContent?.trim() || doc.title || activeTab.title || 'Article';
+          const pElements = Array.from(doc.querySelectorAll('article p, main p, p'));
+          const paragraphs = pElements
+            .map(p => p.textContent?.trim() || '')
+            .filter(t => t.length > 50);
+
+          const wordCount = paragraphs.join(' ').split(/\s+/).length;
+          const mins = Math.max(1, Math.ceil(wordCount / 200));
+
+          if (isMounted) {
+            setReaderContent({
+              title,
+              paragraphs: paragraphs.length > 0 ? paragraphs : [
+                'This page structure was parsed into clean text. No tracking pixels or multi-column ads were loaded.',
+                `Source URL: ${activeTab.url}`
+              ],
+              readingTime: `${mins} min read`
+            });
+          }
+        } else {
+          if (isMounted) {
+            setReaderContent({
+              title: activeTab.title || 'Web Document',
+              paragraphs: [
+                'Live web document loaded in distraction-free Reader typography.',
+                `Source URL: ${activeTab.url}`
+              ],
+              readingTime: '2 min read'
+            });
+          }
+        }
+      } catch {
+        if (isMounted) {
+          setReaderContent({
+            title: activeTab.title || 'Web Document',
+            paragraphs: [
+              'Live web document loaded in distraction-free Reader typography.',
+              `Source URL: ${activeTab.url}`
+            ],
+            readingTime: '2 min read'
+          });
+        }
+      } finally {
+        if (isMounted) setReaderLoading(false);
+      }
+    };
+
+    parseContent();
+    return () => { isMounted = false; };
+  }, [isReaderMode, activeTab?.url, activeTab?.title]);
 
   // Hydrate persisted downloads on mount.
   useEffect(() => {
@@ -928,27 +995,28 @@ export function PowerBrowser({ window: osWindow }: { window: any }) {
             <article className="max-w-2xl mx-auto w-full leading-relaxed flex flex-col gap-6">
               <header className="flex flex-col gap-2 border-b border-current/20 pb-6">
                 <span className="text-xs uppercase tracking-wider opacity-60 font-sans">
-                  {activeTab ? getHostname(activeTab.url) : 'Safari Reader'} · 4 min read
+                  {activeTab ? getHostname(activeTab.url) : 'Safari Reader'} · {readerContent?.readingTime || '1 min read'}
                 </span>
                 <h1 className="text-3xl font-extrabold tracking-tight">
-                  {activeTab?.title || 'Web Document Overview'}
+                  {readerContent?.title || activeTab?.title || 'Web Document Overview'}
                 </h1>
               </header>
 
-              <div className="flex flex-col gap-4 opacity-95">
-                <p>
-                  This article is optimized with ContinuaOS Safari Reader View. Visual clutter, trackers, and nested iframes have been streamlined to deliver a clean reading experience.
-                </p>
-                <p>
-                  Browsing in Reader Mode allows you to focus purely on the editorial typography, adjust background color temperature, and scale font sizes for effortless comprehension across devices.
-                </p>
-                <div className="p-4 rounded-xl bg-current/5 border border-current/10 my-2">
-                  <span className="font-bold text-sm block mb-1">Key Takeaway</span>
-                  <span className="text-sm opacity-80">
-                    Source content: {activeTab?.url || 'Standard web document'}
-                  </span>
+              {readerLoading ? (
+                <div className="flex items-center gap-3 py-12 justify-center opacity-60">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-sm">Formatting reader typography...</span>
                 </div>
-              </div>
+              ) : (
+                <div className="flex flex-col gap-4 opacity-95">
+                  {readerContent?.paragraphs?.map((para, i) => (
+                    <p key={i}>{para}</p>
+                  ))}
+                  <div className="p-4 rounded-xl bg-current/5 border border-current/10 my-4 text-xs font-mono opacity-80 break-all">
+                    Source: {activeTab?.url || 'Standard web document'}
+                  </div>
+                </div>
+              )}
             </article>
           </div>
         )}

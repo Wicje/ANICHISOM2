@@ -225,24 +225,45 @@ export function HardwareManagerApp() {
                 </span>
               </div>
               <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden">
-                <div className="w-1/4 h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full" />
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full transition-all duration-500"
+                  style={{
+                    width: typeof performance !== 'undefined' && (performance as any).memory
+                      ? `${Math.min(100, Math.max(5, ((performance as any).memory.usedJSHeapSize / (performance as any).memory.jsHeapSizeLimit) * 100))}%`
+                      : '22%'
+                  }}
+                />
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/10 text-xs">
                 <div>
                   <span className="text-slate-400">Physical Memory:</span>
-                  <div className="text-base font-bold text-white">8.00 GB</div>
+                  <div className="text-base font-bold text-white">
+                    {typeof navigator !== 'undefined' && (navigator as any).deviceMemory ? `${(navigator as any).deviceMemory}.00 GB` : '8.00 GB'}
+                  </div>
                 </div>
                 <div>
-                  <span className="text-slate-400">Memory Used:</span>
-                  <div className="text-base font-bold text-cyan-400">1.82 GB</div>
+                  <span className="text-slate-400">JS Heap Allocated:</span>
+                  <div className="text-base font-bold text-cyan-400">
+                    {typeof performance !== 'undefined' && (performance as any).memory
+                      ? `${((performance as any).memory.usedJSHeapSize / 1024 / 1024).toFixed(1)} MB`
+                      : '240.5 MB'}
+                  </div>
                 </div>
                 <div>
-                  <span className="text-slate-400">Cached Files:</span>
-                  <div className="text-base font-bold text-indigo-400">640 MB</div>
+                  <span className="text-slate-400">Heap Total:</span>
+                  <div className="text-base font-bold text-indigo-400">
+                    {typeof performance !== 'undefined' && (performance as any).memory
+                      ? `${((performance as any).memory.totalJSHeapSize / 1024 / 1024).toFixed(1)} MB`
+                      : '512.0 MB'}
+                  </div>
                 </div>
                 <div>
-                  <span className="text-slate-400">Swap Used:</span>
-                  <div className="text-base font-bold text-slate-400">0 Bytes</div>
+                  <span className="text-slate-400">Heap Limit:</span>
+                  <div className="text-base font-bold text-slate-300">
+                    {typeof performance !== 'undefined' && (performance as any).memory
+                      ? `${((performance as any).memory.jsHeapSizeLimit / 1024 / 1024 / 1024).toFixed(1)} GB`
+                      : '4.0 GB'}
+                  </div>
                 </div>
               </div>
             </div>
