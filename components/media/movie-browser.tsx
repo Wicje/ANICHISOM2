@@ -15,7 +15,7 @@ interface Movie {
 }
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
-const TMDB_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY as string | undefined;
+const TMDB_KEY = (typeof window !== 'undefined' ? (localStorage.getItem('continuaos_tmdb_key') || '') : '') || (process.env.NEXT_PUBLIC_TMDB_API_KEY as string | undefined) || 'd95c462977302538d544a687fa058114';
 
 async function fetchMovies(endpoint: string, params: Record<string, string> = {}): Promise<Movie[]> {
   if (!TMDB_KEY) return [];

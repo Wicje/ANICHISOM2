@@ -863,6 +863,84 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                       )}
                     </button>
                   </div>
+
+                  {/* Dropbox */}
+                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-bold text-xs text-white">
+                        DB
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-sm">Dropbox Sync</h3>
+                        <p className="text-xs text-white/40 mt-0.5">Mount personal Dropbox storage</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        useFileStore.getState().connectSource('dropbox');
+                        audioSystem.playClick();
+                        window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Dropbox Connected', description: 'Dropbox source enabled in Files app', type: 'success' } }));
+                      }}
+                      className="text-sm px-4 py-1.5 rounded-lg border border-white/20 hover:bg-white/10 transition-colors"
+                    >
+                      Connect Dropbox
+                    </button>
+                  </div>
+
+                  {/* OneDrive */}
+                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-sky-600 rounded flex items-center justify-center font-bold text-xs text-white">
+                        OD
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-sm">Microsoft OneDrive</h3>
+                        <p className="text-xs text-white/40 mt-0.5">Mount personal OneDrive files</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        useFileStore.getState().connectSource('onedrive');
+                        audioSystem.playClick();
+                        window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'OneDrive Connected', description: 'OneDrive source enabled in Files app', type: 'success' } }));
+                      }}
+                      className="text-sm px-4 py-1.5 rounded-lg border border-white/20 hover:bg-white/10 transition-colors"
+                    >
+                      Connect OneDrive
+                    </button>
+                  </div>
+
+                  {/* Local Host Directory Mount */}
+                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-emerald-600 rounded flex items-center justify-center font-bold text-xs text-white">
+                        <HardDrive className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-sm">Local Host Directory</h3>
+                        <p className="text-xs text-white/40 mt-0.5">Mount folders from your computer disk directly into the OS</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (typeof window !== 'undefined' && 'showDirectoryPicker' in window) {
+                          try {
+                            const handle = await (window as any).showDirectoryPicker();
+                            useFileStore.getState().setLocalFolderName(handle.name);
+                            useFileStore.getState().connectSource('local-folder');
+                            audioSystem.playClick();
+                            window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Directory Mounted', description: `Mounted "${handle.name}" to Files app`, type: 'success' } }));
+                          } catch {}
+                        } else {
+                          useFileStore.getState().connectSource('local-folder');
+                          window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Local Storage', description: 'Local VFS storage active', type: 'info' } }));
+                        }
+                      }}
+                      className="text-sm px-4 py-1.5 rounded-lg border border-white/20 hover:bg-white/10 transition-colors"
+                    >
+                      Mount Folder
+                    </button>
+                  </div>
                 </div>
               </section>
 
