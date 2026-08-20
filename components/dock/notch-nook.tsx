@@ -2,21 +2,20 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Music, Settings, Play, Pause, SkipBack, SkipForward,
+  Music, Play, Pause, SkipBack, SkipForward,
   LayoutGrid, Wifi, Bluetooth, Sun, Moon, Volume2, EyeOff,
   Folder, Share2, Trash2, Radio, Camera, Sparkles, X, FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { FS, LocalFile } from '@/lib/fs';
 import { useThemeStore } from '@/lib/stores/theme.store';
+import { useMediaStore } from '@/lib/stores/media.store';
 import { motion, AnimatePresence } from 'motion/react';
 import { audioSystem } from '@/lib/services/audio-engine';
 
 export function NotchNook({ window: osWindow }: { window?: any }) {
   const setShowNotch = useThemeStore((s) => s.setShowNotch);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [audioFiles, setAudioFiles] = useState<LocalFile[]>([]);
-  const [currentTrack, setCurrentTrack] = useState(0);
+  const { currentTrack, isPlaying, togglePlay, nextTrack, prevTrack, volume, setVolume } = useMediaStore();
+
   const [activeTab, setActiveTab] = useState<'media' | 'shelf' | 'toggles'>('media');
   const [isExpanded, setIsExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -25,7 +24,6 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
   const [cameraActive, setCameraActive] = useState(false);
 
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Detect live camera usage across the OS
   useEffect(() => {
@@ -35,27 +33,6 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
     window.addEventListener('os:camera-state', handleCameraState);
     return () => window.removeEventListener('os:camera-state', handleCameraState);
   }, []);
-
-  // Load real audio files
-  useEffect(() => {
-    const loadAudio = async () => {
-      try {
-        const dirs = ['', 'Desktop', 'Downloads', 'Media'];
-        const all: LocalFile[] = [];
-        for (const dir of dirs) {
-          const files = await FS.readDir(dir);
-          if (files) all.push(...files.filter(f => f.mimeType?.startsWith('audio/')));
-        }
-        const unique = Array.from(new Map(all.map(f => [f.id, f])).values());
-        setAudioFiles(unique);
-      } catch {}
-    };
-    loadAudio();
-  }, []);
-
-  const track = audioFiles[currentTrack];
-  const trackTitle = track?.name?.replace(/\.[^.]+$/, '') || 'Continua Focus Beats';
-  const trackArtist = track ? 'Local Workspace Audio' : 'Ambient Lo-Fi Stream';
 
   // Handle deliberate hover with 180ms debounce
   const handleMouseEnter = () => {
@@ -107,18 +84,6 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
     }
   };
 
-  const playPrev = () => {
-    if (audioFiles.length === 0) return;
-    setCurrentTrack(prev => (prev - 1 + audioFiles.length) % audioFiles.length);
-    audioSystem.playClick();
-  };
-
-  const playNext = () => {
-    if (audioFiles.length === 0) return;
-    setCurrentTrack(prev => (prev + 1) % audioFiles.length);
-    audioSystem.playClick();
-  };
-
   const now = new Date();
   const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
@@ -137,8 +102,6 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <audio ref={audioRef} onEnded={playNext} />
-
       <motion.div
         layout
         transition={{ type: 'spring', damping: 28, stiffness: 380 }}
@@ -181,7 +144,7 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                   <div className="flex items-center gap-1.5 pl-1">
                     <Music className="w-3 h-3 text-[#10F4A0] animate-pulse" />
                     <span className="text-[11px] font-semibold text-white/90 truncate max-w-[120px]">
-                      {trackTitle}
+                      {currentTrack.title}
                     </span>
                   </div>
                 )}
@@ -294,21 +257,28 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                   {/* Left: Track Information & Controls */}
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                     <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-900 via-purple-950 to-black border border-white/20 flex items-center justify-center shadow-xl shrink-0 relative overflow-hidden">
-                      <Music className={cn("w-7 h-7 text-indigo-400 transition-transform duration-700", isPlaying && "scale-110 rotate-6")} />
+                      <img
+                        src={currentTrack.coverUrl}
+                        alt={currentTrack.title}
+                        className={cn("absolute inset-0 w-full h-full object-cover transition-transform duration-700", isPlaying && "scale-110")}
+                      />
                     </div>
                     <div className="flex flex-col min-w-0 flex-1">
-                      <span className="text-sm font-bold text-white truncate tracking-tight">{trackTitle}</span>
-                      <span className="text-xs text-white/50 truncate mt-0.5">{trackArtist}</span>
+                      <span className="text-sm font-bold text-white truncate tracking-tight">{currentTrack.title}</span>
+                      <span className="text-xs text-white/50 truncate mt-0.5">{currentTrack.artist}</span>
                       <div className="flex items-center gap-2 mt-2">
                         <button
-                          onClick={playPrev}
+                          onClick={() => {
+                            prevTrack();
+                            audioSystem.playClick();
+                          }}
                           className="p-1.5 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors"
                         >
                           <SkipBack className="w-4 h-4 fill-current" />
                         </button>
                         <button
                           onClick={() => {
-                            setIsPlaying(!isPlaying);
+                            togglePlay();
                             audioSystem.playClick();
                           }}
                           className="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-md"
@@ -316,7 +286,10 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                           {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
                         </button>
                         <button
-                          onClick={playNext}
+                          onClick={() => {
+                            nextTrack();
+                            audioSystem.playClick();
+                          }}
                           className="p-1.5 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors"
                         >
                           <SkipForward className="w-4 h-4 fill-current" />
@@ -505,8 +478,8 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                         type="range"
                         min="0"
                         max="100"
-                        value={useThemeStore.getState().volume}
-                        onChange={(e) => useThemeStore.getState().setVolume(Number(e.target.value))}
+                        value={volume * 100}
+                        onChange={(e) => setVolume(Number(e.target.value) / 100)}
                         className="w-full h-1.5 rounded-full accent-cyan-400 bg-white/10 cursor-pointer"
                       />
                     </div>

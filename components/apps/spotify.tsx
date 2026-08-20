@@ -1,35 +1,64 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Headphones, ExternalLink, Key, Check, Heart, Radio, ListMusic, Volume2, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  Play, Pause, SkipBack, SkipForward, Headphones, Key, Check,
+  Heart, Radio, ListMusic, Volume2, Sparkles, Folder, Music, ExternalLink
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { audioSystem } from '@/lib/services/audio-engine';
-
-interface Track {
-  id: string;
-  title: string;
-  artist: string;
-  cover: string;
-  audioUrl?: string;
-  embedId: string;
-}
-
-const CURATED_TRACKS: Track[] = [
-  { id: '1', title: 'High Art Studio Session', artist: 'Terence Howard', cover: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop', embedId: 'playlist/37i9dQZF1DXcBWIGoYBM5M' },
-  { id: '2', title: 'Cyberpunk Neon Drift', artist: 'Continua Audio Lab', cover: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=600&auto=format&fit=crop', embedId: 'playlist/37i9dQZF1DX0XUsW2v3Pcc' },
-  { id: '3', title: 'Deep Focus Ambient', artist: 'Ziklag Soundscapes', cover: 'https://images.unsplash.com/photo-1518640467707-6811f4a6ab73?q=80&w=600&auto=format&fit=crop', embedId: 'playlist/37i9dQZF1DX4WYpdUOhR26' },
-];
+import { useMediaStore, MediaTrack } from '@/lib/stores/media.store';
+import { FS } from '@/lib/fs';
 
 export default function SpotifyApp() {
-  const [activeTrackIndex, setActiveTrackIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [liked, setLiked] = useState(true);
-  const [viewMode, setViewMode] = useState<'player' | 'embed' | 'setup'>('player');
+  const {
+    currentTrack,
+    queue,
+    isPlaying,
+    progress,
+    duration,
+    volume,
+    playTrack,
+    togglePlay,
+    nextTrack,
+    prevTrack,
+    seek,
+    setVolume,
+    addTrackToQueue
+  } = useMediaStore();
+
+  const [liked, setLiked] = useState(false);
+  const [viewMode, setViewMode] = useState<'player' | 'queue' | 'setup'>('player');
   const [clientId, setClientId] = useState('');
   const [savedClientId, setSavedClientId] = useState('');
-  const [progress, setProgress] = useState(30);
 
-  const currentTrack = (CURATED_TRACKS[activeTrackIndex] || CURATED_TRACKS[0])!;
+  // Load local music files into queue
+  useEffect(() => {
+    const loadLocalAudio = async () => {
+      try {
+        const dirs = ['', 'Desktop', 'Downloads', 'Media'];
+        for (const dir of dirs) {
+          const files = await FS.readDir(dir);
+          if (files) {
+            const audios = files.filter(f => f.mimeType?.startsWith('audio/'));
+            audios.forEach(a => {
+              addTrackToQueue({
+                id: a.id,
+                title: a.name.replace(/\.[^.]+$/, ''),
+                artist: 'Local Filesystem',
+                album: 'Local Workspace',
+                coverUrl: 'https://images.unsplash.com/photo-1518640467707-6811f4a6ab73?q=80&w=600&auto=format&fit=crop',
+                audioUrl: a.content,
+                duration: 210,
+                source: 'local',
+              });
+            });
+          }
+        }
+      } catch {}
+    };
+    loadLocalAudio();
+  }, [addTrackToQueue]);
 
   useEffect(() => {
     try {
@@ -45,49 +74,21 @@ export default function SpotifyApp() {
       setSavedClientId(clientId.trim());
       audioSystem.playClick();
       window.dispatchEvent(new CustomEvent('os:notify', {
-        detail: { title: 'Spotify Connected', description: 'Client ID saved successfully.', type: 'success' }
+        detail: { title: 'Spotify Linked', description: 'Client ID saved securely.', type: 'success' }
       }));
     } catch {}
   };
 
-  const togglePlay = () => {
-    if (!currentTrack) return;
-    const next = !isPlaying;
-    setIsPlaying(next);
-    audioSystem.playClick();
-    window.dispatchEvent(new CustomEvent('os:spotify-track-change', {
-      detail: { title: currentTrack.title, artist: currentTrack.artist, cover: currentTrack.cover, isPlaying: next }
-    }));
-  };
-
-  const handleNext = () => {
-    const nextIdx = (activeTrackIndex + 1) % CURATED_TRACKS.length;
-    setActiveTrackIndex(nextIdx);
-    audioSystem.playClick();
-    const nextTrack = CURATED_TRACKS[nextIdx];
-    if (nextTrack) {
-      window.dispatchEvent(new CustomEvent('os:spotify-track-change', {
-        detail: { title: nextTrack.title, artist: nextTrack.artist, cover: nextTrack.cover, isPlaying: true }
-      }));
-    }
-  };
-
-  const handlePrev = () => {
-    const prevIdx = (activeTrackIndex - 1 + CURATED_TRACKS.length) % CURATED_TRACKS.length;
-    setActiveTrackIndex(prevIdx);
-    audioSystem.playClick();
-    const prevTrack = CURATED_TRACKS[prevIdx];
-    if (prevTrack) {
-      window.dispatchEvent(new CustomEvent('os:spotify-track-change', {
-        detail: { title: prevTrack.title, artist: prevTrack.artist, cover: prevTrack.cover, isPlaying: true }
-      }));
-    }
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
   return (
-    <div className="w-full h-full bg-[#05070d]/90 backdrop-blur-3xl text-white font-sans flex flex-col justify-between p-6 select-none relative overflow-hidden">
+    <div className="w-full h-full bg-slate-950/95 backdrop-blur-3xl text-white font-sans flex flex-col justify-between p-6 select-none relative overflow-hidden">
       {/* Background Ambient Glow */}
-      <div className="absolute -inset-10 bg-gradient-to-br from-emerald-600/15 via-teal-900/10 to-cyan-900/20 blur-3xl pointer-events-none" />
+      <div className="absolute -inset-10 bg-gradient-to-br from-emerald-600/10 via-teal-900/10 to-cyan-900/15 blur-3xl pointer-events-none" />
 
       {/* Top Header & Navigation */}
       <div className="flex items-center justify-between z-10 border-b border-white/10 pb-4">
@@ -96,8 +97,8 @@ export default function SpotifyApp() {
             <Headphones className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-sm font-bold tracking-wide">Spotify Web Player</h2>
-            <p className="text-[10px] text-white/50">Continua OS Music & Audio Engine</p>
+            <h2 className="text-sm font-bold tracking-wide">Spotify & Continua Music</h2>
+            <p className="text-[10px] text-white/50">Unified OS Audio Engine & Dynamic Island Sync</p>
           </div>
         </div>
 
@@ -107,13 +108,13 @@ export default function SpotifyApp() {
             onClick={() => setViewMode('player')}
             className={cn("px-3 py-1 rounded-lg transition-colors", viewMode === 'player' ? "bg-[#1DB954] text-black font-bold" : "text-white/60 hover:text-white")}
           >
-            Native Player
+            Player
           </button>
           <button
-            onClick={() => setViewMode('embed')}
-            className={cn("px-3 py-1 rounded-lg transition-colors", viewMode === 'embed' ? "bg-[#1DB954] text-black font-bold" : "text-white/60 hover:text-white")}
+            onClick={() => setViewMode('queue')}
+            className={cn("px-3 py-1 rounded-lg transition-colors flex items-center gap-1", viewMode === 'queue' ? "bg-[#1DB954] text-black font-bold" : "text-white/60 hover:text-white")}
           >
-            Spotify Embed
+            <ListMusic className="w-3.5 h-3.5" /> Queue ({queue.length})
           </button>
           <button
             onClick={() => setViewMode('setup')}
@@ -124,24 +125,30 @@ export default function SpotifyApp() {
         </div>
       </div>
 
-      {/* Body Views */}
+      {/* Body: Player View */}
       {viewMode === 'player' && (
         <div className="flex-1 flex flex-col items-center justify-center my-4 z-10">
           <div className="w-full max-w-sm bg-neutral-900/80 border border-white/20 shadow-2xl rounded-3xl p-5 flex flex-col justify-between gap-4 backdrop-blur-2xl">
             {/* Top Bar */}
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono text-[#1DB954] uppercase tracking-widest font-bold flex items-center gap-1">
-                <Radio className="w-3 h-3 animate-pulse" /> Live Stream
+                <Radio className="w-3 h-3 animate-pulse" /> Unified Audio Stream
               </span>
-              <button onClick={() => setLiked(!liked)} className="p-1.5 rounded-full bg-white/5 hover:bg-white/10">
+              <button
+                onClick={() => setLiked(!liked)}
+                className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+              >
                 <Heart className={cn("w-4 h-4", liked ? "fill-rose-500 text-rose-500" : "text-white/50")} />
               </button>
             </div>
 
             {/* Artwork */}
             <div className="aspect-square w-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 relative group">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={currentTrack.cover} alt={currentTrack.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              <img
+                src={currentTrack.coverUrl}
+                alt={currentTrack.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
             </div>
 
             {/* Track Info */}
@@ -155,20 +162,20 @@ export default function SpotifyApp() {
               <input
                 type="range"
                 min="0"
-                max="100"
+                max={duration || 100}
                 value={progress}
-                onChange={(e) => setProgress(Number(e.target.value))}
+                onChange={(e) => seek(Number(e.target.value))}
                 className="w-full h-1 bg-white/20 rounded-full appearance-none outline-none accent-[#1DB954] cursor-pointer"
               />
               <div className="flex justify-between text-[9px] text-white/40 font-mono">
-                <span>0:45</span>
-                <span>-2:15</span>
+                <span>{formatTime(progress)}</span>
+                <span>-{formatTime(Math.max(0, duration - progress))}</span>
               </div>
             </div>
 
             {/* Controls */}
             <div className="flex items-center justify-center gap-6">
-              <button onClick={handlePrev} className="p-2 text-white/70 hover:text-white transition-colors">
+              <button onClick={prevTrack} className="p-2 text-white/70 hover:text-white transition-colors">
                 <SkipBack className="w-5 h-5" />
               </button>
               <button
@@ -177,7 +184,7 @@ export default function SpotifyApp() {
               >
                 {isPlaying ? <Pause className="w-5 h-5 fill-black" /> : <Play className="w-5 h-5 fill-black ml-0.5" />}
               </button>
-              <button onClick={handleNext} className="p-2 text-white/70 hover:text-white transition-colors">
+              <button onClick={nextTrack} className="p-2 text-white/70 hover:text-white transition-colors">
                 <SkipForward className="w-5 h-5" />
               </button>
             </div>
@@ -185,19 +192,37 @@ export default function SpotifyApp() {
         </div>
       )}
 
-      {viewMode === 'embed' && (
-        <div className="flex-1 my-4 z-10 rounded-2xl overflow-hidden border border-white/15 bg-black">
-          <iframe
-            src={`https://open.spotify.com/embed/${currentTrack.embedId}?utm_source=generator&theme=0`}
-            width="100%"
-            height="100%"
-            frameBorder="0"
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            loading="lazy"
-          />
+      {/* Body: Queue View */}
+      {viewMode === 'queue' && (
+        <div className="flex-1 my-4 z-10 flex flex-col gap-2 max-w-lg mx-auto w-full overflow-y-auto custom-scrollbar">
+          <div className="text-xs font-bold text-white/60 uppercase tracking-wider mb-2">Up Next & Queue</div>
+          {queue.map((t, idx) => (
+            <div
+              key={`${t.id}-${idx}`}
+              onClick={() => playTrack(t)}
+              className={cn(
+                "p-3 rounded-2xl border flex items-center justify-between gap-3 cursor-pointer transition-all",
+                currentTrack.id === t.id
+                  ? "bg-[#1DB954]/15 border-[#1DB954]/40 text-white"
+                  : "bg-white/5 border-white/10 hover:bg-white/10 text-slate-300"
+              )}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <img src={t.coverUrl} alt={t.title} className="w-10 h-10 rounded-xl object-cover" />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-bold truncate">{t.title}</span>
+                  <span className="text-[10px] text-white/50 truncate">{t.artist}</span>
+                </div>
+              </div>
+              {currentTrack.id === t.id && isPlaying && (
+                <Music className="w-4 h-4 text-[#1DB954] animate-pulse shrink-0" />
+              )}
+            </div>
+          ))}
         </div>
       )}
 
+      {/* Body: OAuth Setup */}
       {viewMode === 'setup' && (
         <div className="flex-1 my-4 z-10 flex flex-col justify-center max-w-lg mx-auto space-y-5 bg-slate-900/90 border border-white/15 rounded-3xl p-6 backdrop-blur-2xl">
           <div className="flex items-center gap-2 text-[#1DB954] font-bold text-sm">

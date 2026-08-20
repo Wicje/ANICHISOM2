@@ -197,7 +197,7 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
     return () => { isMounted = false; };
   }, [currentTitle]);
 
-  // Broadcast media playback to MenuBar
+  // Broadcast media playback to MenuBar and NotchNook
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('os:media-playback', {
@@ -207,6 +207,14 @@ export function MediaPlayerApp({ window: osWindow }: { window: OSWindow }) {
           artist: isAudio ? 'Audio Track' : 'Video',
           progress,
           duration
+        }
+      }));
+      window.dispatchEvent(new CustomEvent('os:spotify-track-change', {
+        detail: {
+          title: currentTitle || 'Audio Track',
+          artist: isAudio ? 'Local Audio' : 'Video Stream',
+          cover: 'https://images.unsplash.com/photo-1518640467707-6811f4a6ab73?q=80&w=600&auto=format&fit=crop',
+          isPlaying
         }
       }));
     }
