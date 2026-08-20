@@ -170,11 +170,12 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
                 type="button"
                 onClick={async () => {
                   try {
-                    const { GoogleSSOService } = await import('@/lib/services/google-sso.service');
-                    const gUser = await GoogleSSOService.signInWithGoogleOneTap();
-                    setCurrentUser({ ...gUser, avatarUrl: gUser.picture, role: 'user' });
-                    audioSystem.playClick();
-                    onUnlock();
+                    const { createClient } = await import('@/utils/supabase/client');
+                    const supabase = createClient();
+                    await supabase.auth.signInWithOAuth({
+                      provider: 'google',
+                      options: { redirectTo: `${window.location.origin}/auth/callback?next=/os` },
+                    });
                   } catch {
                     onUnlock();
                   }
@@ -189,14 +190,12 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
                 type="button"
                 onClick={async () => {
                   try {
-                    const { githubDeviceFlow } = await import('@/lib/services/github-device-flow.service');
-                    const codeRes = await githubDeviceFlow.requestDeviceCode();
-                    window.open(codeRes.verification_uri, '_blank');
-                    githubDeviceFlow.pollForToken(codeRes.device_code, codeRes.interval, (profile) => {
-                      setCurrentUser({ id: String(profile.id), name: profile.name || profile.login, email: profile.email || `${profile.login}@github.com`, avatarUrl: profile.avatar_url, role: 'technician' });
-                      audioSystem.playClick();
-                      onUnlock();
-                    }, () => onUnlock());
+                    const { createClient } = await import('@/utils/supabase/client');
+                    const supabase = createClient();
+                    await supabase.auth.signInWithOAuth({
+                      provider: 'github',
+                      options: { redirectTo: `${window.location.origin}/auth/callback?next=/os` },
+                    });
                   } catch {
                     onUnlock();
                   }

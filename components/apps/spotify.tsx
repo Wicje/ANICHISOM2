@@ -62,7 +62,7 @@ export default function SpotifyApp() {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('continuaos_spotify_client_id');
+      const stored = (typeof window !== 'undefined' ? localStorage.getItem('continuaos_spotify_client_id') : '') || process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID || '';
       if (stored) setSavedClientId(stored);
     } catch {}
   }, []);
