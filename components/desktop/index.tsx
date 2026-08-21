@@ -60,6 +60,7 @@ import { TrackpadGestures } from './trackpad-gestures';
 import { AIAgentBar } from '@/components/overlays/ai-agent-bar';
 import { DragShelf } from '@/components/overlays/drag-shelf';
 import { TelemetryHUD } from '@/components/overlays/telemetry-hud';
+import { PWAUpdateToast } from '@/components/overlays/pwa-update-toast';
 type ContextMenuItem = import('./context-menu').ContextMenuItem;
 
 function AppLoadingSkeleton() {
@@ -1153,6 +1154,7 @@ export function Desktop() {
       <TelemetryHUD />
       <HotCorners setShowMissionControl={setShowMissionControl} setShowLaunchpad={setShowLaunchpad} setShowControlCenter={setShowControlCenter} />
       <TrackpadGestures setShowMissionControl={setShowMissionControl} setShowLaunchpad={setShowLaunchpad} />
+      <PWAUpdateToast />
 
       <Toaster
         position="bottom-right"
