@@ -872,18 +872,46 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                       </div>
                       <div>
                         <h3 className="font-medium text-sm">Dropbox Sync</h3>
-                        <p className="text-xs text-white/40 mt-0.5">Mount personal Dropbox storage</p>
+                        <p className="text-xs text-white/40 mt-0.5">
+                          {useFileStore.getState().connectedSources.includes('dropbox') ? (
+                            <span className="text-emerald-400 font-medium">● Connected & Synced</span>
+                          ) : (
+                            'Mount personal Dropbox storage via OAuth'
+                          )}
+                        </p>
                       </div>
                     </div>
                     <button
                       onClick={() => {
-                        useFileStore.getState().connectSource('dropbox');
-                        audioSystem.playClick();
-                        window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Dropbox Connected', description: 'Dropbox source enabled in Files app', type: 'success' } }));
+                        const isConnected = useFileStore.getState().connectedSources.includes('dropbox');
+                        if (isConnected) {
+                          useFileStore.getState().disconnectSource('dropbox');
+                          audioSystem.playClick();
+                          window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Dropbox Disconnected', description: 'Dropbox storage unmounted', type: 'info' } }));
+                          return;
+                        }
+
+                        const clientId = 'ur0xcvza9suo8q7';
+                        const redirectUri = encodeURIComponent(`${window.location.origin}/api/storage/callback/dropbox`);
+                        const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&token_access_type=offline`;
+                        
+                        const popup = window.open(authUrl, 'DropboxAuth', 'width=520,height=680,scrollbars=yes,status=no');
+                        
+                        const handleMessage = (event: MessageEvent) => {
+                          if (event.data?.type === 'storage-oauth-callback' && event.data.provider === 'dropbox') {
+                            window.removeEventListener('message', handleMessage);
+                            useFileStore.getState().connectSource('dropbox');
+                            audioSystem.playClick();
+                            window.dispatchEvent(new CustomEvent('os:notify', {
+                              detail: { title: 'Dropbox Connected', description: 'Dropbox storage mounted in Files app', type: 'success' }
+                            }));
+                          }
+                        };
+                        window.addEventListener('message', handleMessage);
                       }}
                       className="text-sm px-4 py-1.5 rounded-lg border border-white/20 hover:bg-white/10 transition-colors"
                     >
-                      Connect Dropbox
+                      {useFileStore.getState().connectedSources.includes('dropbox') ? 'Disconnect' : 'Connect Dropbox'}
                     </button>
                   </div>
 

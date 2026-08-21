@@ -32,10 +32,18 @@ function makeResultPage(provider: string, success: boolean, accountName?: string
     `<!DOCTYPE html><html><head><title>Cloud Connected</title></head><body>
 <script>
 try {
-  window.parent.postMessage(${escapedPayload}, window.location.origin);
-  window.parent.postMessage({ type: 'storage-oauth-callback', provider: '${safeProvider}', success: ${success}${accountName ? `, accountName: '${safeAccountName}'` : ''}${error ? `, error: '${safeError}'` : ''} }, window.location.origin);
+  const msgObj = { type: 'storage-oauth-callback', provider: '${safeProvider}', success: ${success}${accountName ? `, accountName: '${safeAccountName}'` : ''}${error ? `, error: '${safeError}'` : ''} };
+  if (window.opener) {
+    window.opener.postMessage(msgObj, window.location.origin);
+    window.opener.postMessage(${escapedPayload}, window.location.origin);
+    setTimeout(() => window.close(), 300);
+  }
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage(msgObj, window.location.origin);
+    window.parent.postMessage(${escapedPayload}, window.location.origin);
+  }
 } catch(e) {}
-document.body.innerHTML = '<div style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;color:#666"><div style="text-align:center"><h2 style="color:${success ? '#22c55e' : '#ef4444'}">${success ? 'Connected!' : 'Failed'}</h2><p>${success ? safeAccountName ? safeAccountName + ' connected successfully.' : safeProvider + ' connected successfully.' : safeError ? safeError : 'Connection failed.'}</p><p style="font-size:12px;color:#999">You can close this tab.</p></div></div>';
+document.body.innerHTML = '<div style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;color:#666"><div style="text-align:center"><h2 style="color:${success ? '#22c55e' : '#ef4444'}">${success ? 'Connected!' : 'Failed'}</h2><p>${success ? safeAccountName ? safeAccountName + ' connected successfully.' : safeProvider + ' connected successfully.' : safeError ? safeError : 'Connection failed.'}</p><p style="font-size:12px;color:#999">Closing window...</p></div></div>';
 </script>
 </body></html>`,
     {
