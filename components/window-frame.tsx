@@ -7,12 +7,23 @@ import { OSWindow } from '@/lib/os-context';
 import { useWindowActions } from '@/lib/hooks/use-window-actions';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useFocusStore } from '@/lib/stores/focus.store';
-import { X, Minus, Maximize2, Square, Lock } from 'lucide-react';
+import { X, Minus, Maximize2, Square, Lock, Globe, ExternalLink, RefreshCw, Zap, Copy, Check } from 'lucide-react';
 import { getFileLockManager } from '@/lib/file-lock-manager';
 import { audioSystem } from '@/lib/services/audio-engine';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AppIconInline } from '@/components/ui/app-icon';
 import { APP_MANIFEST } from '@/lib/app-manifest';
+
+const THIRD_PARTY_URLS: Record<string, string> = {
+  figma: 'https://www.figma.com',
+  notion: 'https://www.notion.so',
+  vscode: 'https://vscode.dev',
+  discord: 'https://discord.com/app',
+  chatgpt: 'https://chatgpt.com',
+  youtube: 'https://www.youtube.com',
+  canva: 'https://www.canva.com',
+  linear: 'https://linear.app',
+};
 
 type SnapPreviewMode = 'left' | 'right' | 'top' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
@@ -46,6 +57,9 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
   const [snapPreview, setSnapPreview] = useState<SnapPreviewMode | null>(null);
   const [showTilingMenu, setShowTilingMenu] = useState(false);
   const tilingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [showWebMenu, setShowWebMenu] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
+  const webMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const applyTile = (mode: SnapPreviewMode | 'center' | 'fullscreen') => {
     const screenW = window.innerWidth;
@@ -519,6 +533,100 @@ export function WindowFrame({ osWindow, children }: WindowFrameProps) {
               </div>
             )}
           </div>
+
+          {/* 4th Circle: Web App Stream & Action Hub (Hover / Click) */}
+          {(() => {
+            const targetUrl = osWindow.data?.url || THIRD_PARTY_URLS[osWindow.appId];
+            const isWebTool = ['figma', 'notion', 'vscode', 'discord', 'chatgpt', 'youtube', 'canva', 'linear', 'web-app'].includes(osWindow.appId) || !!targetUrl;
+            if (!isWebTool) return null;
+
+            return (
+              <div
+                className="relative"
+                onMouseEnter={() => {
+                  if (webMenuTimeoutRef.current) clearTimeout(webMenuTimeoutRef.current);
+                  setShowWebMenu(true);
+                }}
+                onMouseLeave={() => {
+                  webMenuTimeoutRef.current = setTimeout(() => setShowWebMenu(false), 300);
+                }}
+              >
+                <button
+                  aria-label="App actions and stream controls"
+                  onClick={(e) => { e.stopPropagation(); setShowWebMenu(!showWebMenu); }}
+                  className="w-3 h-3 rounded-full transition-all flex items-center justify-center group shadow-sm"
+                  style={{ background: 'linear-gradient(135deg, #a855f7, #6366f1)' }}
+                  title="App Stream & Web Controls"
+                >
+                  <Globe className="w-2 h-2 opacity-0 group-hover:opacity-100 text-white shrink-0" aria-hidden="true" />
+                </button>
+
+                {showWebMenu && (
+                  <div
+                    className="absolute top-5 left-0 z-[9999] w-72 bg-[var(--os-surface)]/95 backdrop-blur-2xl border border-[var(--os-border)] rounded-2xl shadow-2xl p-3 flex flex-col gap-2.5 pointer-events-auto select-none text-[var(--os-text)] animate-in fade-in zoom-in-95 duration-150"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between border-b border-[var(--os-border)] pb-2">
+                      <div className="flex items-center gap-1.5 text-xs font-bold">
+                        <Globe className="w-3.5 h-3.5 text-[var(--os-primary)]" />
+                        <span>{title} Web Hub</span>
+                      </div>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                        ● Live Stream
+                      </span>
+                    </div>
+
+                    {/* URL Row with Quick Copy */}
+                    {targetUrl && (
+                      <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-[var(--os-surface-dim)] border border-[var(--os-border)]">
+                        <span className="truncate text-[11px] font-mono text-[var(--os-text-muted)] max-w-[180px]">
+                          {targetUrl}
+                        </span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(targetUrl);
+                            setCopiedUrl(true);
+                            setTimeout(() => setCopiedUrl(false), 1500);
+                          }}
+                          className="p-1 hover:bg-[var(--os-hover)] rounded text-[var(--os-text-muted)] hover:text-[var(--os-text)] transition-colors"
+                          title="Copy Link"
+                        >
+                          {copiedUrl ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Quick Actions */}
+                    <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+                      <button
+                        onClick={() => {
+                          window.dispatchEvent(new CustomEvent('os:reload-webapp', { detail: { appId: osWindow.appId } }));
+                          setShowWebMenu(false);
+                        }}
+                        className="flex items-center gap-1.5 p-2 rounded-xl bg-[var(--os-surface-dim)] hover:bg-[var(--os-hover)] text-xs font-medium transition-colors"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 text-[var(--os-primary)]" />
+                        <span>Reload App</span>
+                      </button>
+
+                      {targetUrl && (
+                        <button
+                          onClick={() => {
+                            window.open(targetUrl, '_blank');
+                            setShowWebMenu(false);
+                          }}
+                          className="flex items-center gap-1.5 p-2 rounded-xl bg-[var(--os-surface-dim)] hover:bg-[var(--os-hover)] text-xs font-medium transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 text-[var(--os-primary)]" />
+                          <span>External Tab</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
         
         <div className="font-display text-xs tracking-wider uppercase select-none pointer-events-none flex items-center gap-2" style={{ color: 'var(--os-text-muted)' }}>

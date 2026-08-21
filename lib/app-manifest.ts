@@ -143,8 +143,25 @@ export async function resolveAppComponent(appId: string): Promise<React.Componen
   if (!loader) return null;
   const mod = await loader();
   if (mod.default) return mod.default;
-  const namedExport = mod[appId.charAt(0).toUpperCase() + appId.slice(1)];
-  return namedExport || null;
+  
+  const variations = [
+    appId,
+    appId.charAt(0).toUpperCase() + appId.slice(1),
+    appId.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(''),
+    appId.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('') + 'App',
+    'ScreenRecorderApp',
+    'ProductivitySuite',
+    'TerminalBox',
+    'FileManager',
+    'CodeEditor',
+    'MediaViewer',
+  ];
+  for (const v of variations) {
+    if (mod[v]) return mod[v];
+  }
+  const firstExport = Object.values(mod).find(v => typeof v === 'function');
+  if (firstExport) return firstExport as React.ComponentType<any>;
+  return null;
 }
 
 export function getManifestEntry(appId: string): AppManifestEntry | undefined {

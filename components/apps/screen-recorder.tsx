@@ -500,3 +500,5 @@ export function ScreenRecorderApp({ window: osWindow }: { window: OSWindow }) {
     </div>
   );
 }
+
+export default ScreenRecorderApp;

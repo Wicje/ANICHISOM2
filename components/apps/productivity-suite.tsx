@@ -1273,6 +1273,8 @@ function PdfEditor({ initialUrl }: { initialUrl?: string }) {
              </div>
            </div>
         )}
-     </div>
-  );
+      </div>
+   );
 }
+
+export default ProductivitySuite;
