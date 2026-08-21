@@ -16,11 +16,15 @@ export default function WebApp({ window: osWindow }: { window: any }) {
   const catalogItem = WEB_APP_CATALOG.find(app => app.id === osWindow.appId || app.id === data?.appId);
 
   const PREDEFINED_URLS: Record<string, string> = {
-    figma: 'https://figma.com',
-    notion: 'https://notion.so',
+    figma: 'https://www.figma.com',
+    notion: 'https://www.notion.so',
     spotify: 'https://open.spotify.com',
     discord: 'https://discord.com/app',
     vscode: 'https://vscode.dev',
+    chatgpt: 'https://chatgpt.com',
+    youtube: 'https://www.youtube.com',
+    canva: 'https://www.canva.com',
+    linear: 'https://linear.app',
   };
 
   const url = data?.url || catalogItem?.url || PREDEFINED_URLS[osWindow.appId] || 'https://duckduckgo.com';
