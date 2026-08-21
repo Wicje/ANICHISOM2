@@ -5,6 +5,7 @@ import { History, RotateCcw, X, Clock, Calendar, Check, ArrowUp, ArrowDown, Spar
 import { cn } from '@/lib/utils';
 import { useOS } from '@/lib/os-context';
 import { audioSystem } from '@/lib/services/audio-engine';
+import { SystemBackupService } from '@/lib/services/system-backup.service';
 
 interface TimeMachineProps {
   isOpen: boolean;
@@ -216,6 +217,28 @@ export function TimeMachine({ isOpen, onClose }: TimeMachineProps) {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => SystemBackupService.exportBundle()}
+            className="px-4 py-2 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 text-xs font-semibold transition-all border border-purple-500/30 flex items-center gap-1.5"
+            title="Export full system snapshot (.continua archive)"
+          >
+            <Sparkles className="w-3.5 h-3.5" /> Export .continua
+          </button>
+          <label className="px-4 py-2 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 text-xs font-semibold transition-all border border-indigo-500/30 flex items-center gap-1.5 cursor-pointer">
+            <RotateCcw className="w-3.5 h-3.5" /> Load Backup
+            <input
+              type="file"
+              accept=".continua,.json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  SystemBackupService.importBundle(file);
+                  onClose();
+                }
+              }}
+            />
+          </label>
           <button
             onClick={onClose}
             className="px-5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-all border border-white/10"
