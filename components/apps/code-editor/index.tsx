@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { OSWindow, useOS } from '@/lib/os-context';
-import { Layout, Search, Users, RefreshCcw, Server, File as FileIcon } from 'lucide-react';
+import { Layout, Search, Users, RefreshCcw, Server, File as FileIcon, Play, Eye, EyeOff, Code2, Sparkles, Terminal as TerminalIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import '@/lib/monaco-config';
@@ -23,7 +23,6 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
   const projectId = osWindow.data?.projectId || 'default';
   const roomId = `code-${projectId}-${osWindow.data?.content || 'app.tsx'}`;
 
-  // useCollaborativeDoc for IndexedDB persistence (all modes) + WebSocket (agency mode)
   const collab = useCollaborativeDoc({
     appPrefix: 'code',
     docId: `${projectId}-${osWindow.data?.content || 'app.tsx'}`,
@@ -78,7 +77,8 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
   };
 
   // UI States
-  const [terminalOpen, setTerminalOpen] = useState(true);
+  const [terminalOpen, setTerminalOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(true);
   const [agentOpen, setAgentOpen] = useState(false);
   const [activityTab, setActivityTab] = useState<ActivityTab>('explorer');
   const [isDeploying, setIsDeploying] = useState(false);
@@ -117,7 +117,6 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
     }
   }, [editorReady, workspaceMode, collab.synced, collab.connected, roomId]);
 
-  // Cleanup: destroy MonacoBinding (Y.Doc + WS provider owned by useCollaborativeDoc)
   useEffect(() => {
     return () => {
       if (bindingRef.current) { bindingRef.current.destroy(); bindingRef.current = null; }
@@ -137,85 +136,136 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
     return () => window.removeEventListener('os:request-context', contextHandler);
   }, [osWindow.appId, fileName, code]);
 
+  // Generate live preview srcDoc
+  const previewDoc = useMemo(() => {
+    if (!code) return '';
+    
+    // If pure HTML
+    if (fileName.endsWith('.html')) {
+      return code;
+    }
+
+    // If React / TSX
+    let executableCode = code;
+    executableCode = executableCode.replace(/export default function (\w+)/, 'function $1');
+    executableCode = executableCode.replace(/import .* from .*/g, '');
+    executableCode = executableCode.replace(/<\/script>/gi, '<\\/script>');
+
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Live Preview</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+          <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+          <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+          <style>
+            body { margin: 0; padding: 16px; font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; }
+          </style>
+        </head>
+        <body>
+          <div id="root"></div>
+          <script type="text/babel">
+            try {
+              ${executableCode}
+              const ComponentToRender = typeof App !== 'undefined' ? App : (typeof main !== 'undefined' ? main : () => (
+                <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-sm">
+                  <h2 className="font-bold text-emerald-400 mb-2">Live Output Ready</h2>
+                  <p className="text-slate-400 text-xs">Edit your code on the left to see hot-reloaded changes instantly.</p>
+                </div>
+              ));
+              const root = ReactDOM.createRoot(document.getElementById('root'));
+              root.render(<ComponentToRender />);
+            } catch (err) {
+              document.getElementById('root').innerHTML = '<div style="color:#ef4444;font-family:monospace;padding:16px;background:#18181b;border-radius:12px"><strong>Runtime Error:</strong><br>' + err.message + '</div>';
+            }
+          </script>
+        </body>
+      </html>
+    `;
+  }, [code, fileName]);
+
   const handleDeploy = () => {
     setIsDeploying(true);
     setTimeout(() => {
        setIsDeploying(false);
-       
-        let executableCode = code;
-        executableCode = executableCode.replace(/export default function (\w+)/, 'function $1');
-        executableCode = executableCode.replace(/import .* from .*/g, '');
-        // Escape </script> to prevent HTML injection breaking the template
-        executableCode = executableCode.replace(/<\/script>/gi, '<\\/script>');
-       
-       const htmlContent = `
-         <!DOCTYPE html>
-         <html lang="en">
-           <head>
-             <meta charset="utf-8">
-             <title>Staging Virtualizer</title>
-             <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-             <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-             <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-             <script src="https://cdn.tailwindcss.com"></script>
-           </head>
-           <body>
-             <div id="root" class="w-full h-full min-h-screen bg-white text-black"></div>
-             <script type="text/babel">
-               ${executableCode}
-               const ComponentToRender = typeof App !== 'undefined' ? App : () => <div class="p-8 text-red-500 font-mono">Export default 'App' function not found.</div>;
-               const root = ReactDOM.createRoot(document.getElementById('root'));
-               root.render(<ComponentToRender />);
-             </script>
-           </body>
-         </html>
-       `;
-       const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`;
+       const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(previewDoc)}`;
        openWindow('browser', `Staging: ${fileName}`, { url: dataUrl });
-    }, 800);
+    }, 400);
   };
 
   return (
     <div className="w-full h-full flex flex-col bg-[#1e1e1e] text-[#d4d4d4] font-sans text-sm overflow-hidden shadow-2xl relative">
       {/* Top Menu Bar */}
-      <div className="flex items-center justify-between p-2 bg-[#333333] border-b border-[#252526]">
+      <div className="flex items-center justify-between p-2 bg-[#252526] border-b border-[#333333] select-none">
         <div className="flex items-center gap-4 pl-2">
-          <span className="font-bold text-xs uppercase tracking-wider text-white/70 flex items-center gap-2">
-            <Layout className="w-4 h-4" /> Code Studio
+          <span className="font-bold text-xs uppercase tracking-wider text-white/80 flex items-center gap-2">
+            <Code2 className="w-4 h-4 text-sky-400" /> Code Studio
           </span>
-          <div className="hidden md:flex gap-3 text-xs text-white/50 cursor-pointer">
-             <span className="hover:text-white">File</span>
-             <span className="hover:text-white">Edit</span>
-             <span className="hover:text-white">Selection</span>
-             <span className="hover:text-white">View</span>
-             <span className="hover:text-white">Go</span>
-             <span className="hover:text-white">Run</span>
-             <span className="hover:text-white" onClick={() => { if(editorRef.current) editorRef.current.trigger('anyString', 'editor.action.quickCommand', {}); }}>Terminal</span>
+          <div className="hidden md:flex gap-3 text-xs text-white/50">
+             <span className="hover:text-white cursor-pointer">File</span>
+             <span className="hover:text-white cursor-pointer">Edit</span>
+             <span className="hover:text-white cursor-pointer">Selection</span>
+             <span className="hover:text-white cursor-pointer" onClick={() => setPreviewOpen(!previewOpen)}>View</span>
+             <span className="hover:text-white cursor-pointer" onClick={() => setTerminalOpen(!terminalOpen)}>Terminal</span>
           </div>
         </div>
         
-        {/* Command Palette Hint */}
+        {/* Project Name Badge */}
         <div 
           onClick={() => { if(editorRef.current) editorRef.current.trigger('anyString', 'editor.action.quickCommand', {}); }}
-          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 bg-[#252526] border border-[#3c3c3c] px-4 py-1 rounded-md text-white/50 hover:bg-[#2d2d2d] hover:text-white transition-colors cursor-pointer text-xs"
+          className="flex items-center gap-2 bg-[#1e1e1e] border border-[#3c3c3c] px-3 py-1 rounded-md text-white/60 hover:bg-[#2d2d2d] hover:text-white transition-colors cursor-pointer text-xs"
         >
-           <Search className="w-3 h-3" />
-           <span>{projectId}</span>
+           <Search className="w-3 h-3 text-sky-400" />
+           <span>{projectId} / {fileName}</span>
         </div>
 
         <div className="flex items-center gap-2">
           {currentUser && (
-            <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md text-xs pointer-events-none">
-               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-               <Users className="w-3 h-3" /> Live
+            <div className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md text-xs pointer-events-none">
+               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+               <span>Live Collab</span>
             </div>
           )}
-          <button className="flex items-center gap-1 px-2 py-1 bg-blue-600/80 hover:bg-blue-500 rounded text-white text-xs font-sans transition-colors" onClick={handleDeploy} disabled={isDeploying}>
-             {isDeploying ? <RefreshCcw className="w-3 h-3 animate-spin" /> : <Server className="w-3 h-3" />}
-             <span>Preview</span>
+
+          {/* Toggle Live Preview */}
+          <button
+            onClick={() => setPreviewOpen(!previewOpen)}
+            className={cn(
+              "flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold transition-all",
+              previewOpen ? "bg-emerald-600 text-white shadow-sm" : "bg-white/10 hover:bg-white/20 text-white/80"
+            )}
+          >
+            {previewOpen ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+            <span>Preview</span>
           </button>
-          <button onClick={() => setAgentOpen(!agentOpen)} className={cn("flex items-center gap-1 px-2 py-1 rounded text-white text-xs font-sans transition-colors", agentOpen ? "bg-emerald-600" : "bg-white/10 hover:bg-white/20")}>
-            <Search className="w-3 h-3" /> Copilot
+
+          {/* Terminal Toggle */}
+          <button
+            onClick={() => setTerminalOpen(!terminalOpen)}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors",
+              terminalOpen ? "bg-sky-600 text-white font-medium" : "bg-white/10 hover:bg-white/20 text-white/80"
+            )}
+          >
+            <TerminalIcon className="w-3 h-3" />
+          </button>
+
+          {/* Deploy / Open External Window */}
+          <button
+            onClick={handleDeploy}
+            disabled={isDeploying}
+            className="flex items-center gap-1 px-2.5 py-1 bg-blue-600 hover:bg-blue-500 rounded text-white text-xs font-semibold transition-colors"
+          >
+            {isDeploying ? <RefreshCcw className="w-3 h-3 animate-spin" /> : <Server className="w-3 h-3" />}
+            <span>Pop Out</span>
+          </button>
+
+          <button onClick={() => setAgentOpen(!agentOpen)} className={cn("flex items-center gap-1 px-2 py-1 rounded text-white text-xs font-sans transition-colors", agentOpen ? "bg-purple-600 font-bold" : "bg-white/10 hover:bg-white/20")}>
+            <Sparkles className="w-3 h-3" /> Copilot
           </button>
         </div>
       </div>
@@ -233,10 +283,10 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
           projectId={projectId}
         />
         
-        {/* Editor & Terminal Area */}
+        {/* Editor & Preview Split Container */}
         <div className="flex-1 flex flex-col relative bg-[#1e1e1e] min-w-0">
            {/* Editor Tabs */}
-           <div className="flex bg-[#2d2d2d] custom-scrollbar overflow-x-auto shrink-0 border-b border-[#252526]">
+           <div className="flex bg-[#252526] custom-scrollbar overflow-x-auto shrink-0 border-b border-[#333333]">
              {openTabs.map((tabId) => {
                const tabFile = files.find(f => f.id === tabId);
                const tabName = tabFile?.name || tabId.split('/').pop() || tabId;
@@ -246,11 +296,11 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
                    key={tabId}
                    onClick={() => setActiveFileId(tabId)}
                    className={cn(
-                     "group flex items-center gap-2 px-3 py-2 text-[13px] cursor-pointer min-w-[120px] max-w-[200px] relative shrink-0 transition-colors border-r border-[#252526]",
-                     isActive ? "bg-[#1e1e1e] text-white" : "bg-[#2d2d2d] text-white/60 hover:bg-[#252526] hover:text-white/80"
+                     "group flex items-center gap-2 px-3 py-2 text-[13px] cursor-pointer min-w-[120px] max-w-[200px] relative shrink-0 transition-colors border-r border-[#333333]",
+                     isActive ? "bg-[#1e1e1e] text-white font-medium" : "bg-[#2d2d2d] text-white/60 hover:bg-[#252526] hover:text-white/80"
                    )}
                  >
-                   {isActive && <div className="absolute top-0 left-0 right-0 h-[2px] bg-blue-500" />}
+                   {isActive && <div className="absolute top-0 left-0 right-0 h-[2px] bg-sky-500" />}
                    <FileIcon className={cn("w-3.5 h-3.5 shrink-0", tabName.endsWith('.tsx') || tabName.endsWith('.ts') ? "text-[#519aba]" : "text-[#e3c14a]")} />
                    <span className="truncate italic text-xs">{tabName}</span>
                    {openTabs.length > 1 && (
@@ -259,7 +309,7 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
                        className="ml-auto opacity-0 group-hover:opacity-100 hover:opacity-100 hover:bg-white/10 rounded p-0.5 text-xs text-white/50 hover:text-white transition-opacity"
                        title="Close tab"
                      >
-                       X
+                       ×
                      </button>
                    )}
                  </div>
@@ -267,39 +317,63 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
              })}
            </div>
            
-            {!editorReady && (
-            <div className="flex-1 flex flex-col gap-2 p-4 pt-8 min-h-0" style={{ height: terminalOpen ? "calc(100% - 200px)" : "100%" }}>
-              {Array.from({ length: 9 }).map((_, i) => (
-                <Skeleton
-                  key={i}
-                  className="h-4 bg-[#2a2a2a]"
-                  width={`${55 + (i % 3) * 15}%`}
-                />
-              ))}
-            </div>
-          )}
-           <Editor
-            height={terminalOpen ? "calc(100% - 200px)" : "100%"}
-            defaultLanguage={fileName.endsWith('.tsx') || fileName.endsWith('.ts') ? 'typescript' : 'javascript'}
-            theme="vs-dark"
-            value={code}
-            onChange={handleCodeChange}
-            onMount={handleEditorDidMount}
-            options={{
-              minimap: { enabled: true, scale: 0.75 },
-              fontSize: 14,
-              fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
-              wordWrap: 'on',
-              formatOnPaste: true,
-              tabSize: 2,
-              scrollBeyondLastLine: false,
-              automaticLayout: true,
-              glyphMargin: true,
-              folding: true,
-              lineNumbersMinChars: 3,
-            }}
-            className={cn("flex-1 min-h-0", !editorReady && "invisible absolute")}
-         />
+           {/* Split Editor and Live Preview */}
+           <div className="flex-1 flex overflow-hidden min-h-0" style={{ height: terminalOpen ? "calc(100% - 200px)" : "100%" }}>
+             {/* Monaco Editor Pane */}
+             <div className={cn("h-full flex flex-col min-w-0 transition-all", previewOpen ? "w-1/2 border-r border-[#333333]" : "w-full")}>
+               {!editorReady && (
+                 <div className="flex-1 flex flex-col gap-2 p-4 pt-8 min-h-0">
+                   {Array.from({ length: 9 }).map((_, i) => (
+                     <Skeleton
+                       key={i}
+                       className="h-4 bg-[#2a2a2a]"
+                       width={`${55 + (i % 3) * 15}%`}
+                     />
+                   ))}
+                 </div>
+               )}
+               <Editor
+                 height="100%"
+                 defaultLanguage={fileName.endsWith('.tsx') || fileName.endsWith('.ts') ? 'typescript' : 'javascript'}
+                 theme="vs-dark"
+                 value={code}
+                 onChange={handleCodeChange}
+                 onMount={handleEditorDidMount}
+                 options={{
+                   minimap: { enabled: !previewOpen, scale: 0.75 },
+                   fontSize: 13,
+                   fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+                   wordWrap: 'on',
+                   formatOnPaste: true,
+                   tabSize: 2,
+                   scrollBeyondLastLine: false,
+                   automaticLayout: true,
+                   glyphMargin: true,
+                   folding: true,
+                   lineNumbersMinChars: 3,
+                 }}
+                 className={cn("flex-1 min-h-0", !editorReady && "invisible absolute")}
+               />
+             </div>
+
+             {/* Live Sandbox Preview Pane */}
+             {previewOpen && (
+               <div className="w-1/2 h-full flex flex-col bg-[#0f172a] min-w-0 overflow-hidden">
+                 <div className="px-3 py-1.5 bg-[#1e293b] border-b border-slate-700 flex items-center justify-between text-xs text-slate-300 font-mono">
+                   <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Live Preview
+                   </span>
+                   <span className="text-[10px] text-slate-400">Hot-Reload Active</span>
+                 </div>
+                 <iframe
+                   title="Sandbox Preview"
+                   srcDoc={previewDoc}
+                   sandbox="allow-scripts allow-same-origin"
+                   className="w-full flex-1 border-0 bg-white"
+                 />
+               </div>
+             )}
+           </div>
 
            <TerminalPanel terminalOpen={terminalOpen} setTerminalOpen={setTerminalOpen} projectId={projectId} />
         </div>

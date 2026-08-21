@@ -310,9 +310,36 @@ export function TerminalBox({ window }: { window: OSWindow }) {
     return () => globalThis.removeEventListener('resize', onResize);
   }, []);
 
+  const handleClear = () => {
+    if (xtermRef.current) {
+      xtermRef.current.clear();
+      audioSystem.playClick();
+    }
+  };
+
   return (
-    <div className="w-full h-full bg-[#05070d]/65 backdrop-blur-3xl border border-white/15 flex flex-col overflow-hidden shadow-2xl relative group">
-      <div ref={termRef} className="flex-1 p-3" />
+    <div className="w-full h-full bg-[#05070d]/90 backdrop-blur-3xl border border-white/15 flex flex-col overflow-hidden shadow-2xl relative select-none">
+      {/* Terminal Title Bar */}
+      <div className="flex items-center justify-between px-3 py-2 bg-black/50 border-b border-white/10 text-xs text-white/70 font-mono">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="font-bold text-white tracking-wide">zsh — Continua VFS</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleClear}
+            className="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[11px] text-white/80 transition-colors"
+          >
+            Clear
+          </button>
+          <span className="text-[10px] text-emerald-400/80 bg-emerald-950/40 border border-emerald-500/20 px-2 py-0.5 rounded font-mono">
+            WASM Sandboxed
+          </span>
+        </div>
+      </div>
+
+      <div ref={termRef} className="flex-1 p-3 select-text" />
     </div>
   );
 }
