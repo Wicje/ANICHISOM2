@@ -1,35 +1,10 @@
 import type {Metadata, Viewport} from 'next';
-import { Inter, Montserrat, JetBrains_Mono, Space_Grotesk } from 'next/font/google';
 import './globals.css'; 
 import { PWASetup } from '@/components/pwa-setup';
 import { PWAInstall } from '@/components/pwa-install';
 import { GlobalErrorHandlers } from '@/components/global-error-handlers';
 import { HelpModal } from '@/components/help/help-modal';
 import { TooltipProvider } from '@/components/ui/tooltip';
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
-});
-
-const montserrat = Montserrat({
-  subsets: ['latin'],
-  variable: '--font-montserrat',
-  display: 'swap',
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-jetbrains',
-  display: 'swap',
-});
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  variable: '--font-space',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: 'Continua',
@@ -47,7 +22,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
-    <html lang="en" className={`${inter.variable} ${montserrat.variable} ${jetbrainsMono.variable} ${spaceGrotesk.variable}`}>
+    <html lang="en">
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />

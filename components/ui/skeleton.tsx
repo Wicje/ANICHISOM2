@@ -87,9 +87,30 @@ export function BootSplash({ onSkip, progress: externalProgress, message: extern
     };
   }, [externalProgress]);
 
+  // Keyboard dismiss + auto-advance safety timer
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+        e.preventDefault();
+        onSkip?.();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    // Auto-advance safety timer (3.5 seconds) so users never get stuck
+    const autoTimer = setTimeout(() => {
+      onSkip?.();
+    }, 3500);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      clearTimeout(autoTimer);
+    };
+  }, [onSkip]);
+
   return (
     <div
-      className="fixed inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer"
+      className="fixed inset-0 z-[300] flex flex-col items-center justify-center cursor-pointer select-none"
       style={{ background: '#060608' }}
       onClick={onSkip}
     >
@@ -106,7 +127,7 @@ export function BootSplash({ onSkip, progress: externalProgress, message: extern
       {/* Logo with glow */}
       <div className="mb-8 relative">
         <div className="absolute inset-0 blur-3xl opacity-40" style={{ background: '#10F4A0' }} />
-        <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-[#10F4A0] to-[#0BC68A] flex items-center justify-center shadow-[0_0_80px_rgba(16,244,160,0.25)]">
+        <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-[#10F4A0] to-[#0BC68A] flex items-center justify-center shadow-[0_0_80px_rgba(16,244,160,0.25)] transition-transform hover:scale-105">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#060608" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2L2 7l10 5 10-5-10-5z"/>
             <path d="M2 17l10 5 10-5"/>
@@ -138,8 +159,8 @@ export function BootSplash({ onSkip, progress: externalProgress, message: extern
       </p>
       
       {/* Skip hint */}
-      <p className="text-[10px] mt-10 opacity-20 font-mono tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.3)' }}>
-        Click anywhere to skip
+      <p className="text-[11px] mt-10 opacity-40 hover:opacity-80 transition-opacity font-mono tracking-wider flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.6)' }}>
+        <span>Click anywhere or press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-white font-sans text-[10px]">Enter</kbd> to continue</span>
       </p>
     </div>
   );

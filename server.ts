@@ -23,7 +23,7 @@ if (process.env.NEXT_PUBLIC_ENABLE_COLLAB !== 'true') {
 }
 
 const dev = process.env.NODE_ENV !== 'production';
-const app = next({ dev });
+const app = next({ dev, turbo: true });
 const handle = app.getRequestHandler();
 
 // S-05: Restrict CORS to known origins — never wildcard

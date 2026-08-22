@@ -48,19 +48,18 @@ const FocusOverlay = React.lazy(() => import('@/components/overlays/focus-overla
 const ScreenshotOverlay = React.lazy(() => import('@/components/overlays/screenshot-overlay').then(m => ({ default: m.ScreenshotOverlay })));
 const ClipboardHistoryPanel = React.lazy(() => import('@/components/overlays/clipboard-history-panel').then(m => ({ default: m.ClipboardHistoryPanel })));
 const QuickLookOverlay = React.lazy(() => import('@/components/overlays/quick-look-overlay').then(m => ({ default: m.QuickLookOverlay })));
-
-import { DynamicHUD } from './dynamic-hud';
-import { SpatialStage } from './spatial-stage';
-import { TimeMachine } from './time-machine';
-import { AudioVisualizer } from './audio-visualizer';
-import { AirDropModal } from './airdrop-modal';
-import { AccessibilityOverlay } from './accessibility-overlay';
-import { HotCorners } from './hot-corners';
-import { TrackpadGestures } from './trackpad-gestures';
-import { AIAgentBar } from '@/components/overlays/ai-agent-bar';
-import { DragShelf } from '@/components/overlays/drag-shelf';
-import { TelemetryHUD } from '@/components/overlays/telemetry-hud';
-import { PWAUpdateToast } from '@/components/overlays/pwa-update-toast';
+const DynamicHUD = React.lazy(() => import('./dynamic-hud').then(m => ({ default: m.DynamicHUD })));
+const SpatialStage = React.lazy(() => import('./spatial-stage').then(m => ({ default: m.SpatialStage })));
+const TimeMachine = React.lazy(() => import('./time-machine').then(m => ({ default: m.TimeMachine })));
+const AudioVisualizer = React.lazy(() => import('./audio-visualizer').then(m => ({ default: m.AudioVisualizer })));
+const AirDropModal = React.lazy(() => import('./airdrop-modal').then(m => ({ default: m.AirDropModal })));
+const AccessibilityOverlay = React.lazy(() => import('./accessibility-overlay').then(m => ({ default: m.AccessibilityOverlay })));
+const HotCorners = React.lazy(() => import('./hot-corners').then(m => ({ default: m.HotCorners })));
+const TrackpadGestures = React.lazy(() => import('./trackpad-gestures').then(m => ({ default: m.TrackpadGestures })));
+const AIAgentBar = React.lazy(() => import('@/components/overlays/ai-agent-bar').then(m => ({ default: m.AIAgentBar })));
+const DragShelf = React.lazy(() => import('@/components/overlays/drag-shelf').then(m => ({ default: m.DragShelf })));
+const TelemetryHUD = React.lazy(() => import('@/components/overlays/telemetry-hud').then(m => ({ default: m.TelemetryHUD })));
+const PWAUpdateToast = React.lazy(() => import('@/components/overlays/pwa-update-toast').then(m => ({ default: m.PWAUpdateToast })));
 type ContextMenuItem = import('./context-menu').ContextMenuItem;
 
 function AppLoadingSkeleton() {
@@ -903,20 +902,31 @@ export function Desktop() {
     });
   }, [openWindow, logActivity, startScreenshot, toggleFocus]);
 
-  // Drag-drop
+  // Drag-drop (Support multiple files dropped onto wallpaper)
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDraggingFile(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0]!;
-      try {
-        await FS.write(`Desktop/${file.name}`, file, file.type);
-        window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'File Saved', description: `${file.name} saved to Desktop`, type: 'success' } }));
+      const files = Array.from(e.dataTransfer.files);
+      let savedCount = 0;
+      for (const file of files) {
+        try {
+          await FS.write(`Desktop/${file.name}`, file, file.type);
+          savedCount++;
+          logActivity('file-save', 'File saved to Desktop', file.name);
+        } catch (err) {
+          console.error('File drop failed for', file.name, err);
+        }
+      }
+      if (savedCount > 0) {
+        window.dispatchEvent(new CustomEvent('os:notify', {
+          detail: {
+            title: 'Files Saved',
+            description: `${savedCount} file${savedCount === 1 ? '' : 's'} saved to Desktop`,
+            type: 'success',
+          },
+        }));
         window.dispatchEvent(new CustomEvent('os:refresh-desktop'));
-        logActivity('file-save', 'File saved to Desktop', file.name);
-      } catch (err) {
-        console.error('File drop failed', err);
-        window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Save Failed', description: `Could not save ${file.name}`, type: 'error' } }));
       }
     }
   }, []);
@@ -1142,19 +1152,20 @@ export function Desktop() {
       </Suspense>
 
       {/* New Overlay & System Features */}
-      <DynamicHUD />
-      <AudioVisualizer />
-      <SpatialStage isOpen={showSpatialStage} onClose={() => setShowSpatialStage(false)} />
-      <TimeMachine isOpen={showTimeMachine} onClose={() => setShowTimeMachine(false)} />
-      <AirDropModal isOpen={showAirDrop} onClose={() => setShowAirDrop(false)} />
-      <AccessibilityOverlay isOpen={showAccessibility} onClose={() => setShowAccessibility(false)} />
-
-      <AIAgentBar />
-      <DragShelf />
-      <TelemetryHUD />
-      <HotCorners setShowMissionControl={setShowMissionControl} setShowLaunchpad={setShowLaunchpad} setShowControlCenter={setShowControlCenter} />
-      <TrackpadGestures setShowMissionControl={setShowMissionControl} setShowLaunchpad={setShowLaunchpad} />
-      <PWAUpdateToast />
+      <Suspense fallback={null}>
+        <DynamicHUD />
+        <AudioVisualizer />
+        <SpatialStage isOpen={showSpatialStage} onClose={() => setShowSpatialStage(false)} />
+        <TimeMachine isOpen={showTimeMachine} onClose={() => setShowTimeMachine(false)} />
+        <AirDropModal isOpen={showAirDrop} onClose={() => setShowAirDrop(false)} />
+        <AccessibilityOverlay isOpen={showAccessibility} onClose={() => setShowAccessibility(false)} />
+        <AIAgentBar />
+        <DragShelf />
+        <TelemetryHUD />
+        <HotCorners setShowMissionControl={setShowMissionControl} setShowLaunchpad={setShowLaunchpad} setShowControlCenter={setShowControlCenter} />
+        <TrackpadGestures setShowMissionControl={setShowMissionControl} setShowLaunchpad={setShowLaunchpad} />
+        <PWAUpdateToast />
+      </Suspense>
 
       <Toaster
         position="bottom-right"

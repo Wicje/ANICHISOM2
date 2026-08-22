@@ -44,15 +44,8 @@ export function PWASetup() {
             if (!newWorker) return;
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'activated') {
-                // Never reload for the first install — only for genuine
-                // updates of an already-controlled page.
-                if (!hadController) return;
-                // Defer so the current render isn't interrupted, and skip if
-                // the tab is hidden or a native file picker is open.
-                setTimeout(() => {
-                  if (document.visibilityState === 'hidden') return;
-                  window.location.reload();
-                }, 1500);
+                // Dispatch event so UI can show non-intrusive update prompt without restarting the OS
+                window.dispatchEvent(new CustomEvent('os:pwa-updated'));
               }
             });
           });

@@ -165,7 +165,11 @@ export function CommandPalette() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+      // Support Cmd+K / Ctrl+K, Ctrl+Space / Cmd+Space, and Alt+Space
+      const isCmdOrCtrlK = e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey);
+      const isSpaceShortcut = (e.code === 'Space' || e.key === ' ') && (e.metaKey || e.ctrlKey || e.altKey);
+      
+      if (isCmdOrCtrlK || isSpaceShortcut) {
         e.preventDefault();
         setIsOpen((prev) => !prev);
       }
@@ -177,9 +181,11 @@ export function CommandPalette() {
     
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('os:open-spotlight', handleCustomEvent);
+    window.addEventListener('os:open-omnibar', handleCustomEvent);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('os:open-spotlight', handleCustomEvent);
+      window.removeEventListener('os:open-omnibar', handleCustomEvent);
     };
   }, []);
 

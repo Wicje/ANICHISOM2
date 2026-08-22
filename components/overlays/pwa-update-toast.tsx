@@ -37,19 +37,6 @@ export function PWAUpdateToast() {
     };
 
     handleServiceWorker();
-
-    let refreshing = false;
-    const handleControllerChange = () => {
-      if (!refreshing) {
-        refreshing = true;
-        window.location.reload();
-      }
-    };
-
-    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
-    return () => {
-      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-    };
   }, []);
 
   const handleApplyUpdate = () => {
