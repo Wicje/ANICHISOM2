@@ -1,5 +1,4 @@
 import type { ContextRepository } from './repository';
-import { SupabaseContextRepository } from './supabase-driver';
 import { MemoryContextRepository } from './memory-driver';
 
 export type ContextDriverType = 'supabase' | 'memory';
@@ -15,8 +14,10 @@ export function createContextDriver(type: ContextDriverType = 'supabase'): Conte
     case 'memory':
       return new MemoryContextRepository();
     case 'supabase':
-    default:
+    default: {
+      const { SupabaseContextRepository } = require('./supabase-driver');
       return new SupabaseContextRepository();
+    }
   }
 }
 

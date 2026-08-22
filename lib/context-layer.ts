@@ -14,13 +14,12 @@
 
 import { get as idbGet, set as idbSet, keys as idbKeys, del as idbDel } from 'idb-keyval';
 import { mark, measure } from '@/lib/perf';
+import type { VectorClock, ContextRecord } from '@/lib/context-kernel/types';
 import {
-  type VectorClock,
   incrementVectorClock,
   mergeVectorClocks,
   resolveVectorClockConflict,
-  type ContextRecord,
-} from '@/lib/context-kernel';
+} from '@/lib/context-kernel/vector-clock';
 
 const STORAGE_PREFIX = 'continua-';
 const SYNC_VERSION_PREFIX = 'continua-sync:';
