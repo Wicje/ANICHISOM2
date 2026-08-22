@@ -1022,18 +1022,42 @@ Consolidated to use existing `lib/storage-connectors/` infrastructure (server-si
 | Phase 10 (Decomposition) | ✅ Complete | 2/2 |
 | Phase 11 (CSP Nonce) | ✅ Complete | 1/1 |
 | Phase 12 (AI Layout + Share Links) | ✅ Complete | 2/2 |
+| Phase 13 (Context Kernel & Dual-Target Desktop) | ✅ Complete | 6/6 |
+
+---
+
+## Phase 13 — Context Kernel Protocol, Native Desktop & Plugin Platform (August 2026)
+
+**Focus:** Open Access, Vector Clocks, Granular Delta Sync, Tauri Desktop Runtime, Layer 3 Plugin SDK & Sandbox
+
+**What was done:**
+- [x] **Open Access & Public Sign-In:** Removed invite-code gating from `LoginScreen`, hero CTA, and waitlist page.
+- [x] **Layer 1 Context Kernel Protocol:**
+  - Pluggable storage driver architecture (`ContextRepository`, `createContextDriver`, `MemoryContextRepository`, `SupabaseContextRepository`).
+  - Lamport Vector Clocks algorithm (`lib/context-kernel/vector-clock.ts`) with deterministic causal conflict resolution and tombstone preservation.
+  - Granular delta diffing & patching (`lib/context-kernel/delta-sync.ts`).
+  - Client-side Context Layer (`lib/context-layer.ts`) updated for multi-device sync with vector clock resolution.
+- [x] **Dual-Target Desktop Runtime (Tauri):**
+  - Added native Rust handlers in `src-tauri/src/commands.rs` (`get_system_info`, `read_file_native`, `write_file_native`, `list_directory_native`).
+  - Expanded `lib/services/native-bridge.service.ts` with Tauri IPC and web fallbacks.
+  - Added `desktop:dev` and `desktop:build` shortcuts in `package.json`.
+- [x] **Layer 3 Plugin Developer Platform:**
+  - Built official `ContinuaPluginSDK` (`lib/plugin-sdk/index.ts`) for third-party extensions.
+  - Built capability-based permission sandbox host (`lib/services/plugin-sandbox.service.ts`) mounted in desktop lifecycle.
+  - Built plugin scaffolding CLI generator (`scripts/continua-plugin-cli.mjs`).
+- [x] **Observability & Sentry:**
+  - Added `instrumentation-client.ts` for Next.js 15+ client error monitoring.
+  - Enriched `.env.example` with complete configurations.
+- [x] **Test & Build Verification:**
+  - 45 test suites (649 tests) passing with 0 errors.
+  - Clean `tsc --noEmit` and successful production Next.js build compilation.
 
 ---
 
 ## Notes for Next Agent
 
-- **Phase 9–12 complete** — Rust client, privacy desktop wiring, WebAuthn login, os-context rewrite, CSP nonce, AI layout, share links all done
-- **Next: Desktop decomposition** — Wire `components/desktop/index.tsx` as primary desktop, deprecate `components/desktop.tsx`
-- **Phase 8+ remaining** — Clothing Brand Pack, Hardware Pack, Developer Pack, Photography Pack, Public Marketplace
-- **Read `ARCHITECTURE.md` Section 10** for the Rust backend details (all 5 services complete, Section 6.2 needs updating)
-- **Read `VISION.md`** for the authoritative product vision
-- **Tests:** Run with `npm test` or `npx vitest run` — 313 TS tests across 22 files + 30 Rust tests (343 total)
-- **TypeScript:** Verify with `npx tsc --noEmit --incremental false`
-- **Rust:** `cd rust && cargo test --workspace`
-- **Rust services:** auth-service(:3001), ws-server(:3002), event-engine(:3003), file-proxy(:3004), hardware-bridge(:3005)
-- **idb-keyval mock** (`__tests__/setup.ts`) — now uses in-memory Map; supports `get`/`set`/`del`/`clear` with actual persistence
+- **Phase 13 complete** — Context Kernel, Vector Clocks, Delta sync, Tauri bridge, Plugin SDK, Open Access, and Sentry instrumentation.
+- **Tests:** Run with `npm test` or `npx vitest run` — 649 tests across 45 test suites passing.
+- **TypeScript:** Verify with `npx tsc --noEmit`.
+- **Desktop:** Run with `npm run desktop:dev` or `npm run desktop:build`.
+

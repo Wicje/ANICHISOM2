@@ -30,9 +30,9 @@ ContinuaOS is a browser-based universal workspace platform. Persistent, personal
 | Metric | Count |
 |---|---|
 | App components | 33 (in manifest) |
-| Library files | 70+ |
-| Test files | 40 |
-| Total tests | 632 |
+| Library files | 75+ |
+| Test files | 45 |
+| Total tests | 649 |
 
 ---
 
@@ -40,22 +40,34 @@ ContinuaOS is a browser-based universal workspace platform. Persistent, personal
 
 ```
 ╔═══════════════════════════════════════════════════════════╗
-║  LAYER 3 — ECOSYSTEM (Marketplace)                        ║
-║  [ContinuaOS Pack] [Developer] [Photography] [Clothing]    ║
+║  LAYER 3 — ECOSYSTEM & DEVELOPER PLATFORM                 ║
+║  Continua Plugin SDK ↔ Capability Sandbox Host ↔ CLI      ║
 ╠═══════════════════════════════════════════════════════════╣
-║  LAYER 2 — BUILT-IN APPS                                  ║
+║  LAYER 2 — BUILT-IN WORKSPACE APPS                        ║
 ║  [Browser] [Campaign Lab] [Moodboard] [Files] [Calls]     ║
 ║  [Terminal] [Code Editor] [Productivity Suite] [PDF]       ║
 ╠═══════════════════════════════════════════════════════════╣
-║  LAYER 1 — CORE                                           ║
-║  Supabase (auth+db+realtime) │ IndexedDB (offline)        ║
-║  Yjs (collaboration) │ Event Sourcing │ Privacy Model     ║
+║  LAYER 1 — CONTEXT KERNEL PROTOCOL (State & Persistence)  ║
+║  Vector Clocks ↔ Delta Sync ↔ Pluggable Storage Drivers   ║
+║  IndexedDB / OPFS ↔ Tauri IPC Native Bridge               ║
 ╚═══════════════════════════════════════════════════════════╝
 ```
 
 ---
 
-## 3. Layer 1 — Core Platform
+## 3. Layer 1 — Context Kernel & Core Platform
+
+### 3.1 Context Kernel Protocol Subsystem (`lib/context-kernel/`)
+
+| Module | File | Description |
+|---|---|---|
+| Protocol Schema | `types.ts` | Versioned data contract: `ContextRecord`, `VectorClock`, `ContextDelta`, `ContextTombstone` |
+| Vector Clocks | `vector-clock.ts` | Lamport Vector Clocks, causal dominance check, and deterministic tie-breaking conflict resolution |
+| Delta Sync Engine | `delta-sync.ts` | Recursive JSON/array diff computation and patch application for bandwidth-efficient incremental syncing |
+| Repository Interface | `repository.ts` | Storage driver protocol interface (`ContextRepository`) decoupling backends from business logic |
+| Memory Driver | `memory-driver.ts` | Zero-cloud, local and in-memory storage driver for offline execution and testing |
+| Supabase Driver | `supabase-driver.ts` | PostgreSQL/Supabase driver for remote cloud synchronization |
+| Driver Registry | `registry.ts` | Dynamic driver resolution (`createContextDriver('memory' | 'supabase')`) |
 
 ### 3.1 State Management
 
@@ -320,9 +332,35 @@ Every file written to OPFS gets a `.meta` companion containing `{ mimeType }`. T
 | Onboarding Wizard | `onboarding-wizard.tsx` | 3-step: Welcome → Pick Apps → Desktop |
 | Login Screen | `login-screen.tsx` | Email/password + dev master key |
 
+### Layer 3 Plugin Platform & Developer Ecosystem
+
+| Component | File | Description |
+|---|---|---|
+| Public Plugin SDK | `lib/plugin-sdk/index.ts` | Developer-facing SDK: `context`, `storage`, `ui`, `audio` sub-APIs |
+| Capability Sandbox Host | `lib/services/plugin-sandbox.service.ts` | Host-side `postMessage` listener verifying fine-grained permission grants |
+| Plugin Scaffolding CLI | `scripts/continua-plugin-cli.mjs` | Template and manifest generator for community developers |
+| Plugin Registry Store | `lib/stores/plugin.store.ts` | Reactive state for registered and installed extensions |
+
+### Dual-Target Native Desktop Runtime (Tauri)
+
+| Component | File | Description |
+|---|---|---|
+| Native Rust Commands | `src-tauri/src/commands.rs` | Tauri commands for native file IO (`read_file_native`, `write_file_native`, `list_directory_native`) and system telemetry |
+| Native IPC Bridge | `lib/services/native-bridge.service.ts` | Universal runtime detection (`isTauri`, `isElectron`, `isPWA`) with graceful fallback |
+| Tauri Core Config | `src-tauri/tauri.conf.json` | Window bounds, security CSP, and multi-platform bundle targets |
+
 ---
 
-## 7. Infrastructure
+## 7. Infrastructure & Observability
+
+### Telemetry & Sentry Observability
+
+| Component | File | Description |
+|---|---|---|
+| Client Instrumentation | `instrumentation-client.ts` | Next.js 15+ client error & performance monitoring |
+| Server Instrumentation | `sentry.server.config.ts` | Node.js runtime exception capture |
+| Edge Instrumentation | `sentry.edge.config.ts` | Edge worker monitoring |
+| Unified Registrar | `instrumentation.ts` | Next.js runtime hook invoking server/edge Sentry configs |
 
 ### Deployment Architecture
 
