@@ -14,9 +14,18 @@
 
 import { get as idbGet, set as idbSet, keys as idbKeys, del as idbDel } from 'idb-keyval';
 import { mark, measure } from '@/lib/perf';
+import {
+  type VectorClock,
+  incrementVectorClock,
+  mergeVectorClocks,
+  resolveVectorClockConflict,
+  type ContextRecord,
+} from '@/lib/context-kernel';
 
 const STORAGE_PREFIX = 'continua-';
 const SYNC_VERSION_PREFIX = 'continua-sync:';
+const VC_PREFIX = 'continua-vc:';
+const TOMBSTONE_PREFIX = 'continua-tombstone:';
 const DEBOUNCE_MS = 2000;
 
 type SyncMode = 'private' | 'agency';
@@ -81,6 +90,12 @@ export function getContextLayerConfig(): Readonly<ContextLayerConfig> {
 export async function readDomain<T>(domain: string): Promise<T | null> {
   mark(`ctx:read:${domain}`);
   try {
+    const isTombstoned = await idbGet<boolean>(`${TOMBSTONE_PREFIX}${domain}`);
+    if (isTombstoned) {
+      measure(`ctx:read:${domain}`);
+      return null;
+    }
+
     const data = await idbGet<T>(`${STORAGE_PREFIX}${domain}`);
     measure(`ctx:read:${domain}`);
     return data ?? null;
@@ -92,10 +107,23 @@ export async function readDomain<T>(domain: string): Promise<T | null> {
 }
 
 /**
- * Write a domain to IDB (immediate) + schedule cloud sync.
+ * Write a domain to IDB (immediate) + schedule cloud sync with Vector Clock increment.
  */
 export async function writeDomain<T>(domain: string, data: T): Promise<void> {
   mark(`ctx:write:${domain}`);
+
+  // Clear tombstone if re-creating
+  try {
+    await idbDel(`${TOMBSTONE_PREFIX}${domain}`);
+  } catch {}
+
+  // Update Vector Clock locally
+  let currentClock: VectorClock = {};
+  try {
+    const storedClock = await idbGet<VectorClock>(`${VC_PREFIX}${domain}`);
+    currentClock = incrementVectorClock(storedClock, config.deviceId);
+    await idbSet(`${VC_PREFIX}${domain}`, currentClock);
+  } catch {}
 
   // Immediate IDB write
   try {
@@ -113,7 +141,29 @@ export async function writeDomain<T>(domain: string, data: T): Promise<void> {
 
   // Schedule cloud sync (debounced)
   if (config.mode === 'agency' && config.userId) {
-    scheduleCloudSync(domain, data);
+    scheduleCloudSync(domain, data, currentClock);
+  }
+}
+
+/**
+ * Delete a domain with tombstone tracking.
+ */
+export async function deleteDomain(domain: string): Promise<void> {
+  mark(`ctx:delete:${domain}`);
+
+  let currentClock: VectorClock = {};
+  try {
+    const storedClock = await idbGet<VectorClock>(`${VC_PREFIX}${domain}`);
+    currentClock = incrementVectorClock(storedClock, config.deviceId);
+    await idbSet(`${VC_PREFIX}${domain}`, currentClock);
+    await idbSet(`${TOMBSTONE_PREFIX}${domain}`, true);
+    await idbDel(`${STORAGE_PREFIX}${domain}`);
+  } catch {}
+
+  measure(`ctx:delete:${domain}`);
+
+  if (config.mode === 'agency' && config.userId) {
+    scheduleCloudSync(domain, null, currentClock, true);
   }
 }
 
@@ -358,7 +408,12 @@ if (typeof window !== 'undefined') {
   });
 }
 
-async function scheduleCloudSync(domain: string, data: unknown): Promise<void> {
+async function scheduleCloudSync(
+  domain: string,
+  data: unknown,
+  vectorClock?: VectorClock,
+  deleted: boolean = false
+): Promise<void> {
   const key = `sync:${domain}`;
   const existing = debounceTimers.get(key);
   if (existing) clearTimeout(existing);
@@ -380,6 +435,8 @@ async function scheduleCloudSync(domain: string, data: unknown): Promise<void> {
           data,
           version: currentVersion,
           deviceId: config.deviceId,
+          vectorClock,
+          deleted,
         }),
       });
 
@@ -396,7 +453,7 @@ async function scheduleCloudSync(domain: string, data: unknown): Promise<void> {
 }
 
 /**
- * Pull all remote domains and merge with local.
+ * Pull all remote domains and merge with local using Vector Clock resolution.
  * Called during boot in Agency mode.
  */
 export async function syncFromCloud(): Promise<{ pulled: number; conflicts: number }> {
@@ -415,28 +472,51 @@ export async function syncFromCloud(): Promise<{ pulled: number; conflicts: numb
     }
 
     const body = await res.json();
-    const records = body.data?.domains || [];
+    const records: ContextRecord[] = body.data?.domains || [];
     let pulled = 0;
     let conflicts = 0;
 
     for (const record of records) {
-      const { domain, data, version } = record;
+      const { domain, data, version, deleted, vectorClock } = record;
 
       // Skip internal domains (__snapshot:*, __device:*)
       if (domain.startsWith('__')) continue;
 
+      const localData = await idbGet(`${STORAGE_PREFIX}${domain}`);
       const localVersion = (await idbGet<number>(`${SYNC_VERSION_PREFIX}${domain}`)) || 0;
+      const localClock = (await idbGet<VectorClock>(`${VC_PREFIX}${domain}`)) || {};
+      const localTombstone = (await idbGet<boolean>(`${TOMBSTONE_PREFIX}${domain}`)) || false;
 
-      if (version > localVersion) {
-        // Remote is newer — apply
-        await idbSet(`${STORAGE_PREFIX}${domain}`, data);
-        await idbSet(`${SYNC_VERSION_PREFIX}${domain}`, version);
-        pulled++;
-        if (localVersion > 0) conflicts++;
-      } else if (localVersion === 0 && version > 0) {
-        // No local data — pull remote
-        await idbSet(`${STORAGE_PREFIX}${domain}`, data);
-        await idbSet(`${SYNC_VERSION_PREFIX}${domain}`, version);
+      const localRecord: ContextRecord = {
+        id: `${config.userId}:${domain}`,
+        userId: config.userId,
+        domain,
+        data: localData,
+        version: localVersion,
+        deviceId: config.deviceId,
+        updatedAt: new Date().toISOString(),
+        schemaVersion: '1.0.0',
+        deleted: localTombstone,
+        vectorClock: localClock,
+      };
+
+      const resolution = resolveVectorClockConflict(localRecord, record);
+
+      if (resolution.hadConflict) conflicts++;
+
+      if (resolution.source === 'remote' || localVersion === 0) {
+        if (deleted || resolution.data === null) {
+          await idbSet(`${TOMBSTONE_PREFIX}${domain}`, true);
+          await idbDel(`${STORAGE_PREFIX}${domain}`);
+        } else {
+          await idbDel(`${TOMBSTONE_PREFIX}${domain}`);
+          await idbSet(`${STORAGE_PREFIX}${domain}`, resolution.data);
+        }
+        await idbSet(`${SYNC_VERSION_PREFIX}${domain}`, resolution.version);
+        if (vectorClock) {
+          const merged = mergeVectorClocks(localClock, vectorClock);
+          await idbSet(`${VC_PREFIX}${domain}`, merged);
+        }
         pulled++;
       }
     }

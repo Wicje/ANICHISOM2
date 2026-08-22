@@ -13,6 +13,48 @@
 /** Current schema version. Bump when the schema changes. */
 export const CONTEXT_KERNEL_VERSION = '1.0.0';
 
+// ─── Vector Clock & Delta Types ─────────────────────────────────
+
+/**
+ * A vector clock mapping device IDs to monotonic sequence numbers.
+ * Enables true causal ordering and concurrent conflict detection across devices.
+ */
+export type VectorClock = Record<string, number>;
+
+/**
+ * A tombstone record indicating explicit deletion with causal context.
+ * Prevents deleted items from resurrecting when offline devices re-sync.
+ */
+export interface ContextTombstone {
+  domain: string;
+  deletedAt: string;
+  vectorClock: VectorClock;
+  deletedByDeviceId: string;
+  reason?: string;
+}
+
+/**
+ * A single granular delta operation on a domain property.
+ */
+export interface DeltaOperation {
+  op: 'set' | 'delete' | 'append' | 'merge';
+  path: string[];
+  value?: unknown;
+}
+
+/**
+ * An incremental delta patch representing changes between two versions.
+ */
+export interface ContextDelta {
+  domain: string;
+  baseVersion: number;
+  targetVersion: number;
+  vectorClock: VectorClock;
+  deviceId: string;
+  timestamp: string;
+  operations: DeltaOperation[];
+}
+
 // ─── Core Types ─────────────────────────────────────────────────
 
 /**
@@ -47,6 +89,12 @@ export interface ContextRecord {
 
   /** Tombstone flag: true means this domain was deleted (soft delete) */
   deleted: boolean;
+
+  /** Causal vector clock across participating devices */
+  vectorClock?: VectorClock;
+
+  /** Explicit tombstone metadata if deleted */
+  tombstone?: ContextTombstone;
 }
 
 /**

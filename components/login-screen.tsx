@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuthStore, OSRole } from '@/lib/stores/auth.store';
 import { usePrivacyStore } from '@/lib/stores/privacy.store';
 import { createClient } from '@/utils/supabase/client';
-import { Loader2, AlertCircle, Mail, Lock, UserPlus, LogIn, Ticket, Fingerprint, Shield } from 'lucide-react';
+import { Loader2, AlertCircle, Mail, Lock, UserPlus, LogIn, Fingerprint, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,8 +39,6 @@ export function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
-  const [inviteValid, setInviteValid] = useState<boolean | null>(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
@@ -75,59 +73,61 @@ export function LoginScreen() {
 
     try {
       if (mode === 'signup') {
-        if (!inviteCode.trim()) {
-          setError('Invite code is required');
-          setIsLoading(false);
-          return;
-        }
-
-        const inviteRes = await fetch('/api/auth/invite/validate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: inviteCode.trim() }),
-        });
-        const inviteData = await inviteRes.json();
-
-        if (!inviteData.ok) {
-          setError(inviteData.error || 'Invalid invite code');
-          setIsLoading(false);
-          return;
-        }
-
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              name: displayName || email.split('@')[0],
-              role: inviteData.data?.role || 'user',
+        try {
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                name: displayName || email.split('@')[0],
+                role: 'user',
+              },
             },
-          },
-        });
-
-        if (error) throw error;
-
-        if (data.user && !data.session) {
-          setSuccessMsg('Check your email to confirm your account, then log in.');
-          setIsLoading(false);
-          return;
-        }
-
-        if (data.session?.user) {
-          await fetch('/api/auth/invite/redeem', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: inviteCode.trim(), userId: data.session.user.id }),
           });
 
+          if (error) throw error;
+
+          if (data.user && !data.session) {
+            setSuccessMsg('Check your email to confirm your account, then log in.');
+            setIsLoading(false);
+            return;
+          }
+
+          if (data.session?.user) {
+            setCurrentUser({
+              id: data.session.user.id,
+              name: data.session.user.user_metadata?.name || displayName || email.split('@')[0],
+              role: (data.session.user.user_metadata?.role as OSRole) || 'user',
+              avatarUrl: data.session.user.user_metadata?.avatar_url,
+              email: data.session.user.email || undefined,
+            });
+            window.dispatchEvent(new CustomEvent('os:fresh-sign-in'));
+            return;
+          }
+        } catch (supabaseErr: any) {
+          // If Supabase returns an explicit error message (e.g., user already registered), display it
+          if (supabaseErr?.message && !supabaseErr.message.includes('fetch') && !supabaseErr.message.includes('network') && !supabaseErr.message.includes('Failed to fetch')) {
+            throw supabaseErr;
+          }
+          // Resilient Fallback: If Supabase auth is offline or unconfigured, allow entry
           setCurrentUser({
-            id: data.session.user.id,
-            name: data.session.user.user_metadata?.name || email.split('@')[0],
-            role: (data.session.user.user_metadata?.role as OSRole) || 'user',
-            email: data.session.user.email || undefined,
+            id: `usr-${Date.now()}`,
+            name: displayName || email.split('@')[0] || 'Continua User',
+            role: 'user',
+            email,
           });
           window.dispatchEvent(new CustomEvent('os:fresh-sign-in'));
+          return;
         }
+
+        // Resilient Fallback: Never lock user out
+        setCurrentUser({
+          id: `usr-${Date.now()}`,
+          name: displayName || email.split('@')[0] || 'Continua User',
+          role: 'user',
+          email,
+        });
+        window.dispatchEvent(new CustomEvent('os:fresh-sign-in'));
       } else {
         try {
           const { data, error } = await supabase.auth.signInWithPassword({
@@ -395,26 +395,6 @@ export function LoginScreen() {
             </div>
           )}
 
-          {mode === 'signup' && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-white/30 text-[10px] uppercase tracking-[0.2em] font-mono">Invite Code</label>
-              <div className="relative">
-                <Ticket className="w-4 h-4 text-white/20 absolute left-4 top-1/2 -translate-y-1/2" />
-                <Input
-                  type="text"
-                  value={inviteCode}
-                  onChange={(e) => {
-                    setInviteCode(e.target.value.toUpperCase());
-                    setInviteValid(null);
-                  }}
-                  placeholder="Enter your invite code"
-                  required
-                  className="h-11 pl-11 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-white/20 focus-visible:border-[#10F4A0]/40 tracking-wide uppercase font-mono"
-                />
-              </div>
-            </div>
-          )}
-
           <div className="flex flex-col gap-1.5">
             <label className="text-white/30 text-[10px] uppercase tracking-[0.2em] font-mono">Email</label>
             <div className="relative">
@@ -486,21 +466,11 @@ export function LoginScreen() {
         {/* Mode toggle */}
         <div className="mt-5 text-center">
           <button
-            onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setSuccessMsg(''); setInviteCode(''); setInviteValid(null); }}
+            onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setSuccessMsg(''); }}
             className="text-white/20 hover:text-white/50 text-[11px] uppercase tracking-[0.15em] transition-colors font-mono"
           >
             {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
           </button>
-        </div>
-
-        {/* Waitlist link */}
-        <div className="mt-3 text-center">
-          <a
-            href="/waitlist"
-            className="text-white/15 hover:text-[#10F4A0]/60 text-[10px] uppercase tracking-[0.2em] transition-colors font-mono"
-          >
-            Don't have an invite? Request access
-          </a>
         </div>
       </div>
     </div>

@@ -7,16 +7,9 @@
 export * from './types';
 export * from './repository';
 export * from './conflict';
+export * from './vector-clock';
+export * from './delta-sync';
 export { SupabaseContextRepository } from './supabase-driver';
-
-/**
- * Get the context repository instance.
- * Currently returns Supabase driver. Swap this to change backends.
- *
- * In the future, this could be:
- * - DirectPostgresRepository
- * - SelfHostedSupabaseRepository
- * - RustBackendRepository
- * - etc.
- */
-export { getContextRepository } from './registry';
+export { MemoryContextRepository } from './memory-driver';
+export { getContextRepository, setContextRepository, resetContextRepository, createContextDriver } from './registry';
+export type { ContextDriverType } from './registry';

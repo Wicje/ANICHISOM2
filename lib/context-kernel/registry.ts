@@ -1,28 +1,44 @@
-/**
- * Context Kernel — Repository Registry
- *
- * Provides the singleton repository instance.
- * Swap the driver here to change the entire backend.
- */
-
 import type { ContextRepository } from './repository';
 import { SupabaseContextRepository } from './supabase-driver';
+import { MemoryContextRepository } from './memory-driver';
+
+export type ContextDriverType = 'supabase' | 'memory';
 
 let instance: ContextRepository | null = null;
+let currentDriverType: ContextDriverType = 'supabase';
+
+/**
+ * Creates a driver instance by type.
+ */
+export function createContextDriver(type: ContextDriverType = 'supabase'): ContextRepository {
+  switch (type) {
+    case 'memory':
+      return new MemoryContextRepository();
+    case 'supabase':
+    default:
+      return new SupabaseContextRepository();
+  }
+}
 
 /**
  * Get the context repository singleton.
- * Returns Supabase driver by default.
+ * Returns driver configured in current environment (defaults to Supabase).
  */
-export function getContextRepository(): ContextRepository {
+export function getContextRepository(type?: ContextDriverType): ContextRepository {
+  if (type && type !== currentDriverType) {
+    currentDriverType = type;
+    instance = createContextDriver(type);
+    return instance;
+  }
+
   if (!instance) {
-    instance = new SupabaseContextRepository();
+    instance = createContextDriver(currentDriverType);
   }
   return instance;
 }
 
 /**
- * Override the repository instance (for testing or driver swapping).
+ * Override the repository instance (for testing or custom driver swapping).
  */
 export function setContextRepository(repo: ContextRepository): void {
   instance = repo;
@@ -33,4 +49,5 @@ export function setContextRepository(repo: ContextRepository): void {
  */
 export function resetContextRepository(): void {
   instance = null;
+  currentDriverType = 'supabase';
 }

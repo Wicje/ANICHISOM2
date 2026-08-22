@@ -12,6 +12,8 @@
     "lint": "eslint .",
     "clean": "next clean",
     "tauri": "tauri",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build",
     "build:tauri": "TAURI_BUILD=true NODE_OPTIONS=--max-old-space-size=4096 next build",
     "extension:build": "node scripts/build-extension.mjs",
     "extension:zip": "node scripts/build-extension.mjs --zip",

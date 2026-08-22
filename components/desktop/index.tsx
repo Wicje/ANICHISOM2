@@ -33,6 +33,7 @@ import { useScreenshotStore } from '@/lib/stores/screenshot.store';
 import { useClipboardUIStore } from '@/lib/stores/clipboard.store';
 import { ambientSounds, type AmbientPreset } from '@/lib/services/ambient-sounds';
 import { clipboardHistory } from '@/lib/services/clipboard-history';
+import { pluginSandboxHost } from '@/lib/services/plugin-sandbox.service';
 
 const Launchpad = React.lazy(() => import('./launchpad').then(m => ({ default: m.Launchpad })));
 const MissionControl = React.lazy(() => import('./mission-control').then(m => ({ default: m.MissionControl })));
@@ -48,7 +49,6 @@ const FocusOverlay = React.lazy(() => import('@/components/overlays/focus-overla
 const ScreenshotOverlay = React.lazy(() => import('@/components/overlays/screenshot-overlay').then(m => ({ default: m.ScreenshotOverlay })));
 const ClipboardHistoryPanel = React.lazy(() => import('@/components/overlays/clipboard-history-panel').then(m => ({ default: m.ClipboardHistoryPanel })));
 const QuickLookOverlay = React.lazy(() => import('@/components/overlays/quick-look-overlay').then(m => ({ default: m.QuickLookOverlay })));
-const DynamicHUD = React.lazy(() => import('./dynamic-hud').then(m => ({ default: m.DynamicHUD })));
 const SpatialStage = React.lazy(() => import('./spatial-stage').then(m => ({ default: m.SpatialStage })));
 const TimeMachine = React.lazy(() => import('./time-machine').then(m => ({ default: m.TimeMachine })));
 const AudioVisualizer = React.lazy(() => import('./audio-visualizer').then(m => ({ default: m.AudioVisualizer })));
@@ -246,6 +246,14 @@ export function Desktop() {
       window.removeEventListener('os:open-timemachine', handleTimeMachine);
       window.removeEventListener('os:open-airdrop', handleAirDrop);
       window.removeEventListener('os:open-accessibility', handleAccessibility);
+    };
+  }, []);
+
+  // Initialize Layer 3 Plugin Sandbox Host IPC Bridge
+  useEffect(() => {
+    pluginSandboxHost.init();
+    return () => {
+      pluginSandboxHost.destroy();
     };
   }, []);
 
@@ -1153,7 +1161,6 @@ export function Desktop() {
 
       {/* New Overlay & System Features */}
       <Suspense fallback={null}>
-        <DynamicHUD />
         <AudioVisualizer />
         <SpatialStage isOpen={showSpatialStage} onClose={() => setShowSpatialStage(false)} />
         <TimeMachine isOpen={showTimeMachine} onClose={() => setShowTimeMachine(false)} />

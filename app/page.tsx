@@ -57,8 +57,8 @@ export default function LandingPage() {
 
             {/* Right Action CTA */}
             <div className="flex items-center gap-3">
-              <Link href="/waitlist" className="text-xs font-semibold text-white/70 hover:text-white transition-colors hidden sm:block">
-                Waitlist Access
+              <Link href="/os" className="text-xs font-semibold text-white/70 hover:text-white transition-colors hidden sm:block">
+                Sign In
               </Link>
               <Link 
                 href="/os" 
@@ -103,10 +103,10 @@ export default function LandingPage() {
             <span>Launch Web OS Desktop</span>
           </Link>
           <Link 
-            href="/waitlist" 
+            href="/os" 
             className="px-8 py-4 rounded-2xl font-semibold text-sm bg-white/[0.05] hover:bg-white/[0.1] text-white border border-white/15 backdrop-blur-2xl hover:scale-[1.02] active:scale-95 transition-all"
           >
-            Join Private Beta (70 Spots)
+            Get Started Free
           </Link>
         </div>
 
