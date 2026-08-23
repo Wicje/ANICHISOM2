@@ -226,6 +226,7 @@ npx playwright test
 
 | Document | Description |
 |---|---|
+| [EXPLAINER.md](EXPLAINER.md) | Product explainer answering auth, tracking, and real-world scenarios |
 | [VISION.md](VISION.md) | Comprehensive product vision, multi-tier roadmap, and business strategy |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Full technical specification, Context Kernel schema, and IPC protocols |
 | [CONTEXT_LAYER_SPEC.md](CONTEXT_LAYER_SPEC.md) | Mathematical specification of Vector Clocks and Delta Synchronization |
