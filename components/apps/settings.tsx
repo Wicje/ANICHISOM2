@@ -11,6 +11,7 @@ import { ContextPrivacySection } from '@/components/apps/context-privacy-setting
 import { ambientSounds, type AmbientPreset } from '@/lib/services/ambient-sounds';
 import { githubDeviceFlow, DeviceCodeResponse, GitHubProfile } from '@/lib/services/github-device-flow.service';
 import { GoogleSSOService, GoogleUser } from '@/lib/services/google-sso.service';
+import { AVATAR_STYLES, AvatarStyle, avatarDataUrl } from '@/lib/avatar-engine';
 
 const PRESET_WALLPAPERS = [
   { name: 'Tahoe Mesh', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop' },
@@ -63,6 +64,8 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
   const systemPermissions = usePrivacyStore((s) => s.systemPermissions);
   const setPermission = usePrivacyStore((s) => s.setPermission);
   const [customUrl, setCustomUrl] = useState('');
+  const [avatarStyle, setAvatarStyle] = useState<AvatarStyle>('gradient');
+  const [avatarShuffle, setAvatarShuffle] = useState(0);
   const [activeTab, setActiveTab] = useState<'appearance' | 'system' | 'account' | 'privacy'>('appearance');
   const [contextExporting, setContextExporting] = useState(false);
   const [contextImporting, setContextImporting] = useState(false);
@@ -723,6 +726,66 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                         Apply Avatar URL
                       </button>
                     </div>
+                  </div>
+                </div>
+
+                {/* Generated Avatars — Vercel-style gradients + Boring-style identicons */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-white/70 uppercase tracking-wider">Generated Avatars (Offline, Private)</h4>
+                    <button
+                      onClick={() => setAvatarShuffle((s) => s + 1)}
+                      className="text-[11px] font-semibold text-[#10F4A0] hover:text-[#10F4A0]/80 transition-colors flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3 h-3" /> Shuffle
+                    </button>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {AVATAR_STYLES.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => setAvatarStyle(s.id)}
+                        className={cn(
+                          'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors',
+                          avatarStyle === s.id
+                            ? 'bg-[#10F4A0]/20 text-[#10F4A0] border border-[#10F4A0]/40'
+                            : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10'
+                        )}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-6 gap-3">
+                    {Array.from({ length: 6 }, (_, i) => {
+                      const seed = `${currentUser?.name || 'Continua'}#${i + avatarShuffle * 6}`;
+                      const url = avatarDataUrl(avatarStyle, seed);
+                      const selected = currentUser?.avatarUrl === url;
+                      return (
+                        <button
+                          key={`${avatarStyle}-${seed}`}
+                          onClick={() => {
+                            if (!currentUser) return;
+                            const updated = { ...currentUser, avatarUrl: url };
+                            setCurrentUser(updated);
+                            setAuthUser(updated);
+                            audioSystem.playClick();
+                            window.dispatchEvent(new CustomEvent('os:notify', {
+                              detail: { title: 'Avatar Applied', description: `Generated ${avatarStyle} avatar applied — shown at login and across the OS.`, type: 'success' },
+                            }));
+                          }}
+                          title={seed}
+                          aria-label={`Apply generated ${avatarStyle} avatar variant ${i + 1}`}
+                          className={cn(
+                            'aspect-square rounded-full overflow-hidden transition-all',
+                            selected ? 'ring-2 ring-[#10F4A0] shadow-md shadow-[#10F4A0]/30' : 'ring-1 ring-white/10 hover:ring-white/40'
+                          )}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={url} alt="" className="w-full h-full" />
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
