@@ -9,23 +9,46 @@ import { NextRequest, NextResponse } from 'next/server';
 import { apiOk, apiError, apiInternal, requireSession } from '@/lib/api-helpers';
 import { getContextRepository } from '@/lib/context-kernel';
 import { isValidDomain } from '@/lib/context-kernel';
+import {
+  extractTokenFromRequest,
+  verifyCapabilityToken,
+} from '@/lib/capability-token';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-target-cookie, x-client-ip',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-capability-token, x-target-cookie, x-client-ip',
 };
 
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders });
 }
 
+async function resolveUserId(request: NextRequest): Promise<
+  { ok: true; userId: string } | { ok: false; response: NextResponse }
+> {
+  const auth = await requireSession(request);
+  if (auth.ok) return { ok: true, userId: auth.userId };
+
+  // Native daemons and guest sessions authenticate with capability tokens
+  const claims = await verifyCapabilityToken(extractTokenFromRequest(request));
+  if (!claims) {
+    return {
+      ok: false,
+      response: new NextResponse(auth.response.body, {
+        status: auth.response.status,
+        headers: corsHeaders,
+      }),
+    };
+  }
+  return { ok: true, userId: claims.sub };
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireSession(request);
-    if (!auth.ok) {
-      return new NextResponse(auth.response.body, { status: auth.response.status, headers: corsHeaders });
-    }
+    const resolved = await resolveUserId(request);
+    if (!resolved.ok) return resolved.response;
+    const userId = resolved.userId;
 
     const body = await request.json();
     const { domain, data, version, deviceId } = body;
@@ -45,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     const repo = getContextRepository();
     const result = await repo.save({
-      userId: auth.userId,
+      userId,
       domain,
       data,
       version,

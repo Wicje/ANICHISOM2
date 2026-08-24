@@ -58,9 +58,11 @@ export interface CapabilityClaims {
 
 /** Mint a signed capability token for the given user + workspace scope. */
 export async function signCapabilityToken(
-  claims: CapabilityClaims
+  claims: CapabilityClaims,
+  options?: { ttlSeconds?: number }
 ): Promise<{ token: string; expiresAt: string }> {
-  const expires = Math.floor(Date.now() / 1000) + CAPABILITY_TTL_SECONDS;
+  const ttl = options?.ttlSeconds ?? CAPABILITY_TTL_SECONDS;
+  const expires = Math.floor(Date.now() / 1000) + ttl;
   const token = await new SignJWT({ typ: 'capability', ws: claims.ws })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(claims.sub)
