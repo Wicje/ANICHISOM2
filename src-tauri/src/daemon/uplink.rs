@@ -180,3 +180,77 @@ pub async fn submit(config: &super::config::DaemonConfig, payload: serde_json::V
         }
     }
 }
+
+// ─── Journal batch sync (Phase I) ───────────────────────────────────────
+
+use super::journal::{self, Importance, JournalEvent};
+
+/// POST a batch of journal envelopes to /api/journal/ingest.
+async fn post_journal_batch(
+    server_url: &str,
+    token: &str,
+    events: &[JournalEvent],
+) -> Result<(), String> {
+    let url = format!("{}/api/journal/ingest", server_url.trim_end_matches('/'));
+    let body = json!({ "events": events });
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(&url)
+        .timeout(std::time::Duration::from_secs(20))
+        .header("x-capability-token", token)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("network: {e}"))?;
+
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("http {}", res.status()))
+    }
+}
+
+/// Batched journal sync: ship unsynced events at/above `min` importance.
+/// Watermark advances only on success so failures retry naturally.
+pub async fn flush_journal(config: &super::config::DaemonConfig) -> usize {
+    if is_paused() || is_local_only() || config.capability_token.is_empty() {
+        return 0;
+    }
+
+    let pending = journal::unsynced_above(Importance::MILESTONE);
+    if pending.is_empty() {
+        return 0;
+    }
+
+    // Bounded batches: ingest caps at 500; take the oldest slice.
+    let batch: Vec<JournalEvent> = pending.iter().take(500).cloned().collect();
+    let newest_ts = batch.last().map(|e| e.ts).unwrap_or(0);
+
+    match post_journal_batch(&config.server_url, &config.capability_token, &batch).await {
+        Ok(()) => {
+            journal::confirm_synced(newest_ts);
+            log::info!("[uplink] synced {} journal events", batch.len());
+            batch.len()
+        }
+        Err(e) => {
+            log::warn!("[uplink] journal sync failed ({e}) — will retry");
+            0
+        }
+    }
+}
+
+/// Session-end hook: write an L4 checkpoint locally and attempt one final
+/// best-effort sync. Called from the shutdown signal watcher.
+pub async fn session_end(config: &super::config::DaemonConfig, reason: &str) {
+    journal::append(
+        &JournalEvent::new(
+            "native-daemon",
+            journal::KIND_SESSION_END,
+            None,
+            json!({ "reason": reason }),
+        )
+        .with_importance(Importance::CHECKPOINT),
+    );
+    flush_journal(config).await;
+}

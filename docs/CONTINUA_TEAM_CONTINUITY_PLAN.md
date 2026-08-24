@@ -112,21 +112,30 @@ Membership + token plumbing is verified by 29 unit tests (695 total green).
 **Done when:** adding a user to a project auto-assembles their workspace
 on first boot; removing them revokes everything with one row deletion.
 
-### Phase I — Daemon v2: Event Journal (capture ≠ interpretation)
+### Phase I — Daemon v2: Event Journal (capture ≠ interpretation) ✅
 *Architecture principle: capture continuously, interpret asynchronously,
 persist selectively, synchronize intentionally.*
 
-- [ ] Rust append-only local journal (`~/.continua/journal/YYYY-MM-DD.events`),
-      cheap writes, importance levels L0 noise → L4 checkpoint.
-- [ ] Deterministic classifiers first (app switch = L1, git commit = L3);
-      AI interpretation only where genuinely useful (later).
-- [ ] Checkpoint triggers: meaningful state change + session termination
-      flush; retention policy raw 7d / aggregated 90d (local purge).
-- [ ] Batched sync every 30–60 s (or on checkpoint), not per-event;
-      replaces the current fixed 60 s poll-and-send loop.
+- [x] Rust append-only local journal (`~/.continua/journal/YYYY-MM-DD.events`),
+      JSONL day files, cheap appends; sync watermark file (`daemon/journal.rs`).
+- [x] Deterministic classifiers first (`daemon/classify.rs`): project switch
+      → L1 `app.focus`, branch switch → L2 `git.branch`, new HEAD commit →
+      L3 `git.commit`, title churn → L0 throttled to 1/5 min. AI
+      interpretation stays a later consumer.
+- [x] Checkpoint triggers: SIGTERM/Ctrl+C session-end handler writes an L4
+      `session.end` and attempts one final flush; startup retention purge
+      (raw 7 d default, cloud 90 d via pg_cron when present).
+- [x] Batched sync: milestone+ events ship to `/api/journal/ingest` every
+      `sync_interval_secs` (default 45 s), watermark advances only on HTTP
+      success so failed batches retry; WorkContext snapshot now ships only
+      on state change (+ slow heartbeat), replacing the fixed 60 s send.
+- [x] S4 contract mirrored in TS (`lib/journal/envelope.ts`), server ingest
+      with envelope validation + ownership stamping (`supabase-step7.sql`,
+      user-scoped RLS).
 
-**Done when:** hard-killing the laptop loses nothing; cloud receives only
-milestones/checkpoints; idle CPU ≈ 0 between events.
+**Done when:** hard-killing the laptop loses nothing journaled; cloud
+receives only milestones/checkpoints; idle ticks cost a diff, not a write.
+Verified by 10 Rust unit tests (standalone harness) + 18 TS tests (713 total).
 
 ### Phase J — Collaboration Relay
 - [ ] Ship a tiny y-websocket relay (or Supabase Realtime channel) behind

@@ -26,6 +26,12 @@ pub struct DaemonConfig {
     /// Checkpoint cadence in seconds (30–300).
     #[serde(default = "default_interval")]
     pub interval_secs: u64,
+    /// Journal cloud-sync cadence in seconds (batched, not per-event).
+    #[serde(default = "default_sync_interval")]
+    pub sync_interval_secs: u64,
+    /// Local journal retention in days for raw event files.
+    #[serde(default = "default_journal_keep_days")]
+    pub journal_keep_days: i64,
 }
 
 fn default_server_url() -> String {
@@ -36,6 +42,14 @@ fn default_interval() -> u64 {
     60
 }
 
+fn default_sync_interval() -> u64 {
+    45
+}
+
+fn default_journal_keep_days() -> i64 {
+    7
+}
+
 impl Default for DaemonConfig {
     fn default() -> Self {
         Self {
@@ -44,6 +58,8 @@ impl Default for DaemonConfig {
             workspace: "Continua OS".to_string(),
             watch_paths: Vec::new(),
             interval_secs: default_interval(),
+            sync_interval_secs: default_sync_interval(),
+            journal_keep_days: default_journal_keep_days(),
         }
     }
 }
