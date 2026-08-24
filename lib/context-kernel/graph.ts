@@ -31,6 +31,11 @@ export interface ContextEditorState {
   cursorColumn: number;
   openFiles: string[];
   ideName: string; // 'VS Code' | 'Cursor' | 'Neovim' | 'Continua Monaco'
+  /**
+   * Open OS windows with their app ids — enables exact workspace restore
+   * on a fresh machine (hydration maps these back to openWindow calls).
+   */
+  openApps?: Array<{ appId: string; title: string }>;
 }
 
 export interface ContextTask {

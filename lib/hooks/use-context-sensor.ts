@@ -45,19 +45,18 @@ export function useContextSensor() {
           typeof window !== 'undefined'
             ? localStorage.getItem('continuaos_device_id') || 'web-client'
             : 'web-client',
-        git: {
-          repo: 'Wicje/ANICHISOM2',
-          branch: 'context-engine',
-          modifiedCount: 2,
-          untrackedCount: 0,
-          lastCommitMessage: 'feat: context graph and continuity checkpoints',
-        },
+        // Git state is omitted until the native daemon supplies real data —
+        // never fabricate repo/branch metadata in checkpoints.
         editor: {
           activeFile: topWindow?.title || 'src/components/Workspace.tsx',
           cursorLine: 421,
           cursorColumn: 12,
           openFiles: windows.map((w) => w.title),
           ideName: 'Continua Monaco',
+          openApps: visibleWindows
+            .sort((a, b) => b.zIndex - a.zIndex)
+            .slice(0, 12)
+            .map((w) => ({ appId: w.appId, title: w.title })),
         },
         browserTabs: tabs.map((t) => ({
           id: t.id,
