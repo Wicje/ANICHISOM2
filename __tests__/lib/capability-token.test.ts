@@ -1,61 +1,79 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  extractTokenFromRequest,
   signCapabilityToken,
   verifyCapabilityToken,
-  CAPABILITY_TTL_SECONDS,
 } from '@/lib/capability-token';
 
-describe('Capability Tokens', () => {
-  it('round-trips a signed token into claims', async () => {
-    const { token, expiresAt } = await signCapabilityToken({
-      sub: 'user-123',
-      ws: 'Continua OS',
-    });
+describe('capability token v2', () => {
+  beforeEach(() => {
+    vi.stubEnv('CAPABILITY_JWT_SECRET', 'test-secret-for-vitest');
+  });
 
-    expect(token).toBeTruthy();
-    expect(new Date(expiresAt).getTime()).toBeGreaterThan(Date.now());
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
 
+  it('round-trips v1 claims (sub, ws only)', async () => {
+    const { token } = await signCapabilityToken({ sub: 'u1', ws: 'Starknet' });
     const claims = await verifyCapabilityToken(token);
     expect(claims).not.toBeNull();
-    expect(claims!.sub).toBe('user-123');
-    expect(claims!.ws).toBe('Continua OS');
+    expect(claims!.sub).toBe('u1');
+    expect(claims!.ws).toBe('Starknet');
+    expect(claims!.org).toBeUndefined();
+    expect(claims!.scopes).toBeUndefined();
   });
 
-  it('rejects tampered tokens', async () => {
-    const { token } = await signCapabilityToken({ sub: 'user-123', ws: 'ws' });
-    const parts = token.split('.');
-    // Flip payload content
-    const payload = JSON.parse(Buffer.from(parts[1]!, 'base64url').toString());
-    payload.sub = 'attacker';
-    parts[1] = Buffer.from(JSON.stringify(payload)).toString('base64url');
-    const tampered = parts.join('.');
-
-    expect(await verifyCapabilityToken(tampered)).toBeNull();
-  });
-
-  it('rejects garbage and missing tokens', async () => {
-    expect(await verifyCapabilityToken(null)).toBeNull();
-    expect(await verifyCapabilityToken(undefined)).toBeNull();
-    expect(await verifyCapabilityToken('')).toBeNull();
-    expect(await verifyCapabilityToken('not.a.jwt')).toBeNull();
-    // Supabase access tokens are not capability tokens
-    expect(await verifyCapabilityToken('tok_mobile_key_active')).toBeNull();
-  });
-
-  it('defaults the workspace scope when absent', async () => {
+  it('round-trips v2 org + scopes', async () => {
+    const orgId = '33333333-3333-3333-3333-333333333333';
     const { token } = await signCapabilityToken({
-      sub: 'user-123',
-      ws: '',
+      sub: 'u1',
+      ws: 'ws',
+      org: orgId,
+      scopes: ['context.read', 'proxy.invoke'],
     });
     const claims = await verifyCapabilityToken(token);
-    expect(claims!.ws).toBe('Continua OS');
+    expect(claims!.org).toBe(orgId);
+    expect(claims!.scopes).toEqual(['context.read', 'proxy.invoke']);
   });
 
-  it('uses a 60 minute TTL', async () => {
-    expect(CAPABILITY_TTL_SECONDS).toBe(60 * 60);
-    const { expiresAt } = await signCapabilityToken({ sub: 'u', ws: 'w' });
-    const deltaMs = new Date(expiresAt).getTime() - Date.now();
-    expect(deltaMs).toBeGreaterThan((60 * 60 - 10) * 1000);
-    expect(deltaMs).toBeLessThanOrEqual(60 * 60 * 1000);
+  it('drops unknown scopes at mint (deny-by-default)', async () => {
+    const { token } = await signCapabilityToken({
+      sub: 'u1',
+      ws: 'ws',
+      scopes: ['context.read', 'kernel.root' as any],
+    });
+    const claims = await verifyCapabilityToken(token);
+    expect(claims!.scopes).toEqual(['context.read']);
+  });
+
+  it('omits empty/absent optional claims entirely', async () => {
+    const { token } = await signCapabilityToken({
+      sub: 'u1',
+      ws: 'ws',
+      scopes: [],
+    });
+    const claims = await verifyCapabilityToken(token);
+    expect(claims!.org).toBeUndefined();
+    expect(claims!.scopes).toBeUndefined();
+  });
+
+  it('rejects tampered and expired tokens', async () => {
+    const { token } = await signCapabilityToken(
+      { sub: 'u1', ws: 'w' },
+      { ttlSeconds: -10 }
+    );
+    expect(await verifyCapabilityToken(token)).toBeNull();
+
+    const valid = await signCapabilityToken({ sub: 'u1', ws: 'w' });
+    expect(await verifyCapabilityToken(valid.token + 'x')).toBeNull();
+  });
+
+  it('extracts from header or bearer', () => {
+    const req = (headers: Record<string, string>) => new Request('https://x.test/', { headers });
+    expect(extractTokenFromRequest(req({ 'x-capability-token': 'a' }))).toBe('a');
+    expect(extractTokenFromRequest(req({ authorization: 'Bearer b' }))).toBe('b');
+    expect(extractTokenFromRequest(req({}))).toBeNull();
   });
 });

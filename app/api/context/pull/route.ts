@@ -12,21 +12,33 @@ import {
   extractTokenFromRequest,
   verifyCapabilityToken,
 } from '@/lib/capability-token';
+import { authorize, PERSONAL_DEFAULT_SCOPES, type Scope } from '@/lib/authz';
 
 export async function GET(request: NextRequest) {
   try {
     const auth = await requireSession(request);
     let userId: string;
+    let scopes: readonly string[];
 
     if (auth.ok) {
       userId = auth.userId;
+      scopes = PERSONAL_DEFAULT_SCOPES;
     } else {
       // Ephemeral guest sessions authenticate with scoped capability tokens
       // minted during /connect pairing.
       const claims = await verifyCapabilityToken(extractTokenFromRequest(request));
       if (!claims) return auth.response;
       userId = claims.sub;
+      scopes = claims.scopes ?? PERSONAL_DEFAULT_SCOPES;
     }
+
+    // Authz gate (S1): the graph is personal — readers must own it.
+    const decision = authorize(
+      { userId, ws: 'Continua OS', scopes: scopes as Scope[] },
+      'context.read',
+      { type: 'context', owner: userId }
+    );
+    if (!decision.ok) return apiError(decision.reason, 403);
 
     const { searchParams } = new URL(request.url);
     const domainsParam = searchParams.get('domains');

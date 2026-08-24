@@ -14,16 +14,17 @@ import {
   extractTokenFromRequest,
   verifyCapabilityToken,
 } from '@/lib/capability-token';
+import { authorize, PERSONAL_DEFAULT_SCOPES, type Scope } from '@/lib/authz';
 
 export async function OPTIONS(request: NextRequest) {
   return NextResponse.json({}, { headers: buildCorsHeaders(request) });
 }
 
 async function resolveUserId(request: NextRequest): Promise<
-  { ok: true; userId: string } | { ok: false; response: NextResponse }
+  { ok: true; userId: string; scopes: readonly string[] } | { ok: false; response: NextResponse }
 > {
   const auth = await requireSession(request);
-  if (auth.ok) return { ok: true, userId: auth.userId };
+  if (auth.ok) return { ok: true, userId: auth.userId, scopes: PERSONAL_DEFAULT_SCOPES };
 
   // Native daemons and guest sessions authenticate with capability tokens
   const claims = await verifyCapabilityToken(extractTokenFromRequest(request));
@@ -36,7 +37,7 @@ async function resolveUserId(request: NextRequest): Promise<
       }),
     };
   }
-  return { ok: true, userId: claims.sub };
+  return { ok: true, userId: claims.sub, scopes: claims.scopes ?? PERSONAL_DEFAULT_SCOPES };
 }
 
 export async function POST(request: NextRequest) {
@@ -44,6 +45,17 @@ export async function POST(request: NextRequest) {
     const resolved = await resolveUserId(request);
     if (!resolved.ok) return resolved.response;
     const userId = resolved.userId;
+
+    // Authz gate (S1): the graph is personal — writers must own it and hold
+    // the scope. v1 tokens carry no scopes claim → personal defaults apply.
+    const decision = authorize(
+      { userId, ws: 'Continua OS', scopes: resolved.scopes as Scope[] },
+      'context.write',
+      { type: 'context', owner: userId }
+    );
+    if (!decision.ok) {
+      return NextResponse.json({ ok: false, error: decision.reason }, { status: 403, headers: buildCorsHeaders(request) });
+    }
 
     const body = await request.json();
     const { domain, data, version, deviceId } = body;

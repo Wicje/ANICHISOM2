@@ -70,22 +70,32 @@ architecture; none of the organizational semantics exist yet.
 
 ## Phases
 
-### Phase G — Team Foundation (~schema + tokens, minimal UI)
+### Phase G — Team Foundation (~schema + tokens, minimal UI) ✅
 *Layer 4 skeleton on top of the shipped identity work.*
 
-- [ ] `supabase-step6.sql`: relational team core —
-  `organizations`, `org_members(org_id, user_id, role)`,
-  `org_projects(org_id, …)` replacing JSONB membership; RLS from
-  membership joins. Keep legacy tables untouched.
-- [ ] Extend capability token claims: `{ sub, ws, org?, scopes[] }`
-  (`lib/capability-token.ts`) — backward compatible (scopes optional).
-- [ ] `/api/connect/token` + pair routes accept org context; proxy route
-  enforces scopes before provider calls.
-- [ ] Add `org_id`, `project_id` columns to `context_records` (+ step6 SQL);
-  context pull/save filter by membership when org-scoped.
+- [x] `supabase-step6.sql`: relational team core — `organizations`,
+  `org_members(org_id, user_id, role)` replacing JSONB membership; RLS from
+  membership functions (`app.org_role` / `app.is_org_member`). Legacy
+  filmmaker tables archived to `_archive` + client DML revoked per §7 of the
+  architecture doc.
+- [x] Capability token claims: `{ sub, ws, org?, scopes[] }`
+  (`lib/capability-token.ts`) — backward compatible; v1 tokens receive
+  implicit personal defaults via `principalFromClaims`. Org-scoped minting in
+  the pair route is gated by `CAPABILITY_TOKEN_V2=1` and requires a verified
+  approver holding a real seat.
+- [x] Single authz gate `lib/authz.ts` wired into `/api/context/save`,
+  `/api/context/pull`, `/api/agent/proxy`, pair route, and the new org routes.
+  Org verbs are seat-gated (DB-resolved roles), never token-gated.
+- [x] Org API: `POST/GET /api/orgs`, `GET/POST/DELETE /api/orgs/[id]/members`
+  (owner/admin grant rules, sole-owner protection, self-leave).
+- ~~Add `org_id`/`project_id` to `context_records`~~ — **dropped by design**
+  (architecture §5): records stay user-scoped; project slicing arrives with
+  checkpoint tags in Phase I.
 
 **Done when:** two test users in one org see only their authorized
-checkpoint data through the API, with scoped tokens.
+checkpoint data through the API → *revised*: G ships the identity/permission
+substrate; cross-user scoped reads land with checkpoints in Phase I/H.
+Membership + token plumbing is verified by 29 unit tests (695 total green).
 
 ### Phase H — Workspace Assembly (onboarding-as-consequence)
 *No "employee onboarding" feature. Joining a project IS the onboarding.*

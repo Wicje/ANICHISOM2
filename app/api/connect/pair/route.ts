@@ -22,6 +22,8 @@ import {
   signCapabilityToken,
   verifyCapabilityToken,
 } from '@/lib/capability-token';
+import { isScope, principalFromClaims, type Scope } from '@/lib/authz';
+import { getRole } from '@/lib/org-service';
 
 export async function OPTIONS(request: NextRequest) {
   return NextResponse.json({}, { headers: buildCorsHeaders(request) });
@@ -110,10 +112,43 @@ export async function POST(request: NextRequest) {
     workspace = typeof workspace === 'string' ? workspace : 'Continua OS';
     userId = typeof userId === 'string' ? userId : 'mobile-key';
 
+    // Token v2: org tenant + explicit scopes. Opt-in via CAPABILITY_TOKEN_V2=1.
+    // An unverified approver can never mint elevated claims, and a requested
+    // org is accepted only when the approver holds a real membership seat
+    // (no silent escalation — requests that fail verification degrade to
+    // personal scope rather than erroring).
+    let orgScope: string | undefined;
+    let scopes: Scope[] | undefined;
+    const tokenV2Enabled =
+      process.env.CAPABILITY_TOKEN_V2 === '1' || process.env.NODE_ENV !== 'production';
+
+    if (tokenV2Enabled && verifiedClaims && typeof body === 'object' && body !== null) {
+      const approver = principalFromClaims(verifiedClaims);
+      const requestedScopes = Array.isArray(body.scopes)
+        ? (body.scopes.filter(isScope) as Scope[])
+        : [];
+      scopes = requestedScopes.filter((s) => approver.scopes.includes(s));
+
+      if (
+        typeof body.org === 'string' &&
+        body.org.trim() &&
+        scopes.length > 0
+      ) {
+        try {
+          const role = await getRole(body.org.trim(), userId);
+          if (role) orgScope = body.org.trim();
+        } catch {
+          // Membership unverifiable → personal scope only.
+        }
+      }
+    }
+
     // Mint the scoped, short-lived capability token the guest machine will use
     const { token, expiresAt } = await signCapabilityToken({
       sub: userId,
       ws: workspace,
+      ...(orgScope ? { org: orgScope } : {}),
+      ...(scopes && scopes.length > 0 ? { scopes } : {}),
     });
 
     const session = await approveSession(cleanPin, {

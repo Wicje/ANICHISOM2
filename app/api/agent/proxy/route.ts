@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { buildCorsHeaders } from '@/lib/cors';
+import { authorize, principalFromClaims } from '@/lib/authz';
 import { getAiProvider, chatWithFallback } from '@/lib/ai-providers/ai-provider-factory';
 import {
   extractTokenFromRequest,
@@ -41,6 +42,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { ok: false, error: 'Invalid or expired capability token. Please re-authenticate on mobile.' },
         { status: 401, headers: buildCorsHeaders(request) }
+      );
+    }
+
+    // Authz gate (S1): invoking providers requires the proxy.invoke scope.
+    // v1 tokens carry no scopes claim → personal defaults apply, so existing
+    // guests/daemons are unaffected; restricted v2 tokens without the scope
+    // are rejected before any provider call is attempted.
+    const principal = principalFromClaims(claims);
+    const decision = authorize(principal, 'proxy.invoke', { type: 'proxy' });
+    if (!decision.ok) {
+      return NextResponse.json(
+        { ok: false, error: decision.reason },
+        { status: 403, headers: buildCorsHeaders(request) }
       );
     }
 

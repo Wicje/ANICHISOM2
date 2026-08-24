@@ -5,13 +5,20 @@
  * authenticated client requests one). Presented to scoped endpoints such as
  * /api/agent/proxy. Raw API keys are never exposed to holders.
  *
- * Claims:
+ * Claims (v1):
  *   sub  — approving/owning user id
  *   ws   — workspace scope
  *   typ  — 'capability'
  *   exp  — now + TTL (60 min)
+ *
+ * Claims (v2, all optional — absence means v1 semantics with personal defaults):
+ *   org    — org tenant the holder operates within (must be a real membership,
+ *            verified by the minting route via lib/org-service)
+ *   scopes — explicit capability list; unknown scopes are dropped at mint and
+ *            at principal construction. See lib/authz.ts.
  */
 import { SignJWT, jwtVerify } from 'jose';
+import { isScope, type Scope } from '@/lib/authz';
 
 export const CAPABILITY_TTL_SECONDS = 60 * 60; // 60 minutes
 
@@ -54,6 +61,10 @@ async function getSigningKey(): Promise<CryptoKey> {
 export interface CapabilityClaims {
   sub: string;
   ws: string;
+  /** Org tenant (v2). Absent = personal scope. */
+  org?: string;
+  /** Explicit capabilities (v2). Absent = v1 personal defaults. */
+  scopes?: Scope[];
 }
 
 /** Mint a signed capability token for the given user + workspace scope. */
@@ -63,7 +74,17 @@ export async function signCapabilityToken(
 ): Promise<{ token: string; expiresAt: string }> {
   const ttl = options?.ttlSeconds ?? CAPABILITY_TTL_SECONDS;
   const expires = Math.floor(Date.now() / 1000) + ttl;
-  const token = await new SignJWT({ typ: 'capability', ws: claims.ws })
+
+  // Deny-by-default: only recognized scopes ever reach the JWT.
+  const scopes = claims.scopes?.filter(isScope);
+  const payload: Record<string, unknown> = {
+    typ: 'capability',
+    ws: claims.ws,
+    ...(claims.org ? { org: claims.org } : {}),
+    ...(scopes && scopes.length > 0 ? { scopes } : {}),
+  };
+
+  const token = await new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(claims.sub)
     .setIssuer(ISSUER)
@@ -90,6 +111,10 @@ export async function verifyCapabilityToken(
     return {
       sub: payload.sub,
       ws: (payload.ws as string) || 'Continua OS',
+      ...(typeof payload.org === 'string' && payload.org ? { org: payload.org } : {}),
+      ...(Array.isArray(payload.scopes)
+        ? { scopes: payload.scopes.filter(isScope) }
+        : {}),
     };
   } catch {
     return null;
