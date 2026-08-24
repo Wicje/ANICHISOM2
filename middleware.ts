@@ -16,7 +16,9 @@ export async function middleware(request: NextRequest) {
 
   // Public routes — no session check needed
   // /os is public because the Desktop component handles its own auth (shows login screen)
-  const isPublicRoute = pathname === '/' || pathname === '/os' || pathname === '/waitlist' || pathname.startsWith('/auth') || pathname.startsWith('/login');
+  // /connect is public because ephemeral guests pair WITHOUT a Supabase session.
+  // (/connect/approve stays protected — the approving phone must be signed in.)
+  const isPublicRoute = pathname === '/' || pathname === '/os' || pathname === '/waitlist' || pathname === '/connect' || pathname.startsWith('/auth') || pathname.startsWith('/login');
   if (isPublicRoute) {
     // If user has Supabase session and is on landing page, redirect to /os
     if (pathname === '/') {

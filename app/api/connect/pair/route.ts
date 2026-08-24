@@ -10,10 +10,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRouteRateLimit } from '@/lib/api-helpers';
+import { buildCorsHeaders } from '@/lib/cors';
 import {
   approveSession,
   getOrCreateSession,
   isValidPin,
+  recordPairingFailure,
 } from '@/lib/pairing-store';
 import {
   extractTokenFromRequest,
@@ -21,14 +23,8 @@ import {
   verifyCapabilityToken,
 } from '@/lib/capability-token';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
-
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders });
+export async function OPTIONS(request: NextRequest) {
+  return NextResponse.json({}, { headers: buildCorsHeaders(request) });
 }
 
 export async function GET(request: NextRequest) {
@@ -41,14 +37,14 @@ export async function GET(request: NextRequest) {
   if (!pin) {
     return NextResponse.json(
       { ok: false, error: 'PIN parameter required' },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: buildCorsHeaders(request) }
     );
   }
 
   if (!isValidPin(pin)) {
     return NextResponse.json(
       { ok: false, error: 'Invalid PIN format' },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: buildCorsHeaders(request) }
     );
   }
 
@@ -57,7 +53,7 @@ export async function GET(request: NextRequest) {
     if (!session) {
       return NextResponse.json(
         { ok: true, status: 'expired', data: null },
-        { headers: corsHeaders }
+        { headers: buildCorsHeaders(request) }
       );
     }
 
@@ -75,13 +71,13 @@ export async function GET(request: NextRequest) {
               }
             : null,
       },
-      { headers: corsHeaders }
+      { headers: buildCorsHeaders(request) }
     );
   } catch (error) {
     console.error('[api/connect/pair] GET error:', error);
     return NextResponse.json(
       { ok: false, error: 'Internal error' },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: buildCorsHeaders(request) }
     );
   }
 }
@@ -98,7 +94,7 @@ export async function POST(request: NextRequest) {
     if (!isValidPin(cleanPin)) {
       return NextResponse.json(
         { ok: false, error: 'Valid 6-character PIN required' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: buildCorsHeaders(request) }
       );
     }
 
@@ -129,9 +125,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (!session) {
+      recordPairingFailure(cleanPin);
       return NextResponse.json(
         { ok: false, error: 'No active pairing session for this PIN. Refresh the guest screen.' },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: buildCorsHeaders(request) }
       );
     }
 
@@ -147,13 +144,13 @@ export async function POST(request: NextRequest) {
         },
         capabilityToken: token,
       },
-      { headers: corsHeaders }
+      { headers: buildCorsHeaders(request) }
     );
   } catch (error) {
     console.error('[api/connect/pair] POST error:', error);
     return NextResponse.json(
       { ok: false, error: 'Internal error' },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: buildCorsHeaders(request) }
     );
   }
 }

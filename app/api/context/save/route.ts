@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { buildCorsHeaders } from '@/lib/cors';
 import { apiOk, apiError, apiInternal, requireSession } from '@/lib/api-helpers';
 import { getContextRepository } from '@/lib/context-kernel';
 import { isValidDomain } from '@/lib/context-kernel';
@@ -14,14 +15,8 @@ import {
   verifyCapabilityToken,
 } from '@/lib/capability-token';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-capability-token, x-target-cookie, x-client-ip',
-};
-
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders });
+export async function OPTIONS(request: NextRequest) {
+  return NextResponse.json({}, { headers: buildCorsHeaders(request) });
 }
 
 async function resolveUserId(request: NextRequest): Promise<
@@ -37,7 +32,7 @@ async function resolveUserId(request: NextRequest): Promise<
       ok: false,
       response: new NextResponse(auth.response.body, {
         status: auth.response.status,
-        headers: corsHeaders,
+        headers: buildCorsHeaders(request),
       }),
     };
   }
@@ -54,16 +49,16 @@ export async function POST(request: NextRequest) {
     const { domain, data, version, deviceId } = body;
 
     if (!domain || typeof domain !== 'string') {
-      return NextResponse.json({ ok: false, error: 'domain is required' }, { status: 400, headers: corsHeaders });
+      return NextResponse.json({ ok: false, error: 'domain is required' }, { status: 400, headers: buildCorsHeaders(request) });
     }
     if (!isValidDomain(domain)) {
-      return NextResponse.json({ ok: false, error: `Invalid domain: ${domain}` }, { status: 400, headers: corsHeaders });
+      return NextResponse.json({ ok: false, error: `Invalid domain: ${domain}` }, { status: 400, headers: buildCorsHeaders(request) });
     }
     if (version === undefined || typeof version !== 'number') {
-      return NextResponse.json({ ok: false, error: 'version is required (number)' }, { status: 400, headers: corsHeaders });
+      return NextResponse.json({ ok: false, error: 'version is required (number)' }, { status: 400, headers: buildCorsHeaders(request) });
     }
     if (!deviceId || typeof deviceId !== 'string') {
-      return NextResponse.json({ ok: false, error: 'deviceId is required' }, { status: 400, headers: corsHeaders });
+      return NextResponse.json({ ok: false, error: 'deviceId is required' }, { status: 400, headers: buildCorsHeaders(request) });
     }
 
     const repo = getContextRepository();
@@ -75,9 +70,9 @@ export async function POST(request: NextRequest) {
       deviceId,
     });
 
-    return NextResponse.json({ ok: true, data: result }, { headers: corsHeaders });
+    return NextResponse.json({ ok: true, data: result }, { headers: buildCorsHeaders(request) });
   } catch (error) {
     console.error('[context/save] Error:', error);
-    return NextResponse.json({ ok: false, error: 'Internal server error' }, { status: 500, headers: corsHeaders });
+    return NextResponse.json({ ok: false, error: 'Internal server error' }, { status: 500, headers: buildCorsHeaders(request) });
   }
 }

@@ -17,9 +17,26 @@ import {
 import Link from 'next/link';
 import QRCode from 'qrcode';
 
+// Must match the server-side PIN alphabet in lib/pairing-store.ts
+const PIN_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+function generatePin(): string {
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += PIN_ALPHABET.charAt(Math.floor(Math.random() * PIN_ALPHABET.length));
+  }
+  return code;
+}
+
+function isValidPinFormat(pin: string): boolean {
+  return /^[A-Z2-9]{6}$/.test(pin);
+}
+
 export default function ConnectPage() {
   const router = useRouter();
-  const [pinCode, setPinCode] = useState('7X9K21');
+  // Placeholder until mounted: PINs must come from the server-safe
+  // alphabet ([A-Z2-9], no 0/1) so they can never be rejected upstream.
+  const [pinCode, setPinCode] = useState('······');
   const [timeLeft, setTimeLeft] = useState(120);
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [isDemoMode, setIsDemoMode] = useState(false);
@@ -27,10 +44,16 @@ export default function ConnectPage() {
   const [pairedDevice, setPairedDevice] = useState('Josephan (Samsung Galaxy)');
   const pinRef = useRef(pinCode);
   pinRef.current = pinCode;
+  const skipNavRef = useRef(false);
 
-  // Demo instant-approve only when explicitly requested via ?demo=1
+  // Generate the first valid PIN client-side (avoids hydration mismatch)
   useEffect(() => {
-    setIsDemoMode(new URLSearchParams(window.location.search).has('demo'));
+    const params = new URLSearchParams(window.location.search);
+    setIsDemoMode(params.has('demo'));
+    // e2e affordance: stay on this screen after approval (no /os redirect)
+    skipNavRef.current = params.has('nonav');
+    setPinCode(generatePin());
+    setTimeLeft(120);
   }, []);
 
   // Countdown and PIN generator
@@ -38,12 +61,7 @@ export default function ConnectPage() {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-          let code = '';
-          for (let i = 0; i < 6; i++) {
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
-          }
-          setPinCode(code);
+          setPinCode(generatePin());
           return 120;
         }
         return prev - 1;
@@ -55,6 +73,7 @@ export default function ConnectPage() {
 
   // Real scannable QR code pointing phones at the approval page
   useEffect(() => {
+    if (!isValidPinFormat(pinCode)) return;
     let cancelled = false;
     const approveUrl = `${window.location.origin}/connect/approve?pin=${pinCode}`;
     QRCode.toDataURL(approveUrl, {
@@ -75,10 +94,12 @@ export default function ConnectPage() {
   // Live polling for cross-device approval over network
   useEffect(() => {
     if (pairingStatus !== 'waiting') return;
+    if (!isValidPinFormat(pinRef.current)) return; // placeholder PIN not yet generated
 
     let isMounted = true;
     const pollInterval = setInterval(async () => {
       try {
+        if (!isValidPinFormat(pinRef.current)) return;
         const res = await fetch(`/api/connect/pair?pin=${pinRef.current}`);
         if (!res.ok) return;
         const json = await res.json();
@@ -87,12 +108,7 @@ export default function ConnectPage() {
 
         if (json.ok && json.status === 'expired') {
           // Server says this PIN window is gone — rotate immediately
-          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-          let code = '';
-          for (let i = 0; i < 6; i++) {
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
-          }
-          setPinCode(code);
+          setPinCode(generatePin());
           setTimeLeft(120);
           return;
         }
@@ -113,7 +129,7 @@ export default function ConnectPage() {
             if (isMounted) {
               setPairingStatus('hydrating');
               setTimeout(() => {
-                if (isMounted) {
+                if (isMounted && !skipNavRef.current) {
                   router.push('/os?ephemeral=true');
                 }
               }, 1400);
@@ -129,11 +145,16 @@ export default function ConnectPage() {
       isMounted = false;
       clearInterval(pollInterval);
     };
-  }, [pairingStatus, router]);
+    // Restart polling whenever the PIN rotates so the new session is tracked
+  }, [pairingStatus, router, pinCode]);
 
   const handleSimulateApprove = async () => {
     try {
-      await fetch('/api/connect/pair', {
+      // Guarantee the session exists server-side before approving
+      // (the first poll tick may not have fired yet).
+      await fetch(`/api/connect/pair?pin=${pinRef.current}`).catch(() => {});
+
+      const res = await fetch('/api/connect/pair', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -142,12 +163,32 @@ export default function ConnectPage() {
           clientInfo: 'Demo Mobile Key (Instant Authorize)',
         }),
       });
-    } catch {}
+      // Demo exercises the same real flow: persist the scoped token
+      // server-minted for this PIN before transitioning to hydration.
+      const json = await res.json().catch(() => null);
+      if (!json?.ok || !json.capabilityToken) {
+        // Approval did not stick — stay in waiting; polling keeps running.
+        return;
+      }
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem('continua_ephemeral_cap', json.capabilityToken);
+          sessionStorage.setItem('continua_ephemeral_mode', 'true');
+        } catch {}
+      }
+      if (json.session?.clientInfo) {
+        setPairedDevice(json.session.clientInfo);
+      }
+    } catch {
+      return;
+    }
     setPairingStatus('approved');
     setTimeout(() => {
       setPairingStatus('hydrating');
       setTimeout(() => {
-        router.push('/os?ephemeral=true');
+        if (!skipNavRef.current) {
+          router.push('/os?ephemeral=true');
+        }
       }, 1400);
     }, 1200);
   };

@@ -111,6 +111,14 @@ export function checkRouteRateLimit(
   limitKey: keyof typeof RATE_LIMITS,
   userId?: string
 ): NextResponse | null {
+  // Opt-in bypass for local dev / e2e so test runs don't exhaust buckets.
+  // Never honored in production builds.
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.RATE_LIMIT_DISABLED === '1'
+  ) {
+    return null;
+  }
   const config = RATE_LIMITS[limitKey];
   // Prioritize trusted Vercel headers x-vercel-forwarded-for / x-real-ip
   const vercelIp = request.headers.get('x-vercel-forwarded-for') || request.headers.get('x-real-ip');

@@ -32,6 +32,56 @@ export function isValidPin(pin: unknown): pin is string {
   return typeof pin === 'string' && PIN_PATTERN.test(pin);
 }
 
+// ─── PIN brute-force lockout ─────────────────────────────────────────────
+// Tracks failed approval attempts per PIN. After MAX_PIN_FAILURES within
+// the window the PIN is locked out: lookups return null and the guest UI
+// rotates to a fresh PIN. Per-instance in-memory (defense-in-depth on top
+// of IP rate limiting, which is cross-instance).
+
+const MAX_PIN_FAILURES = 10;
+const FAILURE_WINDOW_MS = 10 * 60 * 1000;
+
+interface FailureState {
+  count: number;
+  firstAt: number;
+}
+const pinFailures = new Map<string, FailureState>();
+
+/** Count a failed approval attempt against `pin`; locks it out at the cap. */
+export function recordPairingFailure(pin: string): void {
+  const now = Date.now();
+  const state = pinFailures.get(pin);
+  if (!state || now - state.firstAt > FAILURE_WINDOW_MS) {
+    pinFailures.set(pin, { count: 1, firstAt: now });
+    return;
+  }
+  state.count += 1;
+
+  // Lockout reached: rotate by destroying the session entirely.
+  if (state.count >= MAX_PIN_FAILURES) {
+    void destroySession(pin);
+  }
+}
+
+/** Hard-delete a session (memory + Supabase). */
+async function destroySession(pin: string): Promise<void> {
+  memorySessions.delete(pin);
+  if (isSupabaseAdminConfigured()) {
+    const supabase = createAdminClient();
+    await supabase.from('pairing_sessions').delete().eq('pin', pin);
+  }
+}
+
+function isPinLockedOut(pin: string): boolean {
+  const state = pinFailures.get(pin);
+  if (!state) return false;
+  if (Date.now() - state.firstAt > FAILURE_WINDOW_MS) {
+    pinFailures.delete(pin);
+    return false;
+  }
+  return state.count >= MAX_PIN_FAILURES;
+}
+
 // ─── In-memory fallback (dev only) ───────────────────────────────────────
 
 const memorySessions = new Map<string, PairingRecord>();
@@ -54,6 +104,7 @@ function memoryGet(pin: string): PairingRecord | null {
  */
 export async function getOrCreateSession(pin: string): Promise<PairingRecord | null> {
   if (!isValidPin(pin)) return null;
+  if (isPinLockedOut(pin)) return null;
 
   if (!isSupabaseAdminConfigured()) {
     let s = memoryGet(pin);
@@ -116,6 +167,7 @@ export async function approveSession(
   }
 ): Promise<PairingRecord | null> {
   if (!isValidPin(pin)) return null;
+  if (isPinLockedOut(pin)) return null;
 
   const now = new Date();
   const values = {

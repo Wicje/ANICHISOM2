@@ -1,10 +1,21 @@
 import type { ContextRepository } from './repository';
 import { MemoryContextRepository } from './memory-driver';
+import { isSupabaseAdminConfigured } from '@/utils/supabase/admin';
 
 export type ContextDriverType = 'supabase' | 'memory';
 
+/**
+ * Supabase requires the service-role key for server-side context writes
+ * (capability-token requests carry no user cookies, so RLS would block
+ * them). Without admin credentials we degrade to the in-memory driver —
+ * same pattern as lib/pairing-store.ts.
+ */
+function resolveDefaultDriver(): ContextDriverType {
+  return isSupabaseAdminConfigured() ? 'supabase' : 'memory';
+}
+
 let instance: ContextRepository | null = null;
-let currentDriverType: ContextDriverType = 'supabase';
+let currentDriverType: ContextDriverType = resolveDefaultDriver();
 
 /**
  * Creates a driver instance by type.
@@ -50,5 +61,5 @@ export function setContextRepository(repo: ContextRepository): void {
  */
 export function resetContextRepository(): void {
   instance = null;
-  currentDriverType = 'supabase';
+  currentDriverType = resolveDefaultDriver();
 }

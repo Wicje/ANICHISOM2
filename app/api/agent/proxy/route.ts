@@ -8,20 +8,15 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { buildCorsHeaders } from '@/lib/cors';
 import { getAiProvider, chatWithFallback } from '@/lib/ai-providers/ai-provider-factory';
 import {
   extractTokenFromRequest,
   verifyCapabilityToken,
 } from '@/lib/capability-token';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-capability-token',
-};
-
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders });
+export async function OPTIONS(request: NextRequest) {
+  return NextResponse.json({}, { headers: buildCorsHeaders(request) });
 }
 
 export async function POST(request: NextRequest) {
@@ -32,7 +27,7 @@ export async function POST(request: NextRequest) {
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json(
         { ok: false, error: 'Prompt is required' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: buildCorsHeaders(request) }
       );
     }
 
@@ -45,7 +40,7 @@ export async function POST(request: NextRequest) {
     if (!claims) {
       return NextResponse.json(
         { ok: false, error: 'Invalid or expired capability token. Please re-authenticate on mobile.' },
-        { status: 401, headers: corsHeaders }
+        { status: 401, headers: buildCorsHeaders(request) }
       );
     }
 
@@ -100,13 +95,13 @@ Provide concise, accurate, actionable code solutions, git commands, and workspac
           expiresIn: '58m',
         },
       },
-      { headers: corsHeaders }
+      { headers: buildCorsHeaders(request) }
     );
   } catch (error: any) {
     console.error('[api/agent/proxy] Error:', error);
     return NextResponse.json(
       { ok: false, error: error.message || 'Internal proxy error' },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: buildCorsHeaders(request) }
     );
   }
 }

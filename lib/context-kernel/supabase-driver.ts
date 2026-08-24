@@ -8,7 +8,7 @@
  * To swap to a different backend, implement ContextRepository with a new driver.
  */
 
-import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
 import type { ContextRepository } from './repository';
 import type {
   ContextRecord,
@@ -33,7 +33,7 @@ export class SupabaseContextRepository implements ContextRepository {
   // ─── Core CRUD ──────────────────────────────────────────────
 
   async save(request: SaveContextRequest): Promise<SaveContextResponse> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const id = `${request.userId}:${request.domain}`;
     const now = new Date().toISOString();
 
@@ -111,7 +111,7 @@ export class SupabaseContextRepository implements ContextRepository {
   }
 
   async get(userId: string, domain: string): Promise<ContextRecord | null> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data, error } = await supabase
       .from('context_records')
@@ -127,7 +127,7 @@ export class SupabaseContextRepository implements ContextRepository {
   }
 
   async pull(userId: string, request: PullContextRequest): Promise<PullContextResponse> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     let query = supabase
       .from('context_records')
@@ -156,7 +156,7 @@ export class SupabaseContextRepository implements ContextRepository {
   }
 
   async getAll(userId: string): Promise<ContextRecord[]> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data, error } = await supabase
       .from('context_records')
@@ -172,7 +172,7 @@ export class SupabaseContextRepository implements ContextRepository {
   }
 
   async delete(userId: string, domain: string, deviceId: string): Promise<void> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const id = `${userId}:${domain}`;
 
     const { error } = await supabase
@@ -191,7 +191,7 @@ export class SupabaseContextRepository implements ContextRepository {
   }
 
   async hardDelete(userId: string, domain: string): Promise<void> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const id = `${userId}:${domain}`;
 
     const { error } = await supabase
@@ -232,7 +232,7 @@ export class SupabaseContextRepository implements ContextRepository {
     };
 
     // Store snapshot in context_records as a special domain
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     await supabase
       .from('context_records')
       .upsert({
@@ -251,7 +251,7 @@ export class SupabaseContextRepository implements ContextRepository {
   }
 
   async getSnapshot(snapshotId: string): Promise<ContextSnapshot | null> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data, error } = await supabase
       .from('context_records')
@@ -264,7 +264,7 @@ export class SupabaseContextRepository implements ContextRepository {
   }
 
   async listSnapshots(userId: string, limit = 10): Promise<ContextSnapshot[]> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data, error } = await supabase
       .from('context_records')
@@ -302,7 +302,7 @@ export class SupabaseContextRepository implements ContextRepository {
   }
 
   async deleteSnapshot(snapshotId: string): Promise<void> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     await supabase
       .from('context_records')
       .delete()
@@ -312,7 +312,7 @@ export class SupabaseContextRepository implements ContextRepository {
   // ─── Device Sync State ──────────────────────────────────────
 
   async getDeviceSyncState(userId: string, deviceId: string): Promise<DeviceSyncState | null> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data, error } = await supabase
       .from('context_records')
@@ -326,7 +326,7 @@ export class SupabaseContextRepository implements ContextRepository {
   }
 
   async updateDeviceSyncState(userId: string, state: DeviceSyncState): Promise<void> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     await supabase
       .from('context_records')
@@ -385,7 +385,7 @@ export class SupabaseContextRepository implements ContextRepository {
   // ─── Cleanup ────────────────────────────────────────────────
 
   async deleteUser(userId: string): Promise<void> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     await supabase
       .from('context_records')
       .delete()
@@ -398,7 +398,7 @@ export class SupabaseContextRepository implements ContextRepository {
     snapshotCount: number;
     lastSyncAt: string | null;
   }> {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data, error } = await supabase
       .from('context_records')

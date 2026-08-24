@@ -14,6 +14,7 @@ create table public.context_records (
   data        jsonb not null default '{}',
   version     integer not null default 1,
   device_id   text not null,
+  deleted     boolean not null default false,
   updated_at  timestamptz not null default now(),
   unique(user_id, domain)
 );

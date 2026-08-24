@@ -104,19 +104,19 @@ The sensor honors `continua_privacy_mode` (`lib/hooks/use-context-sensor.ts:30`)
 Current `src-tauri/src/commands.rs` is file IO only. Evolve shell → tray daemon.
 
 ### E1. Shell Transformation
-- [ ] Hidden main window + system tray icon (menu: Pause / Local-only / Quit)
-- [ ] Single-instance guard; autostart optional (tauri-plugin-autostart)
+- [x] Hidden main window + system tray icon (menu: Status / Pause / Local-only / Dashboard / Quit)
+- [x] Single-instance guard (localhost port bind); autostart optional (tauri-plugin-autostart, deferred)
 
 ### E2. Context Sensors (Rust)
-- [ ] Active window title/process detection (environ crate per-platform; start with macOS/Linux)
-- [ ] Git watcher: walk configured project roots, run `git branch --show-current` + `git status --porcelain` on change (debounced)
+- [x] Active window title detection via platform CLI (xdotool/kdotool · osascript · powershell); process name deferred
+- [x] Git watcher: shallow walk of configured roots, `git rev-parse --abbrev-ref HEAD` + `git status --porcelain`, most-recent-activity selection
 - [ ] VS Code workspace detection: parse recent-workspaces from `~/.config/Code/User/globalStorage/state.vscdb` (or process cmdline fallback)
 - [ ] Terminal task detection: best-effort from active process list (defer if messy)
 
 ### E3. Uplink
-- [ ] POST checkpoints (<2 KB, 30–60 s cadence, delta-only) to `/api/context/save` with capability token from Phase B
-- [ ] Respect privacy modes locally (mode cached from Phase C endpoint; tray menu overrides)
-- [ ] Offline queue: buffer in SQLite, flush on reconnect (vector clocks already handle merge via `lib/context-kernel/delta-sync.ts`)
+- [x] POST checkpoints to `/api/context/save` with device capability token (30-day JWT from Phase B/F route)
+- [x] Pause + Local-only modes enforced locally via tray menu flags
+- [x] Offline queue: bounded JSONL buffer (~200 checkpoints) next to config, flushed after next successful post
 
 **Done when:** daemon captures a real branch switch in VS Code and it appears in the web client's restored context.
 
@@ -124,9 +124,14 @@ Current `src-tauri/src/commands.rs` is file IO only. Evolve shell → tray daemo
 
 ## Phase F — Launch Readiness (~1 week)
 
-- [ ] Playwright e2e: full journey `connect → scan/approve → hydrate → AI proxy call → logout wipe` (`playwright.config.ts` exists)
-- [ ] Unit tests: token sign/verify, pairing TTL, hydration mapping, privacy sanitizer
-- [ ] Security review checklist: no raw keys server-side, CORS tightened (`*` → allowlist), rate-limit pairing endpoints, PIN brute-force lockout (10 fails → rotate)
+- [x] Playwright e2e: full journey `connect → approve → capability-token save/pull → anon rejected → wipe` (`e2e/connect-journey.spec.ts`); landing smoke in `core.spec.ts`
+- [x] Unit tests: token sign/verify (`capability-token.test.ts`), pairing TTL + lockout (`pairing-store.test.ts`), hydration mapping (`hydration-mapping.test.ts`), privacy sanitizer (`privacy-sanitizer.test.ts`)
+- [x] Security review checklist:
+  - No raw keys server-side (capability JWTs only; secrets via env) ✅
+  - CORS tightened: `lib/cors.ts` allowlist via `CONTINUA_ALLOWED_ORIGINS`; unset = `*` (dev), set = echo only allowed origins (prod) ✅
+  - Pairing rate-limited: `CONNECT_PAIR` 30 req / 5 min / IP ✅
+  - PIN brute-force lockout: 10 failed approvals within 10 min → session destroyed + PIN locked out (`recordPairingFailure`) ✅
+  - `/connect` added to middleware public routes (guests have no Supabase session — was redirecting them to `/`) ✅
 - [ ] Load sanity: pairing + checkpoint routes under concurrent users
 - [ ] Landing page: replace remaining OS-imitation copy; add daemon download section after E ships
 - [ ] Alpha waitlist → invite flow (export emails, send connect links)

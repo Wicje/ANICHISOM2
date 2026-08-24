@@ -35,7 +35,7 @@ function isWorkContext(value: unknown): value is WorkContext {
 }
 
 /** Pick the freshest valid context out of arbitrary record payloads. */
-function pickLatestContext(data: unknown): WorkContext | null {
+export function pickLatestContext(data: unknown): WorkContext | null {
   const candidates: WorkContext[] = [];
 
   if (isWorkContext(data)) {
