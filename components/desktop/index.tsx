@@ -60,6 +60,8 @@ const AIAgentBar = React.lazy(() => import('@/components/overlays/ai-agent-bar')
 const DragShelf = React.lazy(() => import('@/components/overlays/drag-shelf').then(m => ({ default: m.DragShelf })));
 const TelemetryHUD = React.lazy(() => import('@/components/overlays/telemetry-hud').then(m => ({ default: m.TelemetryHUD })));
 const PWAUpdateToast = React.lazy(() => import('@/components/overlays/pwa-update-toast').then(m => ({ default: m.PWAUpdateToast })));
+const RestorationModal = React.lazy(() => import('./restore-modal').then(m => ({ default: m.RestorationModal })));
+import { useContextSensor } from '@/lib/hooks/use-context-sensor';
 type ContextMenuItem = import('./context-menu').ContextMenuItem;
 
 function AppLoadingSkeleton() {
@@ -172,6 +174,7 @@ const MemoizedWindow = React.memo(
 export { APP_MANIFEST as APPS } from '@/lib/app-manifest';
 
 export function Desktop() {
+  useContextSensor();
   const { currentUser, logout, wipeSession, checkSession, sessionChecked } = useAuthStore();
   const windows = useWindowStore((s) => s.windows);
   const openWindow = useWindowStore((s) => s.openWindow);
@@ -1172,6 +1175,7 @@ export function Desktop() {
         <HotCorners setShowMissionControl={setShowMissionControl} setShowLaunchpad={setShowLaunchpad} setShowControlCenter={setShowControlCenter} />
         <TrackpadGestures setShowMissionControl={setShowMissionControl} setShowLaunchpad={setShowLaunchpad} />
         <PWAUpdateToast />
+        <RestorationModal />
       </Suspense>
 
       <Toaster

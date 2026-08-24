@@ -214,6 +214,55 @@ const DETECTORS = {
       penTitle: document.title.replace(' - CodePen', ''),
     }),
   },
+
+  vscodeWeb: {
+    match: (url) => url.includes('vscode.dev') || url.includes('github.dev'),
+    extract: () => ({
+      tool: 'vscodeWeb',
+      workspace: document.title.split('—')[0]?.trim() || document.title,
+      isEditor: true,
+    }),
+  },
+
+  gemini: {
+    match: (url) => url.includes('gemini.google.com'),
+    extract: () => ({
+      tool: 'gemini',
+      chatTitle: document.title.replace(' - Gemini', '').replace('Google Gemini', ''),
+    }),
+  },
+
+  perplexity: {
+    match: (url) => url.includes('perplexity.ai'),
+    extract: () => ({
+      tool: 'perplexity',
+      query: document.title.replace(' - Perplexity', ''),
+    }),
+  },
+
+  v0: {
+    match: (url) => url.includes('v0.dev'),
+    extract: () => ({
+      tool: 'v0',
+      projectTitle: document.title.replace(' - v0 by Vercel', ''),
+    }),
+  },
+
+  replit: {
+    match: (url) => url.includes('replit.com'),
+    extract: () => ({
+      tool: 'replit',
+      replName: document.title.replace(' - Replit', ''),
+    }),
+  },
+
+  huggingface: {
+    match: (url) => url.includes('huggingface.co'),
+    extract: () => ({
+      tool: 'huggingface',
+      modelOrDataset: window.location.pathname.slice(1),
+    }),
+  },
 };
 
 /**
