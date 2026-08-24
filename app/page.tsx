@@ -57,14 +57,14 @@ export default function LandingPage() {
 
             {/* Right Action CTA */}
             <div className="flex items-center gap-3">
-              <Link href="/os" className="text-xs font-semibold text-white/70 hover:text-white transition-colors hidden sm:block">
-                Sign In
+              <Link href="/connect" className="text-xs font-semibold text-[#10F4A0] hover:brightness-110 transition-colors hidden sm:flex items-center gap-1">
+                <span>Pair Computer</span>
               </Link>
               <Link 
                 href="/os" 
                 className="px-4 py-2 rounded-full text-xs font-bold bg-gradient-to-r from-[#10F4A0] to-cyan-400 text-slate-950 shadow-lg shadow-[#10F4A0]/25 hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5"
               >
-                <span>Launch Web OS</span>
+                <span>Launch Workspace</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
@@ -77,20 +77,20 @@ export default function LandingPage() {
         {/* Pixel-Perfect Intro Badge */}
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8 bg-white/[0.04] border border-[#10F4A0]/40 backdrop-blur-2xl shadow-xl shadow-[#10F4A0]/10 animate-fade-in">
           <Sparkle className="w-3.5 h-3.5 text-[#10F4A0] fill-[#10F4A0]" />
-          <span className="text-xs font-bold tracking-widest text-[#10F4A0] uppercase font-mono">INTRODUCING CONTINUAOS 2.4</span>
+          <span className="text-xs font-bold tracking-widest text-[#10F4A0] uppercase font-mono">CONTINUA WORKSPACE PROTOCOL</span>
         </div>
 
         {/* Massive Headline */}
         <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[1.04] text-white max-w-5xl mb-8">
-          The Next-Gen Web OS & <br />
+          Your Work Follows You. <br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#10F4A0] via-cyan-300 to-teal-300">
-            Living Context Protocol
+            Independent of Hardware.
           </span>
         </h1>
 
         {/* Subtitle */}
         <p className="text-base sm:text-xl text-white/65 max-w-3xl leading-relaxed mb-10 font-normal">
-          An offline-first, glassmorphic Web OS that persists your open browser tabs, WASM terminal sessions, design moodboards, and brand assets across all devices. Zero state loss.
+          The personal continuity layer for developers and creators. Instantly reconstruct your open IDE files, Git branches, research tabs, and AI sessions across any computer in seconds.
         </p>
 
         {/* Hero CTAs */}
@@ -100,13 +100,13 @@ export default function LandingPage() {
             className="px-9 py-4 rounded-2xl font-extrabold text-sm bg-gradient-to-r from-[#10F4A0] via-cyan-400 to-teal-300 text-slate-950 shadow-2xl shadow-[#10F4A0]/30 hover:shadow-[#10F4A0]/50 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2.5"
           >
             <Play className="w-4 h-4 fill-slate-950" />
-            <span>Launch Web OS Desktop</span>
+            <span>Launch Continua Workspace</span>
           </Link>
           <Link 
             href="/os" 
             className="px-8 py-4 rounded-2xl font-semibold text-sm bg-white/[0.05] hover:bg-white/[0.1] text-white border border-white/15 backdrop-blur-2xl hover:scale-[1.02] active:scale-95 transition-all"
           >
-            Get Started Free
+            Connect Mobile Key
           </Link>
         </div>
 
