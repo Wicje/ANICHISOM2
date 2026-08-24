@@ -15,6 +15,12 @@ import {
   type OrgRole,
   type Principal,
 } from '@/lib/authz';
+import {
+  defaultManifestFor,
+  isValidRoleSlug,
+  validateRoleManifest,
+  type RoleManifest,
+} from '@/lib/org-manifest';
 
 export interface Organization {
   id: string;
@@ -85,16 +91,29 @@ export async function listOrganizationsForUser(userId: string): Promise<
 }
 
 export async function getRole(orgId: string, userId: string): Promise<OrgRole | null> {
+  return (await getSeat(orgId, userId))?.role ?? null;
+}
+
+/** Full seat: permission rank plus optional manifest pointer. */
+export async function getSeat(
+  orgId: string,
+  userId: string
+): Promise<{ role: OrgRole; manifestRole: string | null } | null> {
   if (!isSupabaseAdminConfigured()) return null;
   const supabase = createAdminClient();
   const { data } = await supabase
     .from('org_members')
-    .select('role')
+    .select('role, manifest_role')
     .eq('org_id', orgId)
     .eq('user_id', userId)
     .maybeSingle();
   const role = (data?.role as OrgRole) ?? null;
-  return role && ['owner', 'admin', 'member'].includes(role) ? role : null;
+  if (!role || !['owner', 'admin', 'member'].includes(role)) return null;
+  const manifestRole =
+    typeof data?.manifest_role === 'string' && isValidRoleSlug(data.manifest_role)
+      ? data.manifest_role
+      : null;
+  return { role, manifestRole };
 }
 
 export async function getOrganization(orgId: string): Promise<Organization | null> {
@@ -190,12 +209,15 @@ export async function addMember(
   actor: Principal,
   orgId: string,
   targetUserId: string,
-  requestedRole: string
+  requestedRole: string,
+  manifestRole?: string
 ): Promise<OrgMember> {
   if (!targetUserId || typeof targetUserId !== 'string') {
     throw new OrgServiceError('userId is required', 400);
   }
   const role: OrgRole = requestedRole === 'admin' ? 'admin' : 'member';
+  const cleanManifestRole =
+    typeof manifestRole === 'string' && isValidRoleSlug(manifestRole) ? manifestRole : null;
 
   const actorRole = await getRole(orgId, actor.userId);
   const decision = authorize(
@@ -217,12 +239,24 @@ export async function addMember(
   const { error } = await supabase
     .from('org_members')
     .upsert(
-      { org_id: orgId, user_id: targetUserId, role },
+      {
+        org_id: orgId,
+        user_id: targetUserId,
+        role,
+        ...(cleanManifestRole ? { manifest_role: cleanManifestRole } : {}),
+      },
       { onConflict: 'org_id,user_id' }
     );
   if (error) throw new OrgServiceError('Failed to add member', 500);
 
   return { userId: targetUserId, role, createdAt: new Date().toISOString() };
+}
+
+export interface OrgMember {
+  userId: string;
+  role: OrgRole;
+  manifestRole?: string | null;
+  createdAt: string;
 }
 
 /**
@@ -280,4 +314,96 @@ async function countRoleHolders(orgId: string, role: OrgRole): Promise<number> {
     .eq('role', role);
   if (error) throw new OrgServiceError('Failed to inspect membership', 500);
   return count ?? 0;
+}
+
+// ─── Role manifests & workspace assembly (Phase H) ──────────────────────
+
+/** DB override for a role, falling back to the code-shipped defaults. */
+export async function getManifest(orgId: string, role: string): Promise<RoleManifest | null> {
+  if (!isValidRoleSlug(role)) return null;
+
+  if (isSupabaseAdminConfigured()) {
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from('org_manifests')
+      .select('manifest')
+      .eq('org_id', orgId)
+      .eq('role', role)
+      .maybeSingle();
+
+    if (data?.manifest) {
+      // Defense-in-depth: hand-edited rows must still validate.
+      const parsed = data.manifest as unknown;
+      if (validateRoleManifest(parsed).ok) return parsed as RoleManifest;
+      console.warn(`[org-service] invalid stored manifest for ${orgId}/${role} — using default`);
+    }
+  }
+
+  return defaultManifestFor(role);
+}
+
+/**
+ * Upsert an org's manifest for `role`. Owner/admin only; the stored payload
+ * is normalized (role key from the path, version pinned) before validation.
+ */
+export async function setManifest(
+  actor: Principal,
+  orgId: string,
+  role: string,
+  input: unknown
+): Promise<RoleManifest> {
+  const actorRole = await getRole(orgId, actor.userId);
+  const decision = authorize(actor, 'org.admin', { type: 'org', orgId }, { orgRole: actorRole });
+  if (!decision.ok) throw new OrgServiceError(decision.reason, 403);
+
+  const candidate = { ...(input as Record<string, unknown>), role, version: 1 };
+  const check = validateRoleManifest(candidate);
+  if (!check.ok) {
+    throw new OrgServiceError(`invalid manifest: ${check.errors.join('; ')}`, 400);
+  }
+
+  const supabase = requireAdminClient();
+  const { error } = await supabase.from('org_manifests').upsert(
+    {
+      org_id: orgId,
+      role,
+      manifest: candidate,
+      updated_by: actor.userId,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'org_id,role' }
+  );
+  if (error) throw new OrgServiceError('Failed to save manifest', 500);
+
+  return candidate as unknown as RoleManifest;
+}
+
+/**
+ * THE onboarding primitive. Assembly is derived from the caller's CURRENT
+ * seat — no grant-time materialization, so revoking the seat instantly ends
+ * future assembly and all org-scoped reads. Personal state already applied
+ * by earlier assemblies is intentionally NOT reverted (invariant 2: nobody
+ * writes into another person's graph after the fact).
+ */
+export async function assembleForUser(
+  userId: string,
+  orgId: string
+): Promise<{ org: Organization; role: OrgRole; manifestRole: string; manifest: RoleManifest }> {
+  const org = await getOrganization(orgId);
+  if (!org) throw new OrgServiceError('Organization not found', 404);
+
+  const seat = await getSeat(orgId, userId);
+  if (!seat) throw new OrgServiceError('Not a member of this organization', 403);
+
+  // Seat rank gates permissions; the manifest role names the workspace
+  // definition (defaults to the built-in per-rank manifest).
+  const manifestRole = seat.manifestRole ?? defaultManifestRoleFor(seat.role);
+  const manifest = await getManifest(orgId, manifestRole);
+  if (!manifest) throw new OrgServiceError(`No manifest for role "${manifestRole}"`, 404);
+
+  return { org, role: seat.role, manifestRole, manifest };
+}
+
+function defaultManifestRoleFor(seat: OrgRole): string {
+  return seat === 'owner' || seat === 'admin' ? 'developer' : 'member';
 }

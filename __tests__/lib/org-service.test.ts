@@ -61,10 +61,13 @@ vi.mock('@/utils/supabase/admin', () => ({
 
 import {
   addMember,
+  assembleForUser,
   createOrganization,
+  getManifest,
   listOrganizationsForUser,
   OrgServiceError,
   removeMember,
+  setManifest,
 } from '@/lib/org-service';
 
 const actorWithAdminScope = () => ({
@@ -204,5 +207,119 @@ describe('listOrganizationsForUser', () => {
     ]);
     const rows = await listOrganizationsForUser('u1');
     expect(rows[0]).toMatchObject({ role: 'owner', org: { id: ORG, name: 'Acme' } });
+  });
+});
+
+describe('manifests & assembly (Phase H)', () => {
+  it('falls back to the code-shipped default when no DB override exists', async () => {
+    script('org_manifests:select', [{ data: null }]);
+    const manifest = await getManifest(ORG, 'developer');
+    expect(manifest).toMatchObject({ role: 'developer', version: 1 });
+  });
+
+  it('returns null for unknown roles without touching the DB', async () => {
+    const manifest = await getManifest(ORG, 'Astronaut');
+    expect(manifest).toBeNull();
+  });
+
+  it('rejects invalid stored manifests and falls back to defaults', async () => {
+    script('org_manifests:select', [{ data: { manifest: { version: 99, role: 'x' } } }]);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const manifest = await getManifest(ORG, 'designer');
+    expect(manifest).toMatchObject({ role: 'designer' }); // default, not the junk
+    warn.mockRestore();
+  });
+
+  it('denies a plain member actor from writing manifests (403)', async () => {
+    // getRole(actor) inside setManifest → member
+    script('org_members:select', [{ data: { role: 'member' } }]);
+    await expect(
+      setManifest(actorWithAdminScope(), ORG, 'developer', { apps: ['terminal'] })
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('lets an owner upsert a valid manifest with normalized role/version', async () => {
+    script('org_members:select', [{ data: { role: 'owner' } }]);
+    script('org_manifests:upsert', [{}]);
+
+    const saved = await setManifest(
+      actorWithAdminScope(),
+      ORG,
+      'developer',
+      { role: 'HACKED', version: 99, apps: ['terminal'] }
+    );
+    expect(saved.role).toBe('developer'); // path wins over body
+    expect(saved.version).toBe(1);
+  });
+
+  it('400s on structurally invalid payloads after the gate passes', async () => {
+    script('org_members:select', [{ data: { role: 'admin' } }]);
+    await expect(
+      setManifest(actorWithAdminScope(), ORG, 'developer', { links: [{ url: 'javascript:x' }] })
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('assembles from the caller’s CURRENT seat — 403 once revoked', async () => {
+    // getOrganization → found; getRole(user) → no seat
+    script('organizations:select', [
+      {
+        data: {
+          id: ORG,
+          name: 'Acme',
+          slug: 'acme',
+          owner_id: 'o1',
+          created_at: '2026-01-01T00:00:00Z',
+        },
+      },
+    ]);
+    script('org_members:select', [{ data: null }]);
+    await expect(assembleForUser('u9', ORG)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('assembles org + seat + derived manifest for a seated member', async () => {
+    script('organizations:select', [
+      {
+        data: {
+          id: ORG,
+          name: 'Acme',
+          slug: 'acme',
+          owner_id: 'o1',
+          created_at: '2026-01-01T00:00:00Z',
+        },
+      },
+    ]);
+    script('org_members:select', [{ data: { role: 'member', manifest_role: 'designer' } }]);
+    script('org_manifests:select', [{ data: null }]); // → default designer manifest
+
+    const assembly = await assembleForUser('u9', ORG);
+    expect(assembly.role).toBe('member');           // seat rank
+    expect(assembly.manifestRole).toBe('designer'); // manifest pointer
+    expect(assembly.manifest.apps).toContain('moodboard');
+  });
+
+  it('falls back to the rank default when no manifest_role is set', async () => {
+    script('organizations:select', [
+      {
+        data: {
+          id: ORG,
+          name: 'Acme',
+          slug: 'acme',
+          owner_id: 'o1',
+          created_at: '2026-01-01T00:00:00Z',
+        },
+      },
+    ]);
+    script('org_members:select', [{ data: { role: 'owner', manifest_role: null } }]);
+    script('org_manifests:select', [{ data: null }]);
+
+    const assembly = await assembleForUser('u1', ORG);
+    expect(assembly.manifestRole).toBe('developer');
+  });
+
+  it('grants seats carrying a validated manifest_role', async () => {
+    script('org_members:select', [{ data: { role: 'owner' } }, { data: null }]);
+    script('org_members:upsert', [{}]);
+    const member = await addMember(actorWithAdminScope(), ORG, 'u9', 'member', 'designer');
+    expect(member.role).toBe('member');
   });
 });

@@ -302,6 +302,7 @@ export const CONTEXT_DOMAINS = [
   'terminal',
   'filesystem',
   'context_graph',
+  'ai_context',
 ] as const;
 
 export type ContextDomain = (typeof CONTEXT_DOMAINS)[number];

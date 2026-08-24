@@ -97,20 +97,29 @@ checkpoint data through the API → *revised*: G ships the identity/permission
 substrate; cross-user scoped reads land with checkpoints in Phase I/H.
 Membership + token plumbing is verified by 29 unit tests (695 total green).
 
-### Phase H — Workspace Assembly (onboarding-as-consequence)
+### Phase H — Workspace Assembly (onboarding-as-consequence) ✅
 *No "employee onboarding" feature. Joining a project IS the onboarding.*
 
-- [ ] Role manifests: declarative JSON per role (designer → Figma links,
-      Notion spaces, Drive folders, Slack channels, AI context scope).
-- [ ] `GET /api/org/onboard?org=&role=` returns the assembled manifest.
-- [ ] Hydration (`lib/hydration.ts`) consumes manifests: installs the app
-      set, opens browser tabs, seeds AI context — reusing the existing
-      checkpoint hydration path.
-- [ ] Offboarding = delete membership row; org context remains; member's
-      personal journal never leaked into org space.
+- [x] Role manifests: declarative JSON per role (`lib/org-manifest.ts`,
+      strict validator + code-shipped defaults for developer/designer/member;
+      DB overrides via `supabase-step8.sql` org_manifests with mirrored RLS).
+- [x] `GET /api/orgs/[id]/assemble` (supersedes the draft `/api/org/onboard`)
+      — assembly derived server-side from the CALLER'S CURRENT SEAT; the
+      role param is never trusted for self-assembly.
+- [x] Seat vs workspace split: seats are permission ranks (owner/admin/
+      member); optional `org_members.manifest_role` points at the workspace
+      definition (e.g. designer) so ranks stay orthogonal to job roles.
+- [x] Client assembly (`lib/workspace-assembly.ts`, wired at OS boot):
+      installs apps, adds web resources as custom web apps, seeds the
+      `ai_context` domain (new canonical domain), sets agency scope.
+      Idempotent by design — safe to re-run every boot.
+- [x] Offboarding = delete one seat row: assemble 403s instantly, org data
+      reads end, nothing was materialized at grant time. Personal state from
+      earlier assemblies is deliberately NOT reverted (invariant 2).
 
-**Done when:** adding a user to a project auto-assembles their workspace
-on first boot; removing them revokes everything with one row deletion.
+**Done when:** adding a user auto-assembles their workspace on next boot ✓;
+removing them revokes everything org-side with one row deletion ✓.
+Verified by 40 unit tests (741 total green).
 
 ### Phase I — Daemon v2: Event Journal (capture ≠ interpretation) ✅
 *Architecture principle: capture continuously, interpret asynchronously,

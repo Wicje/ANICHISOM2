@@ -10,6 +10,7 @@ import { useAuthStore, OSUser, OSRole } from '@/lib/stores/auth.store';
 import { useWindowStore, OSWindow } from '@/lib/stores/window.store';
 import { useThemeStore, PerformanceMode } from '@/lib/stores/theme.store';
 import { useWorkspaceStore, WorkspaceMode, Snapshot } from '@/lib/stores/workspace.store';
+import { assembleOnBoot } from '@/lib/workspace-assembly';
 
 export type { OSWindow } from '@/lib/stores/window.store';
 export type { Snapshot } from '@/lib/stores/workspace.store';
@@ -161,6 +162,12 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
         } catch (e) {
           console.warn('[OSContext] Failed to init session encryption:', e);
         }
+      }
+
+      // Phase H: derive the workspace from the caller's current org seat
+      // (onboarding-as-consequence). Silent no-op without memberships.
+      if (currentUser) {
+        assembleOnBoot().catch(() => {});
       }
     };
 
