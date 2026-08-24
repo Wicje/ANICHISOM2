@@ -60,8 +60,23 @@ export async function POST(request: NextRequest) {
 
     const effectiveWorkspace = workspace || claims.ws;
 
+    // K-lite (intelligence as a CONTEXT CONSUMER): the agent grounds itself in
+    // the user's own ai_context domain — never raw journals, never other
+    // users' data. Read failures degrade silently to the base prompt.
+    let contextBlock = '';
+    try {
+      const { getContextRepository } = await import('@/lib/context-kernel');
+      const record = await getContextRepository().get(claims.sub, 'ai_context');
+      const ai = record?.data as { summary?: unknown; tags?: unknown } | undefined;
+      if (ai && typeof ai.summary === 'string' && ai.summary.trim()) {
+        const tags = Array.isArray(ai.tags) ? ai.tags.join(', ') : '';
+        contextBlock = `\nUser working context (self-declared): ${ai.summary.trim()}` +
+          (tags ? `\nFocus areas: ${tags}` : '');
+      }
+    } catch {}
+
     const systemPrompt = `You are the Continua Workspace Continuity Agent.
-You are assisting the user on their active workspace: "${effectiveWorkspace}".
+You are assisting the user on their active workspace: "${effectiveWorkspace}".${contextBlock}
 Provide concise, accurate, actionable code solutions, git commands, and workspace summaries.`;
 
     const chatOptions = {

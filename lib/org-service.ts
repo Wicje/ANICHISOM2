@@ -407,3 +407,76 @@ export async function assembleForUser(
 function defaultManifestRoleFor(seat: OrgRole): string {
   return seat === 'owner' || seat === 'admin' ? 'developer' : 'member';
 }
+
+/* ------------------------- Presence (Phase J v1) -------------------------- */
+
+const PRESENCE_WINDOW_MS = 5 * 60 * 1000; // heartbeat older than this = offline
+
+export interface OrgPresenceEntry {
+  userId: string;
+  displayName: string | null;
+  role: OrgRole | null;
+  lastSeen: string;
+  device: string | null;
+  online: boolean;
+}
+
+/** Upsert the caller's heartbeat. Seat-gated; silently no-ops when offline. */
+export async function heartbeatPresence(
+  userId: string,
+  orgId: string,
+  device?: string
+): Promise<void> {
+  const seat = await getSeat(orgId, userId);
+  if (!seat) throw new OrgServiceError('Not a member of this organization', 403);
+
+  const supabase = requireAdminClient();
+  const { error } = await supabase.from('org_presence').upsert(
+    {
+      org_id: orgId,
+      user_id: userId,
+      last_seen: new Date().toISOString(),
+      ...(typeof device === 'string' ? { device } : {}),
+    },
+    { onConflict: 'org_id,user_id' }
+  );
+  if (error) throw new OrgServiceError('Failed to record presence', 500);
+}
+
+/** Who's in the org and when they were last seen (members only). */
+export async function listPresence(orgId: string, viewerId: string): Promise<OrgPresenceEntry[]> {
+  const viewerSeat = await getSeat(orgId, viewerId);
+  if (!viewerSeat) throw new OrgServiceError('Not a member of this organization', 403);
+
+  const supabase = requireAdminClient();
+  const { data, error } = await supabase
+    .from('org_presence')
+    .select('user_id, last_seen, device, org_members(role, profiles(display_name))')
+    .eq('org_id', orgId);
+  if (error) throw new OrgServiceError('Failed to read presence', 500);
+
+  const now = Date.now();
+  return (data ?? []).map((row) => {
+    type Row = {
+      user_id: string;
+      last_seen: string;
+      device: string | null;
+      org_members?: { role?: string } | Array<{ role?: string }> | null;
+      profiles?: { display_name?: string | null } | Array<{ display_name?: string | null }> | null;
+    };
+    const r = row as Row;
+    const member = Array.isArray(r.org_members) ? r.org_members[0] : r.org_members;
+    const profile = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+    const role = member?.role && ['owner', 'admin', 'member'].includes(member.role)
+      ? (member.role as OrgRole)
+      : null;
+    return {
+      userId: r.user_id,
+      displayName: profile?.display_name ?? null,
+      role,
+      lastSeen: r.last_seen,
+      device: r.device ?? null,
+      online: now - new Date(r.last_seen).getTime() < PRESENCE_WINDOW_MS,
+    };
+  });
+}

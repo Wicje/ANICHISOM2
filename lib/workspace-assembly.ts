@@ -122,5 +122,12 @@ export async function applyAssembly(payload: AssemblyPayload): Promise<AssemblyS
     ws.setWorkspaceMode('agency');
   }
 
+  // 5. Presence heartbeat (Phase J v1) — fire-and-forget, never blocks boot.
+  fetch(`/api/orgs/${payload.orgId}/presence`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ device: navigator.userAgent.slice(0, 120) }),
+  }).catch(() => {});
+
   return summary;
 }
