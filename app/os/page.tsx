@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { useIsMobile } from '@/hooks/use-is-mobile';
+import { useEphemeralGuard } from '@/lib/hooks/use-ephemeral-guard';
 
 const DesktopView = dynamic(
   () => import('@/components/desktop').then((m) => m.Desktop),
@@ -35,6 +36,7 @@ const OSProvider = dynamic(
 
 export default function OSPage() {
   const isMobile = useIsMobile();
+  useEphemeralGuard();
 
   return (
     <ErrorBoundary>

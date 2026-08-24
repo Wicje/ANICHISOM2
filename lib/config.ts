@@ -54,6 +54,7 @@ export const RATE_LIMITS = {
   PROXY: { max: 20, windowMs: 60 * 1000 },
   ADMIN_INVITES: { max: 30, windowMs: 5 * 60 * 1000 },
   VITALS: { max: 60, windowMs: 60 * 1000 },
+  CONNECT_PAIR: { max: 30, windowMs: 5 * 60 * 1000 },
 } as const;
 
 // ─── Timeouts ─────────────────────────────────────────────────────────────

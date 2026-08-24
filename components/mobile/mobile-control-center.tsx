@@ -90,6 +90,31 @@ export function MobileControlCenter() {
   const { workspaceMode, setWorkspaceMode } = useWorkspaceStore();
   const privacy = usePrivacyStore();
 
+  // Short-lived scoped capability token for the AI proxy (minted from our
+  // Supabase session; auto-refreshed by re-requesting when missing/expired).
+  const capabilityTokenRef = useRef<{ token: string; expiresAt: number } | null>(null);
+
+  const getCapabilityToken = async (): Promise<string | null> => {
+    const cached = capabilityTokenRef.current;
+    if (cached && cached.expiresAt > Date.now() + 60_000) return cached.token;
+
+    try {
+      const res = await fetch('/api/connect/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspace: selectedWorkspace }),
+      });
+      if (!res.ok) return null;
+      const json = await res.json();
+      if (!json.ok || !json.data?.token) return null;
+      const expiresAt = json.data.expiresAt ? new Date(json.data.expiresAt).getTime() : Date.now() + 55 * 60 * 1000;
+      capabilityTokenRef.current = { token: json.data.token, expiresAt };
+      return json.data.token;
+    } catch {
+      return null;
+    }
+  };
+
   const handleSendPrompt = () => {
     if (!promptInput.trim() || isAgentExecuting) return;
     
@@ -106,49 +131,64 @@ export function MobileControlCenter() {
     setAgentLogs(prev => [...prev, newMsg]);
     setIsAgentExecuting(true);
 
-    // Call real Scoped AI Agent Proxy
-    fetch('/api/agent/proxy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt: userMsg,
-        workspace: selectedWorkspace,
-        capabilityToken: 'tok_mobile_key_active',
-      }),
-    })
-      .then(res => res.json())
-      .then(json => {
-        const replyText = json.ok && json.data?.text
-          ? json.data.text
-          : `[${selectedWorkspace}] Context Engine:\n• Captured active git checkpoint (branch: context-engine)\n• Task analyzed and queued for background runner.`;
-
+    // Call real Scoped AI Agent Proxy with a signed capability token
+    getCapabilityToken().then(token => {
+      if (!token) {
         setAgentLogs(prev => [
           ...prev,
           {
             id: crypto.randomUUID(),
-            role: 'agent',
-            text: replyText,
+            role: 'agent' as const,
+            text: `Sign-in required to dispatch tasks to ${selectedWorkspace}. Open the vault tab and authenticate.`,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            status: 'done',
+            status: 'done' as const,
           },
         ]);
-        toast.success(`Task dispatched to ${selectedWorkspace}`);
-      })
-      .catch(() => {
-        setAgentLogs(prev => [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            role: 'agent',
-            text: `Connected to ${selectedWorkspace}. Task recorded in local context checkpoint.`,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            status: 'done',
-          },
-        ]);
-      })
-      .finally(() => {
         setIsAgentExecuting(false);
-      });
+        return;
+      }
+
+      return fetch('/api/agent/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-capability-token': token },
+        body: JSON.stringify({
+          prompt: userMsg,
+          workspace: selectedWorkspace,
+        }),
+      })
+        .then(res => res.json())
+        .then(json => {
+          const replyText = json.ok && json.data?.text
+            ? json.data.text
+            : `[${selectedWorkspace}] Context Engine:\n• Captured active git checkpoint (branch: context-engine)\n• Task analyzed and queued for background runner.`;
+
+          setAgentLogs(prev => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              role: 'agent' as const,
+              text: replyText,
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              status: 'done' as const,
+            },
+          ]);
+          toast.success(`Task dispatched to ${selectedWorkspace}`);
+        })
+        .catch(() => {
+          setAgentLogs(prev => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              role: 'agent' as const,
+              text: `Connected to ${selectedWorkspace}. Task recorded in local context checkpoint.`,
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              status: 'done' as const,
+            },
+          ]);
+        });
+    }).finally(() => {
+      setIsAgentExecuting(false);
+    });
   };
 
   const handleRevokeSession = (sessionId: string) => {

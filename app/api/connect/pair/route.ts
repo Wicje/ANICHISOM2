@@ -1,34 +1,25 @@
 /**
  * Continua Ephemeral Pairing API (Universal Cross-Device Bridge)
  *
- * GET /api/connect/pair?pin=7X9K21 - Check pairing status (long-polling or polling)
- * POST /api/connect/pair - Phone approves pairing with capability token
+ * GET /api/connect/pair?pin=7X9K21 - Guest machine polls pairing status
+ * POST /api/connect/pair - Phone (mobile key) approves pairing
+ *
+ * Sessions are persisted in Supabase so they survive server restarts and
+ * work across serverless instances. See lib/pairing-store.ts.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-
-interface PairingSession {
-  pin: string;
-  createdAt: number;
-  status: 'waiting' | 'approved' | 'expired';
-  workspace?: string;
-  capabilityToken?: string;
-  userId?: string;
-  clientInfo?: string;
-}
-
-// In-memory pairing sessions map (active for 5 minutes per PIN)
-const pairingSessions = new Map<string, PairingSession>();
-
-// Periodic cleanup
-setInterval(() => {
-  const now = Date.now();
-  for (const [pin, session] of pairingSessions.entries()) {
-    if (now - session.createdAt > 5 * 60 * 1000) {
-      pairingSessions.delete(pin);
-    }
-  }
-}, 60_000);
+import { checkRouteRateLimit } from '@/lib/api-helpers';
+import {
+  approveSession,
+  getOrCreateSession,
+  isValidPin,
+} from '@/lib/pairing-store';
+import {
+  extractTokenFromRequest,
+  signCapabilityToken,
+  verifyCapabilityToken,
+} from '@/lib/capability-token';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,60 +32,108 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const rl = checkRouteRateLimit(request, 'CONNECT_PAIR');
+  if (rl) return rl;
+
   const { searchParams } = new URL(request.url);
-  const pin = searchParams.get('pin')?.toUpperCase();
+  const pin = searchParams.get('pin')?.trim().toUpperCase();
 
   if (!pin) {
-    return NextResponse.json({ ok: false, error: 'PIN parameter required' }, { status: 400, headers: corsHeaders });
+    return NextResponse.json(
+      { ok: false, error: 'PIN parameter required' },
+      { status: 400, headers: corsHeaders }
+    );
   }
 
-  let session = pairingSessions.get(pin);
-  if (!session) {
-    // Create new waiting session if requested for the first time by guest PC
-    session = {
-      pin,
-      createdAt: Date.now(),
-      status: 'waiting',
-    };
-    pairingSessions.set(pin, session);
+  if (!isValidPin(pin)) {
+    return NextResponse.json(
+      { ok: false, error: 'Invalid PIN format' },
+      { status: 400, headers: corsHeaders }
+    );
   }
 
-  return NextResponse.json(
-    {
-      ok: true,
-      status: session.status,
-      data: session.status === 'approved' ? {
-        workspace: session.workspace,
-        capabilityToken: session.capabilityToken,
-        userId: session.userId,
-        clientInfo: session.clientInfo,
-      } : null,
-    },
-    { headers: corsHeaders }
-  );
+  try {
+    const session = await getOrCreateSession(pin);
+    if (!session) {
+      return NextResponse.json(
+        { ok: true, status: 'expired', data: null },
+        { headers: corsHeaders }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        ok: true,
+        status: session.status,
+        data:
+          session.status === 'approved'
+            ? {
+                workspace: session.workspace,
+                capabilityToken: session.capabilityToken,
+                userId: session.userId,
+                clientInfo: session.clientInfo,
+              }
+            : null,
+      },
+      { headers: corsHeaders }
+    );
+  } catch (error) {
+    console.error('[api/connect/pair] GET error:', error);
+    return NextResponse.json(
+      { ok: false, error: 'Internal error' },
+      { status: 500, headers: corsHeaders }
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {
+  const rl = checkRouteRateLimit(request, 'CONNECT_PAIR');
+  if (rl) return rl;
+
   try {
     const body = await request.json().catch(() => ({}));
-    const { pin, workspace, capabilityToken, userId, clientInfo } = body;
+    let { pin, workspace, clientInfo, userId } = body;
+    const cleanPin = typeof pin === 'string' ? pin.trim().toUpperCase() : '';
 
-    if (!pin || typeof pin !== 'string') {
-      return NextResponse.json({ ok: false, error: 'Valid PIN required' }, { status: 400, headers: corsHeaders });
+    if (!isValidPin(cleanPin)) {
+      return NextResponse.json(
+        { ok: false, error: 'Valid 6-character PIN required' },
+        { status: 400, headers: corsHeaders }
+      );
     }
 
-    const cleanPin = pin.trim().toUpperCase();
-    const session: PairingSession = {
-      pin: cleanPin,
-      createdAt: Date.now(),
-      status: 'approved',
-      workspace: workspace || 'Continua OS',
-      capabilityToken: capabilityToken || `cap_${crypto.randomUUID().slice(0, 12)}`,
-      userId: userId || 'user_continua_josephan',
-      clientInfo: clientInfo || 'Samsung Galaxy (Mobile Key)',
-    };
+    // If the approving phone presented its own capability token, verify it
+    // to attribute the approval to a real user identity.
+    const presentedToken = extractTokenFromRequest(request) || body.capabilityToken;
+    const verifiedClaims = await verifyCapabilityToken(presentedToken);
+    if (verifiedClaims) {
+      userId = userId || verifiedClaims.sub;
+      workspace = workspace || verifiedClaims.ws;
+    }
 
-    pairingSessions.set(cleanPin, session);
+    workspace = typeof workspace === 'string' ? workspace : 'Continua OS';
+    userId = typeof userId === 'string' ? userId : 'mobile-key';
+
+    // Mint the scoped, short-lived capability token the guest machine will use
+    const { token, expiresAt } = await signCapabilityToken({
+      sub: userId,
+      ws: workspace,
+    });
+
+    const session = await approveSession(cleanPin, {
+      workspace,
+      clientInfo: typeof clientInfo === 'string' ? clientInfo : undefined,
+      userId,
+      capabilityToken: token,
+      capabilityTokenHash: await hashToken(token),
+    });
+
+    if (!session) {
+      return NextResponse.json(
+        { ok: false, error: 'No active pairing session for this PIN. Refresh the guest screen.' },
+        { status: 404, headers: corsHeaders }
+      );
+    }
 
     return NextResponse.json(
       {
@@ -104,11 +143,25 @@ export async function POST(request: NextRequest) {
           pin: cleanPin,
           workspace: session.workspace,
           clientInfo: session.clientInfo,
+          expiresAt,
         },
+        capabilityToken: token,
       },
       { headers: corsHeaders }
     );
-  } catch (error: any) {
-    return NextResponse.json({ ok: false, error: error.message || 'Internal error' }, { status: 500, headers: corsHeaders });
+  } catch (error) {
+    console.error('[api/connect/pair] POST error:', error);
+    return NextResponse.json(
+      { ok: false, error: 'Internal error' },
+      { status: 500, headers: corsHeaders }
+    );
   }
+}
+
+async function hashToken(token: string): Promise<string> {
+  const data = new TextEncoder().encode(token);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }

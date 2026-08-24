@@ -1,27 +1,37 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  QrCode, 
-  ShieldCheck, 
-  Laptop, 
-  Smartphone, 
-  RefreshCw, 
-  ArrowRight, 
-  Lock, 
-  Clock, 
-  Sparkles, 
-  CheckCircle2 
+import {
+  QrCode,
+  ShieldCheck,
+  Laptop,
+  Smartphone,
+  RefreshCw,
+  ArrowRight,
+  Lock,
+  Clock,
+  Sparkles,
+  CheckCircle2
 } from 'lucide-react';
 import Link from 'next/link';
+import QRCode from 'qrcode';
 
 export default function ConnectPage() {
   const router = useRouter();
   const [pinCode, setPinCode] = useState('7X9K21');
   const [timeLeft, setTimeLeft] = useState(120);
+  const [qrDataUrl, setQrDataUrl] = useState('');
+  const [isDemoMode, setIsDemoMode] = useState(false);
   const [pairingStatus, setPairingStatus] = useState<'waiting' | 'approved' | 'hydrating'>('waiting');
   const [pairedDevice, setPairedDevice] = useState('Josephan (Samsung Galaxy)');
+  const pinRef = useRef(pinCode);
+  pinRef.current = pinCode;
+
+  // Demo instant-approve only when explicitly requested via ?demo=1
+  useEffect(() => {
+    setIsDemoMode(new URLSearchParams(window.location.search).has('demo'));
+  }, []);
 
   // Countdown and PIN generator
   useEffect(() => {
@@ -43,6 +53,25 @@ export default function ConnectPage() {
     return () => clearInterval(timer);
   }, []);
 
+  // Real scannable QR code pointing phones at the approval page
+  useEffect(() => {
+    let cancelled = false;
+    const approveUrl = `${window.location.origin}/connect/approve?pin=${pinCode}`;
+    QRCode.toDataURL(approveUrl, {
+      width: 512,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+      color: { dark: '#020617', light: '#ffffff' },
+    })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [pinCode]);
+
   // Live polling for cross-device approval over network
   useEffect(() => {
     if (pairingStatus !== 'waiting') return;
@@ -50,13 +79,34 @@ export default function ConnectPage() {
     let isMounted = true;
     const pollInterval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/connect/pair?pin=${pinCode}`);
+        const res = await fetch(`/api/connect/pair?pin=${pinRef.current}`);
         if (!res.ok) return;
         const json = await res.json();
-        
+
+        if (!isMounted) return;
+
+        if (json.ok && json.status === 'expired') {
+          // Server says this PIN window is gone — rotate immediately
+          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+          let code = '';
+          for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          setPinCode(code);
+          setTimeLeft(120);
+          return;
+        }
+
         if (json.ok && json.status === 'approved' && isMounted) {
           if (json.data?.clientInfo) {
             setPairedDevice(json.data.clientInfo);
+          }
+          // Persist the scoped capability token for this ephemeral session only
+          if (json.data?.capabilityToken && typeof window !== 'undefined') {
+            try {
+              sessionStorage.setItem('continua_ephemeral_cap', json.data.capabilityToken);
+              sessionStorage.setItem('continua_ephemeral_mode', 'true');
+            } catch {}
           }
           setPairingStatus('approved');
           setTimeout(() => {
@@ -79,7 +129,7 @@ export default function ConnectPage() {
       isMounted = false;
       clearInterval(pollInterval);
     };
-  }, [pinCode, pairingStatus, router]);
+  }, [pairingStatus, router]);
 
   const handleSimulateApprove = async () => {
     try {
@@ -87,7 +137,7 @@ export default function ConnectPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          pin: pinCode,
+          pin: pinRef.current,
           workspace: 'Continua OS',
           clientInfo: 'Demo Mobile Key (Instant Authorize)',
         }),
@@ -143,22 +193,16 @@ export default function ConnectPage() {
             {/* QR Code Container */}
             <div className="flex flex-col items-center justify-center p-6 bg-white/[0.02] border border-white/10 rounded-2xl relative group">
               <div className="w-48 h-48 bg-white p-3 rounded-2xl shadow-2xl flex items-center justify-center relative">
-                {/* SVG Visual QR Mockup */}
-                <div className="w-full h-full border-2 border-slate-950 flex flex-col justify-between p-1 bg-white">
-                  <div className="flex justify-between">
-                    <div className="w-10 h-10 bg-slate-950 rounded-sm" />
-                    <div className="w-10 h-10 bg-slate-950 rounded-sm" />
-                  </div>
-                  <div className="flex items-center justify-center">
-                    <div className="w-8 h-8 bg-[#10F4A0] rounded-lg flex items-center justify-center font-black text-xs text-slate-950">
-                      C
-                    </div>
-                  </div>
-                  <div className="flex justify-between">
-                    <div className="w-10 h-10 bg-slate-950 rounded-sm" />
-                    <div className="w-6 h-6 bg-slate-950 rounded-sm" />
-                  </div>
-                </div>
+                {qrDataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={qrDataUrl}
+                    alt={`Scan to pair — PIN ${pinCode}`}
+                    className="w-full h-full rounded-lg"
+                  />
+                ) : (
+                  <div className="w-full h-full rounded-lg bg-slate-200 animate-pulse" />
+                )}
               </div>
 
               {/* PIN Code Display */}
@@ -205,14 +249,16 @@ export default function ConnectPage() {
               </div>
             </div>
 
-            {/* Simulate Instant Approve Button for Demo/Testing */}
-            <button
-              onClick={handleSimulateApprove}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-[#10F4A0] to-cyan-400 text-slate-950 font-bold text-xs shadow-lg shadow-[#10F4A0]/20 hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2"
-            >
-              <span>Authorize from Mobile (Instant Pair)</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            {/* Simulate Instant Approve Button — demo/testing only */}
+            {isDemoMode && (
+              <button
+                onClick={handleSimulateApprove}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#10F4A0] to-cyan-400 text-slate-950 font-bold text-xs shadow-lg shadow-[#10F4A0]/20 hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2"
+              >
+                <span>Authorize from Mobile (Instant Pair)</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            )}
           </>
         )}
 

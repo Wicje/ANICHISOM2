@@ -9,6 +9,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAiProvider, chatWithFallback } from '@/lib/ai-providers/ai-provider-factory';
+import {
+  extractTokenFromRequest,
+  verifyCapabilityToken,
+} from '@/lib/capability-token';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,7 +27,7 @@ export async function OPTIONS() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    const { prompt, workspace, model, provider: requestedProvider, capabilityToken } = body;
+    const { prompt, workspace, model, provider: requestedProvider } = body;
 
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json(
@@ -32,17 +36,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // In production, verify JWT capabilityToken from the user's phone session
-    const isTokenValid = !capabilityToken || capabilityToken.length >= 6;
-    if (!isTokenValid) {
+    // Verify the signed capability token (JWT). Guest sessions receive one
+    // when their pairing is approved; mobile clients mint their own.
+    const token =
+      extractTokenFromRequest(request) ||
+      (typeof body.capabilityToken === 'string' ? body.capabilityToken : null);
+    const claims = await verifyCapabilityToken(token);
+    if (!claims) {
       return NextResponse.json(
         { ok: false, error: 'Invalid or expired capability token. Please re-authenticate on mobile.' },
         { status: 401, headers: corsHeaders }
       );
     }
 
+    const effectiveWorkspace = workspace || claims.ws;
+
     const systemPrompt = `You are the Continua Workspace Continuity Agent.
-You are assisting the user on their active workspace: "${workspace || 'Default Workspace'}".
+You are assisting the user on their active workspace: "${effectiveWorkspace}".
 Provide concise, accurate, actionable code solutions, git commands, and workspace summaries.`;
 
     const chatOptions = {
@@ -85,7 +95,7 @@ Provide concise, accurate, actionable code solutions, git commands, and workspac
         data: {
           text: resultText,
           provider: usedProvider,
-          workspace: workspace || 'Continua OS',
+          workspace: effectiveWorkspace,
           scoped: true,
           expiresIn: '58m',
         },
