@@ -5,17 +5,53 @@ import { useAuthStore } from '@/lib/stores/auth.store';
 import { useWindowStore } from '@/lib/stores/window.store';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useWorkspaceStore } from '@/lib/stores/workspace.store';
-import { Search, Zap, ZapOff, Cloud, ShieldCheck, Power, Users, RefreshCw, Bell, Wifi } from 'lucide-react';
+import { Search, Zap, ZapOff, Cloud, ShieldCheck, Power, Users, RefreshCw, Bell, Wifi, Eye, HardDrive, EyeOff } from 'lucide-react';
 import { PresenceIndicator } from '@/components/presence-indicator';
 import { WorkspaceSelector } from '@/components/workspace-selector';
 import { useCollabStatusStore } from '@/lib/stores/collab-status.store';
 import { useNotificationStore } from '@/lib/stores/notification.store';
+import { useContextPrivacyStore } from '@/lib/stores/context-privacy.store';
+import type { PrivacyMode } from '@/lib/context-kernel/graph';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useHardwareState } from '@/lib/hooks/use-hardware';
 import { Battery, BatteryCharging } from 'lucide-react';
 
 import { usePomodoroStore } from '@/lib/stores/pomodoro.store';
+
+const PRIVACY_TIER_META: Record<PrivacyMode, { label: string; icon: React.ElementType; color: string }> = {
+  standard: { label: 'Standard', icon: Eye, color: '#10b981' },
+  local_only: { label: 'Local Only', icon: HardDrive, color: '#22d3ee' },
+  private_session: { label: 'Paused', icon: EyeOff, color: '#fbbf24' },
+};
+
+function ContextPrivacyBadge() {
+  const { mode, hydrated, hydrate } = useContextPrivacyStore();
+  const openWindow = useWindowStore((s) => s.openWindow);
+
+  useEffect(() => {
+    hydrate();
+    const onModeChange = () => hydrate();
+    window.addEventListener('os:privacy-mode-changed', onModeChange);
+    return () => window.removeEventListener('os:privacy-mode-changed', onModeChange);
+  }, [hydrate]);
+
+  if (!hydrated) return null;
+  const meta = PRIVACY_TIER_META[mode];
+  const Icon = meta.icon;
+
+  return (
+    <button
+      onClick={() => openWindow('settings', 'Settings')}
+      className="flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-md hover:bg-white/10 transition-colors cursor-pointer"
+      style={{ color: mode === 'standard' ? 'var(--os-text-muted)' : meta.color }}
+      title={`Context Engine: ${meta.label} — click to manage`}
+    >
+      <Icon className="w-3.5 h-3.5" />
+      <span className="hidden lg:inline">{meta.label}</span>
+    </button>
+  );
+}
 
 function OsClock() {
   const [time, setTime] = useState(new Date());
@@ -380,6 +416,7 @@ export function MenuBar({
           <PresenceIndicator />
         </div>
         <div className="flex items-center gap-4 pr-4" style={{ borderRight: '1px solid var(--os-border)' }}>
+          <ContextPrivacyBadge />
           <OsSyncStatus />
         </div>
         <div className="flex items-center gap-3">

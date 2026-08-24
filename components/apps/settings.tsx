@@ -7,6 +7,7 @@ import { useThemeStore } from '@/lib/stores/theme.store';
 import { useAuthStore } from '@/lib/stores/auth.store';
 import { usePrivacyStore } from '@/lib/stores/privacy.store';
 import { audioSystem } from '@/lib/services/audio-engine';
+import { ContextPrivacySection } from '@/components/apps/context-privacy-settings';
 import { ambientSounds, type AmbientPreset } from '@/lib/services/ambient-sounds';
 import { githubDeviceFlow, DeviceCodeResponse, GitHubProfile } from '@/lib/services/github-device-flow.service';
 import { GoogleSSOService, GoogleUser } from '@/lib/services/google-sso.service';
@@ -1124,6 +1125,8 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
 
           {activeTab === 'privacy' && (
             <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <ContextPrivacySection />
+
               <section className="space-y-6">
                 <div className="flex items-center gap-2 pb-2 border-b border-white/10">
                   <Shield className="w-5 h-5 text-white/70" />

@@ -18,15 +18,16 @@ export const CAPABILITY_TTL_SECONDS = 60 * 60; // 60 minutes
 const ISSUER = 'continua:capability';
 const AUDIENCE = 'continua:scoped-api';
 
-let cachedKey: Uint8Array | null = null;
+let cachedKey: CryptoKey | null = null;
 
-function getSigningKey(): Uint8Array {
+async function getSigningKey(): Promise<CryptoKey> {
   if (cachedKey) return cachedKey;
   const secret =
     process.env.CAPABILITY_JWT_SECRET ||
     process.env.SUPABASE_SECRET_KEY ||
     process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+  let keyMaterial: string;
   if (!secret) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('CAPABILITY_JWT_SECRET is required in production');
@@ -34,11 +35,19 @@ function getSigningKey(): Uint8Array {
     console.warn(
       '[capability-token] CAPABILITY_JWT_SECRET not set — using insecure dev secret.'
     );
-    cachedKey = new TextEncoder().encode('dev-insecure-capability-secret');
+    keyMaterial = 'dev-insecure-capability-secret';
   } else {
-    // Derive a purpose-specific key so the same secret isn't reused raw across contexts
-    cachedKey = new TextEncoder().encode(`cap:${secret}`);
+    // Derive a purpose-specific material so the same secret isn't reused raw across contexts
+    keyMaterial = `cap:${secret}`;
   }
+
+  cachedKey = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(keyMaterial),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign', 'verify']
+  );
   return cachedKey;
 }
 
@@ -59,7 +68,7 @@ export async function signCapabilityToken(
     .setAudience(AUDIENCE)
     .setIssuedAt()
     .setExpirationTime(expires)
-    .sign(getSigningKey());
+    .sign(await getSigningKey());
 
   return { token, expiresAt: new Date(expires * 1000).toISOString() };
 }
@@ -70,7 +79,7 @@ export async function verifyCapabilityToken(
 ): Promise<CapabilityClaims | null> {
   if (!token || typeof token !== 'string') return null;
   try {
-    const { payload } = await jwtVerify(token, getSigningKey(), {
+    const { payload } = await jwtVerify(token, await getSigningKey(), {
       issuer: ISSUER,
       audience: AUDIENCE,
       algorithms: ['HS256'],

@@ -32,6 +32,8 @@ import { useWorkspaceStore } from '@/lib/stores/workspace.store';
 import { useAuthStore } from '@/lib/stores/auth.store';
 import { useActivityStore } from '@/lib/stores/activity.store';
 import { usePrivacyStore } from '@/lib/stores/privacy.store';
+import { useContextPrivacyStore } from '@/lib/stores/context-privacy.store';
+import type { PrivacyMode } from '@/lib/context-kernel/graph';
 import { toast } from 'sonner';
 
 type MobileTab = 'workspaces' | 'ai' | 'devices' | 'vault';
@@ -443,6 +445,9 @@ export function MobileControlCenter() {
               <span className="text-xs text-emerald-400 font-mono">{sessions.length} online</span>
             </div>
 
+            {/* Context Privacy Guardrail Status */}
+            <PrivacyGuardrailCard />
+
             <div className="space-y-3">
               {sessions.map((session) => (
                 <div 
@@ -671,6 +676,60 @@ export function MobileControlCenter() {
         </div>
       )}
 
+    </div>
+  );
+}
+
+// ─── Privacy Guardrail Status Card (Devices Tab) ─────────────────────────
+
+const PRIVACY_TIER_META: Record<PrivacyMode, { label: string; color: string; hint: string }> = {
+  standard: { label: 'Standard', color: '#10F4A0', hint: 'Metadata checkpoints syncing to cloud' },
+  local_only: { label: 'Local Only', color: '#22d3ee', hint: 'Checkpoints kept on device only' },
+  private_session: { label: 'Paused', color: '#fbbf24', hint: 'All context monitoring paused' },
+};
+
+function PrivacyGuardrailCard() {
+  const { mode, hydrated, hydrate, setMode } = useContextPrivacyStore();
+
+  useEffect(() => {
+    hydrate();
+    const onChange = () => hydrate();
+    window.addEventListener('os:privacy-mode-changed', onChange);
+    return () => window.removeEventListener('os:privacy-mode-changed', onChange);
+  }, [hydrate]);
+
+  if (!hydrated) return null;
+  const meta = PRIVACY_TIER_META[mode];
+  const isPaused = mode === 'private_session';
+
+  return (
+    <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <span
+          className="w-2.5 h-2.5 rounded-full shrink-0"
+          style={{ backgroundColor: meta.color, boxShadow: `0 0 8px ${meta.color}` }}
+        />
+        <div className="min-w-0">
+          <div className="text-xs font-bold text-white">
+            Context Engine: <span style={{ color: meta.color }}>{meta.label}</span>
+          </div>
+          <div className="text-[10px] text-white/40 truncate">{meta.hint}</div>
+        </div>
+      </div>
+      <button
+        onClick={() => {
+          const next: PrivacyMode = isPaused ? 'standard' : 'private_session';
+          setMode(next);
+          toast.success(isPaused ? 'Context engine resumed' : 'Context engine paused');
+        }}
+        className={`shrink-0 text-[10px] font-bold uppercase px-3 py-1.5 rounded-full border transition-all active:scale-95 ${
+          isPaused
+            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
+            : 'bg-amber-400/10 text-amber-300 border-amber-400/30'
+        }`}
+      >
+        {isPaused ? 'Resume' : 'Pause'}
+      </button>
     </div>
   );
 }

@@ -4,9 +4,9 @@ import { useEffect, useRef } from 'react';
 import { useWindowStore } from '@/lib/stores/window.store';
 import { useWorkspaceStore } from '@/lib/stores/workspace.store';
 import { useBrowserStore } from '@/lib/stores/browser.store';
-import { usePrivacyStore } from '@/lib/stores/privacy.store';
 import { writeDomain } from '@/lib/context-layer';
-import { sanitizeForPrivacy, WorkContext, PrivacyMode } from '@/lib/context-kernel/graph';
+import { sanitizeForPrivacy, WorkContext } from '@/lib/context-kernel/graph';
+import { useContextPrivacyStore } from '@/lib/stores/context-privacy.store';
 
 const CHECKPOINT_INTERVAL_MS = 30_000; // 30 seconds
 
@@ -24,14 +24,9 @@ export function useContextSensor() {
 
   useEffect(() => {
     const runCheckpoint = async () => {
-      // Determine privacy mode dynamically (typed as PrivacyMode)
-      let privacyMode: PrivacyMode = 'standard';
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('continua_privacy_mode');
-        if (stored === 'local_only' || stored === 'private_session') {
-          privacyMode = stored as PrivacyMode;
-        }
-      }
+      // Read the tier from the store (hydrates from localStorage on first use)
+      useContextPrivacyStore.getState().hydrate();
+      const privacyMode = useContextPrivacyStore.getState().mode;
 
       if (privacyMode === 'private_session') {
         return;

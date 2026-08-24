@@ -6,6 +6,7 @@ import { useThemeStore } from '@/lib/stores/theme.store';
 import { useWorkspaceStore } from '@/lib/stores/workspace.store';
 import { useAuthStore } from '@/lib/stores/auth.store';
 import { usePrivacyStore } from '@/lib/stores/privacy.store';
+import { useContextPrivacyStore } from '@/lib/stores/context-privacy.store';
 import { APP_MANIFEST, resolveAppComponent } from '@/lib/app-manifest';
 import { subscribe, getAllPlugins, loadInstallStates, registerBuiltinPlugins, persistInstallStates, isPluginActive, PluginManifest } from '@/lib/plugin-registry';
 import { WindowFrame } from '@/components/window-frame';
@@ -376,7 +377,13 @@ export function Desktop() {
       }
 
       const { currentUser } = useAuthStore.getState();
-      if (currentUser) {
+
+      // Three-tier privacy guardrails: local_only forces the private context
+      // layer even for authenticated users.
+      useContextPrivacyStore.getState().hydrate();
+      const privacyTier = useContextPrivacyStore.getState().mode;
+
+      if (currentUser && privacyTier !== 'local_only') {
         configureContextLayer({ mode: 'agency', userId: currentUser.id });
         // Pull remote context BEFORE local restore so cross-device state wins
         setBootMessage('Syncing context...');
