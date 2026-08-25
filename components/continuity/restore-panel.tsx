@@ -11,12 +11,14 @@ import {
   StickyNote,
   Loader2,
   Sparkles,
+  AlertTriangle,
+  ArrowRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useContinuityStore } from '@/lib/stores/continuity.store';
 import { detectCapabilities } from '@/lib/capabilities';
 import { scoreAllResources } from '@/lib/continuity/relevance';
-import type { RestorePlan, WorkspaceResource, ResourceRelevance } from '@/lib/continuity/types';
+import type { RestorePlan, WorkspaceResource, ResourceRelevance, RestoreResult } from '@/lib/continuity/types';
 
 // ─── Helpers ────────────────────────────────────────────────
 
@@ -76,7 +78,7 @@ interface RestorePanelProps {
 // ─── Component ──────────────────────────────────────────────
 
 export default function RestorePanel({ onDismiss, onRestore }: RestorePanelProps) {
-  const { recentWorkspaces, loadWorkspaces, restoreWorkspace, isRestoring } =
+  const { recentWorkspaces, loadWorkspaces, restoreWorkspace, isRestoring, restorePlan } =
     useContinuityStore();
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -218,66 +220,86 @@ export default function RestorePanel({ onDismiss, onRestore }: RestorePanelProps
     const { resource, relevance, score } = item;
     const Icon = resourceIcon(resource.type);
     const isActive = selected.has(resource.id);
+    // Check if this resource has an unavailable result from a previous restore
+    const restoreResult = restorePlan?.results.find(r => r.resourceId === resource.id);
+    const isUnavailable = restoreResult?.status === 'unavailable';
+    const alternative = restoreResult?.reason?.startsWith('Using alternative:')
+      ? restoreResult.reason.replace('Using alternative: ', '')
+      : null;
 
     return (
       <button
-        onClick={() => toggle(resource.id)}
+        onClick={() => !isUnavailable && toggle(resource.id)}
         className={cn(
           'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all',
-          isActive
-            ? 'bg-white/10 border border-white/15'
-            : 'bg-transparent border border-transparent hover:bg-white/5',
+          isUnavailable
+            ? 'bg-red-500/5 border border-red-500/10 opacity-60'
+            : isActive
+              ? 'bg-white/10 border border-white/15'
+              : 'bg-transparent border border-transparent hover:bg-white/5',
         )}
       >
         <div
           className={cn(
             'w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors',
-            isActive ? 'bg-white/10' : 'bg-white/5',
+            isUnavailable ? 'bg-red-500/10' : isActive ? 'bg-white/10' : 'bg-white/5',
           )}
         >
-          <Icon
-            className="w-4 h-4"
-            style={{ color: isActive ? 'var(--os-text)' : 'var(--os-text-muted)' }}
-          />
+          {isUnavailable ? (
+            <AlertTriangle className="w-4 h-4 text-red-400" />
+          ) : (
+            <Icon
+              className="w-4 h-4"
+              style={{ color: isActive ? 'var(--os-text)' : 'var(--os-text-muted)' }}
+            />
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <p
             className="text-sm font-medium truncate"
-            style={{ color: isActive ? 'var(--os-text)' : 'var(--os-text-muted)' }}
+            style={{ color: isUnavailable ? 'var(--os-text-muted)' : isActive ? 'var(--os-text)' : 'var(--os-text-muted)' }}
           >
             {resource.name}
           </p>
           <p className="text-[11px] truncate" style={{ color: 'var(--os-text-muted)', opacity: 0.6 }}>
-            {resource.type === 'url'
-              ? resource.metadata.url
-              : resource.type === 'file'
-                ? resource.metadata.filePath
-                : resource.type === 'application'
-                  ? resource.metadata.appTitle
-                  : 'Note'}
+            {isUnavailable
+              ? restoreResult?.reason || 'Not available on this device'
+              : alternative
+                ? `Alternative: ${alternative}`
+                : resource.type === 'url'
+                  ? resource.metadata.url
+                  : resource.type === 'file'
+                    ? resource.metadata.filePath
+                    : resource.type === 'application'
+                      ? resource.metadata.appTitle
+                      : 'Note'}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[10px] tabular-nums" style={{ color: 'var(--os-text-muted)', opacity: 0.5 }}>
-            {Math.round(score * 100)}
-          </span>
+          {!isUnavailable && (
+            <span className="text-[10px] tabular-nums" style={{ color: 'var(--os-text-muted)', opacity: 0.5 }}>
+              {Math.round(score * 100)}
+            </span>
+          )}
           <span
             className={cn(
               'w-2 h-2 rounded-full shadow-sm',
-              relevanceDot(relevance),
+              isUnavailable ? 'bg-red-400 shadow-red-400/50' : relevanceDot(relevance),
             )}
           />
-          <div
-            className={cn(
-              'w-4.5 h-4.5 rounded-md border-2 flex items-center justify-center transition-all',
-              isActive
-                ? 'border-emerald-400 bg-emerald-400/20'
-                : 'border-zinc-500 bg-transparent',
-            )}
-            style={{ width: 18, height: 18 }}
-          >
-            {isActive && <Check className="w-3 h-3 text-emerald-400" />}
-          </div>
+          {!isUnavailable && (
+            <div
+              className={cn(
+                'w-4.5 h-4.5 rounded-md border-2 flex items-center justify-center transition-all',
+                isActive
+                  ? 'border-emerald-400 bg-emerald-400/20'
+                  : 'border-zinc-500 bg-transparent',
+              )}
+              style={{ width: 18, height: 18 }}
+            >
+              {isActive && <Check className="w-3 h-3 text-emerald-400" />}
+            </div>
+          )}
         </div>
       </button>
     );
@@ -369,6 +391,18 @@ export default function RestorePanel({ onDismiss, onRestore }: RestorePanelProps
               </p>
               <p className="text-sm font-medium" style={{ color: 'var(--os-text)' }}>
                 {workspace.activeTask}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Availability summary — shown after first restore attempt */}
+        {restorePlan && restorePlan.unavailableCount > 0 && (
+          <div className="px-6 pb-3">
+            <div className="px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+              <p className="text-xs" style={{ color: 'var(--os-text)' }}>
+                <span className="font-semibold">{restorePlan.unavailableCount}</span> resource{restorePlan.unavailableCount !== 1 ? 's' : ''} unavailable on this device
               </p>
             </div>
           </div>

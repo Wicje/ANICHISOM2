@@ -8,6 +8,7 @@ import { NextRequest } from 'next/server';
 import { checkRouteRateLimit, apiOk, apiError, apiInternal, requireSession } from '@/lib/api-helpers';
 import { createServerClient } from '@supabase/ssr';
 import { authorize, PERSONAL_DEFAULT_SCOPES } from '@/lib/authz';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(
   request: NextRequest,
@@ -93,6 +94,15 @@ export async function POST(
       console.error('[workspace/share] Supabase error:', insertError);
       return apiInternal('Failed to share workspace');
     }
+
+    // Audit log
+    logAudit({
+      userId: session.userId,
+      action: 'workspace.share',
+      resourceType: 'workspace',
+      resourceId: id,
+      details: { sharedWith: targetUser.id, email, permission },
+    });
 
     return apiOk(share);
   } catch (error) {

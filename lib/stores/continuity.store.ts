@@ -15,6 +15,7 @@ import type {
 import type { DeviceCapabilities } from '@/lib/capabilities';
 import { useAuthStore } from './auth.store';
 import { useDeviceStore } from './device.store';
+import { buildSmartRestoreResults } from '@/lib/continuity/smart-restore';
 
 const AUTO_SAVE_INTERVAL_MS = 30_000; // 30 seconds
 
@@ -278,53 +279,7 @@ export const useContinuityStore = create<ContinuityState>((set, get) => ({
   restoreWorkspace: async (workspace, caps, selectedIds) => {
     set({ isRestoring: true });
 
-    const results: RestoreResult[] = [];
-    const filter = selectedIds ? (r: WorkspaceResource) => selectedIds.has(r.id) : () => true;
-
-    for (const resource of workspace.resources) {
-      if (!filter(resource)) {
-        results.push({ resourceId: resource.id, resource, status: 'skipped', reason: 'Not selected' });
-        continue;
-      }
-
-      let status: RestoreResult['status'] = 'skipped';
-      let restoredUrl: string | undefined;
-      let reason: string | undefined;
-
-      switch (resource.type) {
-        case 'url': {
-          // URLs can always be opened in a browser
-          status = 'restored';
-          restoredUrl = resource.metadata.url || resource.identifier;
-          break;
-        }
-        case 'application': {
-          // App restoration depends on the app being available
-          // For web apps (running in Continua shell), always available
-          status = 'restored';
-          restoredUrl = resource.identifier;
-          break;
-        }
-        case 'file': {
-          // Files can be opened if they exist in the file system
-          // For now, mark as restored (the file system is per-device)
-          status = 'restored';
-          break;
-        }
-        case 'note': {
-          status = 'restored';
-          break;
-        }
-      }
-
-      results.push({
-        resourceId: resource.id,
-        resource,
-        status,
-        reason,
-        restoredUrl,
-      });
-    }
+    const results = buildSmartRestoreResults(workspace.resources, caps, selectedIds);
 
     const plan: RestorePlan = {
       workspace,

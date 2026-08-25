@@ -106,9 +106,27 @@ export const useTeamStore = create<TeamState>((set, get) => ({
   loadShares: async (workspaceId) => {
     set({ sharesLoading: true, error: null });
     try {
-      // Shares are loaded from the workspace's context record data
-      // There's no separate shares endpoint, so we track them locally
-      // after share/unshare operations
+      const res = await fetch(`/api/workspaces/${workspaceId}/shares`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          const fetched = (data.data || []).map((s: any) => ({
+            id: s.id,
+            workspaceId: s.workspace_id?.replace('workspace_snapshot_', '') || workspaceId,
+            sharedBy: s.shared_by,
+            sharedWith: s.shared_with,
+            orgId: s.org_id || null,
+            permission: s.permission || 'view',
+            createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now(),
+          }));
+          set(state => {
+            // Merge with existing, avoiding duplicates
+            const existingIds = new Set(state.shares.map(s => s.id));
+            const newShares = fetched.filter((s: WorkspaceShare) => !existingIds.has(s.id));
+            return { shares: [...state.shares, ...newShares] };
+          });
+        }
+      }
     } catch {
       set({ error: 'Failed to load shares' });
     } finally {

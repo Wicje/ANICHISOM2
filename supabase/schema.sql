@@ -257,6 +257,37 @@ CREATE POLICY "Users delete shares they created" ON workspace_shares FOR DELETE
   USING (shared_by = auth.uid());
 
 -- ============================================================
+-- AUDIT LOG
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  org_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  resource_type TEXT NOT NULL,
+  resource_id TEXT,
+  details JSONB DEFAULT '{}',
+  ip_address TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_log_user_created ON audit_log(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_org_created ON audit_log(org_id, created_at DESC);
+
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users read own audit log" ON audit_log FOR SELECT
+  USING (user_id = auth.uid());
+CREATE POLICY "System inserts audit log" ON audit_log FOR INSERT
+  WITH CHECK (true);
+CREATE POLICY "Org admins read org audit log" ON audit_log FOR SELECT
+  USING (org_id IN (
+    SELECT org_id FROM org_members WHERE user_id = auth.uid()
+    AND role IN ('owner', 'admin')
+  ));
+
+-- ============================================================
 -- JOURNAL RETENTION (90 days)
 -- ============================================================
 

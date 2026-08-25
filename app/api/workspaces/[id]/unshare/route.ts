@@ -8,6 +8,7 @@ import { NextRequest } from 'next/server';
 import { checkRouteRateLimit, apiOk, apiError, apiInternal, requireSession } from '@/lib/api-helpers';
 import { createServerClient } from '@supabase/ssr';
 import { authorize, PERSONAL_DEFAULT_SCOPES } from '@/lib/authz';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(
   request: NextRequest,
@@ -57,6 +58,15 @@ export async function POST(
       console.error('[workspace/unshare] Supabase error:', error);
       return apiInternal('Failed to unshare workspace');
     }
+
+    // Audit log
+    logAudit({
+      userId: session.userId,
+      action: 'workspace.unshare',
+      resourceType: 'workspace',
+      resourceId: id,
+      details: { shareId },
+    });
 
     return apiOk({ removed: true });
   } catch (error) {
