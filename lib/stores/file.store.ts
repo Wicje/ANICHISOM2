@@ -171,8 +171,13 @@ function matchesPattern(pattern: string, mimeType: string, fileName: string): bo
   return false;
 }
 
+// ─── Persisted fields ───────────────────────────────────────
+// We only persist tagMap, trashPutBackMap, versionHistory, smartRoutes
+// to keep localStorage under the 5 MB browser cap.
+type FilePersistedPick = Pick<FileState, 'tagMap' | 'trashPutBackMap' | 'versionHistory' | 'smartRoutes'>;
+
 // ─── Store ──────────────────────────────────────────────────
-export const useFileStore = create<FileState>((set, get) => ({
+export const useFileStore = create<FileState>()(persist((set, get) => ({
   // Navigation
   currentSource: 'opfs',
   currentPath: '/',
@@ -232,9 +237,15 @@ export const useFileStore = create<FileState>((set, get) => ({
     return get().tagMap[pathOrId] || [];
   },
 
-  recordTrashPutBack: (trashPath, originalPath) => set(state => ({
-    trashPutBackMap: { ...state.trashPutBackMap, [trashPath]: { originalPath, deletedAt: Date.now() } }
-  })),
+  recordTrashPutBack: (trashPath, originalPath) => set(state => {
+    const next = { ...state.trashPutBackMap };
+    if (!originalPath) {
+      delete next[trashPath];
+    } else {
+      next[trashPath] = { originalPath, deletedAt: Date.now() };
+    }
+    return { trashPutBackMap: next };
+  }),
 
   getTrashPutBack: (trashPath) => {
     const entry = get().trashPutBackMap[trashPath];
@@ -328,4 +339,12 @@ export const useFileStore = create<FileState>((set, get) => ({
       return sortDir === 'asc' ? cmp : -cmp;
     });
   },
+} as FileState), {
+  name: 'continua-file-store',
+  partialize: (state) => ({
+    tagMap: state.tagMap,
+    trashPutBackMap: state.trashPutBackMap,
+    versionHistory: state.versionHistory,
+    smartRoutes: state.smartRoutes,
+  }),
 }));

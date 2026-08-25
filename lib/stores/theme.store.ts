@@ -29,6 +29,9 @@ type ThemeState = {
   ambientSound: AmbientPreset;
   dynamicWallpaper: boolean;
   showNotch: boolean;
+  wifiEnabled: boolean;
+  bluetoothEnabled: boolean;
+  airDropEnabled: boolean;
   brightness: number;
   nightShift: boolean;
   nightShiftTemperature: number;
@@ -43,6 +46,9 @@ type ThemeState = {
   setBrightness: (brightness: number) => void;
   setNightShift: (enabled: boolean) => void;
   setNightShiftTemperature: (temp: number) => void;
+  setWifiEnabled: (enabled: boolean) => void;
+  setBluetoothEnabled: (enabled: boolean) => void;
+  setAirDropEnabled: (enabled: boolean) => void;
   setAnimationsEnabled: (enabled: boolean) => void;
   setGlassmorphism: (enabled: boolean) => void;
   setAeroSnap: (enabled: boolean) => void;
@@ -71,6 +77,9 @@ const DEFAULTS = {
   ambientSound: 'off' as AmbientPreset,
   dynamicWallpaper: true,
   showNotch: true,
+  wifiEnabled: true,
+  bluetoothEnabled: true,
+  airDropEnabled: true,
 };
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -84,7 +93,7 @@ function writeThemeDomain(data: Record<string, unknown>) {
 }
 
 function serializeTheme(state: ThemeState): Record<string, unknown> {
-  const { setWallpaper, setThemeColor, setFontFamily, setScreenShader, setPerformanceMode, setColorMode, setVolume, setMuted, setAnimationsEnabled, setGlassmorphism, setAeroSnap, setAmbientSound, setDynamicWallpaper, hydrateAll, ...data } = state as any;
+  const { setWallpaper, setThemeColor, setFontFamily, setScreenShader, setPerformanceMode, setColorMode, setVolume, setMuted, setAnimationsEnabled, setGlassmorphism, setAeroSnap, setAmbientSound, setDynamicWallpaper, setWifiEnabled, setBluetoothEnabled, setAirDropEnabled, hydrateAll, ...data } = state as any;
   return data;
 }
 
@@ -162,6 +171,9 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   setDynamicWallpaper: (dynamicWallpaper) => { set({ dynamicWallpaper }); persistTheme({ ...get(), dynamicWallpaper }); },
   setShowNotch: (showNotch) => { set({ showNotch }); persistTheme({ ...get(), showNotch }); },
   toggleNotch: () => { const next = !get().showNotch; set({ showNotch: next }); persistTheme({ ...get(), showNotch: next }); },
+  setWifiEnabled: (wifiEnabled) => { set({ wifiEnabled }); persistTheme({ ...get(), wifiEnabled }); },
+  setBluetoothEnabled: (bluetoothEnabled) => { set({ bluetoothEnabled }); persistTheme({ ...get(), bluetoothEnabled }); },
+  setAirDropEnabled: (airDropEnabled) => { set({ airDropEnabled }); persistTheme({ ...get(), airDropEnabled }); },
 
   hydrateAll: async () => {
     try {

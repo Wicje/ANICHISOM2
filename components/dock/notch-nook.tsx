@@ -15,6 +15,8 @@ import { audioSystem } from '@/lib/services/audio-engine';
 export function NotchNook({ window: osWindow }: { window?: any }) {
   const setShowNotch = useThemeStore((s) => s.setShowNotch);
   const { currentTrack, isPlaying, togglePlay, nextTrack, prevTrack, volume, setVolume } = useMediaStore();
+  const brightness = useThemeStore((s) => s.brightness);
+  const setBrightness = useThemeStore((s) => s.setBrightness);
 
   const [activeTab, setActiveTab] = useState<'media' | 'shelf' | 'toggles'>('media');
   const [isExpanded, setIsExpanded] = useState(false);
@@ -463,10 +465,8 @@ export function NotchNook({ window: osWindow }: { window?: any }) {
                         type="range"
                         min="20"
                         max="100"
-                        defaultValue="90"
-                        onChange={(e) => {
-                          document.documentElement.style.filter = `brightness(${e.target.value}%)`;
-                        }}
+                        value={brightness}
+                        onChange={(e) => setBrightness(Number(e.target.value))}
                         className="w-full h-1.5 rounded-full accent-cyan-400 bg-white/10 cursor-pointer"
                       />
                     </div>

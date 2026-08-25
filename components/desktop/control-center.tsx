@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useWindowStore } from '@/lib/stores/window.store';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useNotificationStore } from '@/lib/stores/notification.store';
@@ -75,14 +75,13 @@ export function ControlCenter({ onClose }: ControlCenterProps) {
     brightness, setBrightness,
     nightShift, setNightShift,
     nightShiftTemperature, setNightShiftTemperature,
-    showNotch, toggleNotch
+    showNotch, toggleNotch,
+    wifiEnabled, setWifiEnabled,
+    bluetoothEnabled, setBluetoothEnabled,
+    airDropEnabled, setAirDropEnabled,
   } = useThemeStore();
   const { notifications, clearAll, markAllRead } = useNotificationStore();
   const { isSyncing, connectedDevices, startSync, stopSync } = useSyncStore();
-
-  const [wifiEnabled, setWifiEnabled] = useState(true);
-  const [bluetoothEnabled, setBluetoothEnabled] = useState(true);
-  const [airDropEnabled, setAirDropEnabled] = useState(true);
 
   const recentNotifications = notifications.slice(0, 4);
 

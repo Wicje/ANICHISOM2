@@ -28,13 +28,35 @@ interface ControlCenterProps {
 }
 
 export function HomeWidgetPanel({ className }: ControlCenterProps) {
-  const { volume, setVolume, colorMode, setColorMode, screenShader, setScreenShader } = useThemeStore();
+  const { volume, setVolume, colorMode, setColorMode, screenShader, setScreenShader, brightness, setBrightness } = useThemeStore();
   const { enabled: focusActive, toggle: toggleFocus } = useFocusStore();
   
-  const [brightness, setBrightnessState] = useState(80);
   const [weather, setWeather] = useState<{ temp: number; desc: string; icon: string }>({ temp: 72, desc: 'Sunny', icon: 'sun' });
   const [isProximityActive, setIsProximityActive] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+
+  // Dynamic calendar
+  const now = useState(() => new Date())[0];
+  const calendarMonth = now.toLocaleString('en-US', { month: 'long' });
+  const calendarYear = now.getFullYear();
+  const todayDate = now.getDate();
+  const firstDay = new Date(calendarYear, now.getMonth(), 1).getDay();
+  const daysInMonth = new Date(calendarYear, now.getMonth() + 1, 0).getDate();
+  const prevMonthDays = new Date(calendarYear, now.getMonth(), 0).getDate();
+
+  // Dynamic timezone clocks
+  const [localTime, setLocalTime] = useState('');
+  const [remoteTime, setRemoteTime] = useState('');
+  useEffect(() => {
+    const updateTimes = () => {
+      const t = new Date();
+      setLocalTime(t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+      setRemoteTime(t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' }));
+    };
+    updateTimes();
+    const id = setInterval(updateTimes, 30000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     let rafId: number | null = null;
@@ -82,13 +104,6 @@ export function HomeWidgetPanel({ className }: ControlCenterProps) {
     );
   }, []);
 
-  const setBrightness = (val: number) => {
-    setBrightnessState(val);
-    if (typeof document !== 'undefined') {
-      document.documentElement.style.filter = `brightness(${val}%)`;
-    }
-  };
-
   return (
     <div className={cn("w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#1a2a4a] to-[#0a1525] font-sans overflow-hidden p-6 gap-6", className)}>
       {/* Calendar & Timezone Widget Stack (ref_calendar.jpg inspired) */}
@@ -97,8 +112,8 @@ export function HomeWidgetPanel({ className }: ControlCenterProps) {
         {/* Left Calendar Grid */}
         <div className="w-full md:w-52 bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
           <div className="flex justify-between items-center text-xs font-bold">
-            <span className="text-sm font-black">June</span>
-            <span className="text-[10px] text-white/50">2026</span>
+            <span className="text-sm font-black">{calendarMonth}</span>
+            <span className="text-[10px] text-white/50">{calendarYear}</span>
           </div>
 
           <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-white/40">
@@ -106,12 +121,23 @@ export function HomeWidgetPanel({ className }: ControlCenterProps) {
           </div>
 
           <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-white/80">
-            <span className="opacity-30">31</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
-            <span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span>
-            <span className="w-6 h-6 rounded-full bg-rose-500 text-white font-bold flex items-center justify-center mx-auto shadow-md">14</span>
-            <span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span>
-            <span>21</span><span>22</span><span>23</span><span>24</span><span>25</span><span>26</span><span>27</span>
-            <span>28</span><span>29</span><span>30</span>
+            {Array.from({ length: firstDay }, (_, i) => (
+              <span key={`prev-${i}`} className="opacity-30">{prevMonthDays - firstDay + i + 1}</span>
+            ))}
+            {Array.from({ length: daysInMonth }, (_, i) => {
+              const day = i + 1;
+              return (
+                <span
+                  key={day}
+                  className={cn(
+                    "w-6 h-6 rounded-full flex items-center justify-center mx-auto",
+                    day === todayDate ? "bg-rose-500 text-white font-bold shadow-md" : ""
+                  )}
+                >
+                  {day}
+                </span>
+              );
+            })}
           </div>
         </div>
 
@@ -127,17 +153,17 @@ export function HomeWidgetPanel({ className }: ControlCenterProps) {
               </span>
               <div className="flex justify-between items-center">
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold">Prague, CZ</span>
+                  <span className="text-xs font-bold">Local</span>
                   <span className="text-[9px] text-emerald-400 font-bold">LOCAL</span>
                 </div>
-                <span className="text-xs font-mono font-bold">02:02 PM</span>
+                <span className="text-xs font-mono font-bold">{localTime || '--:--'}</span>
               </div>
               <div className="flex justify-between items-center border-t border-white/10 pt-1.5">
                 <div className="flex flex-col">
                   <span className="text-xs font-bold">New York, US</span>
-                  <span className="text-[9px] text-white/40 font-mono">-7H</span>
+                  <span className="text-[9px] text-white/40 font-mono">-6H</span>
                 </div>
-                <span className="text-xs font-mono font-bold text-white/60">06:02 PM</span>
+                <span className="text-xs font-mono font-bold text-white/60">{remoteTime || '--:--'}</span>
               </div>
             </div>
 
@@ -157,7 +183,7 @@ export function HomeWidgetPanel({ className }: ControlCenterProps) {
                 <span className="text-base font-black text-white">in 00:19 min</span>
               </div>
               <button 
-                onClick={() => window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Recording Started', description: 'Meeting audio recording active', type: 'info' } }))}
+                onClick={() => window.dispatchEvent(new CustomEvent('os:start-recording'))}
                 className="w-full py-1 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[10px] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
                 <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />

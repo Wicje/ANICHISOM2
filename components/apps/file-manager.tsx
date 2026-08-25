@@ -540,12 +540,37 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
   };
 
   const confirmBatchDelete = async () => {
+    const inTrash = currentPath === 'Trash';
+    let failed = 0;
+    const total = selectedFileIds.size;
     for (const fileId of selectedFileIds) {
-      try { await FS.delete(fileId); } catch { /* skip */ }
+      try {
+        if (inTrash) {
+          useFileStore.getState().recordTrashPutBack(fileId, '');
+          await FS.delete(fileId);
+        } else {
+          const name = fileId.split('/').pop() || fileId;
+          const trashPath = `Trash/${name}`;
+          await FS.mkdir('Trash');
+          const file = await FS.read(fileId);
+          if (file?.content) await FS.write(trashPath, file.content, file.mimeType);
+          useFileStore.getState().recordTrashPutBack(trashPath, fileId);
+          await FS.delete(fileId);
+        }
+      } catch { failed++; }
     }
     clearSelection();
     setPendingBatchDelete(false);
     fetchFiles();
+    if (failed > 0 && failed < total) {
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Partial Failure', description: `${total - failed} file(s) ${inTrash ? 'permanently deleted' : 'moved to Trash'}, ${failed} failed.`, type: 'warning' },
+      }));
+    } else if (failed >= total) {
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Delete Failed', description: `Could not delete ${failed} file(s).`, type: 'error' },
+      }));
+    }
   };
 
   // Cut/Copy to clipboard
@@ -557,17 +582,25 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
   };
   const handlePaste = async () => {
     if (!clipboard) return;
+    let failed = 0;
     for (const srcPath of clipboard.paths) {
-      const fileName = srcPath.split('/').pop() || srcPath;
-      const destPath = currentPath === 'Root' ? fileName : `${currentPath}/${fileName}`;
-      if (clipboard.mode === 'cut') {
-        await FS.move(srcPath, destPath);
-      } else {
-        await FS.copy(srcPath, destPath);
-      }
+      try {
+        const fileName = srcPath.split('/').pop() || srcPath;
+        const destPath = currentPath === 'Root' ? fileName : `${currentPath}/${fileName}`;
+        if (clipboard.mode === 'cut') {
+          await FS.move(srcPath, destPath);
+        } else {
+          await FS.copy(srcPath, destPath);
+        }
+      } catch { failed++; }
     }
     setClipboard(null);
     fetchFiles();
+    if (failed > 0) {
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Paste Partially Failed', description: `${clipboard.paths.length - failed} file(s) pasted, ${failed} failed.`, type: failed === clipboard.paths.length ? 'error' : 'warning' },
+      }));
+    }
   };
 
   const fetchFiles = async () => {
@@ -812,6 +845,17 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
   const [cloudContextMenu, setCloudContextMenu] = useState<{ x: number; y: number; file: CloudFileItem } | null>(null);
   const [savingCloudFile, setSavingCloudFile] = useState<string | null>(null);
 
+  // Dismiss context menus on outside click
+  useEffect(() => {
+    if (!contextMenu && !cloudContextMenu) return;
+    const handler = () => {
+      setContextMenu(null);
+      setCloudContextMenu(null);
+    };
+    window.addEventListener('pointerdown', handler, { once: true });
+    return () => window.removeEventListener('pointerdown', handler);
+  }, [contextMenu, cloudContextMenu]);
+
   const handleSaveCloudToLocal = async (file: CloudFileItem) => {
     if (file.isFolder) return;
     setSavingCloudFile(file.id);
@@ -953,18 +997,32 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
     const droppedFiles = e.dataTransfer.files;
     if (!droppedFiles || droppedFiles.length === 0) return;
 
+    let failed = 0;
     for (let i = 0; i < droppedFiles.length; i++) {
       const file = droppedFiles[i]!;
-      const filePath = currentPath === 'Root' ? file.name : `${currentPath}/${file.name}`;
-      await FS.write(filePath, file, file.type);
-      if (file.size > 5 * 1024 * 1024) {
-        setSyncPromptFile({ name: file.name, size: file.size, type: file.type, file });
-      }
+      try {
+        const filePath = currentPath === 'Root' ? file.name : `${currentPath}/${file.name}`;
+        await FS.write(filePath, file, file.type);
+        if (file.size > 5 * 1024 * 1024) {
+          setSyncPromptFile({ name: file.name, size: file.size, type: file.type, file });
+        }
+      } catch { failed++; }
     }
     fetchFiles();
-    window.dispatchEvent(new CustomEvent('os:notify', {
-      detail: { title: 'Batch Upload Complete', description: `${droppedFiles.length} file(s) saved to ${currentPath}`, type: 'success' },
-    }));
+    const total = droppedFiles.length;
+    if (failed > 0 && failed < total) {
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Partial Upload', description: `${total - failed} file(s) saved, ${failed} failed.`, type: 'warning' },
+      }));
+    } else if (failed >= total) {
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Upload Failed', description: `Could not save ${failed} file(s) to ${currentPath}.`, type: 'error' },
+      }));
+    } else {
+      window.dispatchEvent(new CustomEvent('os:notify', {
+        detail: { title: 'Batch Upload Complete', description: `${total} file(s) saved to ${currentPath}`, type: 'success' },
+      }));
+    }
   };
 
   // Import raw file directly from URL (bypassing HTML proxy rewriter)
@@ -1002,7 +1060,7 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
       setShowImportUrl(false);
     } catch (err) {
       console.error('Import failed:', err);
-      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Import Failed', message: err instanceof Error ? err.message : 'Unknown error' } }));
+      window.dispatchEvent(new CustomEvent('os:notify', { detail: { title: 'Import Failed', description: err instanceof Error ? err.message : 'Unknown error', type: 'error' } }));
     } finally {
       setImporting(false);
     }
@@ -1016,7 +1074,25 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
 
   const confirmDelete = async () => {
     if (pendingDeleteId) {
-      await FS.delete(pendingDeleteId);
+      try {
+        if (currentPath === 'Trash') {
+          const trashPath = pendingDeleteId;
+          useFileStore.getState().recordTrashPutBack(trashPath, '');
+          await FS.delete(pendingDeleteId);
+        } else {
+          const name = pendingDeleteId.split('/').pop() || pendingDeleteId;
+          const trashPath = `Trash/${name}`;
+          await FS.mkdir('Trash');
+          const file = await FS.read(pendingDeleteId);
+          if (file?.content) await FS.write(trashPath, file.content, file.mimeType);
+          useFileStore.getState().recordTrashPutBack(trashPath, pendingDeleteId);
+          await FS.delete(pendingDeleteId);
+        }
+      } catch (err) {
+        window.dispatchEvent(new CustomEvent('os:notify', {
+          detail: { title: 'Delete Failed', description: err instanceof Error ? err.message : 'Could not delete file.', type: 'error' },
+        }));
+      }
       fetchFiles();
     }
     setPendingDeleteId(null);
@@ -1661,7 +1737,37 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
             </div>
           ) : isViewingLocal && viewMode === 'list' ? (
             /* Finder List View Mode */
-            <div className="w-full flex flex-col divide-y divide-[var(--os-border)] pb-12">
+            <div
+              className="w-full flex flex-col divide-y divide-[var(--os-border)] pb-12"
+              onKeyDown={(e) => {
+                const target = e.target as HTMLElement;
+                const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+                if (e.key === 'F2' && selectedFileIds.size === 1) {
+                  const id = Array.from(selectedFileIds)[0];
+                  const file = files.find(f => f.id === id);
+                  if (file) { setRenamingId(file.id); setRenameValue(file.name); }
+                }
+                if (isInputFocused) return;
+                if ((e.key === 'Delete' || e.key === 'Backspace') && selectedFileIds.size > 0) {
+                  e.preventDefault();
+                  handleDeleteSelected();
+                }
+                if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  selectAllFiles();
+                }
+                if (e.key === 'c' && (e.ctrlKey || e.metaKey) && selectedFileIds.size > 0) {
+                  handleCopy();
+                }
+                if (e.key === 'x' && (e.ctrlKey || e.metaKey) && selectedFileIds.size > 0) {
+                  handleCut();
+                }
+                if (e.key === 'v' && (e.ctrlKey || e.metaKey) && clipboard) {
+                  handlePaste();
+                }
+              }}
+              tabIndex={0}
+            >
               <div className="grid grid-cols-12 px-4 py-2 text-[11px] font-bold text-[var(--os-text-muted)] uppercase tracking-wider bg-black/5 dark:bg-white/5 sticky top-0 backdrop-blur-md z-10">
                 <div className="col-span-6">Name</div>
                 <div className="col-span-2">Kind</div>
@@ -1685,7 +1791,40 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
                   >
                     <div className="col-span-6 flex items-center gap-2 truncate">
                       {isFolder ? <Folder className="w-4 h-4 text-cyan-400 shrink-0" fill="currentColor" /> : <FileText className="w-4 h-4 text-[var(--os-text-muted)] shrink-0" />}
-                      <span className="truncate font-medium">{file.name}</span>
+                      {renamingId === file.id ? (
+                        <input
+                          type="text"
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onBlur={async () => {
+                            if (renameValue.trim() && renameValue !== file.name) {
+                              const oldPath = file.id;
+                              const dir = oldPath.includes('/') ? oldPath.substring(0, oldPath.lastIndexOf('/')) : '';
+                              const newPath = dir ? `${dir}/${renameValue}` : renameValue;
+                              await FS.move(oldPath, newPath);
+                              fetchFiles();
+                            }
+                            setRenamingId(null);
+                          }}
+                          onKeyDown={(e) => {
+                            e.stopPropagation();
+                            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                            if (e.key === 'Escape') setRenamingId(null);
+                          }}
+                          className="flex-1 text-xs bg-[var(--os-surface-elevated)] border border-[var(--os-primary)] rounded px-1 py-0.5 outline-none text-[var(--os-text)]"
+                          autoFocus
+                          ref={(el) => {
+                            if (el && document.activeElement !== el) {
+                              el.focus();
+                              el.select();
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          onPointerDown={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <span className="truncate font-medium">{file.name}</span>
+                      )}
                     </div>
                     <div className="col-span-2 text-[var(--os-text-muted)] text-[11px] truncate">{isFolder ? 'Folder' : file.mimeType || 'File'}</div>
                     <div className="col-span-2 text-[var(--os-text-muted)] text-[11px] font-mono">{isFolder ? '--' : file.size ? `${(file.size / 1024).toFixed(1)} KB` : '--'}</div>
@@ -1980,7 +2119,10 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
       {contextMenu && (
         <div
           className="fixed z-[9999] bg-[var(--os-glass-bg)] backdrop-blur-2xl border border-[var(--os-glass-border)] rounded-2xl shadow-2xl py-1.5 w-60 overflow-hidden"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          style={{
+            left: Math.min(contextMenu.x, window.innerWidth - 256),
+            top: Math.min(contextMenu.y, window.innerHeight - 400),
+          }}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => setContextMenu(null)}
         >
@@ -2039,6 +2181,7 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
                 setContextMenu(null);
                 try {
                   await FS.move(trashPath, origPath);
+                  useFileStore.getState().recordTrashPutBack(trashPath, '');
                   fetchFiles();
                   window.dispatchEvent(new CustomEvent('os:notify', {
                     detail: { title: 'Restored File', description: `Restored "${contextMenu.file.name}" to ${origPath}`, type: 'success' }
@@ -2170,7 +2313,10 @@ Respond ONLY with a JSON array in this exact format, with no markdown fences, no
       {cloudContextMenu && (
         <div
           className="fixed z-[9999] bg-[var(--os-glass-bg)] backdrop-blur-xl border border-[var(--os-glass-border)] rounded-xl shadow-2xl py-1 w-56"
-          style={{ left: cloudContextMenu.x, top: cloudContextMenu.y }}
+          style={{
+            left: Math.min(cloudContextMenu.x, window.innerWidth - 232),
+            top: Math.min(cloudContextMenu.y, window.innerHeight - 200),
+          }}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => setCloudContextMenu(null)}
         >

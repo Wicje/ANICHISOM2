@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 export interface ContextMenuItem {
   label: string;
@@ -16,12 +16,34 @@ interface ContextMenuProps {
 }
 
 export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ x, y });
+
+  // Viewport bounds clamping
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const nx = Math.min(x, window.innerWidth - rect.width - 8);
+    const ny = Math.min(y, window.innerHeight - rect.height - 8);
+    setPos({ x: Math.max(8, nx), y: Math.max(8, ny) });
+  }, [x, y]);
+
+  // Click-outside to dismiss
+  useEffect(() => {
+    const handler = () => onClose();
+    window.addEventListener('pointerdown', handler, { once: true });
+    return () => window.removeEventListener('pointerdown', handler);
+  }, [onClose]);
+
   return (
     <div
+      ref={ref}
       role="menu"
       aria-label="Desktop context menu"
-      className="absolute z-[9999] glass-panel-active rounded-xl py-2 min-w-[200px] animate-in fade-in zoom-in-95 duration-100"
-      style={{ left: x, top: y }}
+      className="fixed z-[9999] glass-panel-active rounded-xl py-2 min-w-[200px] animate-in fade-in zoom-in-95 duration-100 shadow-2xl"
+      style={{ left: pos.x, top: pos.y }}
+      onPointerDown={(e) => e.stopPropagation()}
     >
       {items.map((item, i) => (
         <button
