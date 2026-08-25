@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
         id: ev.id,
         user_id: userId, // never trust a client-supplied owner
         device: ev.device,
-        kind: ev.kind,
+        event_kind: ev.kind,
         importance: ev.importance,
         project_tag: ev.projectTag ?? null,
         ts: new Date(ev.ts).toISOString(),

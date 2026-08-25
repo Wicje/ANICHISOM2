@@ -112,13 +112,15 @@ CREATE TABLE IF NOT EXISTS public.context_snapshots (
 );
 
 CREATE TABLE IF NOT EXISTS public.journal_events (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  org_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
+  device TEXT NOT NULL DEFAULT '',
+  kind TEXT NOT NULL,
   importance INTEGER DEFAULT 0,
-  summary TEXT,
-  event_kind TEXT,
+  project_tag TEXT,
+  ts TIMESTAMPTZ NOT NULL DEFAULT now(),
   payload JSONB DEFAULT '{}',
+  org_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

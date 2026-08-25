@@ -47,6 +47,7 @@ export interface Principal {
 
 export type AuthzResource =
   | { type: 'context'; owner: string; domain?: string }
+  | { type: 'device'; owner: string }
   | { type: 'proxy' }
   | { type: 'org'; orgId: string };
 
@@ -109,6 +110,17 @@ export function authorize(
       }
       if (resource.owner !== principal.userId) {
         return { ok: false, reason: 'context is personal to its owner' };
+      }
+      return { ok: true };
+    }
+
+    case 'device': {
+      // Devices are personal to their owner — same invariant as context.
+      if (!principal.scopes.includes(action as Scope)) {
+        return { ok: false, reason: `missing scope: ${action}` };
+      }
+      if (resource.owner !== principal.userId) {
+        return { ok: false, reason: 'device is personal to its owner' };
       }
       return { ok: true };
     }

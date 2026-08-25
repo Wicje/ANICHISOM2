@@ -10,11 +10,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireSession } from '@/lib/api-helpers';
 import { getContextRepository } from '@/lib/context-kernel';
 import type { ContextSnapshot } from '@/lib/context-kernel';
+import { authorize, PERSONAL_DEFAULT_SCOPES } from '@/lib/authz';
 
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireSession(request);
     if (!auth.ok) return auth.response;
+
+    const decision = authorize(
+      { userId: auth.userId, ws: 'Continua OS', scopes: PERSONAL_DEFAULT_SCOPES },
+      'context.write',
+      { type: 'context', owner: auth.userId }
+    );
+    if (!decision.ok) return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
 
     const body = await request.json();
     const { snapshot, mode = 'merge' } = body;

@@ -9,11 +9,19 @@
 import { NextRequest } from 'next/server';
 import { apiOk, apiError, apiInternal, requireSession } from '@/lib/api-helpers';
 import { getContextRepository } from '@/lib/context-kernel';
+import { authorize, PERSONAL_DEFAULT_SCOPES } from '@/lib/authz';
 
 export async function GET(request: NextRequest) {
   try {
     const auth = await requireSession(request);
     if (!auth.ok) return auth.response;
+
+    const decision = authorize(
+      { userId: auth.userId, ws: 'Continua OS', scopes: PERSONAL_DEFAULT_SCOPES },
+      'context.read',
+      { type: 'context', owner: auth.userId }
+    );
+    if (!decision.ok) return apiInternal('Forbidden');
 
     const { searchParams } = new URL(request.url);
     const snapshotId = searchParams.get('id');
@@ -39,6 +47,13 @@ export async function POST(request: NextRequest) {
     const auth = await requireSession(request);
     if (!auth.ok) return auth.response;
 
+    const decision = authorize(
+      { userId: auth.userId, ws: 'Continua OS', scopes: PERSONAL_DEFAULT_SCOPES },
+      'context.write',
+      { type: 'context', owner: auth.userId }
+    );
+    if (!decision.ok) return apiInternal('Forbidden');
+
     const body = await request.json().catch(() => ({}));
     const repo = getContextRepository();
 
@@ -57,6 +72,13 @@ export async function DELETE(request: NextRequest) {
   try {
     const auth = await requireSession(request);
     if (!auth.ok) return auth.response;
+
+    const decision = authorize(
+      { userId: auth.userId, ws: 'Continua OS', scopes: PERSONAL_DEFAULT_SCOPES },
+      'context.write',
+      { type: 'context', owner: auth.userId }
+    );
+    if (!decision.ok) return apiInternal('Forbidden');
 
     const { searchParams } = new URL(request.url);
     const snapshotId = searchParams.get('id');

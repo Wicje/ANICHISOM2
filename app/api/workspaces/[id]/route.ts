@@ -5,6 +5,7 @@
 import { NextRequest } from 'next/server';
 import { checkRouteRateLimit, apiOk, apiInternal, requireSession } from '@/lib/api-helpers';
 import { createServerClient } from '@supabase/ssr';
+import { authorize, PERSONAL_DEFAULT_SCOPES } from '@/lib/authz';
 
 export async function DELETE(
   request: NextRequest,
@@ -16,6 +17,13 @@ export async function DELETE(
 
     const session = await requireSession(request);
     if (!session.ok) return session.response;
+
+    const decision = authorize(
+      { userId: session.userId, ws: 'Continua OS', scopes: PERSONAL_DEFAULT_SCOPES },
+      'context.write',
+      { type: 'context', owner: session.userId }
+    );
+    if (!decision.ok) return apiInternal('Forbidden');
 
     const { id } = await params;
 
