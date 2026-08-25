@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMediaStore } from '@/lib/stores/media.store';
+import { spotifyApi, type SpotifyPlaylist } from '@/lib/services/spotify-api.service';
 
 const FEATURED_SPOTIFY_PLAYLISTS = [
   { id: '37i9dQZF1DXcBWIGoYBM5M', name: "Today's Top Hits", genre: 'Pop / Global', color: 'from-emerald-500 to-green-900', cover: 'https://i.scdn.co/image/ab67706f00000002b55b6074da1d43715fc16d6d' },
@@ -23,6 +24,16 @@ export default function SpotifyApp() {
   const [customInput, setCustomInput] = useState('');
   const [viewMode, setViewMode] = useState<'featured' | 'web' | 'embed'>('featured');
   const [currentPlaylistTitle, setCurrentPlaylistTitle] = useState("Today's Top Hits");
+  const [myPlaylists, setMyPlaylists] = useState<SpotifyPlaylist[]>([]);
+  const [spotifyAvailable, setSpotifyAvailable] = useState(false);
+
+  // Load real playlists if user signed in with Spotify.
+  useEffect(() => {
+    spotifyApi.isAvailable().then((ok) => {
+      setSpotifyAvailable(ok);
+      if (ok) spotifyApi.getPlaylists(10).then(setMyPlaylists).catch(() => {});
+    });
+  }, []);
 
   const handleSelectPlaylist = (playlist: typeof FEATURED_SPOTIFY_PLAYLISTS[0]) => {
     setSelectedEmbedUri(`playlist/${playlist.id}`);
@@ -78,6 +89,7 @@ export default function SpotifyApp() {
           </div>
           <div>
             <h2 className="text-sm font-bold tracking-wide flex items-center gap-2">
+          {spotifyAvailable && <span className="text-[10px] text-[#1DB954] font-mono bg-[#1DB954]/10 px-1.5 py-0.5 rounded">CONNECTED</span>}
               Spotify Real Music <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#1DB954]/20 text-[#1DB954] border border-[#1DB954]/30">LIVE</span>
             </h2>
             <p className="text-[11px] text-white/50">{currentPlaylistTitle}</p>
@@ -144,6 +156,49 @@ export default function SpotifyApp() {
         {viewMode === 'featured' && (
           <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
             <div className="max-w-4xl mx-auto space-y-6">
+              {/* User's real playlists when signed in with Spotify */}
+              {myPlaylists.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3">
+                    <ListMusic className="w-4 h-4 text-[#1DB954]" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-white/50">Your Library</h3>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {myPlaylists.map((pl) => (
+                      <button
+                        key={pl.id}
+                        onClick={() => {
+                          setSelectedEmbedUri(`playlist/${pl.id}`);
+                          setCurrentPlaylistTitle(pl.name);
+                          setViewMode('embed');
+                          playTrack({
+                            id: `sp-${pl.id}`,
+                            title: pl.name,
+                            artist: 'Your Library',
+                            album: 'Spotify',
+                            coverUrl: pl.images?.[0]?.url || '',
+                            source: 'spotify',
+                          });
+                        }}
+                        className="flex items-center gap-3 p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-left"
+                      >
+                        {pl.images?.[0]?.url ? (
+                          <img src={pl.images[0].url} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-[#1DB954]/20 flex items-center justify-center">
+                            <Music2 className="w-5 h-5 text-[#1DB954]" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-white/90 truncate">{pl.name}</p>
+                          <p className="text-[10px] text-white/40">{pl.tracks.total} tracks</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               <div>
                 <h3 className="text-base font-bold mb-1">Global Top Playlists & Trending Hits</h3>
                 <p className="text-xs text-white/50">Click any playlist to stream real songs instantly through Continua OS</p>
