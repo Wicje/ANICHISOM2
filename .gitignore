@@ -64,3 +64,7 @@ yarn-error.log*
 *.pem
 *.key
 *.mp4
+
+# Test artifacts
+playwright-report/
+test-results/
