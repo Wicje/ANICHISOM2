@@ -7,9 +7,10 @@
  * Allows quick switching between workspaces.
  */
 import React, { useState, useEffect } from 'react';
-import { Layers, Plus, Trash2, Clock, ChevronDown } from 'lucide-react';
+import { Layers, Plus, Trash2, Clock, ChevronDown, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useContinuityStore } from '@/lib/stores/continuity.store';
+import { useTeamStore } from '@/lib/stores/team.store';
 
 function timeAgo(ms: number): string {
   const diff = Date.now() - ms;
@@ -24,8 +25,11 @@ function timeAgo(ms: number): string {
 
 export function WorkspaceSwitcher() {
   const { activeWorkspace, recentWorkspaces, isCapturing, startCapture, stopCapture, loadWorkspaces, deleteWorkspace } = useContinuityStore();
+  const { shareWorkspace } = useTeamStore();
   const [isOpen, setIsOpen] = useState(false);
   const [showNewInput, setShowNewInput] = useState(false);
+  const [showShareInput, setShowShareInput] = useState(false);
+  const [shareEmail, setShareEmail] = useState('');
   const [newName, setNewName] = useState('');
 
   useEffect(() => {
@@ -38,6 +42,19 @@ export function WorkspaceSwitcher() {
       setNewName('');
       setShowNewInput(false);
       setIsOpen(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (shareEmail.trim() && activeWorkspace) {
+      const ok = await shareWorkspace(activeWorkspace.id, shareEmail.trim());
+      if (ok) {
+        setShareEmail('');
+        setShowShareInput(false);
+        window.dispatchEvent(new CustomEvent('os:notify', {
+          detail: { title: 'Workspace Shared', description: `Shared with ${shareEmail}`, type: 'success' },
+        }));
+      }
     }
   };
 
@@ -109,16 +126,46 @@ export function WorkspaceSwitcher() {
                       )}
                     </div>
                   </div>
-                  <button
-                    onClick={() => { stopCapture(); setIsOpen(false); }}
-                    className="text-[10px] text-[var(--os-text-muted)] hover:text-[var(--os-error)] transition-colors shrink-0"
-                  >
-                    Stop
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => setShowShareInput(!showShareInput)}
+                      className="text-[10px] text-[var(--os-text-muted)] hover:text-[var(--os-primary)] transition-colors"
+                      title="Share workspace"
+                    >
+                      <Share2 className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => { stopCapture(); setIsOpen(false); }}
+                      className="text-[10px] text-[var(--os-text-muted)] hover:text-[var(--os-error)] transition-colors"
+                    >
+                      Stop
+                    </button>
+                  </div>
                 </div>
                 <div className="text-[10px] text-[var(--os-text-muted)] mt-1">
                   {activeWorkspace.resources.length} resource{activeWorkspace.resources.length !== 1 ? 's' : ''} tracked
                 </div>
+
+                {/* Share input */}
+                {showShareInput && (
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <input
+                      type="email"
+                      value={shareEmail}
+                      onChange={(e) => setShareEmail(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleShare(); if (e.key === 'Escape') { setShowShareInput(false); setShareEmail(''); } }}
+                      placeholder="Email to share with..."
+                      className="flex-1 px-2 py-1 text-[10px] bg-[var(--os-surface-elevated)] border border-[var(--os-border)] rounded-md text-[var(--os-text)] outline-none focus:border-[var(--os-primary)]"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleShare}
+                      className="px-2 py-1 text-[10px] font-medium rounded-md bg-[var(--os-primary)] text-white hover:brightness-110 transition-all"
+                    >
+                      Share
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
