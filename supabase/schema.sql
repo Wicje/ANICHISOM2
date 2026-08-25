@@ -169,8 +169,7 @@ CREATE TABLE IF NOT EXISTS public.workspace_shares (
   org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
   permission TEXT NOT NULL DEFAULT 'view'
     CHECK (permission IN ('view', 'edit', 'admin')),
-  created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(workspace_id, COALESCE(shared_with, '00000000-0000-0000-0000-000000000000'), COALESCE(org_id, '00000000-0000-0000-0000-000000000000'))
+  created_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- ============================================================
