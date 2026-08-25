@@ -16,6 +16,8 @@ import type { DeviceCapabilities } from '@/lib/capabilities';
 import { useAuthStore } from './auth.store';
 import { useDeviceStore } from './device.store';
 import { buildSmartRestoreResults } from '@/lib/continuity/smart-restore';
+import { discoverWorkspaces, type WorkspaceGroup } from '@/lib/continuity/auto-discovery';
+import { summarizeWorkspace, type WorkspaceSummary } from '@/lib/continuity/summarize';
 
 const AUTO_SAVE_INTERVAL_MS = 30_000; // 30 seconds
 
@@ -39,6 +41,10 @@ type ContinuityState = {
   isRestoring: boolean;
   restorePlan: RestorePlan | null;
 
+  // Intelligence
+  suggestedGroups: WorkspaceGroup[];
+  workspaceSummary: WorkspaceSummary | null;
+
   // Actions
   initialize: () => Promise<void>;
   startCapture: (name?: string) => void;
@@ -53,6 +59,8 @@ type ContinuityState = {
   deleteWorkspace: (id: string) => Promise<void>;
   restoreWorkspace: (workspace: WorkspaceSnapshot, caps: DeviceCapabilities, selectedIds?: Set<string>) => Promise<RestorePlan>;
   getActiveResources: () => WorkspaceResource[];
+  discoverWorkspaces: () => void;
+  refreshSummary: () => void;
 };
 
 export const useContinuityStore = create<ContinuityState>((set, get) => ({
@@ -61,6 +69,8 @@ export const useContinuityStore = create<ContinuityState>((set, get) => ({
   isCapturing: false,
   isRestoring: false,
   restorePlan: null,
+  suggestedGroups: [],
+  workspaceSummary: null,
 
   initialize: async () => {
     await get().loadWorkspaces();
@@ -297,6 +307,24 @@ export const useContinuityStore = create<ContinuityState>((set, get) => ({
   getActiveResources: () => {
     const state = get();
     return state.activeWorkspace?.resources || [];
+  },
+
+  discoverWorkspaces: () => {
+    const state = get();
+    const allResources = [
+      ...(state.activeWorkspace?.resources || []),
+      ...state.recentWorkspaces.flatMap(w => w.resources || []),
+    ];
+    const groups = discoverWorkspaces(allResources);
+    set({ suggestedGroups: groups });
+  },
+
+  refreshSummary: () => {
+    const state = get();
+    if (state.activeWorkspace) {
+      const summary = summarizeWorkspace(state.activeWorkspace);
+      set({ workspaceSummary: summary });
+    }
   },
 }));
 

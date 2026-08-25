@@ -6,11 +6,12 @@
  * Displays the current workspace name and recent workspaces.
  * Allows quick switching between workspaces.
  */
-import React, { useState, useEffect } from 'react';
-import { Layers, Plus, Trash2, Clock, ChevronDown, Share2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Layers, Plus, Trash2, Clock, ChevronDown, Share2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useContinuityStore } from '@/lib/stores/continuity.store';
 import { useTeamStore } from '@/lib/stores/team.store';
+import { summarizeWorkspace } from '@/lib/continuity/summarize';
 
 function timeAgo(ms: number): string {
   const diff = Date.now() - ms;
@@ -31,6 +32,12 @@ export function WorkspaceSwitcher() {
   const [showShareInput, setShowShareInput] = useState(false);
   const [shareEmail, setShareEmail] = useState('');
   const [newName, setNewName] = useState('');
+
+  // Generate summary for active workspace
+  const activeSummary = useMemo(() => {
+    if (!activeWorkspace) return null;
+    return summarizeWorkspace(activeWorkspace);
+  }, [activeWorkspace]);
 
   useEffect(() => {
     loadWorkspaces();
@@ -151,6 +158,26 @@ export function WorkspaceSwitcher() {
                 <div className="text-[10px] text-[var(--os-text-muted)] mt-1">
                   {activeWorkspace.resources.length} resource{activeWorkspace.resources.length !== 1 ? 's' : ''} tracked
                 </div>
+
+                {/* Workspace summary */}
+                {activeSummary && activeSummary.highlights.length > 0 && (
+                  <div className="mt-1.5 px-2 py-1.5 rounded-md bg-[var(--os-primary)]/5 border border-[var(--os-primary)]/10">
+                    <div className="flex items-center gap-1 mb-0.5">
+                      <Sparkles className="w-2.5 h-2.5 text-[var(--os-primary)]" />
+                      <span className="text-[9px] font-semibold uppercase tracking-wider text-[var(--os-primary)]">Summary</span>
+                    </div>
+                    <p className="text-[10px] text-[var(--os-text-muted)] leading-relaxed">{activeSummary.headline}</p>
+                    {activeSummary.highlights.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {activeSummary.highlights.slice(0, 3).map((h, i) => (
+                          <span key={i} className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--os-surface)] text-[var(--os-text-muted)] border border-[var(--os-border)]">
+                            {h.length > 20 ? h.slice(0, 20) + '…' : h}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Share input */}
                 {showShareInput && (

@@ -8,6 +8,7 @@
  */
 import { create } from 'zustand';
 import { useAuthStore } from '@/lib/stores/auth.store';
+import { subscribeToPresence, unsubscribePresence, type PresenceState } from '@/lib/continuity/presence';
 
 interface WorkspaceShare {
   id: string;
@@ -33,11 +34,15 @@ interface TeamState {
   sharesLoading: boolean;
   presenceLoading: boolean;
   error: string | null;
+  /** Active real-time subscription */
+  presenceUnsubscribe: (() => void) | null;
 
   shareWorkspace: (workspaceId: string, email: string, permission?: 'view' | 'edit') => Promise<boolean>;
   unshareWorkspace: (shareId: string, workspaceId: string) => Promise<boolean>;
   loadShares: (workspaceId: string) => Promise<void>;
   loadOrgPresence: (orgId: string) => Promise<void>;
+  subscribePresence: (orgId: string) => void;
+  unsubscribePresence: () => void;
   getSharesForWorkspace: (workspaceId: string) => WorkspaceShare[];
   getActiveMembers: () => OrgPresence[];
 }
@@ -48,6 +53,7 @@ export const useTeamStore = create<TeamState>((set, get) => ({
   sharesLoading: false,
   presenceLoading: false,
   error: null,
+  presenceUnsubscribe: null,
 
   shareWorkspace: async (workspaceId, email, permission = 'view') => {
     const user = useAuthStore.getState().currentUser;
@@ -149,6 +155,38 @@ export const useTeamStore = create<TeamState>((set, get) => ({
     } finally {
       set({ presenceLoading: false });
     }
+  },
+
+  subscribePresence: (orgId) => {
+    const user = useAuthStore.getState().currentUser;
+    if (!user) return;
+
+    // Unsubscribe from any existing channel
+    const prev = get().presenceUnsubscribe;
+    if (prev) prev();
+
+    const unsub = subscribeToPresence(orgId, user.id, (presence: PresenceState[]) => {
+      set({
+        presence: presence.map(p => ({
+          userId: p.userId,
+          orgId: p.orgId,
+          deviceName: p.deviceName,
+          deviceType: p.deviceType,
+          lastHeartbeatAt: p.lastHeartbeatAt,
+        })),
+      });
+    });
+
+    set({ presenceUnsubscribe: unsub });
+  },
+
+  unsubscribePresence: () => {
+    const unsub = get().presenceUnsubscribe;
+    if (unsub) {
+      unsub();
+      set({ presenceUnsubscribe: null });
+    }
+    unsubscribePresence();
   },
 
   getSharesForWorkspace: (workspaceId) => {
