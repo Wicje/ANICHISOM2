@@ -5,7 +5,6 @@ import {
   RotateCcw,
   Check,
   X,
-  ExternalLink,
   FileText,
   Globe,
   AppWindow,
@@ -136,17 +135,18 @@ export default function RestorePanel({ onDismiss, onRestore }: RestorePanelProps
     setFilter('high');
   };
 
+  const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+
   const handleRestore = async () => {
     if (!workspace || restoring) return;
     setRestoring(true);
     setRestoreProgress(0);
 
-    // Simulate step-by-step progress
     const total = selected.size;
-    const interval = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       setRestoreProgress((p) => {
         if (p >= total) {
-          clearInterval(interval);
+          if (intervalRef.current) clearInterval(intervalRef.current);
           return total;
         }
         return p + 1;
@@ -154,14 +154,21 @@ export default function RestorePanel({ onDismiss, onRestore }: RestorePanelProps
     }, 300);
 
     const caps = detectCapabilities();
-    const plan = await restoreWorkspace(workspace, caps);
-    clearInterval(interval);
+    const plan = await restoreWorkspace(workspace, caps, selected);
+    if (intervalRef.current) clearInterval(intervalRef.current);
     setRestoreProgress(total);
 
     setTimeout(() => {
       onRestore(plan);
     }, 400);
   };
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
 
   const selectedCount = selected.size;
 

@@ -5,7 +5,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { checkRouteRateLimit, apiOk, apiUnauthorized, apiInternal, requireSession } from '@/lib/api-helpers';
+import { checkRouteRateLimit, apiOk, apiInternal, requireSession } from '@/lib/api-helpers';
 import { createServerClient } from '@supabase/ssr';
 
 export async function GET(request: NextRequest) {
@@ -31,7 +31,8 @@ export async function GET(request: NextRequest) {
       .from('context_records')
       .select('domain, data, version, updated_at')
       .eq('user_id', session.userId)
-      .like('domain', 'workspace_snapshot_%')
+      .gte('domain', 'workspace_snapshot_')
+      .lt('domain', 'workspace_snapshot_\uffff')
       .eq('deleted', false)
       .order('updated_at', { ascending: false })
       .limit(20);

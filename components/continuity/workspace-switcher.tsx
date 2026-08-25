@@ -24,7 +24,7 @@ function timeAgo(ms: number): string {
 }
 
 export function WorkspaceSwitcher() {
-  const { activeWorkspace, recentWorkspaces, isCapturing, startCapture, stopCapture, loadWorkspaces, deleteWorkspace } = useContinuityStore();
+  const { activeWorkspace, recentWorkspaces, isCapturing, startCapture, stopCapture, saveWorkspace, loadWorkspaces, deleteWorkspace } = useContinuityStore();
   const { shareWorkspace } = useTeamStore();
   const [isOpen, setIsOpen] = useState(false);
   const [showNewInput, setShowNewInput] = useState(false);
@@ -47,12 +47,18 @@ export function WorkspaceSwitcher() {
 
   const handleShare = async () => {
     if (shareEmail.trim() && activeWorkspace) {
+      // Save workspace first so the server has it
+      await saveWorkspace();
       const ok = await shareWorkspace(activeWorkspace.id, shareEmail.trim());
       if (ok) {
         setShareEmail('');
         setShowShareInput(false);
         window.dispatchEvent(new CustomEvent('os:notify', {
           detail: { title: 'Workspace Shared', description: `Shared with ${shareEmail}`, type: 'success' },
+        }));
+      } else {
+        window.dispatchEvent(new CustomEvent('os:notify', {
+          detail: { title: 'Share Failed', description: 'Could not share workspace', type: 'error' },
         }));
       }
     }

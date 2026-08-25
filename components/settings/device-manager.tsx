@@ -50,9 +50,13 @@ const TRUST_DEFAULT = TRUST_CONFIG.temporary;
 export function DeviceManager() {
   const { deviceId, allDevices, fetchDevices, setTrustLevel, revokeDevice } = useDeviceStore();
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
+  const revokeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     fetchDevices();
+    return () => {
+      if (revokeTimerRef.current) clearTimeout(revokeTimerRef.current);
+    };
   }, [fetchDevices]);
 
   const currentDevice = allDevices.find((d) => d.id === deviceId);
@@ -68,9 +72,11 @@ export function DeviceManager() {
     if (confirmRevoke === id) {
       revokeDevice(id);
       setConfirmRevoke(null);
+      if (revokeTimerRef.current) clearTimeout(revokeTimerRef.current);
     } else {
       setConfirmRevoke(id);
-      setTimeout(() => setConfirmRevoke(null), 3000);
+      if (revokeTimerRef.current) clearTimeout(revokeTimerRef.current);
+      revokeTimerRef.current = setTimeout(() => setConfirmRevoke(null), 3000);
     }
   };
 

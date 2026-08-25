@@ -42,6 +42,8 @@ export async function PATCH(
     const updateData: Record<string, any> = { trust_level: trustLevel };
     if (trustLevel === 'revoked') {
       updateData.revoked_at = new Date().toISOString();
+    } else {
+      updateData.revoked_at = null;
     }
 
     const { error } = await supabase

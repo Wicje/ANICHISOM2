@@ -9,12 +9,12 @@ import type {
   WorkspaceSnapshot,
   WorkspaceResource,
   ResourceType,
-  ResourceRelevance,
   RestoreResult,
   RestorePlan,
 } from '@/lib/continuity/types';
 import type { DeviceCapabilities } from '@/lib/capabilities';
 import { useAuthStore } from './auth.store';
+import { useDeviceStore } from './device.store';
 
 const AUTO_SAVE_INTERVAL_MS = 30_000; // 30 seconds
 
@@ -50,7 +50,7 @@ type ContinuityState = {
   saveWorkspace: () => Promise<void>;
   loadWorkspaces: () => Promise<void>;
   deleteWorkspace: (id: string) => Promise<void>;
-  restoreWorkspace: (workspace: WorkspaceSnapshot, caps: DeviceCapabilities) => Promise<RestorePlan>;
+  restoreWorkspace: (workspace: WorkspaceSnapshot, caps: DeviceCapabilities, selectedIds?: Set<string>) => Promise<RestorePlan>;
   getActiveResources: () => WorkspaceResource[];
 };
 
@@ -64,14 +64,42 @@ export const useContinuityStore = create<ContinuityState>((set, get) => ({
   initialize: async () => {
     await get().loadWorkspaces();
 
-    // Start auto-save if capturing
+    // Auto-resume most recent workspace or start a new one
+    const state = get();
+    if (!state.isCapturing && !state.activeWorkspace) {
+      const recent = [...state.recentWorkspaces].sort(
+        (a, b) => (b.syncedAt || b.capturedAt) - (a.syncedAt || a.capturedAt)
+      );
+      if (recent.length > 0) {
+        const r = recent[0]!;
+        const resumed: WorkspaceSnapshot = {
+          id: r.id,
+          userId: r.userId,
+          name: r.name,
+          activeTask: r.activeTask || '',
+          resources: r.resources || [],
+          deviceCapabilities: r.deviceCapabilities || ({} as DeviceCapabilities),
+          capturedAt: r.capturedAt || Date.now(),
+          syncedAt: r.syncedAt || 0,
+          isActive: true,
+        };
+        set({ activeWorkspace: resumed, isCapturing: true });
+      } else {
+        get().startCapture('Current Session');
+      }
+    }
+
+    // Start auto-save timer
     if (autoSaveTimer) clearInterval(autoSaveTimer);
     autoSaveTimer = setInterval(() => {
-      const state = get();
-      if (state.isCapturing && state.activeWorkspace) {
-        state.saveWorkspace();
+      const s = get();
+      if (s.isCapturing && s.activeWorkspace) {
+        s.saveWorkspace();
       }
     }, AUTO_SAVE_INTERVAL_MS);
+
+    // Set up event listeners for automatic capture
+    setupCaptureListeners();
   },
 
   startCapture: (name?: string) => {
@@ -97,11 +125,10 @@ export const useContinuityStore = create<ContinuityState>((set, get) => ({
     }));
   },
 
-  stopCapture: () => {
+  stopCapture: async () => {
     const state = get();
     if (state.activeWorkspace) {
-      // Save before stopping
-      state.saveWorkspace();
+      await state.saveWorkspace();
     }
     set({ isCapturing: false });
   },
@@ -124,7 +151,6 @@ export const useContinuityStore = create<ContinuityState>((set, get) => ({
                   ...r,
                   lastAccessed: Date.now(),
                   accessCount: r.accessCount + 1,
-                  dwellTimeMs: r.dwellTimeMs,
                   metadata: { ...r.metadata, ...resource.metadata },
                 }
               : r
@@ -228,7 +254,7 @@ export const useContinuityStore = create<ContinuityState>((set, get) => ({
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
-          set({ recentWorkspaces: data.data || [] });
+          set({ recentWorkspaces: (data.data || []) as WorkspaceSnapshot[] });
         }
       }
     } catch {
@@ -249,26 +275,27 @@ export const useContinuityStore = create<ContinuityState>((set, get) => ({
     }
   },
 
-  restoreWorkspace: async (workspace, caps) => {
+  restoreWorkspace: async (workspace, caps, selectedIds) => {
     set({ isRestoring: true });
 
     const results: RestoreResult[] = [];
+    const filter = selectedIds ? (r: WorkspaceResource) => selectedIds.has(r.id) : () => true;
 
     for (const resource of workspace.resources) {
+      if (!filter(resource)) {
+        results.push({ resourceId: resource.id, resource, status: 'skipped', reason: 'Not selected' });
+        continue;
+      }
+
       let status: RestoreResult['status'] = 'skipped';
       let restoredUrl: string | undefined;
       let reason: string | undefined;
 
       switch (resource.type) {
         case 'url': {
-          // Web resources can always be opened in a browser
-          if (caps.hasWebWorkers || caps.hasServiceWorker) {
-            status = 'restored';
-            restoredUrl = resource.metadata.url || resource.identifier;
-          } else {
-            status = 'unavailable';
-            reason = 'No browser available';
-          }
+          // URLs can always be opened in a browser
+          status = 'restored';
+          restoredUrl = resource.metadata.url || resource.identifier;
           break;
         }
         case 'application': {
@@ -319,27 +346,36 @@ export const useContinuityStore = create<ContinuityState>((set, get) => ({
 }));
 
 // ─── Event listeners for automatic resource capture ────────
+// Tracked for cleanup to prevent leaks on HMR / multiple initialize() calls.
 
-if (typeof window !== 'undefined') {
-  // Capture browser tab changes
-  window.addEventListener('os:tab-opened', ((e: CustomEvent) => {
+let captureCleanupFns: (() => void)[] = [];
+
+function setupCaptureListeners() {
+  if (typeof window === 'undefined') return;
+
+  // Tear down any previous listeners first
+  captureCleanupFns.forEach(fn => fn());
+  captureCleanupFns = [];
+
+  const onTabOpened = ((e: CustomEvent) => {
     const { url, title } = e.detail || {};
     if (url) {
+      const source = useDeviceStore.getState().deviceId || '';
       useContinuityStore.getState().addResource({
         type: 'url',
         identifier: url,
         name: title || url,
         metadata: { url, title },
         relevance: 'medium',
-        source: '',
+        source,
       });
     }
-  }) as EventListener);
+  }) as EventListener;
 
-  // Capture file opens from the file manager
-  window.addEventListener('os:file-opened', ((e: CustomEvent) => {
+  const onFileOpened = ((e: CustomEvent) => {
     const { file, appId } = e.detail || {};
     if (file) {
+      const source = useDeviceStore.getState().deviceId || '';
       useContinuityStore.getState().addResource({
         type: 'file',
         identifier: file.id || file.path,
@@ -351,23 +387,33 @@ if (typeof window !== 'undefined') {
           appId,
         },
         relevance: 'high',
-        source: '',
+        source,
       });
     }
-  }) as EventListener);
+  }) as EventListener;
 
-  // Capture app focus changes
-  window.addEventListener('os:app-focused', ((e: CustomEvent) => {
+  const onAppFocused = ((e: CustomEvent) => {
     const { appId, title } = e.detail || {};
     if (appId) {
+      const source = useDeviceStore.getState().deviceId || '';
       useContinuityStore.getState().addResource({
         type: 'application',
         identifier: appId,
         name: title || appId,
         metadata: { appId, appTitle: title },
         relevance: 'medium',
-        source: '',
+        source,
       });
     }
-  }) as EventListener);
+  }) as EventListener;
+
+  window.addEventListener('os:tab-opened', onTabOpened);
+  window.addEventListener('os:file-opened', onFileOpened);
+  window.addEventListener('os:app-focused', onAppFocused);
+
+  captureCleanupFns.push(
+    () => window.removeEventListener('os:tab-opened', onTabOpened),
+    () => window.removeEventListener('os:file-opened', onFileOpened),
+    () => window.removeEventListener('os:app-focused', onAppFocused),
+  );
 }

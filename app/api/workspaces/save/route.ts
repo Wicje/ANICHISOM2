@@ -5,7 +5,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { checkRouteRateLimit, apiOk, apiError, apiUnauthorized, apiInternal, requireSession } from '@/lib/api-helpers';
+import { checkRouteRateLimit, apiOk, apiError, apiInternal, requireSession } from '@/lib/api-helpers';
 import { createServerClient } from '@supabase/ssr';
 
 // POST /api/workspaces/save — save a workspace snapshot
@@ -22,6 +22,12 @@ export async function POST(request: NextRequest) {
 
     if (!workspace || !workspace.id || !workspace.name) {
       return apiError('Invalid workspace: id and name required');
+    }
+
+    // Limit workspace payload to 512KB
+    const payloadSize = JSON.stringify(workspace).length;
+    if (payloadSize > 512 * 1024) {
+      return apiError('Workspace data too large (max 512KB)');
     }
 
     const supabase = createServerClient(

@@ -6,7 +6,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { checkRouteRateLimit, apiOk, apiError, apiUnauthorized, apiInternal, requireSession } from '@/lib/api-helpers';
+import { checkRouteRateLimit, apiOk, apiError, apiInternal, requireSession } from '@/lib/api-helpers';
 import { createServerClient } from '@supabase/ssr';
 
 export async function POST(request: NextRequest) {
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from('devices')
-      .select('*')
+      .select('id, user_id, device_name, trust_level, platform, browser, last_seen_at, created_at, revoked_at')
       .eq('user_id', session.userId)
       .order('last_seen_at', { ascending: false });
 

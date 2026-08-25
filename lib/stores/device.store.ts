@@ -59,9 +59,10 @@ type DeviceRegistration = {
 };
 
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+let cleanupFns: (() => void)[] = [];
 
-function getOrCreateDeviceId(): string {
-  if (typeof window === 'undefined') return '';
+function getOrCreateDeviceId(): string | null {
+  if (typeof window === 'undefined') return null;
   let id = localStorage.getItem(DEVICE_ID_KEY);
   if (!id) {
     id = `dev-${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)}`;
@@ -117,16 +118,22 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
       }
     }, HEARTBEAT_INTERVAL_MS);
 
-    // Listen for online/offline
+    // Listen for online/offline + heartbeat on focus
     if (typeof window !== 'undefined') {
-      window.addEventListener('online', () => set({ isOnline: true }));
-      window.addEventListener('offline', () => set({ isOnline: false }));
-
-      // Heartbeat on window focus
-      window.addEventListener('focus', () => {
-        const state = get();
-        if (state.isRegistered) state.heartbeat();
-      });
+      const onOnline = () => set({ isOnline: true });
+      const onOffline = () => set({ isOnline: false });
+      const onFocus = () => {
+        const s = get();
+        if (s.isRegistered) s.heartbeat();
+      };
+      window.addEventListener('online', onOnline);
+      window.addEventListener('offline', onOffline);
+      window.addEventListener('focus', onFocus);
+      cleanupFns.push(
+        () => window.removeEventListener('online', onOnline),
+        () => window.removeEventListener('offline', onOffline),
+        () => window.removeEventListener('focus', onFocus),
+      );
     }
   },
 
@@ -248,5 +255,7 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
       clearInterval(heartbeatTimer);
       heartbeatTimer = null;
     }
+    cleanupFns.forEach(fn => fn());
+    cleanupFns = [];
   },
 }));

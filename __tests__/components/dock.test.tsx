@@ -68,6 +68,29 @@ vi.mock('@/lib/utils', () => ({
   cn: (...args: any[]) => args.filter(Boolean).join(' '),
 }));
 
+vi.mock('@/lib/stores/continuity.store', () => ({
+  useContinuityStore: Object.assign(
+    vi.fn(() => ({
+      activeWorkspace: null,
+      recentWorkspaces: [],
+      isCapturing: false,
+      startCapture: vi.fn(),
+      stopCapture: vi.fn(),
+      saveWorkspace: vi.fn(),
+      loadWorkspaces: vi.fn(),
+      deleteWorkspace: vi.fn(),
+    })),
+    { getState: vi.fn(() => ({ activeWorkspace: null, recentWorkspaces: [], isCapturing: false })) }
+  ),
+}));
+
+vi.mock('@/lib/stores/team.store', () => ({
+  useTeamStore: Object.assign(
+    vi.fn(() => ({ shareWorkspace: vi.fn() })),
+    { getState: vi.fn(() => ({ shareWorkspace: vi.fn() })) }
+  ),
+}));
+
 // Auth store mock — use vi.hoisted so the variable is available inside vi.mock
 const { authStoreFn } = vi.hoisted(() => ({
   authStoreFn: vi.fn(() => ({

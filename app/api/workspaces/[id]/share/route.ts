@@ -5,7 +5,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { checkRouteRateLimit, apiOk, apiError, apiUnauthorized, apiInternal, requireSession } from '@/lib/api-helpers';
+import { checkRouteRateLimit, apiOk, apiError, apiInternal, requireSession } from '@/lib/api-helpers';
 import { createServerClient } from '@supabase/ssr';
 
 export async function POST(
@@ -51,6 +51,20 @@ export async function POST(
 
     if (lookupError || !targetUser) {
       return apiError('User not found', 404);
+    }
+
+    // Verify workspace ownership
+    const domain = `workspace_snapshot_${id}`;
+    const { data: ownerCheck } = await supabase
+      .from('context_records')
+      .select('id')
+      .eq('user_id', session.userId)
+      .eq('domain', domain)
+      .eq('deleted', false)
+      .single();
+
+    if (!ownerCheck) {
+      return apiError('Workspace not found', 404);
     }
 
     const { data: share, error: insertError } = await supabase

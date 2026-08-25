@@ -1,5 +1,11 @@
 'use client';
 
+/**
+ * Team Store — workspace shares and org presence.
+ *
+ * Manages sharing workspaces with team members and tracking
+ * who is active in the organization.
+ */
 import { create } from 'zustand';
 import { useAuthStore } from '@/lib/stores/auth.store';
 
@@ -24,10 +30,12 @@ interface OrgPresence {
 interface TeamState {
   shares: WorkspaceShare[];
   presence: OrgPresence[];
-  loading: boolean;
+  sharesLoading: boolean;
+  presenceLoading: boolean;
+  error: string | null;
 
   shareWorkspace: (workspaceId: string, email: string, permission?: 'view' | 'edit') => Promise<boolean>;
-  unshareWorkspace: (shareId: string) => Promise<boolean>;
+  unshareWorkspace: (shareId: string, workspaceId: string) => Promise<boolean>;
   loadShares: (workspaceId: string) => Promise<void>;
   loadOrgPresence: (orgId: string) => Promise<void>;
   getSharesForWorkspace: (workspaceId: string) => WorkspaceShare[];
@@ -37,7 +45,9 @@ interface TeamState {
 export const useTeamStore = create<TeamState>((set, get) => ({
   shares: [],
   presence: [],
-  loading: false,
+  sharesLoading: false,
+  presenceLoading: false,
+  error: null,
 
   shareWorkspace: async (workspaceId, email, permission = 'view') => {
     const user = useAuthStore.getState().currentUser;
@@ -50,27 +60,32 @@ export const useTeamStore = create<TeamState>((set, get) => ({
         body: JSON.stringify({ email, permission }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.share) {
-          set(state => ({
-            shares: [...state.shares, data.share],
-          }));
-          return true;
-        }
+      const data = await res.json();
+      if (res.ok && data.success) {
+        set(state => ({
+          shares: [...state.shares, {
+            id: data.data.id,
+            workspaceId,
+            sharedBy: user.id,
+            sharedWith: null,
+            orgId: null,
+            permission,
+            createdAt: Date.now(),
+          }],
+        }));
+        return true;
       }
+      set({ error: data.error || 'Failed to share' });
     } catch (err) {
       console.error('[team] Share failed:', err);
+      set({ error: 'Network error' });
     }
     return false;
   },
 
-  unshareWorkspace: async (shareId) => {
-    const share = get().shares.find(s => s.id === shareId);
-    if (!share) return false;
-
+  unshareWorkspace: async (shareId, workspaceId) => {
     try {
-      const res = await fetch(`/api/workspaces/${share.workspaceId}/unshare`, {
+      const res = await fetch(`/api/workspaces/${workspaceId}/unshare`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shareId }),
@@ -89,24 +104,20 @@ export const useTeamStore = create<TeamState>((set, get) => ({
   },
 
   loadShares: async (workspaceId) => {
-    set({ loading: true });
+    set({ sharesLoading: true, error: null });
     try {
-      const res = await fetch(`/api/workspaces/${workspaceId}/shares`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          set({ shares: data.data || [] });
-        }
-      }
+      // Shares are loaded from the workspace's context record data
+      // There's no separate shares endpoint, so we track them locally
+      // after share/unshare operations
     } catch {
-      // Silently fail
+      set({ error: 'Failed to load shares' });
     } finally {
-      set({ loading: false });
+      set({ sharesLoading: false });
     }
   },
 
   loadOrgPresence: async (orgId) => {
-    set({ loading: true });
+    set({ presenceLoading: true, error: null });
     try {
       const res = await fetch(`/api/orgs/${orgId}/presence`);
       if (res.ok) {
@@ -116,9 +127,9 @@ export const useTeamStore = create<TeamState>((set, get) => ({
         }
       }
     } catch {
-      // Silently fail
+      set({ error: 'Failed to load presence' });
     } finally {
-      set({ loading: false });
+      set({ presenceLoading: false });
     }
   },
 
