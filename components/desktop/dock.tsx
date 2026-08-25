@@ -13,6 +13,7 @@ import { APP_MANIFEST } from '@/lib/app-manifest';
 import { WEB_APP_CATALOG } from '@/lib/web-app-catalog';
 import { AppIcon } from '@/components/ui/app-icon';
 import { getAllPlugins, isPluginActive } from '@/lib/plugin-registry';
+import { WorkspaceSwitcher } from '@/components/continuity/workspace-switcher';
 
 const PINNED_APPS = ['terminal', 'files', 'browser', 'code', 'settings', 'store'];
 
@@ -291,6 +292,11 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
           );
         })}
       </nav>
+
+      {/* Workspace Switcher */}
+      <div className="pointer-events-auto mb-1">
+        <WorkspaceSwitcher />
+      </div>
     </div>
   );
 }
