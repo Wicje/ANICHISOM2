@@ -10,6 +10,7 @@ import {
   ChevronRight, Users, Key, EyeOff, Fingerprint, Timer, WifiOff, Rocket,
   ChevronDown, Server, Sun, Moon, Smartphone, Globe, Code2, Cog
 } from 'lucide-react';
+import { JsonLd } from '@/components/seo/json-ld';
 
 /* ─── Theme Hook ─────────────────────────────────────────── */
 function useLandingTheme() {
@@ -139,6 +140,9 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[var(--os-bg)] text-[var(--os-text)] font-sans selection:bg-primary/30 selection:text-primary overflow-x-hidden antialiased">
+
+      {/* SEO: JSON-LD Structured Data */}
+      <JsonLd />
 
       {/* ─── Ambient Glow ─── */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">

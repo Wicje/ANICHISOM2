@@ -1,6 +1,7 @@
 User-agent: *
+Allow: /
 Disallow: /api/
 Disallow: /_next/
-Allow: /
+Disallow: /os/
 
 Sitemap: https://continuaos.cc/sitemap.xml
