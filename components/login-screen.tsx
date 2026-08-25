@@ -137,6 +137,10 @@ export function LoginScreen() {
         });
         window.dispatchEvent(new CustomEvent('os:fresh-sign-in'));
       } else {
+        // Attempt sign-in. If the email doesn't exist yet, auto-create
+        // the account so users are never stuck at a dead "invalid credentials"
+        // screen — "Sign In" doubles as "Sign In or Create Account".
+        let loginError: { message?: string } | null = null;
         try {
           const { data, error } = await supabase.auth.signInWithPassword({
             email,
@@ -154,18 +158,47 @@ export function LoginScreen() {
             window.dispatchEvent(new CustomEvent('os:fresh-sign-in'));
             return;
           }
+          loginError = error;
         } catch {
-          // Fallback to local session
+          // Network error — treat as login failure, try auto-create below
         }
 
-        // Resilient Fallback: Never lock user out
-        setCurrentUser({
-          id: `usr-${Date.now()}`,
-          name: email.split('@')[0] || 'Continua User',
-          role: 'user',
-          email,
-        });
-        window.dispatchEvent(new CustomEvent('os:fresh-sign-in'));
+        // If sign-in failed because the user doesn't exist, auto-sign-up.
+        const msg = loginError?.message?.toLowerCase() || '';
+        const isUnknownUser = msg.includes('invalid login') || msg.includes('user not found')
+          || msg.includes('invalid email') || msg.includes('email not confirmed');
+
+        if (isUnknownUser) {
+          setSuccessMsg('No account found — creating one for you\u2026');
+          try {
+            const { data, error: signUpError } = await supabase.auth.signUp({
+              email,
+              password,
+              options: {
+                data: { name: displayName || email.split('@')[0] },
+              },
+            });
+            if (!signUpError && data?.user) {
+              setCurrentUser({
+                id: data.user.id,
+                name: data.user.user_metadata?.name || displayName || email.split('@')[0],
+                role: (data.user.user_metadata?.role as OSRole) || 'user',
+                avatarUrl: data.user.user_metadata?.avatar_url,
+                email: data.user.email || undefined,
+              });
+              window.dispatchEvent(new CustomEvent('os:fresh-sign-in'));
+              return;
+            }
+            if (signUpError) throw signUpError;
+          } catch (autoSignUpErr: any) {
+            setError(autoSignUpErr?.message || 'Failed to create account');
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        // Fallback: real Supabase error (wrong password, etc.)
+        setError(loginError?.message || 'Invalid email or password');
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Authentication failed';
@@ -353,7 +386,7 @@ export function LoginScreen() {
             className="w-full bg-white/[0.06] hover:bg-white/[0.1] text-white/90 border border-white/[0.08] hover:border-white/[0.15] h-11"
           >
             <GoogleIcon className="w-4 h-4" />
-            Continue with Google
+            Continue with Google (or create account)
           </Button>
 
           <Button
@@ -364,7 +397,7 @@ export function LoginScreen() {
             className="w-full bg-white/[0.06] hover:bg-white/[0.1] text-white/90 border border-white/[0.08] hover:border-white/[0.15] h-11"
           >
             <GitHubIcon className="w-4 h-4" />
-            Continue with GitHub
+            Continue with GitHub (or create account)
           </Button>
 
           <Button
@@ -375,7 +408,7 @@ export function LoginScreen() {
             className="w-full bg-[#1DB954]/[0.08] hover:bg-[#1DB954]/[0.15] text-[#1DB954] border border-[#1DB954]/[0.15] hover:border-[#1DB954]/[0.3] h-11"
           >
             <SpotifyIcon className="w-4 h-4" />
-            Continue with Spotify
+            Continue with Spotify (or create account)
           </Button>
 
           {passkeySupported && (
