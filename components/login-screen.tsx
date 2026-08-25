@@ -467,11 +467,33 @@ export function LoginScreen() {
         <div className="mt-5 text-center">
           <button
             onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setSuccessMsg(''); }}
-            className="text-white/20 hover:text-white/50 text-[11px] uppercase tracking-[0.15em] transition-colors font-mono"
-          >
+            className="text-white/20 hover:text-white/50 text-[11px] uppercase tracking-[0.15em] transition-colors font-mono"          >
             {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
           </button>
         </div>
+
+        {/* E2E-only local entry point — compiled out unless NEXT_PUBLIC_E2E=1.
+            Lets UI tests drive the full desktop without live Supabase. */}
+        {process.env.NEXT_PUBLIC_E2E === '1' && (
+          <button
+            type="button"
+            data-testid="e2e-local-login"
+            onClick={() => {
+              const user = {
+                id: 'e2e-local-user',
+                name: 'E2E Tester',
+                role: 'user' as OSRole,
+                avatarUrl: '/images/avatar_cyber.jpg',
+                email: 'e2e@local.test',
+              };
+              setCurrentUser(user);
+              window.dispatchEvent(new Event('os:fresh-sign-in'));
+            }}
+            className="mt-6 w-full text-center text-[11px] uppercase tracking-[0.15em] font-mono text-white/30 hover:text-white/60 transition-colors"
+          >
+            Continue as Local User (E2E)
+          </button>
+        )}
       </div>
     </div>
   );

@@ -25,7 +25,12 @@ export default defineConfig({
         launchOptions: {
           executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || systemChromium,
           // Container-safe defaults; avoids tab crashes on small /dev/shm
-          args: ['--disable-dev-shm-usage', '--no-sandbox'],
+          args: [
+            '--disable-dev-shm-usage',
+            '--no-sandbox',
+            '--use-fake-ui-for-media-stream',
+            '--use-fake-device-for-media-stream',
+          ],
         },
       },
     },
