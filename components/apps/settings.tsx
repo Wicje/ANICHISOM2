@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useFileStore } from '@/lib/stores/file.store';
 import { useOS, OSWindow } from '@/lib/os-context';
-import { Image as ImageIcon, Palette, Save, Type, Eye, Settings2, Monitor, User, Volume2, VolumeX, Shield, Keyboard, CloudRain, Coffee, Trees, Radio, Download, Upload, HardDrive, Trash2, Github, Sparkles, ExternalLink, Loader2, CheckCircle2 } from 'lucide-react';
+import { Image as ImageIcon, Palette, Save, Type, Eye, Settings2, Monitor, User, Volume2, VolumeX, Shield, Keyboard, CloudRain, Coffee, Trees, Radio, Download, Upload, HardDrive, Trash2, Github, Sparkles, ExternalLink, Loader2, CheckCircle2, Smartphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useThemeStore } from '@/lib/stores/theme.store';
 import { useAuthStore } from '@/lib/stores/auth.store';
 import { usePrivacyStore } from '@/lib/stores/privacy.store';
 import { audioSystem } from '@/lib/services/audio-engine';
 import { ContextPrivacySection } from '@/components/apps/context-privacy-settings';
+import { DeviceManager } from '@/components/settings/device-manager';
 import { ambientSounds, type AmbientPreset } from '@/lib/services/ambient-sounds';
 import { githubDeviceFlow, DeviceCodeResponse, GitHubProfile } from '@/lib/services/github-device-flow.service';
 import { GoogleSSOService, GoogleUser } from '@/lib/services/google-sso.service';
@@ -66,7 +67,7 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
   const [customUrl, setCustomUrl] = useState('');
   const [avatarStyle, setAvatarStyle] = useState<AvatarStyle>('gradient');
   const [avatarShuffle, setAvatarShuffle] = useState(0);
-  const [activeTab, setActiveTab] = useState<'appearance' | 'system' | 'account' | 'privacy'>('appearance');
+  const [activeTab, setActiveTab] = useState<'appearance' | 'system' | 'account' | 'privacy' | 'devices'>('appearance');
   const [contextExporting, setContextExporting] = useState(false);
   const [contextImporting, setContextImporting] = useState(false);
   const connectedSources = useFileStore(s => s.connectedSources);
@@ -287,6 +288,7 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
     { id: 'appearance', label: 'Appearance', icon: ImageIcon },
     { id: 'system', label: 'System & Display', icon: Monitor },
     { id: 'account', label: 'Account & Sync', icon: User },
+    { id: 'devices', label: 'Devices', icon: Smartphone },
     { id: 'privacy', label: 'Privacy & Security', icon: Shield },
   ] as const;
 
@@ -1248,6 +1250,12 @@ export function SettingsApp({ window: osWindow }: { window: OSWindow }) {
                   ))}
                 </div>
               </section>
+            </div>
+          )}
+
+          {activeTab === 'devices' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <DeviceManager />
             </div>
           )}
 

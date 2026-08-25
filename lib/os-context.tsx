@@ -168,6 +168,14 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
       // (onboarding-as-consequence). Silent no-op without memberships.
       if (currentUser) {
         assembleOnBoot().catch(() => {});
+
+        // Initialize device registration and continuity engine
+        import('@/lib/stores/device.store').then(m =>
+          m.useDeviceStore.getState().initialize()
+        ).catch(() => {});
+        import('@/lib/stores/continuity.store').then(m =>
+          m.useContinuityStore.getState().initialize()
+        ).catch(() => {});
       }
     };
 

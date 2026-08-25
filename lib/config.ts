@@ -57,6 +57,14 @@ export const RATE_LIMITS = {
   CONNECT_PAIR: { max: 30, windowMs: 5 * 60 * 1000 },
   ORG_ADMIN: { max: 30, windowMs: 5 * 60 * 1000 },
   JOURNAL_INGEST: { max: 60, windowMs: 60 * 1000 },
+  DEVICE_REGISTER: { max: 10, windowMs: 5 * 60 * 1000 },
+  DEVICE_LIST: { max: 30, windowMs: 60 * 1000 },
+  DEVICE_HEARTBEAT: { max: 60, windowMs: 60 * 1000 },
+  DEVICE_UPDATE: { max: 20, windowMs: 5 * 60 * 1000 },
+  DEVICE_DELETE: { max: 10, windowMs: 5 * 60 * 1000 },
+  WORKSPACE_SAVE: { max: 30, windowMs: 60 * 1000 },
+  WORKSPACE_LIST: { max: 30, windowMs: 60 * 1000 },
+  WORKSPACE_DELETE: { max: 10, windowMs: 5 * 60 * 1000 },
 } as const;
 
 // ─── Timeouts ─────────────────────────────────────────────────────────────

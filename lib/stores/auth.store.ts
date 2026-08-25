@@ -115,6 +115,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         };
         set({ currentUser: osUser, sessionChecked: true });
         writeDomain(AUTH_DOMAIN, osUser);
+
+        // Auto-register device after auth
+        try {
+          const { useDeviceStore } = await import('@/lib/stores/device.store');
+          const deviceStore = useDeviceStore.getState();
+          if (!deviceStore.isRegistered) {
+            await deviceStore.register(user.id);
+          }
+          deviceStore.heartbeat();
+        } catch { /* device registration is non-blocking */ }
+
         return;
       }
     } catch {}
