@@ -257,18 +257,7 @@ export const WEB_APP_CATALOG: WebAppCatalogItem[] = [
     rating: 4.7,
     isDirectEmbed: false,
   },
-  {
-    id: 'notion',
-    name: 'Notion',
-    category: 'business',
-    icon: BookOpen,
-    iconImage: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='26' fill='%23000'/%3E%3Cpath d='M35 80V40l25-10 25 10v40l-25 10z' fill='%23fff' opacity='.9'/%3E%3Cpath d='M35 40l25 10 25-10' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Cline x1='60' y1='50' x2='60' y2='80' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E",
-    description: 'All-in-one connected workspace, team wiki, docs, and databases',
-    url: 'https://notion.so',
-    installed: true,
-    rating: 4.9,
-    isDirectEmbed: false,
-  },
+  /* Notion removed — enforces X-Frame-Options: DENY; auth loop in iframe */
   {
     id: 'airtable',
     name: 'Airtable',

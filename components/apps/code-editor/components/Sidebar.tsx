@@ -230,7 +230,7 @@ export function Sidebar({ activityTab, setActivityTab, files, activeFileId, setA
          <button onClick={() => setActivityTab('git')} className={cn("p-2 rounded cursor-pointer transition-colors relative", activityTab === 'git' ? "text-white" : "hover:text-white")}>
            {activityTab === 'git' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500" />}
            <GitBranch className="w-6 h-6" />
-           <div className="absolute right-1 bottom-1 w-3.5 h-3.5 bg-blue-500 rounded-full text-white text-[8px] flex items-center justify-center font-bold">2</div>
+           {files.length > 0 && <div className="absolute right-1 bottom-1 w-3.5 h-3.5 bg-blue-500 rounded-full text-white text-[8px] flex items-center justify-center font-bold">{files.length > 99 ? '99+' : files.length}</div>}
          </button>
          <button onClick={() => setActivityTab('debug')} className={cn("p-2 rounded cursor-pointer transition-colors relative", activityTab === 'debug' ? "text-white" : "hover:text-white")}>
            {activityTab === 'debug' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500" />}
@@ -268,39 +268,40 @@ export function Sidebar({ activityTab, setActivityTab, files, activeFileId, setA
            </>
          )}
 
-         {/* GIT / SOURCE CONTROL TAB */}
-         {activityTab === 'git' && (
-           <div className="flex flex-col h-full">
-             <div className="p-3 text-[#cccccc] text-[11px] font-semibold uppercase tracking-wider flex justify-between items-center">
-               <span>Source Control</span>
-               <Check className="w-3.5 h-3.5 cursor-pointer hover:text-white" />
-             </div>
-             <div className="px-3 pb-3 border-b border-[#3c3c3c]">
-               <input 
-                 value={commitMsg}
-                 onChange={e => setCommitMsg(e.target.value)}
-                 placeholder="Message (Enter to commit)" 
-                 className="w-full bg-[#3c3c3c] border border-transparent rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors placeholder-white/40" 
-               />
-               <button className="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white rounded py-1 text-xs transition-colors">Commit</button>
-             </div>
-             <div className="flex flex-col mt-2 px-2">
-               <div className="text-[11px] font-bold uppercase text-white/50 mb-1 px-1">Changes</div>
-               <div className="flex items-center justify-between p-1 hover:bg-[#2a2d2e] cursor-pointer text-[13px] text-[#cccccc] rounded">
-                  <div className="flex items-center gap-2">
-                    <FileIcon className="w-3.5 h-3.5 text-[#e3c14a]" /> <span className={cn("truncate", activeFileId === 'app.tsx' && "text-[#e2c08d]")}>app.tsx</span>
-                  </div>
-                  <span className="text-[#e2c08d] text-xs font-bold">M</span>
-               </div>
-               <div className="flex items-center justify-between p-1 hover:bg-[#2a2d2e] cursor-pointer text-[13px] text-[#cccccc] rounded">
-                  <div className="flex items-center gap-2">
-                    <FileIcon className="w-3.5 h-3.5 text-green-400" /> <span className="truncate text-green-400">new_component.tsx</span>
-                  </div>
-                  <span className="text-green-400 text-xs font-bold">U</span>
-               </div>
-             </div>
-           </div>
-         )}
+          {/* GIT / SOURCE CONTROL TAB */}
+          {activityTab === 'git' && (
+            <div className="flex flex-col h-full">
+              <div className="p-3 text-[#cccccc] text-[11px] font-semibold uppercase tracking-wider flex justify-between items-center">
+                <span>Source Control</span>
+                <Check className="w-3.5 h-3.5 cursor-pointer hover:text-white" />
+              </div>
+              <div className="px-3 pb-3 border-b border-[#3c3c3c]">
+                <input 
+                  value={commitMsg}
+                  onChange={e => setCommitMsg(e.target.value)}
+                  placeholder="Message (Enter to commit)" 
+                  className="w-full bg-[#3c3c3c] border border-transparent rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors placeholder-white/40" 
+                />
+                <button className="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white rounded py-1 text-xs transition-colors">Commit</button>
+              </div>
+              <div className="flex flex-col mt-2 px-2">
+                <div className="text-[11px] font-bold uppercase text-white/50 mb-1 px-1">Changes ({files.length})</div>
+                {files.length === 0 ? (
+                  <div className="text-[11px] text-white/30 px-1 py-2">No tracked files</div>
+                ) : (
+                  files.slice(0, 20).map((file) => (
+                    <div key={file.id} className="flex items-center justify-between p-1 hover:bg-[#2a2d2e] cursor-pointer text-[13px] text-[#cccccc] rounded">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileIcon className={cn("w-3.5 h-3.5 shrink-0", file.name.endsWith('.tsx') || file.name.endsWith('.ts') || file.name.endsWith('.js') ? "text-[#e3c14a]" : "text-[#519aba]")} />
+                        <span className={cn("truncate", activeFileId === file.id && "text-[#e2c08d]")}>{file.name}</span>
+                      </div>
+                      <span className="text-[#e2c08d] text-xs font-bold shrink-0 ml-2">M</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
 
          {/* DEBUG TAB */}
          {activityTab === 'debug' && (

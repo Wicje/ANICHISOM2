@@ -17,12 +17,8 @@ export default function WebApp({ window: osWindow }: { window: any }) {
 
   const PREDEFINED_URLS: Record<string, string> = {
     figma: 'https://www.figma.com',
-    notion: 'https://www.notion.so',
     spotify: 'https://open.spotify.com',
-    discord: 'https://discord.com/app',
-    vscode: 'https://vscode.dev',
-    chatgpt: 'https://chatgpt.com',
-    youtube: 'https://www.youtube.com',
+    youtube: 'https://www.youtube.com/embed?listType=search&list=',
     canva: 'https://www.canva.com',
     linear: 'https://linear.app',
   };
@@ -30,6 +26,7 @@ export default function WebApp({ window: osWindow }: { window: any }) {
   const url = data?.url || catalogItem?.url || PREDEFINED_URLS[osWindow.appId] || 'https://duckduckgo.com';
   
   const [loading, setLoading] = useState(true);
+  const [iframeFailed, setIframeFailed] = useState(false);
   const [extensionInstalled, setExtensionInstalled] = useState(
     () =>
       typeof window !== 'undefined' &&
@@ -72,6 +69,17 @@ export default function WebApp({ window: osWindow }: { window: any }) {
       }
     }, 300);
 
+    // If the iframe is still loading after 10s, it's likely blocked by CSP/X-Frame-Options.
+    // Show the extension guide with an "Open in Browser" fallback.
+    let failTimer: ReturnType<typeof setTimeout> | undefined;
+    if (!catalogItem?.isDirectEmbed && !isTauri()) {
+      failTimer = setTimeout(() => {
+        if (!detectExtension()) {
+          setIframeFailed(true);
+        }
+      }, 10000);
+    }
+
     const contextHandler = () => {
       window.dispatchEvent(new CustomEvent('os:context-response', {
         detail: {
@@ -87,8 +95,9 @@ export default function WebApp({ window: osWindow }: { window: any }) {
       window.removeEventListener('os:request-context', contextHandler);
       clearTimeout(timer);
       clearInterval(pollInterval);
+      if (failTimer) clearTimeout(failTimer);
     };
-  }, [url, osWindow.appId]);
+  }, [url, osWindow.appId, catalogItem?.isDirectEmbed]);
 
   // For native-feeling PWAs, we strip X-Frame-Options via extension or Tauri natively.
   // When no extension is detected, we automatically default to Live In-OS Stream Mode (via /api/proxy)
@@ -216,9 +225,38 @@ export default function WebApp({ window: osWindow }: { window: any }) {
 
   return (
     <div className="w-full h-full relative bg-white flex flex-col overflow-hidden" style={{ zIndex: 1, isolation: 'isolate' }}>
-      {loading && (
+      {loading && !iframeFailed && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm text-slate-200">
           <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+        </div>
+      )}
+
+      {iframeFailed && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/90 backdrop-blur-md">
+          <div className="text-center max-w-sm p-6 space-y-4">
+            <ShieldAlert className="w-12 h-12 text-amber-400 mx-auto" />
+            <div>
+              <h3 className="text-sm font-bold text-white mb-1">Unable to Load in-App View</h3>
+              <p className="text-xs text-white/60 leading-relaxed">
+                This app requires a real browser environment and cannot be embedded. 
+                Install the Continua Browser Extension for native iframe support, or open it in an external browser tab.
+              </p>
+            </div>
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={() => setShowGuide(true)}
+                className="px-4 py-2 text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-black rounded-xl transition-colors flex items-center gap-1.5"
+              >
+                <Zap className="w-3.5 h-3.5" /> Install Extension
+              </button>
+              <button
+                onClick={() => window.open(url, '_blank')}
+                className="px-4 py-2 text-xs font-bold bg-white/10 hover:bg-white/20 text-white rounded-xl border border-white/20 transition-colors flex items-center gap-1.5"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Open in Browser
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

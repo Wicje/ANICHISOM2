@@ -378,7 +378,7 @@ export function CodeEditor({ window: osWindow }: { window: OSWindow }) {
            <TerminalPanel terminalOpen={terminalOpen} setTerminalOpen={setTerminalOpen} projectId={projectId} />
         </div>
 
-        <CopilotPanel agentOpen={agentOpen} setAgentOpen={setAgentOpen} />
+        <CopilotPanel agentOpen={agentOpen} setAgentOpen={setAgentOpen} code={code} fileName={fileName} />
       </div>
       
       <StatusBar cursorPosition={cursorPosition} fileName={fileName} />

@@ -138,18 +138,18 @@ export function PdfReader({ window: osWindow }: { window: OSWindow }) {
           </div>
         ) : pdfUrl ? (
           <div className="w-full h-full overflow-auto flex justify-center">
-            <iframe 
-               src={`${pdfUrl}#view=FitH`} 
-               className="shadow-2xl bg-white transition-all duration-200 rounded-lg"
-               style={{
-                 width: `${zoom}%`,
-                 height: `${zoom}%`,
-                 minHeight: '100%',
-                 border: 'none',
-                 flexShrink: 0,
-               }} 
-               title={title}
-            />
+            <div className="relative" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}>
+              <iframe 
+                 src={`${pdfUrl}#toolbar=0&navpanes=0`} 
+                 className="shadow-2xl bg-white rounded-lg"
+                 style={{
+                   width: '850px',
+                   height: '1100px',
+                   border: 'none',
+                 }} 
+                 title={title}
+              />
+            </div>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center text-white/40 gap-4">

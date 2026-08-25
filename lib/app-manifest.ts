@@ -55,12 +55,8 @@ const appRegistry: Record<string, () => Promise<{ default?: React.ComponentType<
 
   // First-Class Standalone Third-Party Web Apps (Freeing the Browser)
   figma: () => import('@/components/apps/web-app'),
-  notion: () => import('@/components/apps/web-app'),
-  vscode: () => import('@/components/apps/web-app'),
-  discord: () => import('@/components/apps/web-app'),
   canva: () => import('@/components/apps/web-app'),
   linear: () => import('@/components/apps/web-app'),
-  chatgpt: () => import('@/components/apps/web-app'),
   youtube: () => import('@/components/apps/web-app'),
 };
 
@@ -88,9 +84,7 @@ const ICO = {
   shield: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='28' fill='%230284c7'/%3E%3Cpath d='M60 20l32 14v24c0 22-32 38-32 38s-32-16-32-38V34z' fill='%23ffffff' fill-opacity='.3'/%3E%3Cpath d='M48 62l8 8 16-16' stroke='%23ffffff' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",
   puzzle: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='28' fill='%23f24e1e'/%3E%3Cpath d='M40 35h16c4 0 4 4 4 4v12c0 2 2 4 4 4h12c4 0 4 4 4 4v16c0 4-4 4-4 4H64c-2 0-4 2-4 4v12c0 4-4 4-4 4H40c-4 0-4-4-4-4V67c0-2-2-4-4-4H20c-4 0-4-4-4-4V43c0-4 4-8 8-8' fill='%23ffffff'/%3E%3C/svg%3E",
   figma: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='28' fill='%231e1e1e'/%3E%3Cpath d='M42 32h18v18H42z' fill='%23f24e1e'/%3E%3Cpath d='M60 32h18a9 9 0 0 1 9 9 9 9 0 0 1-9 9H60z' fill='%23ff7262'/%3E%3Cpath d='M42 50h18v18H42z' fill='%23a259ff'/%3E%3Ccircle cx='69' cy='59' r='9' fill='%231abcfe'/%3E%3Cpath d='M42 68h18v9a9 9 0 0 1-9 9 9 9 0 0 1-9-9z' fill='%230acf83'/%3E%3C/svg%3E",
-  notion: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='28' fill='%23ffffff' stroke='%23e5e7eb' stroke-width='2'/%3E%3Cpath d='M34 32l38-6 14 6v58l-38 6-14-6z' fill='%23000000' fill-opacity='.1'/%3E%3Cpath d='M40 38v44l16-2V48l16 32 8-1V35l-16 2v32L48 37z' fill='%23000000'/%3E%3C/svg%3E",
-  discord: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='28' fill='%235865F2'/%3E%3Cpath d='M84 40a45 45 0 0 0-11-4l-1 2a34 34 0 0 0-12 0l-1-2a45 45 0 0 0-11 4 48 48 0 0 0-7 35c7 5 14 5 14 5l3-4a27 27 0 0 1-8-4 22 22 0 0 0 10 3c7 0 14-1 20-3a27 27 0 0 1-8 4l3 4s7 0 14-5a48 48 0 0 0-7-35zM50 64c-3 0-5-3-5-6s2-6 5-6 5 3 5 6-2 6-5 6zm20 0c-3 0-5-3-5-6s2-6 5-6 5 3 5 6-2 6-5 6z' fill='%23ffffff'/%3E%3C/svg%3E",
-  chatgpt: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='28' fill='%2310a37f'/%3E%3Ccircle cx='60' cy='60' r='26' fill='none' stroke='%23ffffff' stroke-width='6'/%3E%3Cpath d='M60 34v52M34 60h52' stroke='%23ffffff' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E",
+
   youtube: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='28' fill='%23FF0000'/%3E%3Cpath d='M88 44s-1-6-3-8c-3-3-6-3-8-4-12-1-30-1-30-1s-18 0-30 1c-2 1-5 1-8 4-2 2-3 8-3 8S5 51 5 58v7c0 7 1 14 1 14s1 6 3 8c3 3 6 3 8 4 12 1 30 1 30 1s18 0 30-1c2-1 5-1 8-4 2-2 3-8 3-8s1-7 1-14v-7c0-7-1-14-1-14z' fill='%23ffffff'/%3E%3Cpolygon points='52,50 52,70 70,60' fill='%23FF0000'/%3E%3C/svg%3E",
 };
 
@@ -130,10 +124,6 @@ export const APP_MANIFEST: AppManifestEntry[] = [
 
   // Dedicated First-Class Standalone Third-Party Apps (Freeing the Power Browser)
   { id: 'figma', component: null as any, icon: Palette, iconImage: ICO.figma, title: 'Figma', roles: ['admin', 'filmmaker', 'designer', 'user'], isCore: false, category: 'creative', description: 'Collaborative UI/UX design studio in a native standalone window' },
-  { id: 'notion', component: null as any, icon: FileText, iconImage: ICO.notion, title: 'Notion', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'All-in-one workspace for notes, wikis, and project databases' },
-  { id: 'vscode', component: null as any, icon: Code, iconImage: ICO.code, title: 'VS Code Web', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'dev', description: 'Full Visual Studio Code web editor in a dedicated workspace' },
-  { id: 'chatgpt', component: null as any, icon: MessageSquare, iconImage: ICO.chatgpt, title: 'ChatGPT', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'productivity', description: 'OpenAI ChatGPT web interface in a dedicated native window' },
-  { id: 'discord', component: null as any, icon: MessageSquare, iconImage: ICO.discord, title: 'Discord', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'social', description: 'Community chat, voice channels, and developer collaboration' },
   { id: 'youtube', component: null as any, icon: Play, iconImage: ICO.youtube, title: 'YouTube', roles: ['admin', 'filmmaker', 'technician', 'user'], isCore: false, category: 'media', description: 'YouTube video player and creator studio in a standalone window' },
 ];
 

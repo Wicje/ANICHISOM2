@@ -256,17 +256,25 @@ export default function SpotifyApp() {
           </div>
         )}
 
-        {/* 3. Full Web Player */}
+        {/* 3. Full Web Player — requires Spotify Web Player access via browser */}
         {viewMode === 'web' && (
-          <div className="flex-1 w-full h-full bg-black">
-            <iframe
-              title="Spotify Web App"
-              src="https://open.spotify.com"
-              width="100%"
-              height="100%"
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              className="w-full h-full border-0"
-            />
+          <div className="flex-1 flex flex-col items-center justify-center bg-[#0d1117] gap-4 p-6">
+            <Globe className="w-12 h-12 text-[#1DB954]/40" />
+            <div className="text-center max-w-sm">
+              <h3 className="text-sm font-bold text-white/90 mb-1">Spotify Full Web App</h3>
+              <p className="text-xs text-white/50 leading-relaxed">
+                The full Spotify Web Player requires a real browser environment and cannot be embedded as an iframe. 
+                Use the <strong className="text-[#1DB954]">Player</strong> tab for in-OS playback, or click below to open Spotify in a new tab.
+              </p>
+            </div>
+            <a
+              href="https://open.spotify.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 rounded-xl bg-[#1DB954] text-black text-xs font-bold hover:bg-[#1ed760] transition-colors flex items-center gap-2"
+            >
+              <ExternalLink className="w-3.5 h-3.5" /> Open Spotify in Browser
+            </a>
           </div>
         )}
       </div>
