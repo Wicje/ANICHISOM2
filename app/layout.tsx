@@ -14,11 +14,11 @@ const OG_IMAGE = `${SITE_URL}/images/landing/coding-dark.jpg`;
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Continua — The Persistent Context Layer',
+    default: 'Continua — Browser Workflow Capture. Restore on Any Machine.',
     template: '%s | Continua',
   },
   description:
-    'Continua is a computing continuity layer that lets your identity, workspace, and work context move between machines. Pick up exactly where you stopped — on any device.',
+    'Continua captures your browser workflow and restores it on any machine. Install the Chrome extension, work naturally, pick up where you left off.',
   keywords: [
     'continuity layer',
     'workspace sync',

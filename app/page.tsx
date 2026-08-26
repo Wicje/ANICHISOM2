@@ -8,7 +8,7 @@ import {
   Sparkles, Terminal, Palette, Shield, Zap, Layers, Lock, ArrowRight, Play,
   CheckCircle2, Layout, Monitor, Database, ShieldCheck, ExternalLink, RefreshCw,
   ChevronRight, Users, Key, EyeOff, Fingerprint, Timer, WifiOff, Rocket,
-  ChevronDown, Server, Sun, Moon, Smartphone, Globe, Code2, Cog
+  ChevronDown, Server, Sun, Moon, Smartphone, Globe, Code2, Cog, RotateCcw
 } from 'lucide-react';
 import { JsonLd } from '@/components/seo/json-ld';
 
@@ -130,7 +130,7 @@ function PricingCard({ name, price, period, description, features, cta, highligh
 export default function LandingPage() {
   const { dark, toggle } = useLandingTheme();
   const [scrollY, setScrollY] = useState(0);
-  const [activeHeroTab, setActiveHeroTab] = useState<'desktop' | 'terminal' | 'moodboard' | 'security'>('desktop');
+  const [activeHeroTab, setActiveHeroTab] = useState<'capture' | 'sync' | 'restore' | 'team'>('capture');
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
@@ -179,7 +179,7 @@ export default function LandingPage() {
       <motion.section ref={heroRef} style={{ opacity: heroOpacity, scale: heroScale }} id="overview" className="relative pt-36 sm:pt-44 pb-20 px-6 max-w-7xl mx-auto z-10 flex flex-col items-center text-center">
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8 glass-panel border-primary/40 shadow-xl shadow-primary/10">
           <Sparkles className="w-3.5 h-3.5 text-primary fill-primary" />
-          <span className="text-xs font-bold tracking-widest text-primary uppercase font-mono">CONTINUA WORKSPACE PROTOCOL</span>
+          <span className="text-xs font-bold tracking-widest text-primary uppercase font-mono">CONTINUA BROWSER EXTENSION</span>
         </motion.div>
         <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.1 }}
           className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[1.04] text-[var(--os-text)] max-w-5xl mb-8">
@@ -205,7 +205,7 @@ export default function LandingPage() {
           <div className="h-12 rounded-t-2xl border-b border-[var(--os-border)] px-4 flex items-center justify-between select-none overflow-x-auto" style={{ background: 'var(--os-surface)' }}>
             <div className="flex items-center gap-2 shrink-0"><div className="w-3 h-3 rounded-full bg-rose-500/80" /><div className="w-3 h-3 rounded-full bg-amber-500/80" /><div className="w-3 h-3 rounded-full bg-emerald-500/80" /></div>
             <div className="flex items-center gap-1 bg-[var(--os-surface-elevated)] p-1 rounded-xl border border-[var(--os-border)]">
-              {[{ id: 'desktop', label: 'Desktop', icon: Layout }, { id: 'terminal', label: 'Terminal', icon: Terminal }, { id: 'moodboard', label: 'Moodboard', icon: Palette }, { id: 'security', label: 'Security', icon: ShieldCheck }].map(tab => (
+              {[{ id: 'capture', label: 'Capture', icon: Layers }, { id: 'sync', label: 'Sync', icon: RefreshCw }, { id: 'restore', label: 'Restore', icon: RotateCcw }, { id: 'team', label: 'Team', icon: Users }].map(tab => (
                 <button key={tab.id} onClick={() => setActiveHeroTab(tab.id as any)} className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${activeHeroTab === tab.id ? 'bg-primary text-white shadow-md font-bold' : 'text-[var(--os-text-muted)] hover:text-[var(--os-text)] hover:bg-[var(--os-hover)]'}`}>
                   <tab.icon className="w-3.5 h-3.5" /><span className="hidden sm:inline">{tab.label}</span>
                 </button>
@@ -230,10 +230,10 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="flex justify-end">
-                {activeHeroTab === 'desktop' && <motion.div key="d" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="p-4 rounded-2xl glass-panel border-primary/20 max-w-sm shadow-2xl"><div className="text-xs font-bold text-[var(--os-text)] mb-1 flex items-center gap-2"><Layout className="w-4 h-4 text-primary" />Multi-Window Ecosystem</div><p className="text-[11px] text-[var(--os-text-muted)]">Persistent state across all open windows, canvas swatch buffers, and WASM terminals.</p></motion.div>}
-                {activeHeroTab === 'terminal' && <motion.div key="t" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="p-4 rounded-2xl glass-panel border-emerald-500/30 max-w-sm shadow-2xl"><div className="text-xs font-mono font-bold text-primary mb-1 flex items-center gap-2"><Terminal className="w-4 h-4" />xterm.js + VirtualFS</div><p className="text-[11px] text-[var(--os-text-muted)] font-mono">$ continua init --mode=persistent (0ms latency)</p></motion.div>}
-                {activeHeroTab === 'moodboard' && <motion.div key="m" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="p-4 rounded-2xl glass-panel border-secondary/30 max-w-sm shadow-2xl"><div className="text-xs font-bold text-secondary mb-1 flex items-center gap-2"><Palette className="w-4 h-4" />Brand Token Sync</div><p className="text-[11px] text-[var(--os-text-muted)]">Color palettes, typography swatches, and design assets automatically synced.</p></motion.div>}
-                {activeHeroTab === 'security' && <motion.div key="s" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="p-4 rounded-2xl glass-panel border-emerald-400/30 max-w-sm shadow-2xl"><div className="text-xs font-bold text-emerald-400 mb-1 flex items-center gap-2"><ShieldCheck className="w-4 h-4" />Edge Worker JWT Shield</div><p className="text-[11px] text-[var(--os-text-muted)]">Cloudflare proxy enforces Supabase RLS policies across all edge requests.</p></motion.div>}
+                {activeHeroTab === 'capture' && <motion.div key="d" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="p-4 rounded-2xl glass-panel border-primary/20 max-w-sm shadow-2xl"><div className="text-xs font-bold text-[var(--os-text)] mb-1 flex items-center gap-2"><Layers className="w-4 h-4 text-primary" />Automatic Workspace Capture</div><p className="text-[11px] text-[var(--os-text-muted)]">Chrome extension silently tracks your tabs, files, and active tasks. Zero config required.</p></motion.div>}
+                {activeHeroTab === 'sync' && <motion.div key="t" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="p-4 rounded-2xl glass-panel border-emerald-500/30 max-w-sm shadow-2xl"><div className="text-xs font-mono font-bold text-primary mb-1 flex items-center gap-2"><RefreshCw className="w-4 h-4" />Cross-Device Sync</div><p className="text-[11px] text-[var(--os-text-muted)] font-mono">Workspace snapshots sync to cloud via Supabase. Available on any machine.</p></motion.div>}
+                {activeHeroTab === 'restore' && <motion.div key="m" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="p-4 rounded-2xl glass-panel border-secondary/30 max-w-sm shadow-2xl"><div className="text-xs font-bold text-secondary mb-1 flex items-center gap-2"><RotateCcw className="w-4 h-4" />One-Click Restore</div><p className="text-[11px] text-[var(--os-text-muted)]">Log in on any device. See your workspace ranked by relevance. Restore in one click.</p></motion.div>}
+                {activeHeroTab === 'team' && <motion.div key="s" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="p-4 rounded-2xl glass-panel border-emerald-400/30 max-w-sm shadow-2xl"><div className="text-xs font-bold text-emerald-400 mb-1 flex items-center gap-2"><Users className="w-4 h-4" />Team Continuity</div><p className="text-[11px] text-[var(--os-text-muted)]">Share workspaces with teammates. Onboarding means inheriting context, not starting from zero.</p></motion.div>}
               </div>
             </div>
           </div>
@@ -288,8 +288,8 @@ export default function LandingPage() {
           <h2 className="text-3xl sm:text-5xl font-black text-[var(--os-text)] tracking-tight">Three steps. Zero friction.</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StepCard number={1} title="Pair Your Device" icon={Fingerprint} description="Scan a QR code or enter a pairing code. Your phone becomes the trust anchor." image="/images/landing/desk-setup.jpg" />
-          <StepCard number={2} title="Work Naturally" icon={Layers} description="Continua silently captures your workspace: open tabs, files, apps, active tasks." image="/images/landing/code-screen.jpg" />
+          <StepCard number={1} title="Install Extension" icon={Fingerprint} description="Add the Chrome extension. It captures your workspace automatically — no setup needed." image="/images/landing/desk-setup.jpg" />
+          <StepCard number={2} title="Work Naturally" icon={Layers} description="Continua silently tracks your open tabs, files, and active tasks. Everything is ranked by relevance." image="/images/landing/code-screen.jpg" />
           <StepCard number={3} title="Restore Anywhere" icon={RefreshCw} description="Log in on any device. See your workspace, ranked by relevance. One click to restore." image="/images/landing/laptop-work.jpg" />
         </div>
         <div className="mt-12 flex justify-center">
@@ -444,12 +444,12 @@ export default function LandingPage() {
             <div className="relative z-10 p-8 h-full flex flex-col justify-between">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-400 mb-6"><Monitor className="w-6 h-6" /></div>
-                <h3 className="text-3xl font-black text-[var(--os-text)] mb-3">Dual Target: Web & Desktop</h3>
-                <p className="text-sm text-[var(--os-text)] leading-relaxed max-w-xl">Run in any browser without installation, or download the native Tauri app for system webviews and desktop performance.</p>
+                <h3 className="text-3xl font-black text-[var(--os-text)] mb-3">Chrome Extension + Web Dashboard</h3>
+                <p className="text-sm text-[var(--os-text)] leading-relaxed max-w-xl">Install the extension in any Chromium browser. View and restore your workspaces from the web dashboard on any device.</p>
               </div>
               <div className="flex flex-wrap gap-4 border-t border-[var(--os-border)] pt-4">
-                <div className="flex items-center gap-2 text-xs font-bold text-[var(--os-text)]"><CheckCircle2 className="w-4 h-4 text-primary" /> Web Browser OS</div>
-                <div className="flex items-center gap-2 text-xs font-bold text-[var(--os-text)]"><CheckCircle2 className="w-4 h-4 text-primary" /> Tauri Native App</div>
+                <div className="flex items-center gap-2 text-xs font-bold text-[var(--os-text)]"><CheckCircle2 className="w-4 h-4 text-primary" /> Chrome Extension</div>
+                <div className="flex items-center gap-2 text-xs font-bold text-[var(--os-text)]"><CheckCircle2 className="w-4 h-4 text-primary" /> Web Dashboard</div>
               </div>
             </div>
           </div>
@@ -544,7 +544,7 @@ export default function LandingPage() {
             <h2 className="text-3xl sm:text-5xl font-black text-[var(--os-text)] mb-4 tracking-tight">Stop restarting.<br />Start continuing.</h2>
             <p className="text-sm text-[var(--os-text-muted)] max-w-md mx-auto mb-8 leading-relaxed">The machine can be temporary. Your workspace isn&apos;t.</p>
             <div className="flex flex-wrap items-center justify-center gap-4">
-              <Link href="/os" className="inline-flex items-center gap-2 px-9 py-4 rounded-2xl font-extrabold text-sm bg-gradient-to-r from-primary to-secondary text-white shadow-xl shadow-primary/30 hover:brightness-110 active:scale-95 transition-all"><Rocket className="w-4 h-4" /> Launch Web OS Desktop</Link>
+              <Link href="/os" className="inline-flex items-center gap-2 px-9 py-4 rounded-2xl font-extrabold text-sm bg-gradient-to-r from-primary to-secondary text-white shadow-xl shadow-primary/30 hover:brightness-110 active:scale-95 transition-all"><Rocket className="w-4 h-4" /> Launch Dashboard</Link>
               <Link href="/connect" className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-sm glass-panel text-[var(--os-text)] hover:bg-[var(--os-surface-elevated)] active:scale-95 transition-all">Pair a Device</Link>
             </div>
           </div>
@@ -558,17 +558,17 @@ export default function LandingPage() {
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-primary to-secondary p-[2px]"><div className="w-full h-full bg-[var(--os-bg)] rounded-md flex items-center justify-center"><span className="text-primary font-black text-[8px]">C</span></div></div>
-                <span className="text-xs font-bold text-[var(--os-text)]">ContinuaOS</span>
+                <span className="text-xs font-bold text-[var(--os-text)]">Continua</span>
               </div>
-              <p className="text-[11px] text-[var(--os-text-muted)] leading-relaxed">The personal continuity layer for developers and creators.</p>
+              <p className="text-[11px] text-[var(--os-text-muted)] leading-relaxed">Browser workflow capture. Restore on any machine.</p>
             </div>
             {[{ title: 'Product', links: ['Features', 'Pricing', 'Security', 'Changelog', 'Docs'] }, { title: 'Developers', links: ['API Reference', 'SDK', 'GitHub', 'Status', 'Community'] }, { title: 'Company', links: ['About', 'Blog', 'Careers', 'Contact', 'Legal'] }].map(col => (
               <div key={col.title}><h4 className="text-xs font-bold text-[var(--os-text)] mb-3">{col.title}</h4><ul className="space-y-2">{col.links.map(l => <li key={l}><a href="#" className="text-[11px] text-[var(--os-text-muted)] hover:text-[var(--os-text)] transition-colors">{l}</a></li>)}</ul></div>
             ))}
           </div>
           <div className="pt-6 border-t border-[var(--os-border)] flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-[10px] text-[var(--os-text-muted)]">&copy; 2026 ContinuaOS. All rights reserved.</p>
-            <div className="flex items-center gap-4 text-[10px] text-[var(--os-text-muted)]"><span>Built with Next.js, Supabase, Tauri</span><span>&middot;</span><span>3D by Sketchfab &amp; Poly Haven</span><span>&middot;</span><span>APIs via Apiframe</span></div>
+            <p className="text-[10px] text-[var(--os-text-muted)]">&copy; 2026 Continua. All rights reserved.</p>
+            <div className="flex items-center gap-4 text-[10px] text-[var(--os-text-muted)]"><span>Built with Next.js, Supabase, Chrome Extension API</span><span>&middot;</span><span>3D by Sketchfab &amp; Poly Haven</span><span>&middot;</span><span>APIs via Apiframe</span></div>
           </div>
         </div>
       </footer>
