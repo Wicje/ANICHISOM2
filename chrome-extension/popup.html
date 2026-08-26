@@ -55,6 +55,17 @@
       background: rgba(16, 244, 160, 0.12);
       color: #10F4A0;
       border: 1px solid rgba(16, 244, 160, 0.3);
+      transition: all 0.3s;
+    }
+    .status-badge.offline {
+      background: rgba(239, 68, 68, 0.12);
+      color: #ef4444;
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+    .status-badge.checking {
+      background: rgba(245, 158, 11, 0.12);
+      color: #f59e0b;
+      border-color: rgba(245, 158, 11, 0.3);
     }
     .pulse-dot {
       width: 6px;
@@ -160,9 +171,9 @@
       <div class="logo">C</div>
       <div class="brand-title">Continua Bridge</div>
     </div>
-    <div class="status-badge">
-      <div class="pulse-dot"></div>
-      Active
+    <div class="status-badge" id="backendStatus">
+      <div class="pulse-dot" id="statusDot"></div>
+      <span id="statusText">Checking...</span>
     </div>
   </div>
 
@@ -174,11 +185,11 @@
     </div>
     <div class="feature-row">
       <span>Context Capture Engine</span>
-      <span class="feature-status">Ready</span>
+      <span class="feature-status">22 Tools</span>
     </div>
     <div class="feature-row">
-      <span>Download Hijack to OS</span>
-      <span class="feature-status">Active</span>
+      <span>Tab Auto-Sync</span>
+      <span class="feature-status">30s Interval</span>
     </div>
   </div>
 
@@ -191,11 +202,11 @@
     Save Workspace URL
   </button>
   <button id="captureBtn" class="button btn-secondary">
-    Capture Current Tab Context
+    Capture Current Tab
   </button>
 
   <div class="footer">
-    Continua Context Layer · v0.2.0
+    Continua Browser Extension · v0.3.0
   </div>
 
   <script src="popup.js"></script>

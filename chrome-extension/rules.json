@@ -13,7 +13,8 @@
     },
     "condition": {
       "urlFilter": "*",
-      "resourceTypes": ["sub_frame", "main_frame", "xmlhttprequest", "other"]
+      "resourceTypes": ["sub_frame", "main_frame", "xmlhttprequest"],
+      "initiatorDomains": ["localhost", "127.0.0.1", "continuaos.cc"]
     }
   }
 ]

@@ -12,10 +12,6 @@ if (typeof chrome !== 'undefined' && chrome.storage?.local) {
     syncEmbedRules();
   });
 }
-const SYNC_INTERVAL = 30000; // Sync every 30 seconds
-
-// Tool-specific context detectors (loaded from detectors.js via importScripts)
-importScripts('detectors.js');
 
 // ─── Dynamic DNR Rule ────────────────────────────────────────────────────────
 // The static rules.json covers localhost / 127.0.0.1 / vercel.app, but the OS
@@ -130,29 +126,31 @@ async function captureTabContext(tabId) {
       // Content script injection failed (restricted page)
     }
 
-    // Inject tool-specific context detection
+    // Inject tool-specific context detection via detectors.js
     let toolContext = null;
     try {
       const toolResults = await chrome.scripting.executeScript({
         target: { tabId },
-        func: () => {
-          const url = window.location.href;
-          const hostname = window.location.hostname;
+        func: (url) => {
+          // detectors.js defines DETECTORS and detectToolContext in self scope.
+          // We replicate the detection logic here because executeScript runs in
+          // the page context where document/window are available.
+          const hostname = new URL(url).hostname;
 
           // Figma
           if (hostname.includes('figma.com')) {
             const fileKey = window.location.pathname.match(/file\/([^/]+)/)?.[1] || '';
-            return { tool: 'figma', fileKey, fileName: document.title, isEditor: url.includes('/design/') };
+            return { tool: 'figma', fileKey, fileName: document.title, isEditor: url.includes('/design/'), isPrototype: url.includes('/prototype/') };
           }
           // Claude
           if (hostname.includes('claude.ai')) {
             const msgs = document.querySelectorAll('[data-testid="message"]');
-            return { tool: 'claude', conversationLength: msgs.length, lastMessage: msgs.length > 0 ? msgs[msgs.length - 1].textContent?.slice(0, 500) || '' : '' };
+            return { tool: 'claude', conversationLength: msgs.length, lastMessagePreview: msgs.length > 0 ? msgs[msgs.length - 1].textContent?.slice(0, 500) || '' : '', isStreaming: !!document.querySelector('[data-testid="stop-button"]') };
           }
           // ChatGPT
           if (hostname.includes('chat.openai.com') || hostname.includes('chatgpt.com')) {
             const msgs = document.querySelectorAll('[data-message-author-role]');
-            return { tool: 'chatgpt', conversationLength: msgs.length };
+            return { tool: 'chatgpt', conversationLength: msgs.length, lastMessagePreview: msgs.length > 0 ? msgs[msgs.length - 1].textContent?.slice(0, 500) || '' : '' };
           }
           // Canva
           if (hostname.includes('canva.com')) {
@@ -162,9 +160,13 @@ async function captureTabContext(tabId) {
           if (hostname.includes('express.adobe.com')) {
             return { tool: 'adobe-express', projectName: document.title.replace(' | Adobe Express', ''), isEditor: url.includes('/edit/') };
           }
+          // Adobe Lightroom
+          if (hostname.includes('lightroom.adobe.com')) {
+            return { tool: 'adobe-lightroom', photoCount: document.querySelectorAll('[data-testid="photo-grid-item"]').length };
+          }
           // Notion
           if (hostname.includes('notion.so')) {
-            return { tool: 'notion', pageTitle: document.title, isPage: url.includes('/notion.so/') };
+            return { tool: 'notion', pageTitle: document.title, pageType: url.includes('/docs/') ? 'doc' : 'page' };
           }
           // Linear
           if (hostname.includes('linear.app')) {
@@ -178,15 +180,15 @@ async function captureTabContext(tabId) {
           }
           // YouTube
           if (hostname.includes('youtube.com')) {
-            return { tool: 'youtube', videoTitle: document.title.replace(' - YouTube', ''), channel: '' };
+            return { tool: 'youtube', videoTitle: document.title.replace(' - YouTube', ''), channel: document.querySelector('#channel-name a')?.textContent || '', duration: document.querySelector('.ytp-time-duration')?.textContent || '' };
           }
           // Instagram
           if (hostname.includes('instagram.com')) {
-            return { tool: 'instagram', isPost: url.includes('/p/'), username: window.location.pathname.split('/').filter(Boolean)[0] || '' };
+            return { tool: 'instagram', isPost: url.includes('/p/'), isProfile: url.match(/instagram\.com\/[^/]+\/?$/), username: window.location.pathname.split('/').filter(Boolean)[0] || '' };
           }
           // Twitter/X
           if (hostname.includes('twitter.com') || hostname.includes('x.com')) {
-            return { tool: 'twitter', tweetText: document.querySelector('[data-testid="tweetText"]')?.textContent?.slice(0, 500) || '' };
+            return { tool: 'twitter', tweetText: document.querySelector('[data-testid="tweetText"]')?.textContent?.slice(0, 500) || '', author: document.querySelector('[data-testid="User-Name"]')?.textContent || '' };
           }
           // Google Docs
           if (hostname.includes('docs.google.com/document')) {
@@ -195,6 +197,10 @@ async function captureTabContext(tabId) {
           // Google Sheets
           if (hostname.includes('docs.google.com/spreadsheets')) {
             return { tool: 'google-sheets', sheetTitle: document.title.replace(' - Google Sheets', '') };
+          }
+          // Google Slides
+          if (hostname.includes('docs.google.com/presentation')) {
+            return { tool: 'google-slides', presentationTitle: document.title.replace(' - Google Slides', '') };
           }
           // Miro
           if (hostname.includes('miro.com')) {
@@ -208,9 +214,50 @@ async function captureTabContext(tabId) {
           if (hostname.includes('spotify.com')) {
             return { tool: 'spotify', track: document.title.replace(' - Spotify', '') };
           }
+          // Vercel
+          if (hostname.includes('vercel.com')) {
+            return { tool: 'vercel', projectName: window.location.pathname.split('/').filter(Boolean).pop() || '' };
+          }
+          // Netlify
+          if (hostname.includes('netlify.com')) {
+            return { tool: 'netlify', siteName: window.location.pathname.split('/').filter(Boolean).pop() || '' };
+          }
+          // StackBlitz
+          if (hostname.includes('stackblitz.com')) {
+            return { tool: 'stackblitz', projectTitle: document.title };
+          }
+          // CodePen
+          if (hostname.includes('codepen.io')) {
+            return { tool: 'codepen', penTitle: document.title.replace(' - CodePen', '') };
+          }
+          // VS Code Web
+          if (hostname.includes('vscode.dev') || hostname.includes('github.dev')) {
+            return { tool: 'vscodeWeb', workspace: document.title.split('\u2014')[0]?.trim() || document.title, isEditor: true };
+          }
+          // Gemini
+          if (hostname.includes('gemini.google.com')) {
+            return { tool: 'gemini', chatTitle: document.title.replace(' - Gemini', '').replace('Google Gemini', '') };
+          }
+          // Perplexity
+          if (hostname.includes('perplexity.ai')) {
+            return { tool: 'perplexity', query: document.title.replace(' - Perplexity', '') };
+          }
+          // v0
+          if (hostname.includes('v0.dev')) {
+            return { tool: 'v0', projectTitle: document.title.replace(' - v0 by Vercel', '') };
+          }
+          // Replit
+          if (hostname.includes('replit.com')) {
+            return { tool: 'replit', replName: document.title.replace(' - Replit', '') };
+          }
+          // HuggingFace
+          if (hostname.includes('huggingface.co')) {
+            return { tool: 'huggingface', modelOrDataset: window.location.pathname.slice(1) };
+          }
 
           return null;
         },
+        args: [tab.url || ''],
       });
 
       if (toolResults?.[0]?.result) {
@@ -292,15 +339,26 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
   }
 });
 
-// ─── Periodic Sync ──────────────────────────────────────────────────────────
+// ─── Periodic Sync via chrome.alarms ─────────────────────────────────────────
+// setInterval dies when Chrome terminates the service worker.
+// chrome.alarms survives worker restarts.
 
-setInterval(async () => {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab?.id) {
-    const context = await captureTabContext(tab.id);
-    if (context) await syncContextToContinua(context);
+const PERIODIC_ALARM = 'continua-periodic-sync';
+
+chrome.alarms.create(PERIODIC_ALARM, { periodInMinutes: 0.5 }); // ~30 seconds (minimum is 0.5)
+
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name !== PERIODIC_ALARM) return;
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      const context = await captureTabContext(tab.id);
+      if (context) await syncContextToContinua(context);
+    }
+  } catch {
+    // Alarm fire on inactive worker — non-fatal
   }
-}, SYNC_INTERVAL);
+});
 
 // ─── Message Handling ───────────────────────────────────────────────────────
 

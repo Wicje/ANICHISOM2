@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Continua Context Bridge",
-  "version": "0.2.0",
-  "description": "Captures browser context and syncs it to your Continua workspace. Strips X-Frame-Options so sites embed inside ContinuaOS, and routes downloads back into the OS.",
-  "permissions": ["activeTab", "tabs", "scripting", "storage", "declarativeNetRequest"],
+  "version": "0.3.0",
+  "description": "Captures browser context and syncs it to your Continua workspace. Install on any Chromium browser to auto-capture tabs, files, and active tasks.",
+  "permissions": ["activeTab", "tabs", "scripting", "storage", "declarativeNetRequest", "alarms"],
   "host_permissions": ["<all_urls>"],
   "browser_specific_settings": {
     "gecko": {
