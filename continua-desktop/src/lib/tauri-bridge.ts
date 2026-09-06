@@ -35,6 +35,13 @@ export interface TabRecord {
   title: string;
 }
 
+/** A tab reopened by `restore_session`, with its native Rust label. */
+export interface RestoredTab {
+  label: string;
+  url: string;
+  title: string;
+}
+
 export interface DeviceInfo {
   os: string;
   arch: string;
@@ -80,11 +87,14 @@ export const api = {
   relayout: () =>
     invoke<void>("update_tab_layout").catch(() => undefined),
 
-  saveSession: (tabs: TabRecord[]) =>
-    invoke<string>("save_session", { tabs }).catch(() => "local"),
+  saveSession: (tabs: TabRecord[], active: string | null) =>
+    invoke<string>("save_session", { tabs, active }).catch(() => "local"),
 
   loadSession: () =>
     invoke<TabRecord[] | null>("load_session").catch(() => null),
+
+  restoreSession: () =>
+    invoke<RestoredTab[] | null>("restore_session").catch(() => null),
 
   deviceInfo: () =>
     invoke<DeviceInfo>("get_device_info").catch(() => null),

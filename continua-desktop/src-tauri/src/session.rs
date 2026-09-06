@@ -11,7 +11,17 @@ use tauri::{AppHandle, Manager};
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TabRecord {
     pub url: String,
+    #[serde(default)]
     pub title: String,
+    /// Visit order, for per-tab back/forward restoration.
+    #[serde(default)]
+    pub history: Vec<String>,
+    /// Current position in `history` when the session was saved.
+    #[serde(default)]
+    pub idx: usize,
+    /// Vertical scroll offset on the page a restored tab should reopen at.
+    #[serde(default)]
+    pub scroll_y: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -19,6 +29,12 @@ pub struct SessionSnapshot {
     pub id: String,
     pub saved_at: u64,
     pub tabs: Vec<TabRecord>,
+    /// Which tab was focused when the session was saved.
+    #[serde(default)]
+    pub active: Option<String>,
+    /// Whether clean/focus mode (chrome hidden) was active.
+    #[serde(default)]
+    pub immersive: bool,
 }
 
 pub struct SessionManager;
@@ -43,6 +59,8 @@ impl SessionManager {
         &self,
         app: &AppHandle,
         tabs: Vec<TabRecord>,
+        active: Option<String>,
+        immersive: bool,
     ) -> Result<String, String> {
         let id = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -56,6 +74,8 @@ impl SessionManager {
                 .map(|d| d.as_secs())
                 .unwrap_or(0),
             tabs,
+            active,
+            immersive,
         };
 
         let path = self.session_dir(app)?.join(format!("latest.json"));

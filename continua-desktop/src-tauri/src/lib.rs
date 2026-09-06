@@ -122,18 +122,64 @@ fn update_tab_layout(state: tauri::State<'_, AppState>, app: tauri::AppHandle) -
         .relayout(&app)
 }
 
-/// Persist the current tab graph.
+/// Persist the current tab graph (as mirrored by the chrome).
 #[tauri::command]
 fn save_session(
     state: tauri::State<'_, AppState>,
     app: tauri::AppHandle,
     tabs: Vec<TabRecord>,
+    active: Option<String>,
 ) -> Result<String, String> {
+    let immersive = state.tabs.lock().map(|t| t.immersive()).unwrap_or(false);
     state
         .session
         .lock()
         .map_err(|e| e.to_string())?
-        .save(&app, tabs)
+        .save(&app, tabs, active, immersive)
+}
+
+/// Reopen the most recent session with its full state — per-tab history,
+/// scroll positions, active tab and clean/focus mode all come back.
+#[tauri::command]
+fn restore_session(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+) -> Result<Option<Vec<tab_engine::TabInfo>>, String> {
+    let snap = state
+        .session
+        .lock()
+        .map_err(|e| e.to_string())?
+        .load_latest(&app);
+    let Some(snap) = snap else {
+        return Ok(None);
+    };
+
+    let mut tabs = state.tabs.lock().map_err(|e| e.to_string())?;
+    if !tabs.labels().is_empty() {
+        return Ok(None);
+    }
+    tabs.set_chrome_height(if snap.immersive { 0.0 } else { CHROME_HEIGHT });
+    let last = tabs.restore_from_snapshot(&app, snap.tabs)?;
+    tabs.relayout(&app)?;
+    let active = last.or(snap.active);
+    drop(tabs);
+
+    if let Some(label) = &active {
+        if let Ok(mut tabs) = state.tabs.lock() {
+            let _ = tabs.activate(&app, label);
+        }
+    } else if let Some(main) = app.get_webview_window("main") {
+        let _ = main.set_focus();
+    }
+
+    if snap.immersive {
+        if let Some(main) = app.get_webview_window("main") {
+            let _ = main.hide();
+        }
+    }
+
+    let tabs = state.tabs.lock().map_err(|e| e.to_string())?;
+    Ok(Some(tabs.infos()))
 }
 
 /// Load the most recent session so the chrome can reopen tabs.
@@ -259,8 +305,9 @@ fn get_continua_url(state: tauri::State<'_, AppState>) -> String {
 
 // ─── App entry ──────────────────────────────────────────────────────────────
 
-/// Background worker: periodically snapshots the session to disk so a
-/// crash/quit never loses the tab graph. Tab titles are event-driven now.
+/// Background worker: periodically captures scroll positions and snapshots
+/// the session to disk, so a crash/quit never loses the tab graph — and a
+/// relaunch can resurrect scroll + history exactly. Titles are event-driven.
 fn spawn_background(app: tauri::AppHandle) {
     std::thread::spawn(move || {
         let mut last_save = String::new();
@@ -275,6 +322,28 @@ fn spawn_background(app: tauri::AppHandle) {
                 continue;
             };
 
+            // Capture each tab's scroll position via polled eval so the
+            // session file can restore it without any page cooperation.
+            for label in tabs.labels() {
+                let Some(webview) = app.get_webview_window(&label) else {
+                    continue;
+                };
+                let app_c = app.clone();
+                let label_c = label.clone();
+                let _ = webview.eval_with_callback(
+                    "(document.scrollingElement?document.scrollingElement.scrollTop:0)||window.pageYOffset||0",
+                    move |res| {
+                        if let Ok(v) = res.trim().parse::<f64>() {
+                            if let Some(state) = app_c.try_state::<AppState>() {
+                                if let Ok(mut tab_state) = state.tabs.lock() {
+                                    tab_state.record_scroll(&label_c, v);
+                                }
+                            }
+                        }
+                    },
+                );
+            }
+
             // Periodic autosave, deduped by content so only real changes hit disk.
             if tabs.dirty() {
                 let snap = tabs.snapshot();
@@ -282,8 +351,10 @@ fn spawn_background(app: tauri::AppHandle) {
                     let key = serde_json::to_string(&snap).unwrap_or_default();
                     if key != last_save {
                         last_save = key;
+                        let active = tabs.active_label();
+                        let immersive = tabs.immersive();
                         if let Ok(session) = state.session.lock() {
-                            let _ = session.save(&app, snap);
+                            let _ = session.save(&app, snap, active, immersive);
                         }
                     }
                 }
@@ -350,6 +421,7 @@ pub fn run() {
             update_tab_layout,
             save_session,
             load_session,
+            restore_session,
             get_device_info,
             vault_store,
             vault_get,
@@ -369,8 +441,10 @@ pub fn run() {
                 if let Ok(tabs) = state.tabs.lock() {
                     let snap = tabs.snapshot();
                     if !snap.is_empty() {
+                        let active = tabs.active_label();
+                        let immersive = tabs.immersive();
                         if let Ok(session) = state.session.lock() {
-                            let _ = session.save(app_handle, snap);
+                            let _ = session.save(app_handle, snap, active, immersive);
                         }
                     }
                 }

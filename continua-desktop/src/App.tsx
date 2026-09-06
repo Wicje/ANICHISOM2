@@ -46,6 +46,14 @@ export default function App() {
     return () => unlisten?.();
   }, []);
 
+  // Resurrect the last session immediately on launch - no click needed.
+  // Backend reopens every tab with history, scroll and immersive state.
+  useEffect(() => {
+    if (!isTauri()) return;
+    void restoreLastSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const openTab = async (url: string, focus = true) => {
     const label = await api.openTab(url);
     setTabs((prev) => [...prev, { label, url, title: displayTitle(url) }]);
@@ -79,22 +87,17 @@ export default function App() {
   };
 
   const restoreLastSession = async () => {
-    const session = await api.loadSession();
+    const session = await api.restoreSession();
     if (session && session.length > 0) {
-      const restored: OpenTab[] = [];
-      for (const tab of session) {
-        const label = await api.openTab(tab.url);
-        restored.push({ label, url: tab.url, title: tab.title || tab.url });
-      }
-      setTabs(restored);
-      const last = restored[restored.length - 1];
-      if (last) setActiveLabel(last.label);
+      setTabs(session);
+      setActiveLabel(session[session.length - 1].label);
     }
   };
 
   const saveNow = async () => {
     await api.saveSession(
-      tabs.map(({ url, title }) => ({ url, title }))
+      tabs.map(({ url, title }) => ({ url, title })),
+      activeLabel
     );
   };
 

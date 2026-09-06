@@ -24,6 +24,13 @@ struct TabMeta {
     history: Vec<String>,
     /// Current position in `history`.
     idx: usize,
+    /// Saved scroll offset of the page in `scroll_url`, for resurrection.
+    scroll_y: f64,
+    /// The URL `scroll_y` was captured on; scroll is only reapplied to it.
+    scroll_url: Option<String>,
+    /// True right after a restore; settling loads must not clobber seeded
+    /// history until the session's own pages actually diverge.
+    restoring: bool,
 }
 
 /// Back/forward availability for the chrome's nav buttons.
@@ -33,6 +40,14 @@ pub struct NavState {
     pub forward: bool,
 }
 
+/// A tab as mirrored to the chrome (and used for restore replies).
+#[derive(Clone, Serialize)]
+pub struct TabInfo {
+    pub label: String,
+    pub url: String,
+    pub title: String,
+}
+
 pub struct TabManager {
     open: VecDeque<TabMeta>,
     /// Set on any mutation that should be persisted to disk.
@@ -40,6 +55,8 @@ pub struct TabManager {
     next_id: u32,
     /// Height of the chrome strip in logical px. 0 = immersive/focus mode.
     chrome_height: f64,
+    /// Last focused tab; restored as the active tab on the next launch.
+    last_active: Option<String>,
 }
 
 impl TabManager {
@@ -49,6 +66,7 @@ impl TabManager {
             dirty: false,
             next_id: 0,
             chrome_height: crate::CHROME_HEIGHT,
+            last_active: None,
         }
     }
 
@@ -114,7 +132,11 @@ impl TabManager {
             title: url.clone(),
             history: vec![url],
             idx: 0,
+            scroll_y: 0.0,
+            scroll_url: None,
+            restoring: false,
         });
+        self.last_active = Some(label.clone());
         self.dirty = true;
 
         Ok(label)
@@ -152,6 +174,7 @@ impl TabManager {
             self.open.push_back(meta);
             self.dirty = true;
         }
+        self.last_active = Some(label.to_string());
         Ok(())
     }
 
@@ -176,15 +199,47 @@ impl TabManager {
     /// Record a finished main-frame navigation. Builds a per-tab history stack
     /// that drives back/forward, and pushes the new URL to the chrome.
     pub fn record_navigation(&mut self, app: &AppHandle, label: &str, url: &str) {
+        // Returns whether the page settled onto the tab's current (saved) URL.
+        if self.record_navigation_inner(app, label, url) {
+            self.apply_scroll(app, label);
+        }
+    }
+
+    fn record_navigation_inner(&mut self, app: &AppHandle, label: &str, url: &str) -> bool {
         let Some(meta) = self.open.iter_mut().find(|m| m.label == label) else {
-            return;
+            return false;
         };
+
+        // Freshly restored tab: history was seeded from the session; the
+        // settle load must not clobber it unless the page actually diverges.
+        if meta.restoring {
+            let at_seed = meta.history.get(meta.idx).map(String::as_str) == Some(url);
+            if at_seed {
+                meta.url = url.to_string();
+                meta.restoring = false;
+                self.dirty = true;
+                return true;
+            }
+            if let Some(pos) = meta.history.iter().position(|u| u == url) {
+                // Redirect back into the seeded path — settle to that entry.
+                meta.history.truncate(pos + 1);
+                meta.idx = pos;
+                meta.url = url.to_string();
+                meta.restoring = false;
+                self.dirty = true;
+                emit_navigation(app, label, url);
+                return true;
+            }
+            // A genuinely new page after restore — resume normal recording.
+            meta.restoring = false;
+        }
 
         // Same-page reload / page finish with no real navigation.
         if meta.history.last().map(String::as_str) == Some(url) && meta.idx + 1 == meta.history.len()
         {
             meta.url = url.to_string();
-            return;
+            emit_navigation(app, label, url);
+            return true;
         }
 
         // Revisiting an earlier entry (back/forward landing) — drop forward rows.
@@ -200,6 +255,33 @@ impl TabManager {
         meta.url = url.to_string();
         self.dirty = true;
         emit_navigation(app, label, url);
+        false
+    }
+
+    /// Reapply the saved scroll offset once the page it was captured on loads.
+    fn apply_scroll(&self, app: &AppHandle, label: &str) {
+        let Some(roll) = self.open.iter().find(|m| m.label == label) else {
+            return;
+        };
+        if roll.scroll_y <= 0.0 || roll.scroll_url.as_deref() != Some(roll.url.as_str()) {
+            return;
+        }
+        if let Some(window) = app.get_webview_window(label) {
+            let _ = window.eval(format!("window.scrollTo(0, {})", roll.scroll_y));
+        }
+    }
+
+    /// Update the saved scroll offset for a tab (captured via polled eval).
+    pub fn record_scroll(&mut self, label: &str, scroll: f64) {
+        let Some(meta) = self.open.iter_mut().find(|m| m.label == label) else {
+            return;
+        };
+        if (meta.scroll_y - scroll).abs() < 2.0 {
+            return;
+        }
+        meta.scroll_y = scroll;
+        meta.scroll_url = Some(meta.url.clone());
+        self.dirty = true;
     }
 
     /// Navigate the tab one step back through its history.
@@ -211,6 +293,7 @@ impl TabManager {
             return Ok(());
         }
         meta.idx -= 1;
+        meta.restoring = false;
         let target = meta.history[meta.idx].clone();
         let window = app
             .get_webview_window(label)
@@ -229,6 +312,7 @@ impl TabManager {
             return Ok(());
         }
         meta.idx += 1;
+        meta.restoring = false;
         let target = meta.history[meta.idx].clone();
         let window = app
             .get_webview_window(label)
@@ -242,6 +326,9 @@ impl TabManager {
     pub fn navigate(&mut self, app: &AppHandle, label: &str, url: String) -> Result<(), String> {
         if !self.open.iter().any(|m| m.label == label) {
             return Err(format!("no such tab: {label}"));
+        }
+        if let Some(meta) = self.open.iter_mut().find(|m| m.label == label) {
+            meta.restoring = false;
         }
         let parsed: url::Url = url
             .parse()
@@ -275,6 +362,49 @@ impl TabManager {
         self.open.iter().map(|m| m.label.clone()).collect()
     }
 
+    /// Open a saved session's tabs with their full metadata so back/forward,
+    /// focus and scroll all come back too. Returns the last restored label.
+    pub fn restore_from_snapshot(
+        &mut self,
+        app: &AppHandle,
+        records: Vec<crate::session::TabRecord>,
+    ) -> Result<Option<String>, String> {
+        let mut last: Option<String> = None;
+        for rec in records {
+            let label = self.open(app, rec.url.clone())?;
+            if let Some(meta) = self.open.iter_mut().find(|m| m.label == label) {
+                meta.title = rec.title.clone();
+                if !rec.history.is_empty() {
+                    meta.history = rec.history;
+                    meta.idx = rec.idx.min(meta.history.len().saturating_sub(1));
+                }
+                meta.scroll_y = rec.scroll_y;
+                meta.scroll_url = Some(rec.url);
+                meta.restoring = true;
+                self.dirty = true;
+            }
+            last = Some(label);
+        }
+        Ok(last)
+    }
+
+    /// The tab that most recently had focus, if any.
+    pub fn active_label(&self) -> Option<String> {
+        self.last_active.clone()
+    }
+
+    /// Mirror every open tab to the chrome (or the restore reply).
+    pub fn infos(&self) -> Vec<TabInfo> {
+        self.open
+            .iter()
+            .map(|m| TabInfo {
+                label: m.label.clone(),
+                url: m.url.clone(),
+                title: m.title.clone(),
+            })
+            .collect()
+    }
+
     /// Snapshot of the current tab graph for the session file.
     pub fn snapshot(&self) -> Vec<TabRecord> {
         self.open
@@ -282,6 +412,9 @@ impl TabManager {
             .map(|m| TabRecord {
                 url: m.url.clone(),
                 title: m.title.clone(),
+                history: m.history.clone(),
+                idx: m.idx,
+                scroll_y: m.scroll_y,
             })
             .collect()
     }
