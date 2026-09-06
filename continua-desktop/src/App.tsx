@@ -31,6 +31,21 @@ export default function App() {
     return () => unlisten?.();
   }, []);
 
+  // Track real in-page navigations from Rust (tab:navigated) so the address
+  // bar and resume data reflect where the user actually is.
+  useEffect(() => {
+    if (!isTauri()) return;
+    let unlisten: (() => void) | undefined;
+    listen<{ label: string; url: string }>("tab:navigated", (e) => {
+      setTabs((prev) =>
+        prev.map((t) => (t.label === e.payload.label ? { ...t, url: e.payload.url } : t))
+      );
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => unlisten?.();
+  }, []);
+
   const openTab = async (url: string, focus = true) => {
     const label = await api.openTab(url);
     setTabs((prev) => [...prev, { label, url, title: displayTitle(url) }]);

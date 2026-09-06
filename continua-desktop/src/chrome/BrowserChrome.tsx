@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { api, windowControls } from "../lib/tauri-bridge";
 import { TabStrip } from "./TabStrip";
 import type { OpenTab } from "./TabStrip";
@@ -33,6 +33,8 @@ export function BrowserChrome({
   const [theme, setTheme] = useState<"dark" | "light">(() =>
     localStorage.getItem("continua-theme") === "light" ? "light" : "dark"
   );
+  const [canBack, setCanBack] = useState(false);
+  const [canForward, setCanForward] = useState(false);
   const addressRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -71,6 +73,19 @@ export function BrowserChrome({
     if (active) setAddress(active.url);
   }, [activeLabel, tabs]);
 
+  // Refresh back/forward button states for the active tab.
+  useEffect(() => {
+    if (runtime !== "tauri" || !activeLabel) {
+      setCanBack(false);
+      setCanForward(false);
+      return;
+    }
+    void api.navState(activeLabel).then((s) => {
+      setCanBack(s.back);
+      setCanForward(s.forward);
+    });
+  }, [runtime, activeLabel, tabs]);
+
   // Keyboard shortcuts: Ctrl+T/W/L/R, Ctrl+Shift+T, F5.
   useEffect(() => {
     const reload = () => {
@@ -79,6 +94,16 @@ export function BrowserChrome({
     const onKey = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
       const mod = e.ctrlKey || e.metaKey;
+
+      if (e.altKey && !mod && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+        e.preventDefault();
+        if (activeLabel) {
+          void (e.key === "ArrowLeft"
+            ? api.backTab(activeLabel)
+            : api.forwardTab(activeLabel));
+        }
+        return;
+      }
       if (!mod && k !== "f5") return;
 
       if (k === "f5" || (k === "r" && mod)) {
@@ -116,8 +141,24 @@ export function BrowserChrome({
     let url = address.trim();
     if (!url) return;
     if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
-    setAddress("");
-    await onOpen(url);
+    if (activeLabel) {
+      await api.navigateTab(activeLabel, url);
+    } else {
+      setAddress("");
+      await onOpen(url);
+    }
+  };
+
+  const onAddressKey = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      // Ctrl+Enter → open in a new tab from the address bar.
+      e.preventDefault();
+      let url = address.trim();
+      if (!url) return;
+      if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+      setAddress("");
+      void onOpen(url);
+    }
   };
 
   return (
@@ -191,8 +232,33 @@ export function BrowserChrome({
         )}
       </div>
 
-      {/* Row 2: tab strip + address bar */}
+      {/* Row 2: nav controls + tab strip + address bar */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="nav-controls">
+          <button
+            className="nav-btn"
+            disabled={!canBack}
+            title="Back (Alt+←)"
+            onClick={() => activeLabel && void api.backTab(activeLabel)}
+          >
+            ‹
+          </button>
+          <button
+            className="nav-btn"
+            disabled={!canForward}
+            title="Forward (Alt+→)"
+            onClick={() => activeLabel && void api.forwardTab(activeLabel)}
+          >
+            ›
+          </button>
+          <button
+            className="nav-btn"
+            title="Reload (F5)"
+            onClick={() => activeLabel && void api.reloadTab(activeLabel)}
+          >
+            ⟳
+          </button>
+        </div>
         <TabStrip
           tabs={tabs}
           activeLabel={activeLabel}
@@ -206,6 +272,7 @@ export function BrowserChrome({
             ref={addressRef}
             value={address}
             onChange={(e) => setAddress(e.target.value)}
+            onKeyDown={onAddressKey}
             placeholder="Search or enter address…"
             spellCheck={false}
           />

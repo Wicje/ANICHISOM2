@@ -11,13 +11,13 @@ mod trust;
 mod vault;
 
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use tauri::Manager;
 
 use crate::session::{SessionManager, TabRecord};
 use crate::sync::SyncClient;
-use crate::tab_engine::TabManager;
+use crate::tab_engine::{NavState, TabManager};
 use crate::trust::DeviceInfo;
 use crate::vault::VaultEngine;
 
@@ -77,6 +77,27 @@ fn reload_tab(app: tauri::AppHandle, label: String) -> Result<(), String> {
     window
         .eval("location.reload()")
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn back_tab(state: tauri::State<'_, AppState>, app: tauri::AppHandle, label: String) -> Result<(), String> {
+    state.tabs.lock().map_err(|e| e.to_string())?.back(&app, &label)
+}
+
+#[tauri::command]
+fn forward_tab(state: tauri::State<'_, AppState>, app: tauri::AppHandle, label: String) -> Result<(), String> {
+    state.tabs.lock().map_err(|e| e.to_string())?.forward(&app, &label)
+}
+
+/// Navigate the active tab to a URL entered in the address bar (in place).
+#[tauri::command]
+fn navigate_tab(state: tauri::State<'_, AppState>, app: tauri::AppHandle, label: String, url: String) -> Result<(), String> {
+    state.tabs.lock().map_err(|e| e.to_string())?.navigate(&app, &label, url)
+}
+
+#[tauri::command]
+fn nav_state(state: tauri::State<'_, AppState>, label: String) -> Result<NavState, String> {
+    state.tabs.lock().map_err(|e| e.to_string())?.nav_state(&label)
 }
 
 #[tauri::command]
@@ -164,19 +185,14 @@ fn get_continua_url(state: tauri::State<'_, AppState>) -> String {
 
 // ─── App entry ──────────────────────────────────────────────────────────────
 
-/// Background worker: polls tab page titles for the chrome and periodically
-/// snapshots the session to disk so a crash/quit never loses the tab graph.
+/// Background worker: periodically snapshots the session to disk so a
+/// crash/quit never loses the tab graph. Tab titles are event-driven now.
 fn spawn_background(app: tauri::AppHandle) {
     std::thread::spawn(move || {
         let mut last_save = String::new();
-        let mut last_poll = Instant::now() - Duration::from_secs(2);
 
         loop {
-            std::thread::sleep(Duration::from_millis(800));
-            if last_poll.elapsed().as_secs_f32() < 1.6 {
-                continue;
-            }
-            last_poll = Instant::now();
+            std::thread::sleep(Duration::from_secs(5));
 
             let Some(state) = app.try_state::<AppState>() else {
                 continue;
@@ -184,18 +200,6 @@ fn spawn_background(app: tauri::AppHandle) {
             let Ok(mut tabs) = state.tabs.lock() else {
                 continue;
             };
-
-            // Live titles for the chrome strip.
-            for label in tabs.labels() {
-                if let Some(window) = app.get_webview_window(&label) {
-                    if let Ok(title) = window.title() {
-                        let t = title.trim();
-                        if !t.is_empty() && t != "Continua" {
-                            tabs.record_title(&app, &label, t);
-                        }
-                    }
-                }
-            }
 
             // Periodic autosave, deduped by content so only real changes hit disk.
             if tabs.dirty() {
@@ -247,6 +251,10 @@ pub fn run() {
             close_tab,
             activate_tab,
             reload_tab,
+            back_tab,
+            forward_tab,
+            navigate_tab,
+            nav_state,
             list_tabs,
             close_all_tabs,
             update_tab_layout,

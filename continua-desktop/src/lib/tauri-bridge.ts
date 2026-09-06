@@ -56,6 +56,21 @@ export const api = {
   reloadTab: (label: string) =>
     invoke<void>("reload_tab", { label }).catch(() => undefined),
 
+  backTab: (label: string) =>
+    invoke<void>("back_tab", { label }).catch(() => undefined),
+
+  forwardTab: (label: string) =>
+    invoke<void>("forward_tab", { label }).catch(() => undefined),
+
+  navigateTab: (label: string, url: string) =>
+    invoke<void>("navigate_tab", { label, url }).catch(() => undefined),
+
+  navState: (label: string) =>
+    invoke<{ back: boolean; forward: boolean }>("nav_state", { label }).catch(() => ({
+      back: false,
+      forward: false,
+    })),
+
   closeAllTabs: () =>
     invoke<void>("close_all_tabs").catch(() => undefined),
 
