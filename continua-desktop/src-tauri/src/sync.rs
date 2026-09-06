@@ -1,8 +1,6 @@
-//! Sync client — pushes capture events to the Continua backend using
-//! Tauri's built-in HTTP client (no extra dependency weight).
+//! Sync client — pushes capture events to the Continua backend.
 
 use serde::Serialize;
-use tauri::http::ClientBuilder;
 
 #[derive(Serialize)]
 struct ContextPayload {
@@ -11,12 +9,12 @@ struct ContextPayload {
 }
 
 pub struct SyncClient {
-    client: tauri::http::Client,
+    client: reqwest::Client,
 }
 
 impl SyncClient {
     pub fn new() -> Self {
-        let client = ClientBuilder::new()
+        let client = reqwest::Client::builder()
             .user_agent("continua-desktop/0.1")
             .build()
             .expect("failed to build http client");
