@@ -11,6 +11,7 @@ mod trust;
 mod vault;
 
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use tauri::Manager;
 
@@ -64,6 +65,18 @@ fn activate_tab(state: tauri::State<'_, AppState>, app: tauri::AppHandle, label:
         .lock()
         .map_err(|e| e.to_string())?
         .activate(&app, &label)
+}
+
+/// Reload a tab's page (F5). Eval runs inside the tab's own webview so the
+/// reload works regardless of the page origin.
+#[tauri::command]
+fn reload_tab(app: tauri::AppHandle, label: String) -> Result<(), String> {
+    let window = app
+        .get_webview_window(&label)
+        .ok_or_else(|| format!("no such tab: {label}"))?;
+    window
+        .eval("location.reload()")
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -151,9 +164,60 @@ fn get_continua_url(state: tauri::State<'_, AppState>) -> String {
 
 // ─── App entry ──────────────────────────────────────────────────────────────
 
+/// Background worker: polls tab page titles for the chrome and periodically
+/// snapshots the session to disk so a crash/quit never loses the tab graph.
+fn spawn_background(app: tauri::AppHandle) {
+    std::thread::spawn(move || {
+        let mut last_save = String::new();
+        let mut last_poll = Instant::now() - Duration::from_secs(2);
+
+        loop {
+            std::thread::sleep(Duration::from_millis(800));
+            if last_poll.elapsed().as_secs_f32() < 1.6 {
+                continue;
+            }
+            last_poll = Instant::now();
+
+            let Some(state) = app.try_state::<AppState>() else {
+                continue;
+            };
+            let Ok(mut tabs) = state.tabs.lock() else {
+                continue;
+            };
+
+            // Live titles for the chrome strip.
+            for label in tabs.labels() {
+                if let Some(window) = app.get_webview_window(&label) {
+                    if let Ok(title) = window.title() {
+                        let t = title.trim();
+                        if !t.is_empty() && t != "Continua" {
+                            tabs.record_title(&app, &label, t);
+                        }
+                    }
+                }
+            }
+
+            // Periodic autosave, deduped by content so only real changes hit disk.
+            if tabs.dirty() {
+                let snap = tabs.snapshot();
+                if !snap.is_empty() {
+                    let key = serde_json::to_string(&snap).unwrap_or_default();
+                    if key != last_save {
+                        last_save = key;
+                        if let Ok(session) = state.session.lock() {
+                            let _ = session.save(&app, snap);
+                        }
+                    }
+                }
+                tabs.mark_clean();
+            }
+        }
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .manage(AppState {
             tabs: Mutex::new(TabManager::new()),
             session: Mutex::new(SessionManager::new()),
@@ -161,6 +225,10 @@ pub fn run() {
             trust: DeviceInfo::detect(),
             sync: SyncClient::new(),
             continua_url: Mutex::new(DEFAULT_CONTINUA_URL.to_string()),
+        })
+        .setup(|app| {
+            spawn_background(app.handle().clone());
+            Ok(())
         })
         .on_window_event(|window, event| {
             // Tab webviews track the chrome on any move/resize.
@@ -178,6 +246,7 @@ pub fn run() {
             open_tab,
             close_tab,
             activate_tab,
+            reload_tab,
             list_tabs,
             close_all_tabs,
             update_tab_layout,
@@ -189,7 +258,25 @@ pub fn run() {
             sync_context,
             set_continua_url,
             get_continua_url,
-        ])
-        .run(tauri::generate_context!())
-        .expect("error while running Continua");
+        ]);
+
+    let app = builder
+        .build(tauri::generate_context!())
+        .expect("error while building Continua");
+
+    app.run(|app_handle, event| {
+        // Persist the final tab graph before the app tears down.
+        if let tauri::RunEvent::ExitRequested { .. } = event {
+            if let Some(state) = app_handle.try_state::<AppState>() {
+                if let Ok(tabs) = state.tabs.lock() {
+                    let snap = tabs.snapshot();
+                    if !snap.is_empty() {
+                        if let Ok(session) = state.session.lock() {
+                            let _ = session.save(app_handle, snap);
+                        }
+                    }
+                }
+            }
+        }
+    });
 }

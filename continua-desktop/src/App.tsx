@@ -13,6 +13,7 @@ export default function App() {
   // Tabs live in Rust WebviewWindows; React keeps the canonical metadata.
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
+  const [closedStack, setClosedStack] = useState<{ url: string }[]>([]);
 
   // Mirror page titles pushed from Rust (tab:title-changed).
   useEffect(() => {
@@ -38,9 +39,28 @@ export default function App() {
   };
 
   const closeTab = async (label: string) => {
+    const prev = tabs;
+    const idx = prev.findIndex((t) => t.label === label);
+    const closing = prev[idx];
+    if (closing) setClosedStack((s) => [closing, ...s].slice(0, 10));
+
     await api.closeTab(label);
-    setTabs((prev) => prev.filter((t) => t.label !== label));
-    setActiveLabel((cur) => (cur === label ? null : cur));
+    const nextList = prev.filter((t) => t.label !== label);
+    setTabs(nextList);
+    setActiveLabel((cur) => {
+      if (cur !== label) return cur;
+      if (nextList.length === 0) return null;
+      const neighbor = nextList[Math.min(Math.max(idx, 0), nextList.length - 1)];
+      if (neighbor) void api.activateTab(neighbor.label);
+      return neighbor?.label ?? null;
+    });
+  };
+
+  const reopenLastClosed = async () => {
+    const next = closedStack[0];
+    if (!next) return;
+    setClosedStack((s) => s.slice(1));
+    await openTab(next.url);
   };
 
   const restoreLastSession = async () => {
@@ -73,6 +93,7 @@ export default function App() {
         onActivate={api.activateTab}
         onRestore={restoreLastSession}
         onSave={saveNow}
+        onReopen={reopenLastClosed}
         runtime={isTauri() ? "tauri" : "browser"}
       />
       {tabs.length === 0 && (

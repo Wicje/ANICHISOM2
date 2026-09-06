@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { api, windowControls } from "../lib/tauri-bridge";
 import { TabStrip } from "./TabStrip";
@@ -12,6 +12,7 @@ interface BrowserChromeProps {
   onActivate: (label: string) => Promise<void>;
   onRestore: () => Promise<void>;
   onSave: () => Promise<void>;
+  onReopen: () => Promise<void>;
   runtime: "tauri" | "browser";
 }
 
@@ -23,6 +24,7 @@ export function BrowserChrome({
   onActivate,
   onRestore,
   onSave,
+  onReopen,
   runtime,
 }: BrowserChromeProps) {
   const [address, setAddress] = useState("");
@@ -31,6 +33,7 @@ export function BrowserChrome({
   const [theme, setTheme] = useState<"dark" | "light">(() =>
     localStorage.getItem("continua-theme") === "light" ? "light" : "dark"
   );
+  const addressRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -60,6 +63,53 @@ export function BrowserChrome({
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [onSave]);
+
+  // Mirror the active tab's URL into the address bar (unless editing it).
+  useEffect(() => {
+    if (document.activeElement === addressRef.current) return;
+    const active = tabs.find((t) => t.label === activeLabel);
+    if (active) setAddress(active.url);
+  }, [activeLabel, tabs]);
+
+  // Keyboard shortcuts: Ctrl+T/W/L/R, Ctrl+Shift+T, F5.
+  useEffect(() => {
+    const reload = () => {
+      if (activeLabel) void api.reloadTab(activeLabel);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod && k !== "f5") return;
+
+      if (k === "f5" || (k === "r" && mod)) {
+        e.preventDefault();
+        reload();
+        return;
+      }
+      if (e.shiftKey && k === "t") {
+        e.preventDefault();
+        void onReopen();
+        return;
+      }
+      switch (k) {
+        case "t":
+          e.preventDefault();
+          void onOpen("https://continuaos.cc");
+          break;
+        case "w":
+          e.preventDefault();
+          if (activeLabel) void onClose(activeLabel);
+          break;
+        case "l":
+          e.preventDefault();
+          addressRef.current?.focus();
+          addressRef.current?.select();
+          break;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [activeLabel, onClose, onOpen, onReopen]);
 
   const navigate = async (e: FormEvent) => {
     e.preventDefault();
@@ -153,6 +203,7 @@ export function BrowserChrome({
         <form onSubmit={navigate} style={{ display: "flex", flex: 1, gap: 6 }}>
           <input
             className="address-bar"
+            ref={addressRef}
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder="Search or enter address…"

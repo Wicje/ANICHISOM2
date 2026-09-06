@@ -53,6 +53,9 @@ export const api = {
   activateTab: (label: string) =>
     invoke<void>("activate_tab", { label }).catch(() => undefined),
 
+  reloadTab: (label: string) =>
+    invoke<void>("reload_tab", { label }).catch(() => undefined),
+
   closeAllTabs: () =>
     invoke<void>("close_all_tabs").catch(() => undefined),
 
