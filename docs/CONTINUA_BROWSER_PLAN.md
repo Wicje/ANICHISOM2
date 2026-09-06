@@ -182,6 +182,9 @@ Everything stays free until users demand more.
 
 **Scaffolded (build-first, test-later):**
 
+- OS shell resurrected at `app/os/shell` — the loved web desktop (dock,
+  launchpad, window manager, apps) now runs as a tab; "Desktop" quick link
+  in the Tauri New Tab. On-thesis demo: your OS is a tab, machine is arbitrary.
 - `continua-desktop/` — Vite 6 + React 18 frontend: `app.tsx` session
   restore/save, shorten `tauri-bridge.ts`, `BrowserChrome`/`TabStrip`
   chrome UI, address bar, session auto-save on quit.

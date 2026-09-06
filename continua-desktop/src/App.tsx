@@ -35,7 +35,8 @@ export default function App() {
         restored.push({ label, url: tab.url, title: tab.title || tab.url });
       }
       setTabs(restored);
-      setActiveLabel(restored.length > 0 ? restored[restored.length - 1].label : null);
+      const last = restored[restored.length - 1];
+      if (last) setActiveLabel(last.label);
     }
   };
 
