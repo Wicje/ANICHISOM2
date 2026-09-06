@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, TabRecord, isTauri } from "./lib/tauri-bridge";
 import { BrowserChrome } from "./chrome/BrowserChrome";
+import { NewTab } from "./chrome/NewTab";
 
 /** A tab as opened: native Rust label + canonical metadata. */
 interface OpenTab extends TabRecord {
@@ -45,15 +46,20 @@ export default function App() {
   };
 
   return (
-    <BrowserChrome
-      tabs={tabs}
-      activeLabel={activeLabel}
-      onOpen={openTab}
-      onClose={closeTab}
-      onActivate={api.activateTab}
-      onRestore={restoreLastSession}
-      onSave={saveNow}
-      runtime={isTauri() ? "tauri" : "browser"}
-    />
+    <>
+      <BrowserChrome
+        tabs={tabs}
+        activeLabel={activeLabel}
+        onOpen={openTab}
+        onClose={closeTab}
+        onActivate={api.activateTab}
+        onRestore={restoreLastSession}
+        onSave={saveNow}
+        runtime={isTauri() ? "tauri" : "browser"}
+      />
+      {tabs.length === 0 && (
+        <NewTab onResume={restoreLastSession} onOpen={openTab} />
+      )}
+    </>
   );
 }

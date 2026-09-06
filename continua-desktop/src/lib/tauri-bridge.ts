@@ -59,4 +59,7 @@ export const api = {
 
   setContinuaUrl: (url: string) =>
     invoke<void>("set_continua_url", { url }).catch(() => undefined),
+
+  getContinuaUrl: () =>
+    isTauri() ? invoke<string>("get_continua_url").catch(() => "continuaos.cc") : Promise.resolve("continuaos.cc"),
 };

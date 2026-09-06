@@ -69,7 +69,7 @@ export function BrowserChrome({
         top: 0,
         left: 0,
         right: 0,
-        height: 84,
+        height: 96,
         background: "var(--chrome-bg)",
         borderBottom: "1px solid var(--border)",
         display: "flex",

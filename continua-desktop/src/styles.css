@@ -180,7 +180,7 @@ body,
 body::after {
   content: "";
   position: fixed;
-  top: 84px;
+  top: 96px;
   left: 0;
   right: 0;
   height: 1px;
@@ -190,4 +190,165 @@ body::after {
     transparent 4px 8px
   );
   pointer-events: none;
+}
+
+/* ─── New Tab / start page ──────────────────────────────── */
+.start-page {
+  position: fixed;
+  top: 96px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  background: radial-gradient(
+      1200px 600px at 50% -10%,
+      rgba(16, 244, 160, 0.08),
+      transparent 60%
+    ),
+    radial-gradient(
+      800px 400px at 80% 110%,
+      rgba(0, 240, 255, 0.06),
+      transparent 60%
+    ),
+    #080a10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 24px 64px;
+  gap: 36px;
+}
+
+.start-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  font-size: 22px;
+}
+
+.start-hero {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.start-title {
+  margin: 8px 0 0;
+  font-size: 30px;
+  letter-spacing: -0.6px;
+  font-weight: 800;
+  background: linear-gradient(90deg, var(--text), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.start-sub {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.start-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  width: min(760px, 100%);
+}
+
+.start-card {
+  background: rgba(18, 22, 31, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  backdrop-filter: blur(6px);
+}
+
+.start-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+}
+
+.start-card-count {
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.start-card-sub {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.start-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.resume-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.resume-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.resume-list li:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.resume-link {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resume-link:hover {
+  color: var(--accent);
+}
+
+.start-cta {
+  appearance: none;
+  border: 1px solid var(--accent);
+  background: rgba(16, 244, 160, 0.12);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 9px;
+  padding: 9px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.start-cta:hover {
+  background: rgba(16, 244, 160, 0.22);
 }
