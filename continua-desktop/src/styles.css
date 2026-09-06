@@ -71,6 +71,42 @@ body,
   background: rgba(255, 255, 255, 0.08);
 }
 
+[data-tauri-drag-region] {
+  cursor: grab;
+}
+
+.window-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: -6px;
+}
+
+.wc-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  width: 34px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.wc-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
+
+.wc-close:hover {
+  background: #e5484d;
+  color: #fff;
+}
+
 /* ─── Tabs ──────────────────────────────────────────────── */
 .tab {
   display: flex;
@@ -107,6 +143,7 @@ body,
   display: grid;
   place-items: center;
   flex-shrink: 0;
+  object-fit: contain;
 }
 
 .tab-title {

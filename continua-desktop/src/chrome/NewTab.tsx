@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, displayTitle } from "../lib/tauri-bridge";
 import type { DeviceInfo, TabRecord } from "../lib/tauri-bridge";
+import { Favicon } from "../components/Favicon";
 
 interface NewTabProps {
   onResume: () => Promise<void>;
@@ -88,22 +89,4 @@ export function NewTab({ onResume, onOpen }: NewTabProps) {
       </div>
     </div>
   );
-}
-
-function Favicon({ url }: { url: string }) {
-  try {
-    const u = new URL(url);
-    return (
-      <img
-        className="tab-favicon"
-        src={`${u.protocol}//${u.host}/favicon.ico`}
-        alt=""
-        onError={(e) => {
-          e.currentTarget.style.visibility = "hidden";
-        }}
-      />
-    );
-  } catch {
-    return <span className="tab-favicon">🌐</span>;
-  }
 }

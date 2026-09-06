@@ -6,6 +6,7 @@
  * without the native shell.
  */
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export const isTauri = (): boolean =>
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -16,6 +17,16 @@ export const displayTitle = (url: string): string => {
     return new URL(url).hostname.replace(/^www\./, "");
   } catch {
     return url;
+  }
+};
+
+/** Cross-origin favicon via Google's service (works for nearly every site). */
+export const faviconUrl = (url: string): string => {
+  try {
+    const host = new URL(url).host;
+    return `https://www.google.com/s2/favicons?domain=${host}&sz=64`;
+  } catch {
+    return "🌐";
   }
 };
 
@@ -71,4 +82,12 @@ export const api = {
 
   getContinuaUrl: () =>
     isTauri() ? invoke<string>("get_continua_url").catch(() => "continuaos.cc") : Promise.resolve("continuaos.cc"),
+};
+
+/** OS window controls for the borderless main window. */
+export const windowControls = {
+  minimize: () => getCurrentWindow().minimize().catch(() => undefined),
+  toggleMaximize: () => getCurrentWindow().toggleMaximize().catch(() => undefined),
+  isMaximized: () => getCurrentWindow().isMaximized().catch(() => false),
+  close: () => getCurrentWindow().close().catch(() => undefined),
 };

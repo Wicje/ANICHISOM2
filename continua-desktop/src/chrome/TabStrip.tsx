@@ -1,5 +1,6 @@
 import { displayTitle } from "../lib/tauri-bridge";
 import type { TabRecord } from "../lib/tauri-bridge";
+import { Favicon } from "../components/Favicon";
 
 export interface OpenTab extends TabRecord {
   label: string;
@@ -25,7 +26,7 @@ export function TabStrip({ tabs, activeLabel, onActivate, onClose, onNew }: TabS
             className={`tab ${active ? "tab-active" : ""}`}
             title={tab.url}
           >
-            <span className="tab-favicon">{faviconFor(tab.url)}</span>
+            <Favicon url={tab.url} />
             <span className="tab-title">{tab.title || displayTitle(tab.url)}</span>
             <button
               className="tab-close"
@@ -44,13 +45,4 @@ export function TabStrip({ tabs, activeLabel, onActivate, onClose, onNew }: TabS
       </button>
     </div>
   );
-}
-
-function faviconFor(url: string): string {
-  try {
-    const u = new URL(url);
-    return `${u.protocol}//${u.host}/favicon.ico`;
-  } catch {
-    return "🌐";
-  }
 }

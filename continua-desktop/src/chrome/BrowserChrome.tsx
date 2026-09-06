@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { api } from "../lib/tauri-bridge";
+import { api, windowControls } from "../lib/tauri-bridge";
 import { TabStrip } from "./TabStrip";
 import type { OpenTab } from "./TabStrip";
 
@@ -27,6 +27,7 @@ export function BrowserChrome({
 }: BrowserChromeProps) {
   const [address, setAddress] = useState("");
   const [restored, setRestored] = useState(false);
+  const [maximized, setMaximized] = useState(false);
 
   // Restore last session on launch.
   useEffect(() => {
@@ -80,18 +81,48 @@ export function BrowserChrome({
         zIndex: 9999,
       }}
     >
-      {/* Row 1: brand + actions */}
+      {/* Row 1: brand + actions (drag region on the empty stretch) */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div className="brand-mark">C</div>
         <span className="brand-name">Continua</span>
         <span className="runtime-badge">{runtime === "tauri" ? "native" : "preview"}</span>
-        <div style={{ flex: 1 }} />
+        <div style={{ flex: 1, alignSelf: "stretch" }} data-tauri-drag-region />
         <button className="chrome-btn" onClick={() => void onRestore()} title="Restore last session">
           ⟲
         </button>
         <button className="chrome-btn" onClick={() => void onSave()} title="Save session now">
           ●
         </button>
+        {runtime === "tauri" && (
+          <div className="window-controls">
+            <button
+              className="wc-btn"
+              title="Minimize"
+              onClick={() => void windowControls.minimize()}
+            >
+              –
+            </button>
+            <button
+              className="wc-btn"
+              title={maximized ? "Restore" : "Maximize"}
+              onClick={() => {
+                void (async () => {
+                  await windowControls.toggleMaximize();
+                  setMaximized(await windowControls.isMaximized());
+                })();
+              }}
+            >
+              {maximized ? "❐" : "□"}
+            </button>
+            <button
+              className="wc-btn wc-close"
+              title="Close"
+              onClick={() => void windowControls.close()}
+            >
+              ×
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Row 2: tab strip + address bar */}
