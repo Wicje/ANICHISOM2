@@ -12,8 +12,6 @@ mod vault;
 
 use std::sync::Mutex;
 
-use tauri::Manager;
-
 use crate::session::{SessionManager, TabRecord};
 use crate::sync::SyncClient;
 use crate::tab_engine::TabManager;
@@ -132,7 +130,7 @@ fn vault_get(state: tauri::State<'_, AppState>, key: String) -> Result<Option<St
 }
 
 #[tauri::command]
-fn sync_context(state: tauri::State<'_, AppState>, url: String, title: String) -> Result<(), String> {
+async fn sync_context(state: tauri::State<'_, AppState>, url: String, title: String) -> Result<(), String> {
     let continua_url = state.continua_url.lock().map_err(|e| e.to_string())?.clone();
     state.sync.push_context(&continua_url, &url, &title).await
 }

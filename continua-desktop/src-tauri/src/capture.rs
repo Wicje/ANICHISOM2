@@ -16,8 +16,10 @@ pub struct CaptureEvent {
     pub captured_at: u64,
 }
 
+#[allow(dead_code)]
 pub struct CaptureEngine;
 
+#[allow(dead_code)]
 impl CaptureEngine {
     pub fn new() -> Self {
         Self

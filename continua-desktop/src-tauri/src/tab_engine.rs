@@ -110,7 +110,7 @@ impl TabManager {
             pos.x as f64,
             pos.y as f64 + CHROME_HEIGHT,
             size.width as f64,
-            (size.height as f64).saturating_sub(CHROME_HEIGHT),
+            (size.height as f64 - CHROME_HEIGHT).max(0.0),
         ))
     }
 }
