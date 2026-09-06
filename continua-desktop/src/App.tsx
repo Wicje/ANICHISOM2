@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { api, TabRecord, isTauri } from "./lib/tauri-bridge";
+import { useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
+import { api, TabRecord, displayTitle, isTauri } from "./lib/tauri-bridge";
 import { BrowserChrome } from "./chrome/BrowserChrome";
 import { NewTab } from "./chrome/NewTab";
 
@@ -13,9 +14,25 @@ export default function App() {
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
 
+  // Mirror page titles pushed from Rust (tab:title-changed).
+  useEffect(() => {
+    if (!isTauri()) return;
+    let unlisten: (() => void) | undefined;
+    listen<{ label: string; title: string }>("tab:title-changed", (e) => {
+      setTabs((prev) =>
+        prev.map((t) =>
+          t.label === e.payload.label ? { ...t, title: e.payload.title } : t
+        )
+      );
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => unlisten?.();
+  }, []);
+
   const openTab = async (url: string, focus = true) => {
     const label = await api.openTab(url);
-    setTabs((prev) => [...prev, { label, url, title: url }]);
+    setTabs((prev) => [...prev, { label, url, title: displayTitle(url) }]);
     if (focus) setActiveLabel(label);
     api.syncContext(url, url);
   };

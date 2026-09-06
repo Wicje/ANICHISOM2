@@ -10,6 +10,15 @@ import { invoke } from "@tauri-apps/api/core";
 export const isTauri = (): boolean =>
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
+/** Short human label from a URL (hostname minus www). */
+export const displayTitle = (url: string): string => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+};
+
 export interface TabRecord {
   url: string;
   title: string;

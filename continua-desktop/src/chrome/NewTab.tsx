@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../lib/tauri-bridge";
+import { api, displayTitle } from "../lib/tauri-bridge";
 import type { DeviceInfo, TabRecord } from "../lib/tauri-bridge";
 
 interface NewTabProps {
@@ -50,7 +50,7 @@ export function NewTab({ onResume, onOpen }: NewTabProps) {
                   <li key={`${tab.url}-${i}`}>
                     <Favicon url={tab.url} />
                     <button className="resume-link" onClick={() => void onOpen(tab.url)}>
-                      {titleFor(tab.url)}
+                      {tab.title || displayTitle(tab.url)}
                     </button>
                   </li>
                 ))}
@@ -88,15 +88,6 @@ export function NewTab({ onResume, onOpen }: NewTabProps) {
       </div>
     </div>
   );
-}
-
-function titleFor(url: string): string {
-  try {
-    const u = new URL(url);
-    return u.hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
 }
 
 function Favicon({ url }: { url: string }) {

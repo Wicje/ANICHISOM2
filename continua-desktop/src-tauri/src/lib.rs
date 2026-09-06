@@ -12,6 +12,8 @@ mod vault;
 
 use std::sync::Mutex;
 
+use tauri::Manager;
+
 use crate::session::{SessionManager, TabRecord};
 use crate::sync::SyncClient;
 use crate::tab_engine::TabManager;
@@ -159,6 +161,18 @@ pub fn run() {
             trust: DeviceInfo::detect(),
             sync: SyncClient::new(),
             continua_url: Mutex::new(DEFAULT_CONTINUA_URL.to_string()),
+        })
+        .on_window_event(|window, event| {
+            // Tab webviews track the chrome on any move/resize.
+            if window.label() == "main"
+                && matches!(event, tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_))
+            {
+                if let Some(state) = window.app_handle().try_state::<AppState>() {
+                    if let Ok(tabs) = state.tabs.lock() {
+                        let _ = tabs.relayout(window.app_handle());
+                    }
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             open_tab,

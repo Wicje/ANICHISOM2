@@ -1,3 +1,4 @@
+import { displayTitle } from "../lib/tauri-bridge";
 import type { TabRecord } from "../lib/tauri-bridge";
 
 export interface OpenTab extends TabRecord {
@@ -25,7 +26,7 @@ export function TabStrip({ tabs, activeLabel, onActivate, onClose, onNew }: TabS
             title={tab.url}
           >
             <span className="tab-favicon">{faviconFor(tab.url)}</span>
-            <span className="tab-title">{titleFor(tab.url)}</span>
+            <span className="tab-title">{tab.title || displayTitle(tab.url)}</span>
             <button
               className="tab-close"
               onClick={(e) => {
@@ -43,15 +44,6 @@ export function TabStrip({ tabs, activeLabel, onActivate, onClose, onNew }: TabS
       </button>
     </div>
   );
-}
-
-function titleFor(url: string): string {
-  try {
-    const u = new URL(url);
-    return u.hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
 }
 
 function faviconFor(url: string): string {

@@ -6,7 +6,7 @@
 
 use std::collections::VecDeque;
 
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 use crate::CHROME_HEIGHT;
 
@@ -37,12 +37,14 @@ impl TabManager {
 
         WebviewWindowBuilder::new(app, label.clone(), WebviewUrl::External(parsed))
             .title("Continua")
+            .decorations(false)
             .position(x, y)
             .inner_size(w, h)
             .build()
             .map_err(|e| e.to_string())?;
 
         self.open.push_back(label.clone());
+
         Ok(label)
     }
 
@@ -60,6 +62,11 @@ impl TabManager {
         };
         window.show().map_err(|e| e.to_string())?;
         window.set_focus().map_err(|e| e.to_string())?;
+
+        // Refresh the title in the chrome on every activation.
+        if let Ok(title) = window.title() {
+            emit_title(app, label, &title);
+        }
 
         // Bring the tab to the front of the z-order.
         if let Some(pos) = self.open.iter().position(|l| l == label) {
@@ -113,4 +120,13 @@ impl TabManager {
             (size.height as f64 - CHROME_HEIGHT).max(0.0),
         ))
     }
+}
+
+/// Push a tab title update to the chrome (main window) for rendering.
+fn emit_title(app: &AppHandle, label: &str, title: &str) {
+    let _ = app.emit_to(
+        "main",
+        "tab:title-changed",
+        serde_json::json!({ "label": label, "title": title }),
+    );
 }
