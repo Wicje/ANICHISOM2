@@ -13,7 +13,7 @@ mod vault;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 use crate::session::{SessionManager, TabRecord};
 use crate::sync::SyncClient;
@@ -236,8 +236,26 @@ fn set_immersive_inner(app: &tauri::AppHandle, enabled: bool) -> Result<(), Stri
 }
 
 #[tauri::command]
-fn set_immersive(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
-    set_immersive_inner(&app, enabled)
+fn set_immersive(
+    app: tauri::AppHandle,
+    enabled: Option<bool>,
+) -> Result<(), String> {
+    let mode = match enabled {
+        Some(v) => v,
+        None => {
+            let current = if let Some(state) = app.try_state::<AppState>() {
+                if let Ok(tabs) = state.tabs.lock() {
+                    tabs.immersive()
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+            !current
+        }
+    };
+    set_immersive_inner(&app, mode)
 }
 
 /* Whether any Continua window (chrome or a tab) currently has focus.
@@ -261,7 +279,8 @@ fn app_is_focused(app: &tauri::AppHandle) -> bool {
 }
 
 /// Global shortcut handler: Ctrl+Shift+F toggles clean/focus mode; Escape
-/// exits it. Kept as a free fn so it can be owned by the builder's fallback.
+/// exits it; Ctrl+K (or Ctrl+Shift+K) toggles the command palette. Kept as a
+/// free fn so it can be owned by the builder's fallback.
 fn on_global_shortcut(
     app: &tauri::AppHandle,
     shortcut: &tauri_plugin_global_shortcut::Shortcut,
@@ -273,6 +292,8 @@ fn on_global_shortcut(
     }
     let toggle = shortcut.key == Code::KeyF
         && shortcut.mods.contains(Modifiers::CONTROL | Modifiers::SHIFT);
+    let palette = shortcut.key == Code::KeyK
+        && shortcut.mods.contains(Modifiers::CONTROL | Modifiers::SHIFT);
     let escape = shortcut.key == Code::Escape;
     let mut immersive = false;
     if let Some(state) = app.try_state::<AppState>() {
@@ -282,6 +303,9 @@ fn on_global_shortcut(
     }
     if toggle {
         let _ = set_immersive_inner(app, !immersive);
+    } else if palette {
+        // The chrome listens for this and opens the command palette.
+        let _ = app.emit("palette:toggle", ());
     } else if escape && immersive {
         let _ = set_immersive_inner(app, false);
     }
@@ -392,7 +416,7 @@ pub fn run() {
             // a tab (remote pages — we never expose IPC to them).
             let base =
                 tauri_plugin_global_shortcut::Builder::new().with_handler(on_global_shortcut);
-            match base.with_shortcuts(["ctrl+shift+f", "escape"]) {
+            match base.with_shortcuts(["ctrl+shift+f", "ctrl+k", "ctrl+shift+k", "escape"]) {
                 Ok(b) => b.build(),
                 Err(e) => {
                     eprintln!("continua: global shortcuts unavailable: {e}");

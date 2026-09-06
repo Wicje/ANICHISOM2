@@ -85,8 +85,10 @@ export const api = {
       forward: false,
     })),
 
-  setImmersive: (enabled: boolean) =>
-    invoke<void>("set_immersive", { enabled }).catch(() => undefined),
+  setImmersive: (enabled?: boolean) =>
+    invoke<void>("set_immersive", { enabled: enabled ?? null }).catch(
+      () => undefined
+    ),
 
   closeAllTabs: () =>
     invoke<void>("close_all_tabs").catch(() => undefined),

@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { api, TabRecord, displayTitle, isTauri } from "./lib/tauri-bridge";
 import { BrowserChrome } from "./chrome/BrowserChrome";
 import { NewTab } from "./chrome/NewTab";
+import { CommandPalette } from "./chrome/CommandPalette";
 
 /** A tab as opened: native Rust label + canonical metadata. */
 interface OpenTab extends TabRecord {
@@ -117,6 +118,13 @@ export default function App() {
       {tabs.length === 0 && (
         <NewTab onResume={restoreLastSession} onOpen={openTab} />
       )}
+      <CommandPalette
+        tabs={tabs}
+        onOpen={openTab}
+        onActivate={(label) => void api.activateTab(label)}
+        onRestore={() => restoreLastSession()}
+        onReopen={reopenLastClosed}
+      />
     </>
   );
 }
