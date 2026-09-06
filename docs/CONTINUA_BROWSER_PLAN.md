@@ -174,4 +174,28 @@ Everything stays free until users demand more.
 1. `pacman -S webkit2gtk libayatana-appindicator` — unblocks Tauri
 2. `npm create tauri-app@latest continua-desktop -- --template react-ts`
 3. Get wry multi-webview tabs rendering inside React chrome
-4. Commit + push to `Wicje/Continua.git`
+4. Commit + push to `git@github.com:ANICHISOM/Continua.git`
+
+---
+
+## 10. Implementation Status
+
+**Scaffolded (build-first, test-later):**
+
+- `continua-desktop/` — Vite 6 + React 18 frontend: `app.tsx` session
+  restore/save, shorten `tauri-bridge.ts`, `BrowserChrome`/`TabStrip`
+  chrome UI, address bar, session auto-save on quit.
+- `src-tauri/` — Tauri 2 desktop: `tab_engine.rs` (per-tab `WebviewWindow`
+  positioned below the chrome strip, relayout on resize), `session.rs`
+  (JSON snapshots in app config dir), `vault.rs` (OS keyring), `trust.rs`
+  (device fingerprint), `capture.rs` (native captures, xdotool on X11),
+  `sync.rs` (POST to `/api/context/save` via `tauri::http`).
+- Layout source-of-truth lives in Rust: frontend only triggers relayout on
+  resize; Rust derives tab geometry from the main window rect.
+
+**Deferred (explicitly, by operator):**
+
+- `pacman -S webkit2gtk libayatana-appindicator` — compile blocker.
+- `npm install` in `continua-desktop/`; all compile/typecheck/tests.
+- Multi-webview verification and switch to single-window wry if v2 APIs
+  don't play nicely with per-tab `WebviewWindow`s.
