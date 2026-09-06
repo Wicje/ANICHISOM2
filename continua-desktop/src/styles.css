@@ -1,12 +1,51 @@
 :root {
-  --chrome-bg: #0b0e14;
-  --border: rgba(255, 255, 255, 0.08);
-  --text: #e6edf3;
-  --text-dim: #8b949e;
-  --accent: #10f4a0;
-  --accent2: #00f0ff;
-  --surface: #12161f;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* ─── Dark: charcoal night (default) ─────────────────── */
+  --bg: #07080a;
+  --chrome-bg: #0c0e12;
+  --surface: #13151a;
+  --surface-card: rgba(19, 21, 26, 0.85);
+  --text: #ece7de;
+  --text-dim: #8b857c;
+  --border: rgba(255, 255, 255, 0.09);
+  --hover: rgba(255, 255, 255, 0.07);
+  --hover-faint: rgba(255, 255, 255, 0.045);
+
+  /* Brass accent */
+  --accent: #c9a94f;
+  --accent-hi: #e8cf8e;
+  --accent-deep: #a07b24;
+  --accent-ink: #0b0804;
+  --accent-soft: rgba(201, 169, 79, 0.14);
+  --accent-soft-2: rgba(201, 169, 79, 0.24);
+  --glow-a: rgba(201, 169, 79, 0.09);
+  --glow-b: rgba(160, 123, 36, 0.06);
+  --guide: rgba(201, 169, 79, 0.4);
+}
+
+:root[data-theme="light"] {
+  /* ─── Light: warm off-white ───────────────────────────── */
+  --bg: #f6f4ee;
+  --chrome-bg: #f1eee6;
+  --surface: #ffffff;
+  --surface-card: rgba(255, 255, 255, 0.85);
+  --text: #191914;
+  --text-dim: #6e675c;
+  --border: rgba(25, 25, 20, 0.14);
+  --hover: rgba(25, 25, 20, 0.07);
+  --hover-faint: rgba(25, 25, 20, 0.045);
+
+  /* Brass accent (deepened for contrast on light) */
+  --accent: #967718;
+  --accent-hi: #b9973f;
+  --accent-deep: #7a5e10;
+  --accent-ink: #fffaf0;
+  --accent-soft: rgba(150, 119, 24, 0.12);
+  --accent-soft-2: rgba(150, 119, 24, 0.22);
+  --glow-a: rgba(150, 119, 24, 0.1);
+  --glow-b: rgba(150, 119, 24, 0.07);
+  --guide: rgba(150, 119, 24, 0.4);
 }
 
 * {
@@ -27,8 +66,8 @@ body,
   width: 20px;
   height: 20px;
   border-radius: 5px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: #06080c;
+  background: linear-gradient(135deg, var(--accent-hi), var(--accent-deep));
+  color: var(--accent-ink);
   font-weight: 900;
   font-size: 12px;
   display: grid;
@@ -46,7 +85,7 @@ body,
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #06080c;
+  color: var(--accent-ink);
   background: var(--accent);
   border-radius: 999px;
   padding: 1px 7px;
@@ -68,7 +107,7 @@ body,
 }
 
 .chrome-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--hover);
 }
 
 [data-tauri-drag-region] {
@@ -98,7 +137,7 @@ body,
 }
 
 .wc-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--hover);
   color: var(--text);
 }
 
@@ -126,7 +165,7 @@ body,
 }
 
 .tab:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover-faint);
 }
 
 .tab-active {
@@ -171,7 +210,7 @@ body,
 }
 
 .tab-close:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--hover);
   color: var(--text);
 }
 
@@ -191,7 +230,7 @@ body,
 }
 
 .tab-new:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--hover-faint);
   color: var(--text);
 }
 
@@ -213,6 +252,10 @@ body,
   border-color: var(--accent);
 }
 
+.address-bar::placeholder {
+  color: var(--text-dim);
+}
+
 /* ─── Resize guide ──────────────────────────────────────── */
 body::after {
   content: "";
@@ -223,7 +266,7 @@ body::after {
   height: 1px;
   background: repeating-linear-gradient(
     90deg,
-    rgba(16, 244, 160, 0.35) 0 4px,
+    var(--guide) 0 4px,
     transparent 4px 8px
   );
   pointer-events: none;
@@ -239,15 +282,11 @@ body::after {
   overflow-y: auto;
   background: radial-gradient(
       1200px 600px at 50% -10%,
-      rgba(16, 244, 160, 0.08),
+      var(--glow-a),
       transparent 60%
     ),
-    radial-gradient(
-      800px 400px at 80% 110%,
-      rgba(0, 240, 255, 0.06),
-      transparent 60%
-    ),
-    #080a10;
+    radial-gradient(800px 400px at 80% 110%, var(--glow-b), transparent 60%),
+    var(--bg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -275,7 +314,7 @@ body::after {
   font-size: 30px;
   letter-spacing: -0.6px;
   font-weight: 800;
-  background: linear-gradient(90deg, var(--text), var(--accent));
+  background: linear-gradient(90deg, var(--text), var(--accent-hi));
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -295,7 +334,7 @@ body::after {
 }
 
 .start-card {
-  background: rgba(18, 22, 31, 0.85);
+  background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 18px;
@@ -352,7 +391,7 @@ body::after {
 }
 
 .resume-list li:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover-faint);
 }
 
 .resume-link {
@@ -376,7 +415,7 @@ body::after {
 .start-cta {
   appearance: none;
   border: 1px solid var(--accent);
-  background: rgba(16, 244, 160, 0.12);
+  background: var(--accent-soft);
   color: var(--accent);
   font-size: 13px;
   font-weight: 700;
@@ -387,5 +426,5 @@ body::after {
 }
 
 .start-cta:hover {
-  background: rgba(16, 244, 160, 0.22);
+  background: var(--accent-soft-2);
 }

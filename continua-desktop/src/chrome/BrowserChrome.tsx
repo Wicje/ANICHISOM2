@@ -28,6 +28,14 @@ export function BrowserChrome({
   const [address, setAddress] = useState("");
   const [restored, setRestored] = useState(false);
   const [maximized, setMaximized] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">(() =>
+    localStorage.getItem("continua-theme") === "light" ? "light" : "dark"
+  );
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("continua-theme", theme);
+  }, [theme]);
 
   // Restore last session on launch.
   useEffect(() => {
@@ -92,6 +100,14 @@ export function BrowserChrome({
         </button>
         <button className="chrome-btn" onClick={() => void onSave()} title="Save session now">
           ●
+        </button>
+        <button
+          className="chrome-btn"
+          title={theme === "dark" ? "Switch to light" : "Switch to dark"}
+          onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+          style={{ fontFamily: "inherit" }}
+        >
+          {theme === "dark" ? "☀" : "☾"}
         </button>
         {runtime === "tauri" && (
           <div className="window-controls">
