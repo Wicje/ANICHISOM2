@@ -13,7 +13,6 @@ use tauri::{
 };
 
 use crate::session::TabRecord;
-use crate::CHROME_HEIGHT;
 
 /// Per-tab metadata mirrored to the chrome and used for session snapshots.
 #[derive(Clone)]
@@ -39,6 +38,8 @@ pub struct TabManager {
     /// Set on any mutation that should be persisted to disk.
     dirty: bool,
     next_id: u32,
+    /// Height of the chrome strip in logical px. 0 = immersive/focus mode.
+    chrome_height: f64,
 }
 
 impl TabManager {
@@ -47,6 +48,7 @@ impl TabManager {
             open: VecDeque::new(),
             dirty: false,
             next_id: 0,
+            chrome_height: crate::CHROME_HEIGHT,
         }
     }
 
@@ -293,6 +295,21 @@ impl TabManager {
         self.dirty = false;
     }
 
+    /// Collapse (0) or restore (CHROME_HEIGHT) the chrome strip; tabs reflow
+    /// to fill the freed space. Toggled by focus/immersive mode.
+    pub fn set_chrome_height(&mut self, height: f64) {
+        if self.chrome_height == height {
+            return;
+        }
+        self.chrome_height = height;
+        self.dirty = true;
+    }
+
+    /// True while the chrome strip is hidden (clean/focus mode).
+    pub fn immersive(&self) -> bool {
+        self.chrome_height < crate::CHROME_HEIGHT
+    }
+
     /// Reposition every tab to fill the area below the chrome strip.
     pub fn relayout(&self, app: &AppHandle) -> Result<(), String> {
         let (x, y, w, h) = self.layout_rect(app)?;
@@ -320,9 +337,9 @@ impl TabManager {
 
         Ok((
             pos.x as f64,
-            pos.y as f64 + CHROME_HEIGHT,
+            pos.y as f64 + self.chrome_height,
             size.width as f64,
-            (size.height as f64 - CHROME_HEIGHT).max(0.0),
+            (size.height as f64 - self.chrome_height).max(0.0),
         ))
     }
 }

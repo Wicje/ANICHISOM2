@@ -194,6 +194,13 @@ export function BrowserChrome({
         </button>
         <button
           className="chrome-btn"
+          onClick={() => void api.setImmersive(true)}
+          title="Clean mode — hide all chrome (Ctrl+Shift+F to return)"
+        >
+          ◱
+        </button>
+        <button
+          className="chrome-btn"
           title={theme === "dark" ? "Switch to light" : "Switch to dark"}
           onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
           style={{ fontFamily: "inherit" }}

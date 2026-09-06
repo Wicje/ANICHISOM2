@@ -155,6 +155,80 @@ fn get_device_info(state: tauri::State<'_, AppState>) -> DeviceInfo {
     state.trust.clone()
 }
 
+/// Collapse or restore the chrome strip (clean/focus mode). With the strip
+/// gone, tabs reflow to fill the whole main-window rect and the chrome
+/// window hides, giving a chrome-less view without native fullscreen.
+fn set_immersive_inner(app: &tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    let Some(state) = app.try_state::<AppState>() else {
+        return Ok(());
+    };
+    let mut tabs = state.tabs.lock().map_err(|e| e.to_string())?;
+    tabs.set_chrome_height(if enabled { 0.0 } else { CHROME_HEIGHT });
+    tabs.relayout(app)?;
+    drop(tabs);
+    if let Some(main) = app.get_webview_window("main") {
+        if enabled {
+            main.hide().map_err(|e| e.to_string())?;
+        } else {
+            main.show().map_err(|e| e.to_string())?;
+            main.set_focus().map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn set_immersive(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    set_immersive_inner(&app, enabled)
+}
+
+/* Whether any Continua window (chrome or a tab) currently has focus.
+ * Gates the global shortcuts so they don't fire while another app is active.
+ */
+fn app_is_focused(app: &tauri::AppHandle) -> bool {
+    let focused = |label: &str| {
+        app.get_webview_window(label)
+            .and_then(|w| w.is_focused().ok())
+            .unwrap_or(false)
+    };
+    if focused("main") {
+        return true;
+    }
+    if let Some(state) = app.try_state::<AppState>() {
+        if let Ok(tabs) = state.tabs.lock() {
+            return tabs.labels().iter().any(|l| focused(l));
+        }
+    }
+    false
+}
+
+/// Global shortcut handler: Ctrl+Shift+F toggles clean/focus mode; Escape
+/// exits it. Kept as a free fn so it can be owned by the builder's fallback.
+fn on_global_shortcut(
+    app: &tauri::AppHandle,
+    shortcut: &tauri_plugin_global_shortcut::Shortcut,
+    event: tauri_plugin_global_shortcut::ShortcutEvent,
+) {
+    use tauri_plugin_global_shortcut::{Code, Modifiers, ShortcutState};
+    if event.state() != ShortcutState::Pressed || !app_is_focused(app) {
+        return;
+    }
+    let toggle = shortcut.key == Code::KeyF
+        && shortcut.mods.contains(Modifiers::CONTROL | Modifiers::SHIFT);
+    let escape = shortcut.key == Code::Escape;
+    let mut immersive = false;
+    if let Some(state) = app.try_state::<AppState>() {
+        if let Ok(tabs) = state.tabs.lock() {
+            immersive = tabs.immersive();
+        }
+    }
+    if toggle {
+        let _ = set_immersive_inner(app, !immersive);
+    } else if escape && immersive {
+        let _ = set_immersive_inner(app, false);
+    }
+}
+
 #[tauri::command]
 fn vault_store(state: tauri::State<'_, AppState>, key: String, value: String) -> Result<(), String> {
     state.vault.lock().map_err(|e| e.to_string())?.store(&key, &value)
@@ -230,6 +304,21 @@ pub fn run() {
             sync: SyncClient::new(),
             continua_url: Mutex::new(DEFAULT_CONTINUA_URL.to_string()),
         })
+        .plugin({
+            // Global shortcuts so clean/focus mode survives focus living on
+            // a tab (remote pages — we never expose IPC to them).
+            let base =
+                tauri_plugin_global_shortcut::Builder::new().with_handler(on_global_shortcut);
+            match base.with_shortcuts(["ctrl+shift+f", "escape"]) {
+                Ok(b) => b.build(),
+                Err(e) => {
+                    eprintln!("continua: global shortcuts unavailable: {e}");
+                    tauri_plugin_global_shortcut::Builder::new()
+                        .with_handler(on_global_shortcut)
+                        .build()
+                }
+            }
+        })
         .setup(|app| {
             spawn_background(app.handle().clone());
             Ok(())
@@ -255,6 +344,7 @@ pub fn run() {
             forward_tab,
             navigate_tab,
             nav_state,
+            set_immersive,
             list_tabs,
             close_all_tabs,
             update_tab_layout,
