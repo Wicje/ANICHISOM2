@@ -58,7 +58,7 @@ export default function App() {
     const label = await api.openTab(url);
     setTabs((prev) => [...prev, { label, url, title: displayTitle(url) }]);
     if (focus) setActiveLabel(label);
-    api.syncContext(url, url);
+    api.syncContext(url, displayTitle(url));
   };
 
   const closeTab = async (label: string) => {
@@ -86,8 +86,8 @@ export default function App() {
     await openTab(next.url);
   };
 
-  const restoreLastSession = async () => {
-    const session = await api.restoreSession();
+  const restoreLastSession = async (id?: string) => {
+    const session = await api.restoreSession(id);
     if (session && session.length > 0) {
       setTabs(session);
       setActiveLabel(session[session.length - 1].label);

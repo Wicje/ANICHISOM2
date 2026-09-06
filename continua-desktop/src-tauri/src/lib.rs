@@ -138,18 +138,21 @@ fn save_session(
         .save(&app, tabs, active, immersive)
 }
 
-/// Reopen the most recent session with its full state — per-tab history,
+/// Reopen a workspace checkpoint (the most recent session by default, or a
+/// chosen id from the memory timeline) with its full state — per-tab history,
 /// scroll positions, active tab and clean/focus mode all come back.
 #[tauri::command]
 fn restore_session(
     state: tauri::State<'_, AppState>,
     app: tauri::AppHandle,
+    id: Option<String>,
 ) -> Result<Option<Vec<tab_engine::TabInfo>>, String> {
-    let snap = state
-        .session
-        .lock()
-        .map_err(|e| e.to_string())?
-        .load_latest(&app);
+    let session = state.session.lock().map_err(|e| e.to_string())?;
+    let snap = match id {
+        Some(ref sid) => session.load_snapshot(&app, sid),
+        None => session.load_latest(&app),
+    };
+    drop(session);
     let Some(snap) = snap else {
         return Ok(None);
     };
@@ -180,6 +183,15 @@ fn restore_session(
 
     let tabs = state.tabs.lock().map_err(|e| e.to_string())?;
     Ok(Some(tabs.infos()))
+}
+
+/// The workspace-memory timeline: every archived checkpoint, newest first.
+#[tauri::command]
+fn browse_sessions(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+) -> Result<Vec<crate::session::SessionSummary>, String> {
+    Ok(state.session.lock().map_err(|e| e.to_string())?.list(&app))
 }
 
 /// Load the most recent session so the chrome can reopen tabs.
@@ -422,6 +434,7 @@ pub fn run() {
             save_session,
             load_session,
             restore_session,
+            browse_sessions,
             get_device_info,
             vault_store,
             vault_get,

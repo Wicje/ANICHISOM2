@@ -37,6 +37,14 @@ pub struct SessionSnapshot {
     pub immersive: bool,
 }
 
+/// A checkpoint in the session memory timeline (for the new-tab page).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionSummary {
+    pub id: String,
+    pub saved_at: u64,
+    pub tabs: Vec<TabRecord>,
+}
+
 pub struct SessionManager;
 
 impl SessionManager {
@@ -91,8 +99,46 @@ impl SessionManager {
 
     /// Load the latest session, if any.
     pub fn load_latest(&self, app: &AppHandle) -> Option<SessionSnapshot> {
-        let path = self.session_dir(app).ok()?.join("latest.json");
+        self.load_snapshot(app, "latest")
+    }
+
+    /// Load a specific snapshot by id (or the "latest" pointer).
+    pub fn load_snapshot(&self, app: &AppHandle, id: &str) -> Option<SessionSnapshot> {
+        let path = self.session_dir(app).ok()?.join(format!("{id}.json"));
         let raw = fs::read_to_string(path).ok()?;
         serde_json::from_str(&raw).ok()
+    }
+
+    /// Reviewable memory: every archived checkpoint, newest first. The live
+    /// "latest" pointer is included too, so the current workspace always shows.
+    pub fn list(&self, app: &AppHandle) -> Vec<SessionSummary> {
+        let Ok(dir) = self.session_dir(app) else {
+            return Vec::new();
+        };
+        let Ok(entries) = fs::read_dir(&dir) else {
+            return Vec::new();
+        };
+
+        let mut rows: Vec<SessionSummary> = Vec::new();
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if !name.ends_with(".json") {
+                continue;
+            }
+            let Ok(raw) = fs::read_to_string(entry.path()) else {
+                continue;
+            };
+            let Ok(snapshot) = serde_json::from_str::<SessionSnapshot>(&raw) else {
+                continue;
+            };
+            rows.push(SessionSummary {
+                id: snapshot.id,
+                saved_at: snapshot.saved_at,
+                tabs: snapshot.tabs,
+            });
+        }
+        rows.sort_by(|a, b| b.saved_at.cmp(&a.saved_at));
+        rows.truncate(30);
+        rows
     }
 }

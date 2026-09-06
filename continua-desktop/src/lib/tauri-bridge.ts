@@ -42,6 +42,13 @@ export interface RestoredTab {
   title: string;
 }
 
+/** A saved workspace checkpoint for the memory timeline. */
+export interface SessionSummary {
+  id: string;
+  saved_at: number;
+  tabs: TabRecord[];
+}
+
 export interface DeviceInfo {
   os: string;
   arch: string;
@@ -93,8 +100,13 @@ export const api = {
   loadSession: () =>
     invoke<TabRecord[] | null>("load_session").catch(() => null),
 
-  restoreSession: () =>
-    invoke<RestoredTab[] | null>("restore_session").catch(() => null),
+  restoreSession: (id?: string) =>
+    invoke<RestoredTab[] | null>("restore_session", { id: id ?? null }).catch(
+      () => null
+    ),
+
+  browseSessions: () =>
+    invoke<SessionSummary[]>("browse_sessions").catch(() => []),
 
   deviceInfo: () =>
     invoke<DeviceInfo>("get_device_info").catch(() => null),
