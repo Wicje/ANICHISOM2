@@ -50,11 +50,19 @@ export function NewTab({ onResume, onOpen }: NewTabProps) {
   return (
     <div className="start-page">
       <div className="start-hero">
-        <div className="brand-mark start-mark">C</div>
+        <div className="brand-mark start-mark">◈</div>
         <h1 className="start-title">Your workspace follows you.</h1>
         <p className="start-sub">
-          Open a page or resume where you left off on another machine.
+          One workspace in your pocket — open a page here, resume it on
+          another machine.
         </p>
+        <div className="start-hero-foot">
+          <span className="hero-chip">Continua Browser</span>
+          <span className="hero-chip">{continuaUrl}</span>
+          <span className="hero-chip">
+            {device ? `${device.os} · ${device.arch}` : "detecting device…"}
+          </span>
+        </div>
       </div>
 
       <div className="start-grid">

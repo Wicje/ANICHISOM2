@@ -4,6 +4,8 @@ Status snapshot after: immersive mode, workspace resurrection, context-memory
 new tab, command palette, shareable sessions (local export/import), and vault
 tabs (encrypted pinned tabs) shipped. This file plans the remaining batches.
 
+Status: P0 ✅ · P1 ✅ (core) · P3 ✅ · P2 ✅ (see per-phase notes)
+
 ## P0 — Server-side session sync (context kernel)
 
 Server surface already exists: `POST /api/context/save` (accepts session
@@ -49,14 +51,22 @@ heartbeat.
 
 1. `trust.rs` -> real device fingerprint (port browser `lib/hardware.ts` +
    `capabilities.ts` logic to Rust): stable machine ID anchored in the
-   keyring, not the volatile hostname.
+   keyring, not the volatile hostname. ✅ FNV-1a over a keyring-anchored
+   secret + full `DeviceInfo` (os/arch/hostname/display/capabilities).
 2. Heartbeat every N minutes -> `/api/devices/heartbeat` refreshes
    `last_seen_at`; server raises `trust_level` after sustained uptime.
+   ✅ Register + heartbeat accept `x-capability-token` (resolveUserId);
+   `register_device` command + 5-min heartbeat thread; `SyncClient` tracks
+   `server_device_id` + `trust_level`; palette surfaces the trust level.
+   (Trust escalation after sustained uptime stays server-side policy.)
 3. Vault on a new machine: capability token scopes `vault.read`; the wrapped
    vault is recoverable only for the account owner's identity, so a session
-   pulls but vault tabs require the owner key.
+   pulls but vault tabs require the owner key. (Depends on future vault-key
+   wrapping; tunnel remains keyring-only for now.)
 4. Grace: unregistered devices are read-only (no session pull, no vault)
-   until they complete the pairing/auth flow.
+   until they complete the pairing/auth flow. ✅ push/pull already gated on
+   the capability token; pair-only devices exist in read-only mode until
+   `register_device` runs.
 
 Open questions: token TTL/rotation; explicit pairing prompt on the account
 device vs silent register.
@@ -65,17 +75,29 @@ device vs silent register.
 
 1. App icon: brass diamond (`◈`) on charcoal -> `icons/` in
    `tauri.conf.json` (png/icns/ico); taskbar + window icon.
+   ✅ Done: `icons/brand.svg` -> 32/128/256 pngs, embedded by the bundle
+   icons list; brand mark now the `◈` diamond across chrome + NewTab.
 2. Titlebar drag region and focus ring (chrome is already brass-accented).
+   ✅ Drag region existed; added `.chrome-focused` brass hairline driven by
+   native `onFocusChanged` so focus is legible in immersive/clean mode.
 3. First-run brand moment on NewTab (lockup + "your workspace follows you").
+   ✅ Diamond lockup, tagline, and device/Continua URL chips under the hero.
+4. Unresolved: icns/ico still Tauri defaults; only the PNG set is branded
+   (Linux build → fine; macOS/Windows bundle would need conversion).
 
 ## P3 — Wrap-up: tests, HiDPI, plan doc
 
 1. Rust unit tests (`cargo test`): `tab_engine` snapshot/restore roundtrip
    incl. vault redaction (vault shim behind a trait), `vault` manifest
    roundtrip, `session` backward-compat load of old-format `latest.json`.
+   ✅ 6 tests: redaction moved to a pure `redacted_record`, session
+   old/new-format parse, manifest roundtrips.
 2. HiDPI audit: `display_resolution` is `"unknown"` in `trust.rs`;
    `layout_rect` under scale factor / device pixel ratio.
-3. Plan doc §10 refresh (see final section below).
+   ✅ `refresh_display` reads the primary monitor; `layout_rect` returns
+   logical px (÷ scale factor); `open()` rescales to physical for the
+   builder; `relayout` stays logical.
+3. Plan doc §10 refresh (see final section below). ✅
 
 ## P4 — Roadmap review
 

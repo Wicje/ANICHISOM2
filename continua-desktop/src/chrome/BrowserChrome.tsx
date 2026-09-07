@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { api, windowControls } from "../lib/tauri-bridge";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { TabStrip } from "./TabStrip";
 import type { OpenTab } from "./TabStrip";
 
@@ -35,7 +36,20 @@ export function BrowserChrome({
   );
   const [canBack, setCanBack] = useState(false);
   const [canForward, setCanForward] = useState(false);
+  const [focused, setFocused] = useState(true);
   const addressRef = useRef<HTMLInputElement | null>(null);
+
+  // Dim the titlebar border when the native window loses focus.
+  useEffect(() => {
+    if (runtime !== "tauri") return;
+    let unlisten: (() => void) | undefined;
+    getCurrentWindow()
+      .onFocusChanged(({ payload }) => setFocused(payload))
+      .then((fn) => {
+        unlisten = fn;
+      });
+    return () => unlisten?.();
+  }, [runtime]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -163,7 +177,7 @@ export function BrowserChrome({
 
   return (
     <div
-      className="chrome"
+      className={`chrome${focused ? " chrome-focused" : ""}`}
       style={{
         position: "fixed",
         top: 0,
@@ -171,7 +185,6 @@ export function BrowserChrome({
         right: 0,
         height: 96,
         background: "var(--chrome-bg)",
-        borderBottom: "1px solid var(--border)",
         display: "flex",
         flexDirection: "column",
         gap: 4,
@@ -182,7 +195,7 @@ export function BrowserChrome({
     >
       {/* Row 1: brand + actions (drag region on the empty stretch) */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div className="brand-mark">C</div>
+        <div className="brand-mark">◈</div>
         <span className="brand-name">Continua</span>
         <span className="runtime-badge">{runtime === "tauri" ? "native" : "preview"}</span>
         <div style={{ flex: 1, alignSelf: "stretch" }} data-tauri-drag-region />
