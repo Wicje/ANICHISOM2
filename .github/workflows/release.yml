@@ -13,6 +13,8 @@ concurrency:
 jobs:
   desktop:
     name: Desktop (${{ matrix.os }})
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
