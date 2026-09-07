@@ -34,8 +34,11 @@ pub struct AppState {
     pub session: Mutex<SessionManager>,
     pub vault: Mutex<VaultEngine>,
     pub trust: DeviceInfo,
-    pub sync: SyncClient,
+    pub sync: Mutex<SyncClient>,
     pub continua_url: Mutex<String>,
+    /// Keyed device id derived from the keyring fingerprint. Populated in
+    /// `setup` once the app handle (and keyring) is available.
+    pub device_id: Mutex<Option<String>>,
 }
 
 // ─── Commands ───────────────────────────────────────────────────────────────
@@ -415,12 +418,6 @@ fn unmark_vault(app: tauri::AppHandle, label: String) -> Result<crate::tab_engin
 }
 
 #[tauri::command]
-async fn sync_context(state: tauri::State<'_, AppState>, url: String, title: String) -> Result<(), String> {
-    let continua_url = state.continua_url.lock().map_err(|e| e.to_string())?.clone();
-    state.sync.push_context(&continua_url, &url, &title).await
-}
-
-#[tauri::command]
 fn set_continua_url(state: tauri::State<'_, AppState>, url: String) -> Result<(), String> {
     let mut guard = state.continua_url.lock().map_err(|e| e.to_string())?;
     *guard = url;
@@ -430,6 +427,136 @@ fn set_continua_url(state: tauri::State<'_, AppState>, url: String) -> Result<()
 #[tauri::command]
 fn get_continua_url(state: tauri::State<'_, AppState>) -> String {
     state.continua_url.lock().map(|g| g.clone()).unwrap_or_default()
+}
+
+/// Poll a PIN pairing session. Returns `waiting`, `approved`, or `expired`.
+/// On `approved` the minted capability token is stored for all later syncs.
+#[tauri::command]
+async fn pair_device(state: tauri::State<'_, AppState>, pin: String) -> Result<String, String> {
+    let continua_url = state.continua_url.lock().map_err(|e| e.to_string())?.clone();
+    let sync = state.sync.lock().map_err(|e| e.to_string())?.clone();
+    let resp = sync.poll_pairing(&continua_url, &pin).await?;
+    let status = resp
+        .get("status")
+        .and_then(|s| s.as_str())
+        .unwrap_or("expired")
+        .to_string();
+
+    if status == "approved" {
+        let token = resp
+            .get("data")
+            .and_then(|d| d.get("capabilityToken"))
+            .and_then(|t| t.as_str())
+            .ok_or_else(|| "approved but no token received".to_string())?
+            .to_string();
+        let mut sync = state.sync.lock().map_err(|e| e.to_string())?;
+        sync.capability_token = Some(token);
+        sync.last_version = 0;
+        return Ok("approved".into());
+    }
+    Ok(status)
+}
+
+/// Push the current local session snapshot to the cloud (the `browser`
+/// context domain). Vault tabs are already redacted by the tab engine.
+#[tauri::command]
+async fn sync_session(state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let continua_url = state.continua_url.lock().map_err(|e| e.to_string())?.clone();
+    let device_id = state
+        .device_id
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone()
+        .ok_or_else(|| "device not initialized".to_string())?;
+    let sync = state.sync.lock().map_err(|e| e.to_string())?.clone();
+    let token = sync
+        .capability_token
+        .clone()
+        .ok_or_else(|| "not paired - use the Pair action in the palette".to_string())?;
+    let version = sync.last_version + 1;
+
+    let snapshot_json = {
+        let tabs_guard = state.tabs.lock().map_err(|e| e.to_string())?;
+        let snapshot = crate::session::SessionSnapshot {
+            id: "cloud".into(),
+            saved_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0),
+            tabs: tabs_guard.snapshot(&app),
+            active: tabs_guard.active_label(),
+            immersive: tabs_guard.immersive(),
+        };
+        serde_json::to_value(&snapshot).map_err(|e| e.to_string())?
+    };
+
+    let result = sync
+        .push_session(&continua_url, &device_id, &token, version, &snapshot_json)
+        .await?;
+
+    // Record the server version so the next pull knows how far we are.
+    if let Some(v) = result
+        .get("data")
+        .and_then(|d| d.get("version"))
+        .and_then(|v| v.as_u64())
+    {
+        state.sync.lock().map_err(|e| e.to_string())?.last_version = v;
+    }
+    Ok(result)
+}
+
+/// Pull a newer remote session and restore it (closing local tabs first).
+#[tauri::command]
+async fn pull_session(app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Vec<crate::tab_engine::TabInfo>, String> {
+    let continua_url = state.continua_url.lock().map_err(|e| e.to_string())?.clone();
+    let sync = state.sync.lock().map_err(|e| e.to_string())?.clone();
+    let token = sync
+        .capability_token
+        .clone()
+        .ok_or_else(|| "not paired - use the Pair action in the palette".to_string())?;
+    let since = sync.last_version;
+
+    let body = sync
+        .pull_session(&continua_url, &token, since)
+        .await?;
+
+    let domains = body
+        .get("domains")
+        .and_then(|d| d.as_array())
+        .ok_or_else(|| "unexpected pull response".to_string())?;
+    let browser = domains
+        .iter()
+        .find(|r| r.get("domain").and_then(|d| d.as_str()) == Some("browser"))
+        .ok_or_else(|| "no remote session yet".to_string())?;
+
+    let snapshot: crate::session::SessionSnapshot =
+        serde_json::from_value(browser["data"].clone()).map_err(|e| e.to_string())?;
+    let version = browser["version"].as_u64().unwrap_or(since);
+
+    let restored = {
+        let mut tabs = state.tabs.lock().map_err(|e| e.to_string())?;
+        tabs.close_all(&app)?;
+        let _ = tabs.restore_from_snapshot(&app, snapshot.tabs)?;
+        let infos = tabs.infos();
+        drop(tabs);
+        let _ = set_immersive_inner(&app, snapshot.immersive);
+        infos
+    };
+
+    state.sync.lock().map_err(|e| e.to_string())?.last_version = version;
+    Ok(restored)
+}
+
+/// Sync state for the chrome: paired? device id? last version?
+#[tauri::command]
+fn sync_status(state: tauri::State<'_, AppState>) -> serde_json::Value {
+    let sync = state.sync.lock().map(|g| g.clone()).unwrap_or_default();
+    let device_id = state.device_id.lock().map(|g| g.clone()).unwrap_or_default();
+    serde_json::json!({
+        "paired": sync.capability_token.is_some(),
+        "deviceId": device_id.unwrap_or_default(),
+        "lastVersion": sync.last_version,
+    })
 }
 
 // ─── App entry ──────────────────────────────────────────────────────────────
@@ -501,8 +628,9 @@ pub fn run() {
             session: Mutex::new(SessionManager::new()),
             vault: Mutex::new(VaultEngine::new()),
             trust: DeviceInfo::detect(),
-            sync: SyncClient::new(),
+            sync: Mutex::new(SyncClient::new()),
             continua_url: Mutex::new(DEFAULT_CONTINUA_URL.to_string()),
+            device_id: Mutex::new(None),
         })
         .plugin({
             // Global shortcuts so clean/focus mode survives focus living on
@@ -520,6 +648,13 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            // Derive the stable device id from the keyring anchor.
+            let fp = crate::trust::Fingerprint::load_or_create(app.handle());
+            if let Some(state) = app.try_state::<AppState>() {
+                if let Ok(mut device_id) = state.device_id.lock() {
+                    *device_id = Some(fp.key);
+                }
+            }
             spawn_background(app.handle().clone());
             Ok(())
         })
@@ -559,9 +694,12 @@ pub fn run() {
             vault_get,
             mark_vault,
             unmark_vault,
-            sync_context,
             set_continua_url,
             get_continua_url,
+            pair_device,
+            sync_session,
+            pull_session,
+            sync_status,
         ]);
 
     let app = builder

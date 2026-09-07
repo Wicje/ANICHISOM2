@@ -644,3 +644,11 @@ body::after {
 .palette-file {
   display: none;
 }
+
+.palette-notice {
+  margin: 0;
+  padding: 10px 16px;
+  font-size: 12px;
+  color: var(--accent-hi);
+  border-top: 1px solid var(--border);
+}

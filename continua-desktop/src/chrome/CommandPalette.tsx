@@ -17,6 +17,8 @@ interface CommandPaletteProps {
   onRestore: (replace?: boolean) => Promise<void>;
   onReopen: () => Promise<void>;
   onToggleVault: (label: string) => Promise<void>;
+  onPullRemote: () => Promise<unknown>;
+  onSync: () => Promise<unknown>;
 }
 
 interface Item {
@@ -44,16 +46,30 @@ export function CommandPalette({
   onRestore,
   onReopen,
   onToggleVault,
+  onPullRemote,
+  onSync,
 }: CommandPaletteProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const q = query.trim();
 
   const pickImportFile = () => {
     window.setTimeout(() => fileRef.current?.click(), 0);
+  };
+
+  // Request a 6-char PIN and wait for the mobile key's approval.
+  const runPair = async () => {
+    setOpen(false);
+    const pin = window.prompt(
+      "Pair this machine: enter the 6-char PIN shown on your Continua OS (meta+P)."
+    );
+    if (!pin) return;
+    const status = await api.pairDevice(pin);
+    setNotice(status === "approved" ? "Paired — cloud sync enabled." : `Pair: ${status}`);
   };
 
   useEffect(() => {
@@ -182,6 +198,29 @@ export function CommandPalette({
         },
       });
     }
+    if (match("pair") || match("sync") || match("cloud") || match("device")) {
+      list.push({
+        key: "pair",
+        group: "Actions",
+        label: "Pair machine (cloud sync)",
+        hint: "6-char PIN approval on your phone",
+        run: () => void runPair(),
+      });
+      list.push({
+        key: "sync",
+        group: "Actions",
+        label: "Sync session to cloud",
+        hint: "push this workspace checkpoint",
+        run: () => void onSync(),
+      });
+      list.push({
+        key: "pull",
+        group: "Actions",
+        label: "Pull remote session",
+        hint: "restore the newest saved workspace",
+        run: () => void onPullRemote(),
+      });
+    }
     for (const quick of QUICK) {
       if (match(quick.label.toLowerCase())) {
         list.push({
@@ -195,7 +234,7 @@ export function CommandPalette({
     }
 
     return list.slice(0, 12);
-  }, [q, tabs, activeLabel, onOpen, onActivate, onRestore, onReopen, onToggleVault]);
+  }, [q, tabs, activeLabel, onOpen, onActivate, onRestore, onReopen, onToggleVault, onPullRemote, onSync]);
 
   useEffect(() => {
     if (!open) return;
@@ -252,6 +291,7 @@ export function CommandPalette({
           }}
           spellCheck={false}
         />
+        {notice && <p className="palette-notice">{notice}</p>}
         {items.length === 0 ? (
           <p className="palette-empty">No matches — type a URL to open it.</p>
         ) : (

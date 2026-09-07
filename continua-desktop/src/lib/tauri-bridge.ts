@@ -139,8 +139,19 @@ export const api = {
   unmarkVault: (label: string) =>
     invoke<RestoredTab | null>("unmark_vault", { label }).catch(() => null),
 
-  syncContext: (url: string, title: string) =>
-    invoke<void>("sync_context", { url, title }).catch(() => undefined),
+  pairDevice: (pin: string) =>
+    invoke<string>("pair_device", { pin }).catch(() => "expired"),
+
+  syncSession: () =>
+    invoke<unknown>("sync_session").catch(() => null),
+
+  pullSession: () =>
+    invoke<RestoredTab[] | null>("pull_session").catch(() => null),
+
+  syncStatus: () =>
+    invoke<{ paired: boolean; deviceId: string; lastVersion: number }>(
+      "sync_status"
+    ).catch(() => ({ paired: false, deviceId: "", lastVersion: 0 })),
 
   setContinuaUrl: (url: string) =>
     invoke<void>("set_continua_url", { url }).catch(() => undefined),

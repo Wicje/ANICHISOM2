@@ -54,7 +54,6 @@ export default function App() {
     const label = await api.openTab(url);
     setTabs((prev) => [...prev, { label, url, title: displayTitle(url) }]);
     if (focus) setActiveLabel(label);
-    api.syncContext(url, displayTitle(url));
   };
 
   const closeTab = async (label: string) => {
@@ -103,6 +102,16 @@ export default function App() {
     }
   };
 
+  // Pull a cloud session (paired device) and adopt it as the live workspace.
+  const pullRemote = async () => {
+    const session = await api.pullSession();
+    if (session && session.length > 0) {
+      setTabs(session);
+      setActiveLabel(session[session.length - 1].label);
+    }
+    return session;
+  };
+
   const saveNow = async () => {
     await api.saveSession(
       tabs.map(({ url, title }) => ({ url, title })),
@@ -134,6 +143,8 @@ export default function App() {
         onRestore={() => restoreLastSession()}
         onReopen={reopenLastClosed}
         onToggleVault={toggleVault}
+        onPullRemote={pullRemote}
+        onSync={() => api.syncSession()}
       />
     </>
   );
