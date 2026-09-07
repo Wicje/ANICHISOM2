@@ -180,25 +180,43 @@ Everything stays free until users demand more.
 
 ## 10. Implementation Status
 
-**Scaffolded (build-first, test-later):**
+**Shipped (this repo, `continua-desktop/`):**
 
-- OS shell resurrected at `app/os/shell` — the loved web desktop (dock,
-  launchpad, window manager, apps) now runs as a tab; "Desktop" quick link
-  in the Tauri New Tab. On-thesis demo: your OS is a tab, machine is arbitrary.
-- `continua-desktop/` — Vite 6 + React 18 frontend: `app.tsx` session
-  restore/save, shorten `tauri-bridge.ts`, `BrowserChrome`/`TabStrip`
-  chrome UI, address bar, session auto-save on quit.
-- `src-tauri/` — Tauri 2 desktop: `tab_engine.rs` (per-tab `WebviewWindow`
-  positioned below the chrome strip, relayout on resize), `session.rs`
-  (JSON snapshots in app config dir), `vault.rs` (OS keyring), `trust.rs`
-  (device fingerprint), `capture.rs` (native captures, xdotool on X11),
-  `sync.rs` (POST to `/api/context/save` via `tauri::http`).
+- Immersive/clean mode — runtime chrome height, global shortcuts
+  (`ctrl+shift+f`, `escape`), `set_immersive`.
+- Workspace resurrection — rich `TabRecord` (history/index/scroll), session
+  snapshots with active tab + immersive state, auto-restore on launch.
+- Context-memory new tab — checkpoint timeline of saved sessions, restore
+  any point by id.
+- Command palette (Ctrl+K) — open URL, switch tab, restore/export/import
+  session, toggle focus mode, quick links.
+- Shareable sessions (local-first) — export a portable checkpoint to the
+  user's file manager; import any `.json` with full tab adoption.
+- Vault tabs (encrypted pinned) — a tab's URL/title/history/scroll live only
+  in the OS keyring manifest; the plaintext session file stores an opaque
+  `vault_id`. Closing a vault tab wipes the manifest; autosave re-encrypts
+  scroll each cycle.
 - Layout source-of-truth lives in Rust: frontend only triggers relayout on
   resize; Rust derives tab geometry from the main window rect.
 
-**Deferred (explicitly, by operator):**
+Roadmap for what comes next: see `docs/CONTINUA_ROADMAP.md` (server session
+sync via the context kernel + capability tokens, moat device-auth, icon /
+branding, tests + HiDPI, input-fingerprinting research).
 
-- `pacman -S webkit2gtk libayatana-appindicator` — compile blocker.
-- `npm install` in `continua-desktop/`; all compile/typecheck/tests.
-- Multi-webview verification and switch to single-window wry if v2 APIs
-  don't play nicely with per-tab `WebviewWindow`s.
+**Scaffolded earlier (superseded by the above):**
+
+- `src-tauri/` (browser engine) — `tab_engine.rs` per-tab `WebviewWindow`
+  positioned below the chrome strip, `session.rs` (JSON snapshots in app
+  config dir), `vault.rs` (OS keyring + vault manifests), `trust.rs`
+  (device fingerprint), `capture.rs` (native captures, xdotool on X11),
+  `sync.rs` (context pushes to `/api/context/save`).
+- OS shell living as a tab: `app/os/shell` (dock, launchpad, window manager)
+  — "Desktop" quick link in the Tauri New Tab. On-thesis demo: your OS is a
+  tab, the machine is arbitrary.
+
+**Deferred (by operator):**
+
+- Multi-webview vs single-window wry: per-tab `WebviewWindow`s work; review
+  only if cross-platform decorations or tab pop-out ever bite.
+- Server-side session sync, moat device-auth, branded icon, HiDPI audit,
+  Rust unit tests, input-fingerprint factor — all tracked in the roadmap.
