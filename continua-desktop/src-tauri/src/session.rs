@@ -22,6 +22,10 @@ pub struct TabRecord {
     /// Vertical scroll offset on the page a restored tab should reopen at.
     #[serde(default)]
     pub scroll_y: f64,
+    /// Non-null only for vaulted tabs — their real URL lives in the keyring
+    /// manifest; the session file keeps just this opaque reference.
+    #[serde(default)]
+    pub vault_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

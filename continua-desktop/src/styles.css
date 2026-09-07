@@ -206,6 +206,24 @@ body,
   color: var(--text);
 }
 
+.tab-vault {
+  border-color: var(--accent-soft);
+  background: var(--accent-soft);
+}
+
+.tab-vault.tab-active {
+  border-color: var(--accent);
+  background: var(--accent-soft-2);
+}
+
+.tab-vault-badge {
+  color: var(--accent);
+  font-size: 10px;
+  line-height: 1;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 2px var(--accent-soft));
+}
+
 .tab-favicon {
   width: 14px;
   height: 14px;

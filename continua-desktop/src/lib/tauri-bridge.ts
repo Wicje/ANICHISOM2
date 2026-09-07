@@ -40,7 +40,12 @@ export interface RestoredTab {
   label: string;
   url: string;
   title: string;
+  /** Present when the tab is vaulted (URL/title live in the keyring). */
+  vault_id?: string | null;
 }
+
+/** A tab as live in the chrome: same shape as a restored tab. */
+export type OpenTab = RestoredTab;
 
 /** A saved workspace checkpoint for the memory timeline. */
 export interface SessionSummary {
@@ -127,6 +132,12 @@ export const api = {
 
   vaultStore: (key: string, value: string) =>
     invoke<void>("vault_store", { key, value }).catch(() => undefined),
+
+  markVault: (label: string) =>
+    invoke<RestoredTab | null>("mark_vault", { label }).catch(() => null),
+
+  unmarkVault: (label: string) =>
+    invoke<RestoredTab | null>("unmark_vault", { label }).catch(() => null),
 
   syncContext: (url: string, title: string) =>
     invoke<void>("sync_context", { url, title }).catch(() => undefined),

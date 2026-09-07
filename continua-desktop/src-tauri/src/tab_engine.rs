@@ -13,6 +13,7 @@ use tauri::{
 };
 
 use crate::session::TabRecord;
+use crate::vault::VaultManifest;
 
 /// Per-tab metadata mirrored to the chrome and used for session snapshots.
 #[derive(Clone)]
@@ -31,6 +32,9 @@ struct TabMeta {
     /// True right after a restore; settling loads must not clobber seeded
     /// history until the session's own pages actually diverge.
     restoring: bool,
+    /// Set once a tab is "vaulted": its real URL/title/history only ever live
+    /// in the OS keyring manifest, never in the plaintext session file.
+    vault_id: Option<String>,
 }
 
 /// Back/forward availability for the chrome's nav buttons.
@@ -46,6 +50,9 @@ pub struct TabInfo {
     pub label: String,
     pub url: String,
     pub title: String,
+    /// Present when the tab is vaulted (encrypted at rest).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vault_id: Option<String>,
 }
 
 pub struct TabManager {
@@ -135,6 +142,7 @@ impl TabManager {
             scroll_y: 0.0,
             scroll_url: None,
             restoring: false,
+            vault_id: None,
         });
         self.last_active = Some(label.clone());
         self.dirty = true;
@@ -147,7 +155,17 @@ impl TabManager {
             window.close().map_err(|e| e.to_string())?;
         }
         let before = self.open.len();
+        // Closing a vault tab also wipes its keyring manifest (it's the only
+        // copy of that tab's URL).
+        let vault_id = self
+            .open
+            .iter()
+            .find(|m| m.label == label)
+            .and_then(|m| m.vault_id.clone());
         self.open.retain(|m| m.label != label);
+        if let Some(vault_id) = vault_id {
+            let _ = Self::delete_vault_meta(app, &vault_id);
+        }
         if self.open.len() != before {
             self.dirty = true;
         }
@@ -363,7 +381,8 @@ impl TabManager {
     }
 
     /// Open a saved session's tabs with their full metadata so back/forward,
-    /// focus and scroll all come back too. Returns the last restored label.
+    /// focus and scroll all come back too. Vault tabs decrypt their manifest
+    /// from the keyring. Returns the last restored label.
     pub fn restore_from_snapshot(
         &mut self,
         app: &AppHandle,
@@ -371,6 +390,11 @@ impl TabManager {
     ) -> Result<Option<String>, String> {
         let mut last: Option<String> = None;
         for rec in records {
+            if let Some(vault_id) = &rec.vault_id {
+                let label = self.restore_vault_tab(app, vault_id)?;
+                last = Some(label);
+                continue;
+            }
             let label = self.open(app, rec.url.clone())?;
             if let Some(meta) = self.open.iter_mut().find(|m| m.label == label) {
                 meta.title = rec.title.clone();
@@ -388,6 +412,36 @@ impl TabManager {
         Ok(last)
     }
 
+    /// Reopen a vault tab by decrypting its keyring manifest.
+    fn restore_vault_tab(&mut self, app: &AppHandle, vault_id: &str) -> Result<String, String> {
+        let manifest = Self::load_vault_meta(app, vault_id);
+        let Some(manifest) = manifest else {
+            // Key revoked or missing — open a blank placeholder, still vaulted.
+            let label = self.open(app, "about:blank".to_string())?;
+            if let Some(meta) = self.open.iter_mut().find(|m| m.label == label) {
+                meta.title = "Vault tab (unavailable)".to_string();
+                meta.vault_id = Some(vault_id.to_string());
+                self.dirty = true;
+            }
+            return Ok(label);
+        };
+
+        let label = self.open(app, manifest.url.clone())?;
+        if let Some(meta) = self.open.iter_mut().find(|m| m.label == label) {
+            meta.title = manifest.title.clone();
+            if !manifest.history.is_empty() {
+                meta.history = manifest.history;
+                meta.idx = manifest.idx.min(meta.history.len().saturating_sub(1));
+            }
+            meta.scroll_y = manifest.scroll_y;
+            meta.scroll_url = Some(manifest.url);
+            meta.vault_id = Some(vault_id.to_string());
+            meta.restoring = true;
+            self.dirty = true;
+        }
+        Ok(label)
+    }
+
     /// The tab that most recently had focus, if any.
     pub fn active_label(&self) -> Option<String> {
         self.last_active.clone()
@@ -401,22 +455,143 @@ impl TabManager {
                 label: m.label.clone(),
                 url: m.url.clone(),
                 title: m.title.clone(),
+                vault_id: m.vault_id.clone(),
             })
             .collect()
     }
 
-    /// Snapshot of the current tab graph for the session file.
-    pub fn snapshot(&self) -> Vec<TabRecord> {
-        self.open
+    /// Mark a tab as vaulted: from now on its URL/title/history/scroll are
+    /// only ever stored inside the OS keyring (encrypted at rest), and the
+    /// plaintext session keeps just a non-descriptive vault_id reference.
+    pub fn mark_vault(&mut self, app: &AppHandle, label: &str) -> Result<TabInfo, String> {
+        if !self.open.iter().any(|m| m.label == label) {
+            return Err(format!("no such tab: {label}"));
+        }
+        let vault_id = Self::new_vault_id();
+        if let Some(meta) = self.open.iter_mut().find(|m| m.label == label) {
+            if meta.vault_id.is_none() {
+                meta.vault_id = Some(vault_id.clone());
+            }
+            let vid = meta.vault_id.clone().unwrap();
+            Self::persist_vault_meta(app, label, meta.clone(), &vid)?;
+        }
+        self.dirty = true;
+        self.info(app, label)
+            .ok_or_else(|| format!("no such tab: {label}"))
+    }
+
+    /// Release a vault tab: remove its keyring manifest and return it to a
+    /// normal (plaintext-recorded) tab.
+    pub fn unmark_vault(&mut self, app: &AppHandle, label: &str) -> Result<TabInfo, String> {
+        let Some(vault_id) = self
+            .open
             .iter()
-            .map(|m| TabRecord {
-                url: m.url.clone(),
-                title: m.title.clone(),
-                history: m.history.clone(),
-                idx: m.idx,
-                scroll_y: m.scroll_y,
-            })
-            .collect()
+            .find(|m| m.label == label)
+            .and_then(|m| m.vault_id.clone())
+        else {
+            return self
+                .info(app, label)
+                .ok_or_else(|| format!("no such tab: {label}"));
+        };
+        let _ = Self::delete_vault_meta(app, &vault_id);
+        if let Some(meta) = self.open.iter_mut().find(|m| m.label == label) {
+            meta.vault_id = None;
+        }
+        self.dirty = true;
+        self.info(app, label)
+            .ok_or_else(|| format!("no such tab: {label}"))
+    }
+
+    /// Single-tab mirror for command replies.
+    fn info(&self, app: &AppHandle, label: &str) -> Option<TabInfo> {
+        let _ = app;
+        self.open.iter().find(|m| m.label == label).map(|m| TabInfo {
+            label: m.label.clone(),
+            url: m.url.clone(),
+            title: m.title.clone(),
+            vault_id: m.vault_id.clone(),
+        })
+    }
+
+    /// Snapshot of the current tab graph for the session file. Vault tabs are
+    /// re-encrypted into the keyring and appear in the file only as an opaque
+    /// vault_id — their URLs never touch the plaintext session.
+    pub fn snapshot(&self, app: &AppHandle) -> Vec<TabRecord> {
+        let mut records = Vec::with_capacity(self.open.len());
+        for m in self.open.iter() {
+            if let Some(vault_id) = &m.vault_id {
+                let _ = Self::persist_vault_meta(app, &m.label, m.clone(), vault_id);
+                records.push(TabRecord {
+                    url: "continua://vault".into(),
+                    title: "Vault tab".into(),
+                    history: Vec::new(),
+                    idx: 0,
+                    scroll_y: 0.0,
+                    vault_id: Some(vault_id.clone()),
+                });
+            } else {
+                records.push(TabRecord {
+                    url: m.url.clone(),
+                    title: m.title.clone(),
+                    history: m.history.clone(),
+                    idx: m.idx,
+                    scroll_y: m.scroll_y,
+                    vault_id: None,
+                });
+            }
+        }
+        records
+    }
+
+    fn new_vault_id() -> String {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0);
+        format!("vt-{now}")
+    }
+
+    /// Write (or re-encrypt) a tab's manifest into the OS keyring.
+    fn persist_vault_meta(
+        app: &AppHandle,
+        label: &str,
+        meta: TabMeta,
+        vault_id: &str,
+    ) -> Result<(), String> {
+        let _ = label;
+        let manifest = VaultManifest {
+            url: meta.url.clone(),
+            title: meta.title.clone(),
+            history: meta.history.clone(),
+            idx: meta.idx,
+            scroll_y: meta.scroll_y,
+        };
+        let json = serde_json::to_string(&manifest).map_err(|e| e.to_string())?;
+        if let Some(state) = app.try_state::<crate::AppState>() {
+            let vault = state.vault.lock().map_err(|e| e.to_string())?;
+            return vault.store(&Self::vault_key(vault_id), &json);
+        }
+        Err("app state unavailable".into())
+    }
+
+    /// Decrypt a vault tab's manifest from the keyring.
+    fn load_vault_meta(app: &AppHandle, vault_id: &str) -> Option<VaultManifest> {
+        let state = app.try_state::<crate::AppState>()?;
+        let vault = state.vault.lock().ok()?;
+        let json = vault.get(&Self::vault_key(vault_id)).ok()??;
+        serde_json::from_str(&json).ok()
+    }
+
+    fn delete_vault_meta(app: &AppHandle, vault_id: &str) -> Result<(), String> {
+        let state = app
+            .try_state::<crate::AppState>()
+            .ok_or_else(|| "app state unavailable".to_string())?;
+        let vault = state.vault.lock().map_err(|e| e.to_string())?;
+        vault.delete(&Self::vault_key(vault_id))
+    }
+
+    fn vault_key(vault_id: &str) -> String {
+        format!("vault:tab:{vault_id}")
     }
 
     /// Whether anything changed since the last snapshot.

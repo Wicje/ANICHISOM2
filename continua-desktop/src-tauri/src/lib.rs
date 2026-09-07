@@ -127,15 +127,20 @@ fn update_tab_layout(state: tauri::State<'_, AppState>, app: tauri::AppHandle) -
 fn save_session(
     state: tauri::State<'_, AppState>,
     app: tauri::AppHandle,
-    tabs: Vec<TabRecord>,
+    _tabs: Vec<TabRecord>,
     active: Option<String>,
 ) -> Result<String, String> {
-    let immersive = state.tabs.lock().map(|t| t.immersive()).unwrap_or(false);
+    let tabs_guard = state.tabs.lock().map_err(|e| e.to_string())?;
+    // Records derive from the engine so vault tabs stay redacted to their
+    // vault_id; the chrome payload could leak a vault URL in plaintext.
+    let snap = tabs_guard.snapshot(&app);
+    let immersive = tabs_guard.immersive();
+    drop(tabs_guard);
     state
         .session
         .lock()
         .map_err(|e| e.to_string())?
-        .save(&app, tabs, active, immersive)
+        .save(&app, snap, active, immersive)
 }
 
 /// Reopen a workspace checkpoint (the most recent session by default, or a
@@ -392,6 +397,23 @@ fn vault_get(state: tauri::State<'_, AppState>, key: String) -> Result<Option<St
     state.vault.lock().map_err(|e| e.to_string())?.get(&key)
 }
 
+/// Encrypt a tab into the vault: from now on the session file records only an
+/// opaque vault_id; URL/title/history/scroll live exclusively in the keyring.
+#[tauri::command]
+fn mark_vault(app: tauri::AppHandle, label: String) -> Result<crate::tab_engine::TabInfo, String> {
+    let state = app.state::<AppState>();
+    let mut tabs = state.tabs.lock().map_err(|e| e.to_string())?;
+    tabs.mark_vault(&app, &label)
+}
+
+/// Release a tab from the vault (removes its keyring manifest).
+#[tauri::command]
+fn unmark_vault(app: tauri::AppHandle, label: String) -> Result<crate::tab_engine::TabInfo, String> {
+    let state = app.state::<AppState>();
+    let mut tabs = state.tabs.lock().map_err(|e| e.to_string())?;
+    tabs.unmark_vault(&app, &label)
+}
+
 #[tauri::command]
 async fn sync_context(state: tauri::State<'_, AppState>, url: String, title: String) -> Result<(), String> {
     let continua_url = state.continua_url.lock().map_err(|e| e.to_string())?.clone();
@@ -453,7 +475,7 @@ fn spawn_background(app: tauri::AppHandle) {
 
             // Periodic autosave, deduped by content so only real changes hit disk.
             if tabs.dirty() {
-                let snap = tabs.snapshot();
+                let snap = tabs.snapshot(&app);
                 if !snap.is_empty() {
                     let key = serde_json::to_string(&snap).unwrap_or_default();
                     if key != last_save {
@@ -535,6 +557,8 @@ pub fn run() {
             get_device_info,
             vault_store,
             vault_get,
+            mark_vault,
+            unmark_vault,
             sync_context,
             set_continua_url,
             get_continua_url,
@@ -549,7 +573,7 @@ pub fn run() {
         if let tauri::RunEvent::ExitRequested { .. } = event {
             if let Some(state) = app_handle.try_state::<AppState>() {
                 if let Ok(tabs) = state.tabs.lock() {
-                    let snap = tabs.snapshot();
+                    let snap = tabs.snapshot(&app_handle);
                     if !snap.is_empty() {
                         let active = tabs.active_label();
                         let immersive = tabs.immersive();

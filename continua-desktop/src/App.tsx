@@ -1,14 +1,9 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { api, TabRecord, displayTitle, isTauri } from "./lib/tauri-bridge";
+import { api, OpenTab, displayTitle, isTauri } from "./lib/tauri-bridge";
 import { BrowserChrome } from "./chrome/BrowserChrome";
 import { NewTab } from "./chrome/NewTab";
 import { CommandPalette } from "./chrome/CommandPalette";
-
-/** A tab as opened: native Rust label + canonical metadata. */
-interface OpenTab extends TabRecord {
-  label: string;
-}
 
 export default function App() {
   // Tabs live in Rust WebviewWindows; React keeps the canonical metadata.
@@ -87,6 +82,19 @@ export default function App() {
     await openTab(next.url);
   };
 
+  // Encrypt (or release) the active tab: the keyring manifest is mirrored
+  // straight back into chrome state so the vault badge updates instantly.
+  const toggleVault = async (label: string) => {
+    const target = tabs.find((t) => t.label === label);
+    if (!target) return;
+    const updated = target.vault_id
+      ? await api.unmarkVault(label)
+      : await api.markVault(label);
+    if (updated) {
+      setTabs((prev) => prev.map((t) => (t.label === label ? updated : t)));
+    }
+  };
+
   const restoreLastSession = async (id?: string, replace = false) => {
     const session = await api.restoreSession(id, replace);
     if (session && session.length > 0) {
@@ -120,10 +128,12 @@ export default function App() {
       )}
       <CommandPalette
         tabs={tabs}
+        activeLabel={activeLabel}
         onOpen={openTab}
         onActivate={(label) => void api.activateTab(label)}
         onRestore={() => restoreLastSession()}
         onReopen={reopenLastClosed}
+        onToggleVault={toggleVault}
       />
     </>
   );

@@ -4,6 +4,8 @@ import { Favicon } from "../components/Favicon";
 
 export interface OpenTab extends TabRecord {
   label: string;
+  /** Present when the tab's URL/title live only inside the OS keyring. */
+  vault_id?: string | null;
 }
 
 interface TabStripProps {
@@ -19,15 +21,17 @@ export function TabStrip({ tabs, activeLabel, onActivate, onClose, onNew }: TabS
     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, maxWidth: "55%", overflowX: "auto" }}>
       {tabs.map((tab) => {
         const active = tab.label === activeLabel;
+        const vaulted = Boolean(tab.vault_id);
         return (
           <div
             key={tab.label}
             onClick={() => void onActivate(tab.label)}
-            className={`tab ${active ? "tab-active" : ""}`}
-            title={tab.url}
+            className={`tab ${active ? "tab-active" : ""}${vaulted ? " tab-vault" : ""}`}
+            title={vaulted ? `Vault tab — encrypted at rest (${tab.url})` : tab.url}
           >
             <Favicon url={tab.url} />
             <span className="tab-title">{tab.title || displayTitle(tab.url)}</span>
+            {vaulted && <span className="tab-vault-badge" title="Encrypted at rest">◈</span>}
             <button
               className="tab-close"
               onClick={(e) => {

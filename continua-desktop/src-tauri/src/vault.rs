@@ -38,3 +38,17 @@ impl VaultEngine {
         entry.delete_credential().map_err(|e| e.to_string())
     }
 }
+
+/// Decryptable metadata for a vaulted tab, stored only inside the OS keyring.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct VaultManifest {
+    pub url: String,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub history: Vec<String>,
+    #[serde(default)]
+    pub idx: usize,
+    #[serde(default)]
+    pub scroll_y: f64,
+}

@@ -6,14 +6,17 @@ interface PaletteTab {
   label: string;
   url: string;
   title: string;
+  vault_id?: string | null;
 }
 
 interface CommandPaletteProps {
   tabs: PaletteTab[];
+  activeLabel: string | null;
   onOpen: (url: string) => Promise<void>;
   onActivate: (label: string) => void;
   onRestore: (replace?: boolean) => Promise<void>;
   onReopen: () => Promise<void>;
+  onToggleVault: (label: string) => Promise<void>;
 }
 
 interface Item {
@@ -35,10 +38,12 @@ const isUrl = (q: string) => /^[\w-]+(\.[\w-]+)+([/:].*)?$/.test(q) || q.startsW
 
 export function CommandPalette({
   tabs,
+  activeLabel,
   onOpen,
   onActivate,
   onRestore,
   onReopen,
+  onToggleVault,
 }: CommandPaletteProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -163,6 +168,20 @@ export function CommandPalette({
         run: () => void api.setImmersive(),
       });
     }
+    if (match("vault") || match("encrypt")) {
+      const vaulted = tabs.find((t) => t.label === activeLabel)?.vault_id;
+      list.push({
+        key: "vault",
+        group: "Actions",
+        label: vaulted ? "Un-secure vault tab" : "Encrypt tab in vault",
+        hint: vaulted
+          ? "release the URL back into the session file"
+          : "store URL/title only in the OS keyring",
+        run: () => {
+          if (activeLabel) void onToggleVault(activeLabel);
+        },
+      });
+    }
     for (const quick of QUICK) {
       if (match(quick.label.toLowerCase())) {
         list.push({
@@ -176,7 +195,7 @@ export function CommandPalette({
     }
 
     return list.slice(0, 12);
-  }, [q, tabs, onOpen, onActivate, onRestore, onReopen]);
+  }, [q, tabs, activeLabel, onOpen, onActivate, onRestore, onReopen, onToggleVault]);
 
   useEffect(() => {
     if (!open) return;
