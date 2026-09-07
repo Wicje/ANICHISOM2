@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api, displayTitle, isTauri } from "../lib/tauri-bridge";
+import { attachCadence } from "../lib/cadence";
 
 interface PaletteTab {
   label: string;
@@ -53,7 +54,7 @@ export function CommandPalette({
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const q = query.trim();
 
@@ -298,7 +299,10 @@ export function CommandPalette({
       />
       <div className="palette" onMouseDown={(e) => e.stopPropagation()}>
         <input
-          ref={inputRef}
+          ref={(el) => {
+            inputRef.current = el;
+            attachCadence(el);
+          }}
           className="palette-input"
           placeholder="Open a URL, switch tab, or run a command…"
           value={query}

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { api, windowControls } from "../lib/tauri-bridge";
+import { attachCadence } from "../lib/cadence";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { TabStrip } from "./TabStrip";
 import type { OpenTab } from "./TabStrip";
@@ -289,7 +290,10 @@ export function BrowserChrome({
         <form onSubmit={navigate} style={{ display: "flex", flex: 1, gap: 6 }}>
           <input
             className="address-bar"
-            ref={addressRef}
+            ref={(el) => {
+              addressRef.current = el;
+              attachCadence(el);
+            }}
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             onKeyDown={onAddressKey}
