@@ -32,6 +32,8 @@
     "shortDescription": "Continua Browser — your workspace follows you",
     "longDescription": "A privacy-first continuity browser: tab graph, vaulted tabs, and encrypted session sync across your own machines via the Continua cloud API.",
     "icon": [
+      "icons/icon.ico",
+      "icons/icon.icns",
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png"
