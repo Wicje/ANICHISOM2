@@ -112,7 +112,7 @@ describe('startDownload', () => {
 
   it('dedupes concurrent downloads of the same URL', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(new Blob(['x'], { type: 'text/plain' }), { headers: { 'content-type': 'text/plain' } })
+      new Response('x', { headers: { 'content-type': 'text/plain' } })
     );
     vi.stubGlobal('fetch', fetchMock);
 

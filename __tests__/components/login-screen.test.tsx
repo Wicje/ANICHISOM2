@@ -76,7 +76,7 @@ describe('LoginScreen Component', () => {
     expect(screen.getByPlaceholderText('Your name')).toBeTruthy();
     expect(screen.getByPlaceholderText('you@email.com')).toBeTruthy();
     expect(screen.getByPlaceholderText('Min 6 characters')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Create Account/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Create Account' })).toBeTruthy();
 
     // Verify invite code is NOT requested in signup mode
     expect(screen.queryByPlaceholderText(/invite code/i)).toBeNull();
@@ -100,7 +100,7 @@ describe('LoginScreen Component', () => {
       target: { value: 'password123' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Create Account/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
 
     await waitFor(() => {
       expect(mockSignUp).toHaveBeenCalledWith({
