@@ -418,10 +418,38 @@ fn unmark_vault(app: tauri::AppHandle, label: String) -> Result<crate::tab_engin
 }
 
 #[tauri::command]
-fn set_continua_url(state: tauri::State<'_, AppState>, url: String) -> Result<(), String> {
+fn set_continua_url(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    url: String,
+) -> Result<(), String> {
+    let url = normalize_url(&url);
+    // Persist so the override survives restarts without a rebuild.
+    if let Ok(dir) = app.path().app_config_dir() {
+        if let Ok(()) = std::fs::create_dir_all(&dir) {
+            let _ = std::fs::write(
+                url_file(&dir),
+                serde_json::json!({ "url": url }).to_string(),
+            );
+        }
+    }
     let mut guard = state.continua_url.lock().map_err(|e| e.to_string())?;
     *guard = url;
     Ok(())
+}
+
+/// Path to the Continua URL override file (default: `app_config_dir/url.json`).
+fn url_file(dir: &std::path::Path) -> std::path::PathBuf {
+    dir.join("url.json")
+}
+
+/// Normalize a backend URL: strip trailing slashes, tolerate a bare host.
+fn normalize_url(url: &str) -> String {
+    let mut u = url.trim().trim_end_matches('/').to_string();
+    if !u.starts_with("http://") && !u.starts_with("https://") {
+        u = format!("https://{u}");
+    }
+    u
 }
 
 #[tauri::command]
@@ -733,6 +761,23 @@ pub fn run() {
                 }
                 if let Ok(mut trust) = state.trust.lock() {
                     trust.refresh_display(app.handle());
+                }
+                // Continua backend: persisted override wins over the baked-in
+                // default, so the real domain can be pointed at without any
+                // rebuild (drop `url.json` in the config dir or use the
+                // palette action).
+                let mut url = DEFAULT_CONTINUA_URL.to_string();
+                if let Ok(dir) = app.path().app_config_dir() {
+                    if let Ok(raw) = std::fs::read_to_string(url_file(&dir)) {
+                        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
+                            if let Some(u) = v.get("url").and_then(|u| u.as_str()) {
+                                url = normalize_url(u);
+                            }
+                        }
+                    }
+                }
+                if let Ok(mut guard) = state.continua_url.lock() {
+                    *guard = url;
                 }
             }
             spawn_background(app.handle().clone());

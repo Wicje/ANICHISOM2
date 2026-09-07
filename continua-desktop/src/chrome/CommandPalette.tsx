@@ -232,6 +232,22 @@ export function CommandPalette({
         },
       });
       list.push({
+        key: "server-url",
+        group: "Actions",
+        label: "Set Continua server URL",
+        hint: "point sync at your real domain now — swap later, no reinstalls",
+        run: () => {
+          void (async () => {
+            const current = await api.getContinuaUrl();
+            const next = window.prompt("Continua server URL (https://…)", current);
+            if (next && next.trim()) {
+              await api.setContinuaUrl(next.trim());
+              setNotice(`Continua server set to ${next.trim()}`);
+            }
+          })();
+        },
+      });
+      list.push({
         key: "pull",
         group: "Actions",
         label: "Pull remote session",
