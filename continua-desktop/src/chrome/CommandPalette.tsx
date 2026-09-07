@@ -12,7 +12,7 @@ interface CommandPaletteProps {
   tabs: PaletteTab[];
   onOpen: (url: string) => Promise<void>;
   onActivate: (label: string) => void;
-  onRestore: () => Promise<void>;
+  onRestore: (replace?: boolean) => Promise<void>;
   onReopen: () => Promise<void>;
 }
 
@@ -44,7 +44,12 @@ export function CommandPalette({
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const q = query.trim();
+
+  const pickImportFile = () => {
+    window.setTimeout(() => fileRef.current?.click(), 0);
+  };
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -119,7 +124,25 @@ export function CommandPalette({
         group: "Actions",
         label: "Restore last session",
         hint: "reopen your workspace",
-        run: () => void onRestore(),
+        run: () => void onRestore(false),
+      });
+    }
+    if (match("export")) {
+      list.push({
+        key: "export",
+        group: "Actions",
+        label: "Export session",
+        hint: "save a portable checkpoint",
+        run: () => void api.exportSession(),
+      });
+    }
+    if (match("import")) {
+      list.push({
+        key: "import",
+        group: "Actions",
+        label: "Import session",
+        hint: "adopt a portable checkpoint",
+        run: pickImportFile,
       });
     }
     if (match("reopen") || match("closed")) {
@@ -179,10 +202,25 @@ export function CommandPalette({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, items, active]);
 
+  const onImportFile = async (file: File | undefined) => {
+    if (!file) return;
+    const raw = await file.text();
+    const n = await api.importSessionJson(raw);
+    setOpen(false);
+    if (n > 0) await onRestore(true);
+  };
+
   if (!open) return null;
 
   return (
     <div className="palette-overlay" onMouseDown={() => setOpen(false)}>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".json,application/json"
+        className="palette-file"
+        onChange={(e) => void onImportFile(e.target.files?.[0])}
+      />
       <div className="palette" onMouseDown={(e) => e.stopPropagation()}>
         <input
           ref={inputRef}

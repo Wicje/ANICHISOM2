@@ -146,6 +146,7 @@ fn restore_session(
     state: tauri::State<'_, AppState>,
     app: tauri::AppHandle,
     id: Option<String>,
+    replace: Option<bool>,
 ) -> Result<Option<Vec<tab_engine::TabInfo>>, String> {
     let session = state.session.lock().map_err(|e| e.to_string())?;
     let snap = match id {
@@ -158,6 +159,13 @@ fn restore_session(
     };
 
     let mut tabs = state.tabs.lock().map_err(|e| e.to_string())?;
+    // Imported/legacy checkpoints adopt the workspace wholesale.
+    if replace.unwrap_or(false) {
+        let existing = tabs.labels();
+        for label in existing {
+            let _ = tabs.close(&app, &label);
+        }
+    }
     if !tabs.labels().is_empty() {
         return Ok(None);
     }
@@ -192,6 +200,69 @@ fn browse_sessions(
     app: tauri::AppHandle,
 ) -> Result<Vec<crate::session::SessionSummary>, String> {
     Ok(state.session.lock().map_err(|e| e.to_string())?.list(&app))
+}
+
+/// Export a checkpoint to the exports folder as a portable .json file and
+/// reveal it in the file manager. Returns the absolute path. Local-first
+/// sharing: the JSON is the same shape as the session store.
+#[tauri::command]
+fn export_session(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+    id: Option<String>,
+) -> Result<String, String> {
+    let snapshot = {
+        let session = state.session.lock().map_err(|e| e.to_string())?;
+        match id {
+            Some(sid) => session.load_snapshot(&app, &sid),
+            None => session.load_latest(&app),
+        }
+    };
+    let Some(snapshot) = snapshot else {
+        return Err("no session to export".into());
+    };
+
+    let dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| e.to_string())?
+        .join("exports");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let file = dir.join(format!("continua-{}.json", snapshot.saved_at));
+
+    let body = serde_json::to_string_pretty(&snapshot).map_err(|e| e.to_string())?;
+    std::fs::write(&file, body).map_err(|e| e.to_string())?;
+
+    // Best-effort reveal in the system file manager.
+    let _ = std::process::Command::new("xdg-open")
+        .arg(&dir)
+        .spawn();
+    let _ = app.emit("session:exported", snapshot.saved_at);
+    Ok(file.display().to_string())
+}
+
+/// Adopt a portable checkpoint whose JSON was read by the chrome (HTML file
+/// input — no native dialog dependency). Saves it as the latest session;
+/// restore_session(replace) reopens the workspace. Returns the tab count.
+#[tauri::command]
+fn import_session_json(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+    raw: String,
+) -> Result<usize, String> {
+    let snapshot: crate::session::SessionSnapshot =
+        serde_json::from_str(&raw).map_err(|e| format!("not a valid session file: {e}"))?;
+    if snapshot.tabs.is_empty() {
+        return Err("session file has no tabs".into());
+    }
+    let n = snapshot.tabs.len();
+    let _ = state
+        .session
+        .lock()
+        .map_err(|e| e.to_string())?
+        .save(&app, snapshot.tabs, snapshot.active, snapshot.immersive);
+    let _ = app.emit("session:imported", ());
+    Ok(n)
 }
 
 /// Load the most recent session so the chrome can reopen tabs.
@@ -459,6 +530,8 @@ pub fn run() {
             load_session,
             restore_session,
             browse_sessions,
+            export_session,
+            import_session_json,
             get_device_info,
             vault_store,
             vault_get,

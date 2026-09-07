@@ -87,8 +87,8 @@ export default function App() {
     await openTab(next.url);
   };
 
-  const restoreLastSession = async (id?: string) => {
-    const session = await api.restoreSession(id);
+  const restoreLastSession = async (id?: string, replace = false) => {
+    const session = await api.restoreSession(id, replace);
     if (session && session.length > 0) {
       setTabs(session);
       setActiveLabel(session[session.length - 1].label);

@@ -622,3 +622,7 @@ body::after {
   font-size: 13px;
   color: var(--text-dim);
 }
+
+.palette-file {
+  display: none;
+}

@@ -102,10 +102,19 @@ export const api = {
   loadSession: () =>
     invoke<TabRecord[] | null>("load_session").catch(() => null),
 
-  restoreSession: (id?: string) =>
-    invoke<RestoredTab[] | null>("restore_session", { id: id ?? null }).catch(
+  restoreSession: (id?: string, replace?: boolean) =>
+    invoke<RestoredTab[] | null>("restore_session", {
+      id: id ?? null,
+      replace: replace ?? false,
+    }).catch(() => null),
+
+  exportSession: (id?: string) =>
+    invoke<string | null>("export_session", { id: id ?? null }).catch(
       () => null
     ),
+
+  importSessionJson: (raw: string) =>
+    invoke<number>("import_session_json", { raw }).catch(() => 0),
 
   browseSessions: () =>
     invoke<SessionSummary[]>("browse_sessions").catch(() => []),
