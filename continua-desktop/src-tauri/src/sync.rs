@@ -27,6 +27,9 @@ pub struct SyncClient {
     pub capability_token: Option<String>,
     /// Last version we successfully pushed/pulled, kept for pull().
     pub last_version: u64,
+    /// Server device UUID + trust level from the last registration.
+    pub server_device_id: Option<String>,
+    pub trust_level: Option<String>,
 }
 
 impl Default for SyncClient {
@@ -46,6 +49,8 @@ impl SyncClient {
             device_id: None,
             capability_token: None,
             last_version: 0,
+            server_device_id: None,
+            trust_level: None,
         }
     }
 
@@ -143,6 +148,42 @@ impl SyncClient {
             resp.json().await.map_err(|e| e.to_string())
         } else {
             Err(format!("pair poll failed: {}", resp.status()))
+        }
+    }
+
+    /// Register (upsert) this device under its keyring fingerprint, and keep
+    /// `last_seen_at` fresh. Returns `{ deviceId, trustLevel, isNew }`.
+    pub async fn register_device(
+        &self,
+        continua_url: &str,
+        token: &str,
+        fingerprint: &str,
+        info: &crate::trust::DeviceInfo,
+    ) -> Result<serde_json::Value, String> {
+        let endpoint = format!(
+            "{}/api/devices/register",
+            continua_url.trim_end_matches('/')
+        );
+        let payload = serde_json::json!({
+            "deviceName": format!("Continua Browser ({})", info.hostname),
+            "fingerprint": fingerprint,
+            "platform": info.os,
+            "browser": "continua-desktop",
+            "capabilities": info.capabilities,
+        });
+        let resp = self
+            .client
+            .post(&endpoint)
+            .header("Content-Type", "application/json")
+            .header("x-capability-token", token)
+            .json(&payload)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+        if resp.status().is_success() {
+            resp.json().await.map_err(|e| e.to_string())
+        } else {
+            Err(format!("device register failed: {}", resp.status()))
         }
     }
 }

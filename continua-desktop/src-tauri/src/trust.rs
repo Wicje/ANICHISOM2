@@ -88,6 +88,12 @@ pub struct DeviceInfo {
     pub capabilities: HashMap<String, bool>,
 }
 
+impl Default for DeviceInfo {
+    fn default() -> Self {
+        Self::detect()
+    }
+}
+
 impl DeviceInfo {
     /// Detect device characteristics at startup.
     pub fn detect() -> Self {
@@ -108,6 +114,15 @@ impl DeviceInfo {
             hostname,
             display_resolution: "unknown".into(),
             capabilities,
+        }
+    }
+
+    /// Populate `display_resolution` from the primary monitor, if available.
+    /// Called once after setup so the main window exists.
+    pub fn refresh_display(&mut self, app: &tauri::AppHandle) {
+        if let Ok(Some(monitor)) = app.primary_monitor() {
+            let size = monitor.size(); // physical px
+            self.display_resolution = format!("{}x{}", size.width, size.height);
         }
     }
 

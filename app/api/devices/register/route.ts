@@ -9,19 +9,33 @@ import { NextRequest } from 'next/server';
 import { checkRouteRateLimit, apiOk, apiError, apiInternal, requireSession } from '@/lib/api-helpers';
 import { createServerClient } from '@supabase/ssr';
 import { authorize, PERSONAL_DEFAULT_SCOPES, type Scope } from '@/lib/authz';
+import {
+  extractTokenFromRequest,
+  verifyCapabilityToken,
+} from '@/lib/capability-token';
+
+type Resolved = { ok: true; userId: string } | { ok: false };
+
+/** Session cookie (web user) or capability token (paired desktop daemon). */
+async function resolveUserId(request: NextRequest): Promise<Resolved> {
+  const auth = await requireSession(request);
+  if (auth.ok) return { ok: true, userId: auth.userId };
+  const claims = await verifyCapabilityToken(extractTokenFromRequest(request));
+  return claims ? { ok: true, userId: claims.sub } : { ok: false };
+}
 
 export async function POST(request: NextRequest) {
   try {
     const rl = checkRouteRateLimit(request, 'DEVICE_REGISTER');
     if (rl) return rl;
 
-    const session = await requireSession(request);
-    if (!session.ok) return session.response;
+    const resolved = await resolveUserId(request);
+    if (!resolved.ok) return apiError('Unauthorized', 401);
 
     const decision = authorize(
-      { userId: session.userId, ws: 'Continua OS', scopes: PERSONAL_DEFAULT_SCOPES },
+      { userId: resolved.userId, ws: 'Continua OS', scopes: PERSONAL_DEFAULT_SCOPES },
       'context.write',
-      { type: 'device', owner: session.userId }
+      { type: 'device', owner: resolved.userId }
     );
     if (!decision.ok) return apiError('Forbidden', 403);
 
@@ -47,7 +61,7 @@ export async function POST(request: NextRequest) {
     const { data: existing } = await supabase
       .from('devices')
       .select('id, trust_level')
-      .eq('user_id', session.userId)
+      .eq('user_id', resolved.userId)
       .eq('fingerprint', fingerprint)
       .single();
 
@@ -80,7 +94,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('devices')
       .insert({
-        user_id: session.userId,
+        user_id: resolved.userId,
         device_name: deviceName,
         trust_level: 'temporary',
         platform: platform || null,

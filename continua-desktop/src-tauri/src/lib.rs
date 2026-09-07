@@ -33,7 +33,7 @@ pub struct AppState {
     pub tabs: Mutex<TabManager>,
     pub session: Mutex<SessionManager>,
     pub vault: Mutex<VaultEngine>,
-    pub trust: DeviceInfo,
+    pub trust: Mutex<DeviceInfo>,
     pub sync: Mutex<SyncClient>,
     pub continua_url: Mutex<String>,
     /// Keyed device id derived from the keyring fingerprint. Populated in
@@ -289,7 +289,7 @@ fn load_session(
 
 #[tauri::command]
 fn get_device_info(state: tauri::State<'_, AppState>) -> DeviceInfo {
-    state.trust.clone()
+    state.trust.lock().map(|g| g.clone()).unwrap_or_default()
 }
 
 /// Collapse or restore the chrome strip (clean/focus mode). With the strip
@@ -555,8 +555,85 @@ fn sync_status(state: tauri::State<'_, AppState>) -> serde_json::Value {
     serde_json::json!({
         "paired": sync.capability_token.is_some(),
         "deviceId": device_id.unwrap_or_default(),
+        "serverDeviceId": sync.server_device_id.unwrap_or_default(),
+        "trustLevel": sync.trust_level.unwrap_or_else(|| "unknown".into()),
         "lastVersion": sync.last_version,
     })
+}
+
+/// Register this machine under its keyring fingerprint (moat device-auth).
+/// Idempotent: the server upserts by fingerprint and returns trust level.
+#[tauri::command]
+async fn register_device(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let continua_url = state.continua_url.lock().map_err(|e| e.to_string())?.clone();
+    let device_key = state
+        .device_id
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone()
+        .ok_or_else(|| "device not initialized".to_string())?;
+    let info = state.trust.lock().map_err(|e| e.to_string())?.clone();
+    let sync = state.sync.lock().map_err(|e| e.to_string())?.clone();
+    let token = sync
+        .capability_token
+        .clone()
+        .ok_or_else(|| "not paired - use the Pair action in the palette".to_string())?;
+
+    let result = sync
+        .register_device(&continua_url, &token, &device_key, &info)
+        .await?;
+
+    // Mirror the server's device UUID + trust level for status / future gates.
+    let server_id = result
+        .get("deviceId")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let trust = result
+        .get("trustLevel")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    if let Ok(mut sync) = state.sync.lock() {
+        sync.server_device_id = server_id.or(sync.server_device_id.clone());
+        sync.trust_level = trust.or(sync.trust_level.clone());
+    }
+    Ok(result)
+}
+
+/// Background worker for the moat: while paired, re-register (heartbeat) so
+/// the server keeps `last_seen_at` and trust fresh.
+fn spawn_heartbeat(app: tauri::AppHandle) {
+    std::thread::spawn(move || {
+        // Heartbeat every 5 minutes (60 x 5s ticks).
+        let mut tick: u64 = 0;
+        loop {
+            std::thread::sleep(Duration::from_secs(5));
+            tick += 1;
+            if tick % 60 != 0 {
+                continue;
+            }
+            let Some(state) = app.try_state::<AppState>() else {
+                continue;
+            };
+            // Only interesting once a visitor is actually paired.
+            let paired = state
+                .sync
+                .lock()
+                .map(|s| s.capability_token.is_some())
+                .unwrap_or(false);
+            if !paired {
+                continue;
+            }
+            let _ = tauri::async_runtime::block_on(async {
+                let app_handle = app.clone();
+                let result = tauri::async_runtime::spawn(async move {
+                    let state = app_handle.state::<AppState>();
+                    register_device(state).await
+                })
+                .await;
+                result.unwrap_or_else(|e| Err(e.to_string()))
+            });
+        }
+    });
 }
 
 // ─── App entry ──────────────────────────────────────────────────────────────
@@ -627,7 +704,7 @@ pub fn run() {
             tabs: Mutex::new(TabManager::new()),
             session: Mutex::new(SessionManager::new()),
             vault: Mutex::new(VaultEngine::new()),
-            trust: DeviceInfo::detect(),
+            trust: Mutex::new(DeviceInfo::detect()),
             sync: Mutex::new(SyncClient::new()),
             continua_url: Mutex::new(DEFAULT_CONTINUA_URL.to_string()),
             device_id: Mutex::new(None),
@@ -654,8 +731,12 @@ pub fn run() {
                 if let Ok(mut device_id) = state.device_id.lock() {
                     *device_id = Some(fp.key);
                 }
+                if let Ok(mut trust) = state.trust.lock() {
+                    trust.refresh_display(app.handle());
+                }
             }
             spawn_background(app.handle().clone());
+            spawn_heartbeat(app.handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -700,6 +781,7 @@ pub fn run() {
             sync_session,
             pull_session,
             sync_status,
+            register_device,
         ]);
 
     let app = builder

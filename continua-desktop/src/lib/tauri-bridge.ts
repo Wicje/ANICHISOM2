@@ -149,9 +149,26 @@ export const api = {
     invoke<RestoredTab[] | null>("pull_session").catch(() => null),
 
   syncStatus: () =>
-    invoke<{ paired: boolean; deviceId: string; lastVersion: number }>(
-      "sync_status"
-    ).catch(() => ({ paired: false, deviceId: "", lastVersion: 0 })),
+    invoke<{
+      paired: boolean;
+      deviceId: string;
+      serverDeviceId: string;
+      trustLevel: string;
+      lastVersion: number;
+    }>("sync_status").catch(() => ({
+      paired: false,
+      deviceId: "",
+      serverDeviceId: "",
+      trustLevel: "unknown",
+      lastVersion: 0,
+    })),
+
+  registerDevice: () =>
+    invoke<{
+      deviceId: string;
+      trustLevel: string;
+      isNew: boolean;
+    } | null>("register_device").catch(() => null),
 
   setContinuaUrl: (url: string) =>
     invoke<void>("set_continua_url", { url }).catch(() => undefined),

@@ -146,3 +146,48 @@ impl SessionManager {
         rows
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Session files written before the rich fields existed (url/title only)
+    /// must still load: scroll/history/index default instead of erroring.
+    #[test]
+    fn old_format_latest_loads_with_defaults() {
+        let raw = r#"{"id":"0","saved_at":1700000000,"tabs":[{"url":"https://a.b","title":"a"}],"active":"tab-0"}"#;
+        let snap: SessionSnapshot = serde_json::from_str(raw).expect("old format parses");
+        assert_eq!(snap.tabs.len(), 1);
+        assert_eq!(snap.active.as_deref(), Some("tab-0"));
+        let tab = &snap.tabs[0];
+        assert_eq!(tab.url, "https://a.b");
+        assert!(tab.history.is_empty());
+        assert_eq!(tab.idx, 0);
+        assert_eq!(tab.scroll_y, 0.0);
+        assert!(tab.vault_id.is_none());
+        assert!(!snap.immersive);
+    }
+
+    /// Newer snapshots serialize with the vector-clock-free format intact.
+    #[test]
+    fn rich_snapshot_roundtrips() {
+        let snap = SessionSnapshot {
+            id: "s-1".into(),
+            saved_at: 1,
+            tabs: vec![TabRecord {
+                url: "https://a.b/x".into(),
+                title: "x".into(),
+                history: vec!["https://a.b".into(), "https://a.b/x".into()],
+                idx: 1,
+                scroll_y: 33.0,
+                vault_id: Some("vt-1".into()),
+            }],
+            active: Some("tab-0".into()),
+            immersive: false,
+        };
+        let json = serde_json::to_string(&snap).unwrap();
+        let back: SessionSnapshot = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.tabs[0].vault_id.as_deref(), Some("vt-1"));
+        assert_eq!(back.tabs[0].history.len(), 2);
+    }
+}

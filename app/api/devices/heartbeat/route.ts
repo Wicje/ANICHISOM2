@@ -8,19 +8,33 @@ import { NextRequest } from 'next/server';
 import { checkRouteRateLimit, apiOk, apiInternal, requireSession } from '@/lib/api-helpers';
 import { createServerClient } from '@supabase/ssr';
 import { authorize, PERSONAL_DEFAULT_SCOPES } from '@/lib/authz';
+import {
+  extractTokenFromRequest,
+  verifyCapabilityToken,
+} from '@/lib/capability-token';
+
+type Resolved = { ok: true; userId: string } | { ok: false };
+
+/** Session cookie (web user) or capability token (paired desktop daemon). */
+async function resolveUserId(request: NextRequest): Promise<Resolved> {
+  const auth = await requireSession(request);
+  if (auth.ok) return { ok: true, userId: auth.userId };
+  const claims = await verifyCapabilityToken(extractTokenFromRequest(request));
+  return claims ? { ok: true, userId: claims.sub } : { ok: false };
+}
 
 export async function POST(request: NextRequest) {
   try {
     const rl = checkRouteRateLimit(request, 'DEVICE_HEARTBEAT');
     if (rl) return rl;
 
-    const session = await requireSession(request);
-    if (!session.ok) return session.response;
+    const resolved = await resolveUserId(request);
+    if (!resolved.ok) return apiInternal('Unauthorized');
 
     const decision = authorize(
-      { userId: session.userId, ws: 'Continua OS', scopes: PERSONAL_DEFAULT_SCOPES },
+      { userId: resolved.userId, ws: 'Continua OS', scopes: PERSONAL_DEFAULT_SCOPES },
       'context.write',
-      { type: 'device', owner: session.userId }
+      { type: 'device', owner: resolved.userId }
     );
     if (!decision.ok) return apiOk({ updated: false });
 
@@ -45,7 +59,7 @@ export async function POST(request: NextRequest) {
     const { error } = await supabase
       .from('devices')
       .update({ last_seen_at: new Date().toISOString() })
-      .eq('user_id', session.userId)
+      .eq('user_id', resolved.userId)
       .eq('fingerprint', fingerprint);
 
     if (error) {

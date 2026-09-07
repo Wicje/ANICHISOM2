@@ -52,3 +52,33 @@ pub struct VaultManifest {
     #[serde(default)]
     pub scroll_y: f64,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn manifest_roundtrips() {
+        let m = VaultManifest {
+            url: "https://secure.example/inbox".into(),
+            title: "Inbox".into(),
+            history: vec!["https://secure.example".into(), "https://secure.example/inbox".into()],
+            idx: 1,
+            scroll_y: 42.0,
+        };
+        let json = serde_json::to_string(&m).unwrap();
+        let back: VaultManifest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.url, "https://secure.example/inbox");
+        assert_eq!(back.idx, 1);
+        assert_eq!(back.scroll_y, 42.0);
+    }
+
+    /// Missing optional fields degrade to defaults (forward-compat).
+    #[test]
+    fn minimal_manifest_has_defaults() {
+        let back: VaultManifest = serde_json::from_str(r#"{"url":"https://x"}"#).unwrap();
+        assert_eq!(back.title, "");
+        assert!(back.history.is_empty());
+        assert_eq!(back.idx, 0);
+    }
+}

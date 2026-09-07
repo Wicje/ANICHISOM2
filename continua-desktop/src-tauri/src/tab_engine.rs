@@ -82,8 +82,13 @@ impl TabManager {
         let label = format!("tab-{}", self.next_id);
         self.next_id += 1;
 
-        // Position the new tab under the chrome strip.
+        // Position the new tab under the chrome strip (logical px = CSS px).
         let (x, y, w, h) = self.layout_rect(app)?;
+
+        // The window builder takes PHYSICAL pixels, so scale the logical rect
+        // up by the monitor factor (symmetric to how relayout divides later).
+        let main = app.get_webview_window("main").ok_or("main window unavailable")?;
+        let scale = main.scale_factor().map_err(|e| e.to_string())?;
 
         let parsed: url::Url = url
             .parse()
@@ -98,8 +103,8 @@ impl TabManager {
         WebviewWindowBuilder::new(app, label.clone(), WebviewUrl::External(parsed))
             .title("Continua")
             .decorations(false)
-            .position(x, y)
-            .inner_size(w, h)
+            .position(x * scale, y * scale)
+            .inner_size((w * scale).max(1.0), (h * scale).max(1.0))
             // window.open / target=_blank → open a managed tab in place.
             .on_new_window(move |url_to_open, _features| {
                 if matches!(url_to_open.scheme(), "http" | "https") {
@@ -521,26 +526,35 @@ impl TabManager {
         for m in self.open.iter() {
             if let Some(vault_id) = &m.vault_id {
                 let _ = Self::persist_vault_meta(app, &m.label, m.clone(), vault_id);
-                records.push(TabRecord {
-                    url: "continua://vault".into(),
-                    title: "Vault tab".into(),
-                    history: Vec::new(),
-                    idx: 0,
-                    scroll_y: 0.0,
-                    vault_id: Some(vault_id.clone()),
-                });
-            } else {
-                records.push(TabRecord {
-                    url: m.url.clone(),
-                    title: m.title.clone(),
-                    history: m.history.clone(),
-                    idx: m.idx,
-                    scroll_y: m.scroll_y,
-                    vault_id: None,
-                });
             }
+            records.push(Self::redacted_record(m));
         }
         records
+    }
+
+    /// Pure mapping from tab metadata to the at-rest record: vault tabs are
+    /// redacted to their opaque id, plain tabs pass through fully. Kept
+    /// app-free so the redaction invariant is directly unit-testable.
+    fn redacted_record(m: &TabMeta) -> TabRecord {
+        if let Some(vault_id) = &m.vault_id {
+            TabRecord {
+                url: "continua://vault".into(),
+                title: "Vault tab".into(),
+                history: Vec::new(),
+                idx: 0,
+                scroll_y: 0.0,
+                vault_id: Some(vault_id.clone()),
+            }
+        } else {
+            TabRecord {
+                url: m.url.clone(),
+                title: m.title.clone(),
+                history: m.history.clone(),
+                idx: m.idx,
+                scroll_y: m.scroll_y,
+                vault_id: None,
+            }
+        }
     }
 
     fn new_vault_id() -> String {
@@ -635,19 +649,26 @@ impl TabManager {
     }
 
     /// Current layout rect for a newly created tab, derived from the main window.
+    /// Measurements are returned in logical px (the chrome strip height and
+    /// window positions are CSS px); physical sizes from the window are
+    /// divided by the scale factor so HiDPI displays lay out identically.
     fn layout_rect(&self, app: &AppHandle) -> Result<(f64, f64, f64, f64), String> {
         let main = app
             .get_webview_window("main")
             .ok_or("main window unavailable")?;
 
+        let scale = main.scale_factor().map_err(|e| e.to_string())?;
         let pos = main.outer_position().map_err(|e| e.to_string())?;
         let size = main.inner_size().map_err(|e| e.to_string())?;
 
+        let (x, y) = (pos.x as f64 / scale, pos.y as f64 / scale);
+        let (w, h) = (size.width as f64 / scale, size.height as f64 / scale);
+
         Ok((
-            pos.x as f64,
-            pos.y as f64 + self.chrome_height,
-            size.width as f64,
-            (size.height as f64 - self.chrome_height).max(0.0),
+            x,
+            y + self.chrome_height,
+            w,
+            (h - self.chrome_height).max(0.0),
         ))
     }
 }
@@ -668,4 +689,50 @@ fn emit_navigation(app: &AppHandle, label: &str, url: &str) {
         "tab:navigated",
         serde_json::json!({ "label": label, "url": url }),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn meta(url: &str) -> TabMeta {
+        TabMeta {
+            label: "tab-0".into(),
+            url: url.into(),
+            title: url.into(),
+            history: vec![url.into()],
+            idx: 0,
+            scroll_y: 12.5,
+            scroll_url: Some(url.into()),
+            restoring: false,
+            vault_id: None,
+        }
+    }
+
+    /// Plain tabs pass through the snapshot fully (roundtrip-safe).
+    #[test]
+    fn plain_tab_roundtrips() {
+        let m = meta("https://example.com/page");
+        let rec = TabManager::redacted_record(&m);
+        assert_eq!(rec.url, "https://example.com/page");
+        assert_eq!(rec.title, "https://example.com/page");
+        assert_eq!(rec.history, vec!["https://example.com/page"]);
+        assert_eq!(rec.idx, 0);
+        assert_eq!(rec.scroll_y, 12.5);
+        assert!(rec.vault_id.is_none());
+    }
+
+    /// Vault tabs redact their URL/title/history; only the opaque id remains.
+    #[test]
+    fn vault_tab_is_redacted() {
+        let mut m = meta("https://secret-bank.com/private");
+        m.vault_id = Some("vt-123".into());
+        let rec = TabManager::redacted_record(&m);
+        assert_eq!(rec.url, "continua://vault");
+        assert_eq!(rec.title, "Vault tab");
+        assert!(rec.history.is_empty());
+        assert_eq!(rec.vault_id.as_deref(), Some("vt-123"));
+        // The real address never appears in the at-rest record.
+        assert!(!serde_json::to_string(&rec).unwrap().contains("secret-bank"));
+    }
 }

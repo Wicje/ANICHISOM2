@@ -214,6 +214,23 @@ export function CommandPalette({
         run: () => void onSync(),
       });
       list.push({
+        key: "register",
+        group: "Actions",
+        label: "Register this device",
+        hint: "moat: bind fingerprint, confirm trust level",
+        run: () => {
+          void api
+            .registerDevice()
+            .then((r) =>
+              setNotice(
+                r
+                  ? `Device registered · trust: ${r.trustLevel}${r.isNew ? " · new" : ""}`
+                  : "Not paired yet — run Pair machine first"
+              )
+            );
+        },
+      });
+      list.push({
         key: "pull",
         group: "Actions",
         label: "Pull remote session",
