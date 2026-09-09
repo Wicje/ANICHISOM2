@@ -93,8 +93,7 @@ Continua serves as the real-time context bridge for **Claude, Cursor, and ChatGP
   * **Pluggable Storage Drivers (`repository.ts`, `supabase-driver.ts`, `memory-driver.ts`)**: Decoupled repository layer with zero-cloud local execution and cloud sync.
   * **Tombstone Preservation**: Soft-deletion with causal tracking preventing deleted domain items from resurrecting on sync.
 * **🖥️ Dual-Target Architecture (Web & Native Desktop)**:
-  * Run anywhere in the browser as an installable PWA or compile as a native **Tauri** desktop executable for macOS, Windows, and Linux.
-  * Native IPC bridge (`src-tauri/`) providing direct local filesystem IO and host system telemetry.
+  * Run anywhere in the browser as an installable PWA or compile as a native **Tauri** desktop executable for macOS, Windows, and Linux (`continua-desktop/`).
 * **🛍️ Plugin SDK & Developer Platform (`lib/plugin-sdk/`)**:
   * Official `@/lib/plugin-sdk` providing `context`, `storage`, `ui`, and `audio` APIs.
   * Capability-based permission sandbox host intercepting `postMessage` calls with fine-grained access control.
@@ -144,8 +143,8 @@ Continua serves as the real-time context bridge for **Claude, Cursor, and ChatGP
 
 ```bash
 # Clone the repository
-git clone git@github.com:Wicje/ANICHISOM2.git
-cd ANICHISOM2
+git clone git@github.com:ANICHISOM/Continua.git
+cd Continua
 
 # Install dependencies
 npm install --legacy-peer-deps
@@ -158,17 +157,30 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-### 2. Desktop Installation (Native Tauri App)
+### 2. Desktop Installation (Native Browser)
 
-For native performance, system tray background execution, and direct host filesystem access:
+The Continua desktop browser lives in the [`continua-desktop/`](continua-desktop/) directory. For native performance, system tray background execution, and direct host filesystem access:
 
 ```bash
-# Run Desktop Dev Mode
-npm run desktop:dev
-
-# Build Native Binary (macOS .dmg, Windows .msi, Linux .AppImage)
-npm run desktop:build
+cd continua-desktop
+npm install
+npm run dev    # run desktop dev mode
+npm run build  # build the Tauri backend
+npm run bundle # produce installers (.dmg, .msi, .AppImage)
 ```
+
+### 2b. Publishing Downloads
+
+Installers are served from Vercel Blob (not GitHub Releases, so the repo can stay private). After `npm run bundle` produces the artifacts:
+
+```bash
+BLOB_READ_WRITE_TOKEN=your-token \
+  node scripts/publish-downloads.mjs /path/to/build/output --version 0.1.0
+```
+
+The script uploads the `.dmg` / `.msi` / `.AppImage` artifacts and rewrites
+[`public/downloads/manifest.json`](public/downloads/manifest.json), which the
+`/download` page reads to render per-platform buttons.
 
 ---
 
@@ -185,7 +197,7 @@ docker-compose -f docker-compose.self-hosted.yml up --build -d
 
 ### 4. Cloud Deployment (Vercel & Supabase)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FWicje%2FANICHISOM2&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,SUPABASE_SECRET_KEY,SUPABASE_JWTS_URL,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_AUTH_PROVIDER)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FANICHISOM%2FContinua&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,SUPABASE_SECRET_KEY,SUPABASE_JWTS_URL,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_AUTH_PROVIDER)
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Run the SQL schema from [`supabase-schema.sql`](supabase-schema.sql) in the Supabase SQL Editor.
@@ -197,7 +209,7 @@ docker-compose -f docker-compose.self-hosted.yml up --build -d
 ## 🧪 Testing & Verification
 
 ```bash
-# Run unit & integration test suite (45 test suites, 649 tests passing)
+# Run unit & integration test suite (54 test suites, 754 tests passing)
 npm test
 
 # Run TypeScript type checks

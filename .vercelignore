@@ -1,0 +1,6 @@
+continua-desktop
+rust
+src-tauri
+.vercel
+*.log
+osaasic.mp4

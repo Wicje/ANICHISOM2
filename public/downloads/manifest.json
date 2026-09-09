@@ -1,0 +1,32 @@
+{
+  "product": "Continua Desktop Browser",
+  "homepage": "https://continuaos.cc",
+  "release": {
+    "version": "0.1.0",
+    "released": "2026-09-09",
+    "message": "Official release of the Continua desktop browser."
+  },
+  "platforms": {
+    "mac": {
+      "name": "macOS",
+      "note": "Apple Silicon & Intel",
+      "artifact": "Continua_0.1.0_x64.dmg",
+      "url": "",
+      "size": 0
+    },
+    "win": {
+      "name": "Windows",
+      "note": "Windows 10 & 11",
+      "artifact": "Continua_0.1.0_x64.msi",
+      "url": "",
+      "size": 0
+    },
+    "linux": {
+      "name": "Linux",
+      "note": "Ubuntu, Debian & more",
+      "artifact": "Continua_0.1.0_amd64.AppImage",
+      "url": "https://uq3b2zplnpfrywlw.public.blob.vercel-storage.com/downloads/0.1.0/Continua_0.1.0_amd64.AppImage",
+      "size": 109144568
+    }
+  }
+}

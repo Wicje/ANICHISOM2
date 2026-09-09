@@ -17,8 +17,9 @@ export async function middleware(request: NextRequest) {
   // Public routes — no session check needed
   // /os is public because the Desktop component handles its own auth (shows login screen)
   // /connect is public because ephemeral guests pair WITHOUT a Supabase session.
+  // /download is public so the installer pages are reachable without an account.
   // (/connect/approve stays protected — the approving phone must be signed in.)
-  const isPublicRoute = pathname === '/' || pathname === '/os' || pathname === '/waitlist' || pathname === '/connect' || pathname.startsWith('/auth') || pathname.startsWith('/login');
+  const isPublicRoute = pathname === '/' || pathname === '/os' || pathname === '/waitlist' || pathname === '/connect' || pathname === '/download' || pathname.startsWith('/downloads') || pathname.startsWith('/auth') || pathname.startsWith('/login');
   if (isPublicRoute) {
     // If user has Supabase session and is on landing page, redirect to /os
     if (pathname === '/') {
@@ -67,6 +68,6 @@ function applyHeaders(response: NextResponse) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|manifest.json|sw.js).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|manifest.json|sw.js|downloads/).*)',
   ],
 };

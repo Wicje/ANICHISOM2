@@ -24,12 +24,18 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['lucide-react', 'date-fns', 'motion/react'],
   },
   productionBrowserSourceMaps: false,
-  // Allow access to remote image placeholder.
+  // Allow access to remote image placeholders.
   images: {
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'picsum.photos',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
         port: '',
         pathname: '/**',
       },
