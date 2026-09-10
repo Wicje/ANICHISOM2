@@ -217,6 +217,19 @@ body,
   background: var(--surface);
   border-color: var(--border);
   color: var(--text);
+  position: relative;
+}
+
+.tab-active::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  pointer-events: none;
 }
 
 .tab-vault {
@@ -297,6 +310,41 @@ body,
   color: var(--text);
 }
 
+/* ─── Tab drag & pin affordances ────────────────────────── */
+.tab-dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+.tab-drop-before {
+  box-shadow: -2px 0 0 var(--accent);
+}
+
+.tab-drop-after {
+  box-shadow: 2px 0 0 var(--accent);
+}
+
+.tab-pinned {
+  width: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  justify-content: center;
+  padding: 4px;
+}
+
+.tab-pinned .tab-title,
+.tab-pinned .tab-vault-badge {
+  display: none;
+}
+
+.tab-pinned .tab-close {
+  display: none;
+}
+
+.tab-pinned:hover .tab-close {
+  display: grid;
+}
+
 /* ─── Address bar ───────────────────────────────────────── */
 .address-bar {
   flex: 1;
@@ -317,6 +365,88 @@ body,
 
 .address-bar::placeholder {
   color: var(--text-dim);
+}
+
+/* ─── Omnibox suggestions ───────────────────────────────── */
+.omni-wrap {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.omni-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  padding: 4px;
+  z-index: 10000;
+}
+
+.omni-row {
+  appearance: none;
+  border: none;
+  background: transparent;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text);
+  text-align: left;
+}
+
+.omni-row.is-active {
+  background: var(--accent-soft);
+}
+
+.omni-row.is-active .omni-main {
+  color: var(--accent-hi);
+}
+
+.omni-ico {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+}
+
+.omni-ico-tab {
+  background: var(--accent-soft-2);
+  color: var(--accent);
+}
+
+.omni-ico-go {
+  color: var(--text-dim);
+}
+
+.omni-main {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.omni-sub {
+  flex: none;
+  max-width: 45%;
+  font-size: 11px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ─── Resize guide ──────────────────────────────────────── */

@@ -1,46 +1,97 @@
-import { useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api, OpenTab, displayTitle, isTauri } from "./lib/tauri-bridge";
 import { BrowserChrome } from "./chrome/BrowserChrome";
 import { NewTab } from "./chrome/NewTab";
 import { CommandPalette } from "./chrome/CommandPalette";
 
+/**
+ * Rust pushes `tab:title-changed` / `tab:navigated` per webview event. Buffer
+ * them and flush once per animation frame instead of letting each page-title
+ * churn re-render the whole chrome.
+ */
+function useTabMirror(): [
+  OpenTab[],
+  Dispatch<SetStateAction<OpenTab[]>>,
+  (label: string, p: Partial<OpenTab>) => void,
+] {
+  const [tabs, setTabs] = useState<OpenTab[]>([]);
+  const pending = useRef<Map<string, Partial<OpenTab>> | null>(null);
+  const raf = useRef<number | null>(null);
+
+  const flush = useCallback(() => {
+    raf.current = null;
+    const buf = pending.current;
+    pending.current = null;
+    if (!buf || buf.size === 0) return;
+    setTabs((prev) => {
+      let changed = false;
+      const next = prev.map((t) => {
+        const p = buf.get(t.label);
+        if (!p) return t;
+        const merged = { ...t, ...p };
+        if (merged.title !== t.title || merged.url !== t.url) changed = true;
+        return merged;
+      });
+      return changed ? next : prev;
+    });
+  }, []);
+
+  const patch = useCallback(
+    (label: string, p: Partial<OpenTab>) => {
+      if (!pending.current) pending.current = new Map();
+      pending.current.set(label, { ...pending.current.get(label), ...p });
+      if (raf.current === null) raf.current = requestAnimationFrame(flush);
+    },
+    [flush],
+  );
+
+  useEffect(
+    () => () => {
+      if (raf.current !== null) cancelAnimationFrame(raf.current);
+    },
+    [],
+  );
+
+  return [tabs, setTabs, patch];
+}
+
 export default function App() {
   // Tabs live in Rust WebviewWindows; React keeps the canonical metadata.
-  const [tabs, setTabs] = useState<OpenTab[]>([]);
+  const [tabs, setTabs, patch] = useTabMirror();
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
   const [closedStack, setClosedStack] = useState<{ url: string }[]>([]);
 
-  // Mirror page titles pushed from Rust (tab:title-changed).
+  // Mirror page titles pushed from Rust (tab:title-changed), coalesced.
   useEffect(() => {
     if (!isTauri()) return;
     let unlisten: (() => void) | undefined;
-    listen<{ label: string; title: string }>("tab:title-changed", (e) => {
-      setTabs((prev) =>
-        prev.map((t) =>
-          t.label === e.payload.label ? { ...t, title: e.payload.title } : t
-        )
-      );
-    }).then((fn) => {
+    listen<{ label: string; title: string }>("tab:title-changed", (e) =>
+      patch(e.payload.label, { title: e.payload.title }),
+    ).then((fn) => {
       unlisten = fn;
     });
     return () => unlisten?.();
-  }, []);
+  }, [patch]);
 
-  // Track real in-page navigations from Rust (tab:navigated) so the address
-  // bar and resume data reflect where the user actually is.
+  // Track real in-page navigations from Rust (tab:navigated), coalesced.
   useEffect(() => {
     if (!isTauri()) return;
     let unlisten: (() => void) | undefined;
-    listen<{ label: string; url: string }>("tab:navigated", (e) => {
-      setTabs((prev) =>
-        prev.map((t) => (t.label === e.payload.label ? { ...t, url: e.payload.url } : t))
-      );
-    }).then((fn) => {
+    listen<{ label: string; url: string }>("tab:navigated", (e) =>
+      patch(e.payload.label, { url: e.payload.url }),
+    ).then((fn) => {
       unlisten = fn;
     });
     return () => unlisten?.();
-  }, []);
+  }, [patch]);
 
   // Resurrect the last session immediately on launch - no click needed.
   // Backend reopens every tab with history, scroll and immersive state.
@@ -81,6 +132,33 @@ export default function App() {
     await openTab(next.url);
   };
 
+  // Chrome-side tab ordering. Native webviews overlap the same rect, so a
+  // drag just reorders the tab strip (and the persisted snapshot, which is
+  // built from this array in React order).
+  const reorderTabs = (from: string, to: string, after = false) => {
+    setTabs((prev) => {
+      const fi = prev.findIndex((t) => t.label === from);
+      const ti = prev.findIndex((t) => t.label === to);
+      if (fi < 0 || ti < 0 || fi === ti) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fi, 1);
+      const insertAt = ti < fi ? ti : ti - 1;
+      next.splice(Math.min(insertAt + (after ? 1 : 0), next.length), 0, moved);
+      return next;
+    });
+  };
+
+  // Chrome-side pin: favicon-only tab, not persisted into the session.
+  const togglePin = (label: string) => {
+    setTabs((prev) =>
+      prev.map((t) =>
+        t.label === label
+          ? { ...t, pinned: !Boolean((t as { pinned?: boolean }).pinned) }
+          : t,
+      ),
+    );
+  };
+
   // Encrypt (or release) the active tab: the keyring manifest is mirrored
   // straight back into chrome state so the vault badge updates instantly.
   const toggleVault = async (label: string) => {
@@ -115,7 +193,7 @@ export default function App() {
   const saveNow = async () => {
     await api.saveSession(
       tabs.map(({ url, title }) => ({ url, title })),
-      activeLabel
+      activeLabel,
     );
   };
 
@@ -127,6 +205,8 @@ export default function App() {
         onOpen={openTab}
         onClose={closeTab}
         onActivate={api.activateTab}
+        onReorder={reorderTabs}
+        onTogglePin={togglePin}
         onRestore={restoreLastSession}
         onSave={saveNow}
         onReopen={reopenLastClosed}

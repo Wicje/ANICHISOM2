@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { api, windowControls } from "../lib/tauri-bridge";
 import { attachCadence } from "../lib/cadence";
@@ -12,11 +12,31 @@ interface BrowserChromeProps {
   onOpen: (url: string, focus?: boolean) => Promise<void>;
   onClose: (label: string) => Promise<void>;
   onActivate: (label: string) => Promise<void>;
+  onReorder?: (from: string, to: string, after?: boolean) => void;
+  onTogglePin?: (label: string) => void;
   onRestore: () => Promise<void>;
   onSave: () => Promise<void>;
   onReopen: () => Promise<void>;
   runtime: "tauri" | "browser";
 }
+
+type Suggestion =
+  | { kind: "tab"; label: string; title: string; sub: string }
+  | { kind: "visit"; title: string; sub: string }
+  | { kind: "search"; title: string; sub: string };
+
+/** Bare hostname for suggestion rows (matching the New Tab page). */
+const hostOf = (url: string): string => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+};
+
+/** True when the query already looks like a URL worth visiting directly. */
+const looksLikeUrl = (q: string): boolean =>
+  /^https?:\/\//i.test(q) || (/\S+\.\S{2,}/.test(q) && !/\s/.test(q));
 
 export function BrowserChrome({
   tabs,
@@ -24,6 +44,8 @@ export function BrowserChrome({
   onOpen,
   onClose,
   onActivate,
+  onReorder,
+  onTogglePin,
   onRestore,
   onSave,
   onReopen,
@@ -33,12 +55,16 @@ export function BrowserChrome({
   const [restored, setRestored] = useState(false);
   const [maximized, setMaximized] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">(() =>
-    localStorage.getItem("continua-theme") === "light" ? "light" : "dark"
+    localStorage.getItem("continua-theme") === "light" ? "light" : "dark",
   );
   const [canBack, setCanBack] = useState(false);
   const [canForward, setCanForward] = useState(false);
   const [focused, setFocused] = useState(true);
+  // Omnibox popover state.
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestIdx, setSuggestIdx] = useState(-1);
   const addressRef = useRef<HTMLInputElement | null>(null);
+  const scheduleRelayout = useRef<((force: boolean) => void) | null>(null);
 
   // Dim the titlebar border when the native window loses focus.
   useEffect(() => {
@@ -65,13 +91,38 @@ export function BrowserChrome({
     }
   }, [restored, onRestore, tabs.length]);
 
-  // Keep native tab webviews filling the area below the chrome on any resize.
+  // Keep native tab webviews filling the area below the chrome. Resize storms
+  // are coalesced to one relayout per frame, and no-op resizes are skipped.
   useEffect(() => {
     if (runtime !== "tauri") return;
-    api.relayout();
-    const onResize = () => api.relayout();
+    let rafId: number | null = null;
+    let lastHeight: number = window.innerHeight;
+
+    const schedule = (force: boolean) => {
+      if (!force && window.innerHeight === lastHeight) return;
+      lastHeight = window.innerHeight;
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        void api.relayout();
+      });
+    };
+    scheduleRelayout.current = schedule;
+    schedule(false);
+
+    const onResize = () => schedule(false);
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      scheduleRelayout.current = null;
+    };
+  }, [runtime]);
+
+  // Re-layout after tabs are created/restored in a batch.
+  useEffect(() => {
+    if (runtime !== "tauri" || !scheduleRelayout.current) return;
+    scheduleRelayout.current(true);
   }, [runtime, tabs.length]);
 
   // Auto-save session before the app closes.
@@ -151,6 +202,58 @@ export function BrowserChrome({
     return () => window.removeEventListener("keydown", onKey);
   }, [activeLabel, onClose, onOpen, onReopen]);
 
+  // ── Omnibox suggestions (tabs + visit/search fallback) ─────────────
+  const suggestions = useMemo<Suggestion[]>(() => {
+    const q = address.trim();
+    if (!q) return [];
+    const ql = q.toLowerCase();
+    const rows: Suggestion[] = [];
+
+    for (const t of tabs) {
+      const host = hostOf(t.url);
+      const title = t.title || host;
+      if (
+        title.toLowerCase().includes(ql) ||
+        host.includes(ql) ||
+        t.url.toLowerCase().includes(ql)
+      ) {
+        rows.push({ kind: "tab", label: t.label, title, sub: host });
+      }
+      if (rows.length >= 5) break;
+    }
+
+    if (looksLikeUrl(q)) {
+      const target = /^https?:\/\//i.test(q) ? q : `https://${q}`;
+      rows.push({ kind: "visit", title: `Visit ${hostOf(target)}`, sub: target });
+    } else {
+      rows.push({ kind: "search", title: `Search for “${q}”`, sub: "Google" });
+    }
+    return rows.slice(0, 7);
+  }, [address, tabs]);
+
+  const closeSuggestions = () => {
+    setSuggestOpen(false);
+    setSuggestIdx(-1);
+  };
+
+  const runSuggestion = (s: Suggestion) => {
+    closeSuggestions();
+    if (s.kind === "tab") {
+      void onActivate(s.label);
+      return;
+    }
+    const q = address.trim();
+    const url =
+      s.kind === "visit"
+        ? /^https?:\/\//i.test(q)
+          ? q
+          : `https://${q}`
+        : `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+    setAddress("");
+    if (activeLabel) void api.navigateTab(activeLabel, url);
+    else void onOpen(url);
+  };
+
   const navigate = async (e: FormEvent) => {
     e.preventDefault();
     let url = address.trim();
@@ -165,6 +268,40 @@ export function BrowserChrome({
   };
 
   const onAddressKey = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    const opts = suggestOpen && suggestions.length > 0;
+    if (opts && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      e.preventDefault();
+      setSuggestIdx((i) =>
+        e.key === "ArrowDown"
+          ? (i + 1) % suggestions.length
+          : (i - 1 + suggestions.length) % suggestions.length,
+      );
+      return;
+    }
+    if (opts && e.key === "Enter" && e.target === e.currentTarget) {
+      const idx = suggestIdx >= 0 ? suggestIdx : 0;
+      if (idx < suggestions.length && suggestions[idx].kind !== "visit") {
+        const s = suggestions[idx];
+        if (s.kind === "tab" || s.kind === "search") {
+          e.preventDefault();
+          runSuggestion(s);
+          return;
+        }
+      } else if (idx < suggestions.length) {
+        e.preventDefault();
+        runSuggestion(suggestions[idx]);
+        return;
+      }
+    }
+    if (e.key === "Escape") {
+      if (opts) {
+        e.preventDefault();
+        closeSuggestions();
+      } else {
+        (e.target as HTMLElement).blur();
+      }
+      return;
+    }
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       // Ctrl+Enter → open in a new tab from the address bar.
       e.preventDefault();
@@ -286,20 +423,53 @@ export function BrowserChrome({
           onActivate={onActivate}
           onClose={onClose}
           onNew={() => void onOpen("https://continuaos.cc")}
+          onReorder={onReorder}
+          onTogglePin={onTogglePin}
         />
-        <form onSubmit={navigate} style={{ display: "flex", flex: 1, gap: 6 }}>
-          <input
-            className="address-bar"
-            ref={(el) => {
-              addressRef.current = el;
-              attachCadence(el);
-            }}
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            onKeyDown={onAddressKey}
-            placeholder="Search or enter address…"
-            spellCheck={false}
-          />
+        <form onSubmit={navigate} style={{ display: "flex", flex: 1, gap: 6, position: "relative", minWidth: 0 }}>
+          <div className="omni-wrap" style={{ flex: 1, position: "relative" }}>
+            <input
+              className="address-bar"
+              ref={(el) => {
+                addressRef.current = el;
+                attachCadence(el);
+              }}
+              value={address}
+              onChange={(e) => {
+                setAddress(e.target.value);
+                setSuggestOpen(true);
+                setSuggestIdx(-1);
+              }}
+              onFocus={() => setSuggestOpen(true)}
+              onBlur={() => closeSuggestions()}
+              onKeyDown={onAddressKey}
+              placeholder="Search or enter address…"
+              spellCheck={false}
+              autoComplete="off"
+            />
+            {suggestOpen && suggestions.length > 0 && (
+              <div className="omni-pop">
+                {suggestions.map((s, i) => (
+                  <button
+                    key={`${s.kind}-${s.kind === "tab" ? s.label : s.title}`}
+                    type="button"
+                    className={`omni-row${i === suggestIdx ? " is-active" : ""}`}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      runSuggestion(s);
+                    }}
+                    onMouseEnter={() => setSuggestIdx(i)}
+                  >
+                    <span className={`omni-ico ${s.kind === "tab" ? "omni-ico-tab" : "omni-ico-go"}`}>
+                      {s.kind === "tab" ? "◈" : s.kind === "visit" ? "→" : "⌕"}
+                    </span>
+                    <span className="omni-main">{s.title}</span>
+                    <span className="omni-sub">{s.kind === "tab" ? `Switch · ${s.sub}` : s.sub}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </form>
       </div>
     </div>
