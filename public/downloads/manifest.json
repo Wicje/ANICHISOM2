@@ -26,7 +26,14 @@
       "note": "Ubuntu, Debian & more",
       "artifact": "Continua_0.1.0_amd64.AppImage",
       "url": "https://uq3b2zplnpfrywlw.public.blob.vercel-storage.com/downloads/0.1.0/Continua_0.1.0_amd64.AppImage",
-      "size": 109144568
+      "size": 109144568,
+      "packages": [
+        {
+          "name": "Continua_0.1.0_amd64.deb",
+          "url": "https://uq3b2zplnpfrywlw.public.blob.vercel-storage.com/downloads/0.1.0/Continua_0.1.0_amd64.deb",
+          "size": 2522598
+        }
+      ]
     }
   }
 }

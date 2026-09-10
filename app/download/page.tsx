@@ -10,6 +10,7 @@ type PlatformMeta = {
   artifact: string;
   url: string;
   size: number;
+  packages?: { name: string; url: string; size: number }[];
 };
 
 type Manifest = {
@@ -70,9 +71,10 @@ export default function DownloadPage() {
   const { dark, toggle } = useTheme();
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [error, setError] = useState('');
-  const platform = detectPlatform();
+  const [platform, setPlatform] = useState<'mac' | 'win' | 'linux' | 'other'>('other');
 
   useEffect(() => {
+    setPlatform(detectPlatform());
     fetch('/downloads/manifest.json')
       .then(r => { if (!r.ok) throw new Error(`manifest lookup failed (${r.status})`); return r.json(); })
       .then(j => setManifest(j as Manifest))
@@ -157,6 +159,15 @@ export default function DownloadPage() {
                     <button disabled className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-bold text-sm bg-[var(--os-surface-elevated)] text-[var(--os-text-muted)] border border-[var(--os-border)] cursor-not-allowed">
                       <Package className="w-4 h-4" /> Coming soon
                     </button>
+                  )}
+                  {meta?.packages && meta.packages.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {meta.packages.map(pkg => (
+                        <a key={pkg.url} href={pkg.url} className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs font-semibold text-primary bg-primary/10 border border-primary/25 hover:bg-primary/20 transition-all">
+                          <Package className="w-3.5 h-3.5" /> Alternate install — {pkg.name.replace(/^Continua_[^_]+_/, '')} <span className="font-mono text-[10px] opacity-80">{formatBytes(pkg.size)}</span>
+                        </a>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
