@@ -127,14 +127,12 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
         onMouseMove={(e) => setMouseX(e.clientX)}
         onMouseLeave={() => setMouseX(null)}
         className={cn(
-          "flex items-end gap-3 px-4 py-3 glass-panel rounded-3xl shadow-2xl pointer-events-auto contain-layout relative mb-3 transition-all duration-200 ease-out border border-white/15 bg-neutral-950/75 backdrop-blur-2xl",
+          "flex items-end gap-3 px-4 py-3 rounded-3xl shadow-2xl pointer-events-auto contain-layout relative mb-3 transition-all duration-200 ease-out border border-[var(--os-glass-border)] bg-[var(--os-glass-bg)] backdrop-blur-2xl",
           isAnyWindowMaximized ? "translate-y-28 group-hover/dock:translate-y-0" : "translate-y-0"
         )}
       >
-        {/* Green accent line at top of dock */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-[2px] rounded-full bg-[var(--os-primary)] opacity-80" />
         {unreadCount > 0 && (
-          <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-rose-500 rounded-full border-2 border-[var(--os-bg)] animate-pulse" />
+          <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-[var(--os-bad)] rounded-full border-2 border-[var(--os-bg)] animate-pulse" />
         )}
 
         {/* Launchpad */}
@@ -155,11 +153,11 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
                   if (!prev) setShowMissionControl(false);
                   return !prev;
                 })}
-                className="flex flex-col items-center justify-center w-16 h-16 sm:w-18 sm:h-18 rounded-2xl transition-colors duration-200 p-2.5 shadow-xl bg-white/5 hover:bg-white/15 border border-white/10"
+                className="flex flex-col items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl transition-colors duration-200 p-2.5 shadow-xl bg-white/5 hover:bg-white/15 border border-white/10"
               >
                 <Grid className="w-9 h-9 text-white/90" aria-hidden="true" />
               </button>
-              <div role="tooltip" className="absolute -top-14 scale-0 group-hover:scale-100 transition-transform px-3 py-1.5 glass-panel text-xs font-semibold rounded-xl shadow-xl pointer-events-none whitespace-nowrap z-50 text-white">Launchpad</div>
+              <div role="tooltip" className="absolute -top-14 scale-0 group-hover:scale-100 transition-transform px-3 py-1.5 rounded-xl shadow-xl pointer-events-none whitespace-nowrap z-50 border border-[var(--os-glass-border)] bg-[var(--os-glass-bg)] backdrop-blur-xl text-xs font-semibold text-white">Launchpad</div>
             </div>
           );
         })()}
@@ -182,11 +180,11 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
                   if (!prev) setShowLaunchpad(false);
                   return !prev;
                 })}
-                className="flex flex-col items-center justify-center w-16 h-16 sm:w-18 sm:h-18 rounded-2xl transition-colors duration-200 p-2.5 shadow-xl bg-white/5 hover:bg-white/15 border border-white/10"
+                className="flex flex-col items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl transition-colors duration-200 p-2.5 shadow-xl bg-white/5 hover:bg-white/15 border border-white/10"
               >
                 <Layers className="w-9 h-9 text-white/90" aria-hidden="true" />
               </button>
-              <div role="tooltip" className="absolute -top-14 scale-0 group-hover:scale-100 transition-transform px-3 py-1.5 glass-panel text-xs font-semibold rounded-xl shadow-xl pointer-events-none whitespace-nowrap z-50 text-white">Mission Control</div>
+              <div role="tooltip" className="absolute -top-14 scale-0 group-hover:scale-100 transition-transform px-3 py-1.5 rounded-xl shadow-xl pointer-events-none whitespace-nowrap z-50 border border-[var(--os-glass-border)] bg-[var(--os-glass-bg)] backdrop-blur-xl text-xs font-semibold text-white">Mission Control</div>
             </div>
           );
         })()}
@@ -230,14 +228,20 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
                   }
                 }}
                 className={cn(
-                  "flex flex-col items-center justify-center w-16 h-16 sm:w-18 sm:h-18 rounded-2xl transition-colors duration-200 p-2 shadow-xl border border-white/10",
-                  isOpen ? "bg-white/15 border-cyan-400/40" : "bg-white/5 hover:bg-white/15"
+                  "flex flex-col items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl transition-colors duration-200 p-2 shadow-xl border",
+                  isOpen ? "bg-white/10 border-[var(--os-glass-border)]" : "bg-white/5 border-white/10 hover:bg-white/15"
                 )}
               >
                 <AppIcon icon={app.icon} iconImage={app.iconImage} className="w-10 h-10 sm:w-11 sm:h-11 drop-shadow-xl" aria-hidden="true" />
               </button>
               {isOpen && (
-                <span aria-hidden="true" className="absolute -bottom-2 w-1.5 h-1.5 rounded-full bg-[#10F4A0] shadow-sm shadow-[#10F4A0]/50" />
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "absolute -bottom-2 w-1.5 h-1.5 rounded-full transition-colors",
+                    isFocused ? "bg-white" : "bg-white/40"
+                  )}
+                />
               )}
               
               {/* Hover Window Peek Card (daedalOS & macOS Style) */}
@@ -246,7 +250,7 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
                 className="absolute -top-24 scale-0 group-hover:scale-100 transition-all duration-150 origin-bottom pointer-events-auto z-50 flex items-center gap-1.5"
               >
                 {isOpen ? (
-                  <div className="flex items-center gap-1.5 p-1.5 glass-panel rounded-2xl border border-white/20 bg-neutral-900/90 shadow-2xl backdrop-blur-xl">
+                  <div className="flex items-center gap-1.5 p-1.5 rounded-2xl border border-[var(--os-glass-border)] bg-[var(--os-glass-bg)] shadow-2xl backdrop-blur-xl">
                     {openWindowsForApp.map((w) => (
                       <div
                         key={w.id}
@@ -273,17 +277,17 @@ export function Dock({ showLaunchpad, setShowLaunchpad, showMissionControl, setS
                             <X className="w-2.5 h-2.5" />
                           </button>
                         </div>
-                        <div className="w-full h-8 rounded-lg bg-neutral-950/60 border border-white/10 flex items-center justify-center relative overflow-hidden">
+                        <div className="w-full h-8 rounded-lg bg-[var(--os-bg)]/70 border border-[var(--os-glass-border)] flex items-center justify-center relative overflow-hidden">
                           <AppIcon icon={app.icon} iconImage={app.iconImage} className="w-4 h-4 opacity-80" />
                           {w.isMinimized && (
-                            <span className="absolute bottom-0.5 right-1 text-[7px] px-1 rounded bg-amber-500/20 text-amber-300 font-mono">min</span>
+                            <span className="absolute bottom-0.5 right-1 text-[7px] px-1 rounded bg-[var(--os-warn)]/20 text-[var(--os-warn)] font-mono">min</span>
                           )}
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="px-3 py-1.5 glass-panel text-xs font-semibold rounded-xl shadow-xl pointer-events-none whitespace-nowrap text-white">
+                  <div className="px-3 py-1.5 rounded-xl shadow-xl pointer-events-none whitespace-nowrap border border-[var(--os-glass-border)] bg-[var(--os-glass-bg)] backdrop-blur-xl text-xs font-semibold text-white">
                     {app.title}
                   </div>
                 )}

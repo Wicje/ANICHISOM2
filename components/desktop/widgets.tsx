@@ -258,24 +258,24 @@ export function WidgetsLayer({ widgets, setWidgets }: WidgetsLayerProps) {
           >
             {/* ─── 1. Sticky Note Widget ─── */}
             {widget.type === 'notes' && (
-              <div className="w-[calc(100vw-2rem)] max-w-[260px] sm:max-w-xs bg-amber-500/10 backdrop-blur-2xl border border-amber-400/25 shadow-2xl rounded-3xl p-4 flex flex-col group transition-all duration-200 hover:border-amber-400/50 hover:shadow-amber-500/10">
+              <div className="w-[calc(100vw-2rem)] max-w-[260px] sm:max-w-xs bg-[var(--imp-island-surface)] backdrop-blur-2xl border border-[var(--imp-island-border)] shadow-2xl rounded-3xl p-4 flex flex-col group transition-all duration-200 hover:border-[#3a3a3c]">
                 <div 
-                  className="flex items-center justify-between text-amber-200/60 text-xs font-bold uppercase tracking-wider mb-2 cursor-grab active:cursor-grabbing pb-1 border-b border-amber-400/10"
+                  className="flex items-center justify-between text-white/50 text-xs font-bold uppercase tracking-wider mb-2 cursor-grab active:cursor-grabbing pb-1 border-b border-[var(--imp-island-border)]"
                   onPointerDown={(e) => handlePointerDown(widget.id, e)}
                 >
-                  <div className="flex items-center gap-1.5 text-amber-300">
+                  <div className="flex items-center gap-1.5 text-[var(--os-text)]">
                     <Move className="w-3.5 h-3.5 opacity-60" />
                     <span>Quick Note</span>
                   </div>
                   <button 
                     onClick={() => removeWidget(widget.id)} 
-                    className="p-1 hover:bg-amber-400/20 rounded-lg text-amber-300 hover:text-rose-400 transition-colors"
+                    className="p-1 hover:bg-[var(--imp-island-hover)] rounded-lg text-[var(--os-text-muted)] hover:text-[var(--os-bad)] transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
                 <textarea
-                  className="w-full h-28 bg-transparent border-none outline-none resize-none text-amber-100 font-medium text-xs leading-relaxed placeholder:text-amber-200/40 custom-scrollbar"
+                  className="w-full h-28 bg-transparent border-none outline-none resize-none text-white font-medium text-xs leading-relaxed placeholder:text-[var(--os-text-muted)]/50 custom-scrollbar"
                   defaultValue={widget.content}
                   onChange={(e) => {
                     const val = e.target.value;
@@ -291,18 +291,18 @@ export function WidgetsLayer({ widgets, setWidgets }: WidgetsLayerProps) {
 
             {/* ─── 2. CPU / System Telemetry Widget ─── */}
             {widget.type === 'cpu' && (
-              <div className="w-[calc(100vw-2rem)] max-w-[260px] sm:max-w-xs bg-neutral-950/80 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-3xl p-4 flex flex-col gap-3 group transition-all duration-200 hover:border-cyan-500/40">
+              <div className="w-[calc(100vw-2rem)] max-w-[260px] sm:max-w-xs bg-[var(--imp-island-surface)] backdrop-blur-2xl border border-[var(--imp-island-border)] shadow-2xl rounded-3xl p-4 flex flex-col gap-3 group transition-all duration-200 hover:border-[#3a3a3c]">
                 <div 
-                  className="flex items-center justify-between text-white/50 cursor-grab active:cursor-grabbing pb-2 border-b border-white/10"
+                  className="flex items-center justify-between text-white/50 cursor-grab active:cursor-grabbing pb-2 border-b border-[var(--imp-island-border)]"
                   onPointerDown={(e) => handlePointerDown(widget.id, e)}
                 >
-                  <div className="text-xs font-bold uppercase flex items-center gap-1.5 text-cyan-300">
-                    <Activity className="w-3.5 h-3.5 text-[#10F4A0] animate-pulse" /> 
+                  <div className="text-xs font-bold uppercase flex items-center gap-1.5 text-[#d1d1d6]">
+                    <Activity className="w-3.5 h-3.5 text-white animate-pulse" /> 
                     <span>System Telemetry</span>
                   </div>
                   <button 
                     onClick={() => removeWidget(widget.id)} 
-                    className="p-1 hover:bg-white/10 rounded-lg text-white/60 hover:text-rose-400 transition-colors"
+                    className="p-1 hover:bg-[var(--imp-island-hover)] rounded-lg text-[var(--os-text-muted)] hover:text-[var(--os-bad)] transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -311,21 +311,21 @@ export function WidgetsLayer({ widgets, setWidgets }: WidgetsLayerProps) {
                 <div className="flex flex-col gap-2.5">
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between text-[11px] font-medium text-white/80">
-                      <span className="flex items-center gap-1"><Cpu className="w-3 h-3 text-emerald-400" /> CPU Core</span>
-                      <span className="font-mono text-[#10F4A0]">{cpuUsage}%</span>
+                      <span className="flex items-center gap-1"><Cpu className="w-3 h-3 text-[var(--os-text-muted)]" /> CPU Core</span>
+                      <span className="font-mono text-white">{cpuUsage}%</span>
                     </div>
-                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-[#10F4A0] rounded-full transition-all duration-500" style={{ width: `${cpuUsage}%` }} />
+                    <div className="w-full h-1.5 bg-[var(--imp-island-hover)] rounded-full overflow-hidden">
+                      <div className="h-full bg-[var(--os-primary)] rounded-full transition-all duration-500" style={{ width: `${cpuUsage}%` }} />
                     </div>
                   </div>
 
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between text-[11px] font-medium text-white/80">
-                      <span className="flex items-center gap-1"><HardDrive className="w-3 h-3 text-cyan-400" /> Memory Heap</span>
-                      <span className="font-mono text-cyan-400">{memUsage.usedMB} MB</span>
+                      <span className="flex items-center gap-1"><HardDrive className="w-3 h-3 text-[var(--os-text-muted)]" /> Memory Heap</span>
+                      <span className="font-mono text-white">{memUsage.usedMB} MB</span>
                     </div>
-                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-cyan-400 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (memUsage.usedMB / (memUsage.totalGB * 1024)) * 100)}%` }} />
+                    <div className="w-full h-1.5 bg-[var(--imp-island-hover)] rounded-full overflow-hidden">
+                      <div className="h-full bg-[var(--os-primary)] rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (memUsage.usedMB / (memUsage.totalGB * 1024)) * 100)}%` }} />
                     </div>
                   </div>
                 </div>
@@ -334,18 +334,18 @@ export function WidgetsLayer({ widgets, setWidgets }: WidgetsLayerProps) {
 
             {/* ─── 3. Clock & Calendar Widget (macOS Sonoma Parity) ─── */}
             {widget.type === 'clock' && (
-              <div className="w-[calc(100vw-2rem)] max-w-[260px] sm:max-w-xs bg-slate-900/80 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-3xl p-4 flex flex-col gap-3 group transition-all duration-200 hover:border-indigo-500/40">
+              <div className="w-[calc(100vw-2rem)] max-w-[260px] sm:max-w-xs bg-[var(--imp-island-surface)] backdrop-blur-2xl border border-[var(--imp-island-border)] shadow-2xl rounded-3xl p-4 flex flex-col gap-3 group transition-all duration-200 hover:border-[#3a3a3c]">
                 <div 
-                  className="flex items-center justify-between text-white/50 cursor-grab active:cursor-grabbing pb-2 border-b border-white/10"
+                  className="flex items-center justify-between text-white/50 cursor-grab active:cursor-grabbing pb-2 border-b border-[var(--imp-island-border)]"
                   onPointerDown={(e) => handlePointerDown(widget.id, e)}
                 >
-                  <div className="text-xs font-bold uppercase flex items-center gap-1.5 text-indigo-300">
-                    <Clock className="w-3.5 h-3.5 text-indigo-400" /> 
+                  <div className="text-xs font-bold uppercase flex items-center gap-1.5 text-[#d1d1d6]">
+                    <Clock className="w-3.5 h-3.5 text-white" /> 
                     <span>Time & Date</span>
                   </div>
                   <button 
                     onClick={() => removeWidget(widget.id)} 
-                    className="p-1 hover:bg-white/10 rounded-lg text-white/60 hover:text-rose-400 transition-colors"
+                    className="p-1 hover:bg-[var(--imp-island-hover)] rounded-lg text-[var(--os-text-muted)] hover:text-[var(--os-bad)] transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -355,12 +355,12 @@ export function WidgetsLayer({ widgets, setWidgets }: WidgetsLayerProps) {
                     <div className="text-2xl font-mono font-bold text-white tracking-tight">
                       {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
-                    <div className="text-xs text-indigo-300 font-medium">
+                    <div className="text-xs text-[var(--os-text-muted)] font-medium">
                       {currentTime.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
                     </div>
                   </div>
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex flex-col items-center justify-center">
-                    <span className="text-[9px] uppercase font-bold text-indigo-300 leading-none">{currentTime.toLocaleDateString([], { month: 'short' })}</span>
+                  <div className="w-12 h-12 rounded-2xl bg-[var(--imp-island-hover)] border border-[var(--imp-island-border)] flex flex-col items-center justify-center">
+                    <span className="text-[9px] uppercase font-bold text-[var(--os-text-muted)] leading-none">{currentTime.toLocaleDateString([], { month: 'short' })}</span>
                     <span className="text-lg font-bold text-white leading-tight">{currentTime.getDate()}</span>
                   </div>
                 </div>
@@ -369,18 +369,18 @@ export function WidgetsLayer({ widgets, setWidgets }: WidgetsLayerProps) {
 
             {/* ─── 4. Live Weather Widget (Real Open-Meteo API) ─── */}
             {widget.type === 'weather' && (
-              <div className="w-[calc(100vw-2rem)] max-w-[260px] sm:max-w-xs bg-sky-950/80 backdrop-blur-2xl border border-sky-400/20 shadow-2xl rounded-3xl p-4 flex flex-col gap-3 group transition-all duration-200 hover:border-sky-400/50">
+              <div className="w-[calc(100vw-2rem)] max-w-[260px] sm:max-w-xs bg-[var(--imp-island-surface)] backdrop-blur-2xl border border-[var(--imp-island-border)] shadow-2xl rounded-3xl p-4 flex flex-col gap-3 group transition-all duration-200 hover:border-[#3a3a3c]">
                 <div 
-                  className="flex items-center justify-between text-sky-200/60 cursor-grab active:cursor-grabbing pb-2 border-b border-sky-400/10"
+                  className="flex items-center justify-between text-white/50 cursor-grab active:cursor-grabbing pb-2 border-b border-[var(--imp-island-border)]"
                   onPointerDown={(e) => handlePointerDown(widget.id, e)}
                 >
-                  <div className="text-xs font-bold uppercase flex items-center gap-1.5 text-sky-300 truncate max-w-[170px]">
-                    <CloudSun className="w-3.5 h-3.5 text-amber-300 shrink-0" /> 
+                  <div className="text-xs font-bold uppercase flex items-center gap-1.5 text-[#d1d1d6] truncate max-w-[170px]">
+                    <CloudSun className="w-3.5 h-3.5 text-[var(--os-warn)] shrink-0" /> 
                     <span className="truncate">{weatherData.city}</span>
                   </div>
                   <button 
                     onClick={() => removeWidget(widget.id)} 
-                    className="p-1 hover:bg-sky-400/20 rounded-lg text-sky-300 hover:text-rose-400 transition-colors"
+                    className="p-1 hover:bg-[var(--imp-island-hover)] rounded-lg text-[var(--os-text-muted)] hover:text-[var(--os-bad)] transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -388,11 +388,11 @@ export function WidgetsLayer({ widgets, setWidgets }: WidgetsLayerProps) {
                 <div className="flex items-center justify-between px-2">
                   <div className="flex flex-col">
                     <span className="text-3xl font-bold text-white tracking-tight">{weatherData.temp}°F</span>
-                    <span className="text-xs text-sky-200 font-medium">{weatherData.condition}</span>
+                    <span className="text-xs text-[var(--os-text-muted)] font-medium">{weatherData.condition}</span>
                   </div>
-                  <Sun className="w-10 h-10 text-amber-400 animate-[spin_12s_linear_infinite]" />
+                  <Sun className="w-10 h-10 text-[var(--os-warn)] animate-[spin_12s_linear_infinite]" />
                 </div>
-                <div className="flex items-center justify-between text-[10px] text-sky-200/70 border-t border-sky-400/10 pt-2 font-mono">
+                <div className="flex items-center justify-between text-[10px] text-[var(--os-text-muted)] border-t border-[var(--imp-island-border)] pt-2 font-mono">
                   <span>Wind: {weatherData.windSpeed} mph</span>
                   <span>Humidity: {weatherData.humidity}%</span>
                 </div>
@@ -401,18 +401,18 @@ export function WidgetsLayer({ widgets, setWidgets }: WidgetsLayerProps) {
 
             {/* ─── 5. Stocks / Market Ticker Widget (Real Binance / Coin API) ─── */}
             {widget.type === 'stocks' && (
-              <div className="w-[calc(100vw-2rem)] max-w-[260px] sm:max-w-xs bg-emerald-950/80 backdrop-blur-2xl border border-emerald-400/20 shadow-2xl rounded-3xl p-4 flex flex-col gap-2.5 group transition-all duration-200 hover:border-emerald-400/50">
+              <div className="w-[calc(100vw-2rem)] max-w-[260px] sm:max-w-xs bg-[var(--imp-island-surface)] backdrop-blur-2xl border border-[var(--imp-island-border)] shadow-2xl rounded-3xl p-4 flex flex-col gap-2.5 group transition-all duration-200 hover:border-[#3a3a3c]">
                 <div 
-                  className="flex items-center justify-between text-emerald-200/60 cursor-grab active:cursor-grabbing pb-1.5 border-b border-emerald-400/10"
+                  className="flex items-center justify-between text-white/50 cursor-grab active:cursor-grabbing pb-1.5 border-b border-[var(--imp-island-border)]"
                   onPointerDown={(e) => handlePointerDown(widget.id, e)}
                 >
-                  <div className="text-xs font-bold uppercase flex items-center gap-1.5 text-emerald-300">
-                    <TrendingUp className="w-3.5 h-3.5 text-emerald-400" /> 
+                  <div className="text-xs font-bold uppercase flex items-center gap-1.5 text-[#d1d1d6]">
+                    <TrendingUp className="w-3.5 h-3.5 text-white" /> 
                     <span>Live Crypto Market</span>
                   </div>
                   <button 
                     onClick={() => removeWidget(widget.id)} 
-                    className="p-1 hover:bg-emerald-400/20 rounded-lg text-emerald-300 hover:text-rose-400 transition-colors"
+                    className="p-1 hover:bg-[var(--imp-island-hover)] rounded-lg text-[var(--os-text-muted)] hover:text-[var(--os-bad)] transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -422,7 +422,7 @@ export function WidgetsLayer({ widgets, setWidgets }: WidgetsLayerProps) {
                     <div key={item.symbol} className="flex items-center justify-between text-white">
                       <span className="font-bold">{item.symbol}</span>
                       <span>{item.price}</span>
-                      <span className={cn("font-semibold", item.isPositive ? "text-emerald-400" : "text-rose-400")}>
+                      <span className={cn("font-semibold", item.isPositive ? "text-[var(--os-good)]" : "text-[var(--os-bad)]")}>
                         {item.change}
                       </span>
                     </div>
@@ -433,33 +433,33 @@ export function WidgetsLayer({ widgets, setWidgets }: WidgetsLayerProps) {
 
             {/* ─── 6. Music / Audio Mini-Widget ─── */}
             {widget.type === 'audio' && (
-              <div className="w-[calc(100vw-2rem)] max-w-[260px] sm:max-w-xs bg-rose-950/80 backdrop-blur-2xl border border-rose-400/20 shadow-2xl rounded-3xl p-4 flex flex-col gap-3 group transition-all duration-200 hover:border-rose-400/50">
+              <div className="w-[calc(100vw-2rem)] max-w-[260px] sm:max-w-xs bg-[var(--imp-island-surface)] backdrop-blur-2xl border border-[var(--imp-island-border)] shadow-2xl rounded-3xl p-4 flex flex-col gap-3 group transition-all duration-200 hover:border-[#3a3a3c]">
                 <div 
-                  className="flex items-center justify-between text-rose-200/60 cursor-grab active:cursor-grabbing pb-1.5 border-b border-rose-400/10"
+                  className="flex items-center justify-between text-white/50 cursor-grab active:cursor-grabbing pb-1.5 border-b border-[var(--imp-island-border)]"
                   onPointerDown={(e) => handlePointerDown(widget.id, e)}
                 >
-                  <div className="text-xs font-bold uppercase flex items-center gap-1.5 text-rose-300">
-                    <Music className="w-3.5 h-3.5 text-rose-400" /> 
+                  <div className="text-xs font-bold uppercase flex items-center gap-1.5 text-[#d1d1d6]">
+                    <Music className="w-3.5 h-3.5 text-white" /> 
                     <span>Now Playing</span>
                   </div>
                   <button 
                     onClick={() => removeWidget(widget.id)} 
-                    className="p-1 hover:bg-rose-400/20 rounded-lg text-rose-300 hover:text-rose-400 transition-colors"
+                    className="p-1 hover:bg-[var(--imp-island-hover)] rounded-lg text-[var(--os-text-muted)] hover:text-[var(--os-bad)] transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-400/30 flex items-center justify-center">
-                    <Music className="w-5 h-5 text-rose-400" />
+                  <div className="w-10 h-10 rounded-xl bg-[var(--imp-island-hover)] border border-[var(--imp-island-border)] flex items-center justify-center">
+                    <Music className="w-5 h-5 text-[var(--os-text-muted)]" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-semibold text-white truncate">Continua Lo-Fi Beats</div>
-                    <div className="text-[10px] text-rose-200/70 truncate">Deep Focus Ambient</div>
+                    <div className="text-[10px] text-[var(--os-text-muted)] truncate">Deep Focus Ambient</div>
                   </div>
                   <button
                     onClick={() => setIsPlaying(!isPlaying)}
-                    className="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg hover:scale-105 transition-transform"
+                    className="w-8 h-8 rounded-full bg-[var(--os-primary)] text-white flex items-center justify-center shadow-lg hover:scale-105 transition-transform"
                   >
                     {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 ml-0.5" />}
                   </button>
@@ -475,7 +475,7 @@ export function WidgetsLayer({ widgets, setWidgets }: WidgetsLayerProps) {
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[9990] bg-[var(--os-glass-bg)] backdrop-blur-2xl border border-[var(--os-border)] rounded-3xl shadow-2xl p-4 flex flex-col gap-3 pointer-events-auto max-w-[90vw] animate-in fade-in slide-in-from-bottom-4 duration-200">
           <div className="flex items-center justify-between border-b border-[var(--os-border)] pb-2 px-2">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-[#10F4A0]" />
+              <Sparkles className="w-4 h-4 text-[var(--os-primary)]" />
               <span className="font-semibold text-sm text-[var(--os-text)]">Desktop Widgets Gallery</span>
             </div>
             <button
@@ -488,44 +488,44 @@ export function WidgetsLayer({ widgets, setWidgets }: WidgetsLayerProps) {
           <div className="flex items-center gap-3 overflow-x-auto p-1 custom-scrollbar">
             <button
               onClick={() => addWidget('notes')}
-              className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-400/20 transition-all hover:scale-105 text-amber-200 min-w-[100px]"
+              className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-[var(--imp-island-hover)] hover:bg-[var(--imp-island-surface)] hover:border-[#3a3a3c] border border-[var(--imp-island-border)] transition-all hover:scale-105 text-white min-w-[100px]"
             >
-              <Move className="w-6 h-6 text-amber-300" />
+              <Move className="w-6 h-6 text-[var(--os-warn)]" />
               <span className="text-xs font-semibold">Quick Note</span>
             </button>
             <button
               onClick={() => addWidget('cpu')}
-              className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-400/20 transition-all hover:scale-105 text-cyan-200 min-w-[100px]"
+              className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-[var(--imp-island-hover)] hover:bg-[var(--imp-island-surface)] hover:border-[#3a3a3c] border border-[var(--imp-island-border)] transition-all hover:scale-105 text-white min-w-[100px]"
             >
-              <Activity className="w-6 h-6 text-[#10F4A0]" />
+              <Activity className="w-6 h-6 text-[var(--os-primary)]" />
               <span className="text-xs font-semibold">Telemetry</span>
             </button>
             <button
               onClick={() => addWidget('clock')}
-              className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-400/20 transition-all hover:scale-105 text-indigo-200 min-w-[100px]"
+              className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-[var(--imp-island-hover)] hover:bg-[var(--imp-island-surface)] hover:border-[#3a3a3c] border border-[var(--imp-island-border)] transition-all hover:scale-105 text-white min-w-[100px]"
             >
-              <Clock className="w-6 h-6 text-indigo-300" />
+              <Clock className="w-6 h-6 text-white" />
               <span className="text-xs font-semibold">Clock & Date</span>
             </button>
             <button
               onClick={() => addWidget('weather')}
-              className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-400/20 transition-all hover:scale-105 text-sky-200 min-w-[100px]"
+              className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-[var(--imp-island-hover)] hover:bg-[var(--imp-island-surface)] hover:border-[#3a3a3c] border border-[var(--imp-island-border)] transition-all hover:scale-105 text-white min-w-[100px]"
             >
-              <Sun className="w-6 h-6 text-amber-400" />
+              <Sun className="w-6 h-6 text-[var(--os-warn)]" />
               <span className="text-xs font-semibold">Weather</span>
             </button>
             <button
               onClick={() => addWidget('stocks')}
-              className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-400/20 transition-all hover:scale-105 text-emerald-200 min-w-[100px]"
+              className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-[var(--imp-island-hover)] hover:bg-[var(--imp-island-surface)] hover:border-[#3a3a3c] border border-[var(--imp-island-border)] transition-all hover:scale-105 text-white min-w-[100px]"
             >
-              <TrendingUp className="w-6 h-6 text-emerald-400" />
+              <TrendingUp className="w-6 h-6 text-[var(--os-good)]" />
               <span className="text-xs font-semibold">Market</span>
             </button>
             <button
               onClick={() => addWidget('audio')}
-              className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-400/20 transition-all hover:scale-105 text-rose-200 min-w-[100px]"
+              className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-[var(--imp-island-hover)] hover:bg-[var(--imp-island-surface)] hover:border-[#3a3a3c] border border-[var(--imp-island-border)] transition-all hover:scale-105 text-white min-w-[100px]"
             >
-              <Music className="w-6 h-6 text-rose-400" />
+              <Music className="w-6 h-6 text-[var(--os-primary)]" />
               <span className="text-xs font-semibold">Audio Mini</span>
             </button>
           </div>

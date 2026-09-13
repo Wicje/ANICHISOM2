@@ -307,4 +307,327 @@ html.os-inverted {
   filter: invert(100%) hue-rotate(180deg);
 }
 
+/* ── IMPASTO SHELL ───────────────────────────────────────────────────────── */
+/* Visual identity ported from github.com/andreumassanet/impasto (GPL-3.0).
+   The web OS shell is scoped under .os-shell; everything else keeps the
+   existing brand palette. Tokens mirror theme/Theme.qml exactly. */
+
+.os-shell {
+  --os-bg: #0c0c0c;
+  --os-text: #ffffff;
+  --os-text-muted: #8e8e93;
+  --os-surface: #141414;
+  --os-surface-elevated: #202020;
+  --os-surface-dim: #0a0a0a;
+  --os-border: #282828;
+  --os-border-strong: #383838;
+  --os-glass-bg: rgba(20, 20, 20, 0.92);
+  --os-glass-border: #2a2a2a;
+  --os-glass-shadow: 0 16px 48px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+  --os-hover: rgba(255, 255, 255, 0.06);
+  --os-active: rgba(10, 132, 255, 0.16);
+  --os-primary: #0a84ff;
+  --os-primary-container: #409cff;
+  --os-error: #ff453a;
+  --os-outline: #5a5a5f;
+  --os-outline-variant: #2c2c2e;
+  color-scheme: dark;
+
+  /* Feedback colours stay fixed across palettes (impasto Theme.indicator*). */
+  --os-good: #32d74b;
+  --os-warn: #ffd60a;
+  --os-bad: #ff453a;
+  --os-timer: #64d2ff;
+
+  /* The island and its surfaces. Black is the shell's identity. */
+  --imp-island: #000000;
+  --imp-island-surface: #141414;
+  --imp-island-hover: #1f1f1f;
+  --imp-island-border: #262626;
+
+  /* Hairlines drawn over photographs. */
+  --imp-hairline: rgba(255, 255, 255, 0.125);
+  --imp-scrim: rgba(0, 0, 0, 0.75);
+
+  /* Metrics (impasto Theme.qml defaults) */
+  --imp-capsule-h: 32px;
+  --imp-capsule-gap: 8px;
+  --imp-bar-margin: 16px;
+  --imp-bar-side-margin: 18px;
+  --imp-bar-band: 56px;
+
+  /* Desktop grid: widgets span whole cells. */
+  --imp-desktop-cell: 86px;
+  --imp-desktop-gutter: 18px;
+  --imp-desktop-stride: 104px;
+
+  /* Radii */
+  --imp-radius-sm: 8px;
+  --imp-radius-md: 12px;
+  --imp-radius-lg: 18px;
+  --imp-radius-window: 22px;
+  --imp-radius-pill: 999px;
+
+  /* Motion: one curve, three durations (ms × motion scale). */
+  --imp-ease: cubic-bezier(0.33, 1, 0.68, 1);
+  --imp-d-fast: 140ms;
+  --imp-d-med: 200ms;
+  --imp-d-morph: 380ms;
+  --imp-d-palette: 260ms;
+
+  font-family: var(--font-sans-family);
+}
+
+.os-shell .glass-panel,
+.os-shell .glass-panel-active {
+  background: var(--os-glass-bg);
+  border: 1px solid var(--os-glass-border);
+  box-shadow: var(--os-glass-shadow);
+}
+
+.os-shell .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #3a3a3c;
+  border-color: #1c1c1e;
+}
+
+/* A module chip: one capsule of the bar. Symbol first, figure trailing. */
+.os-shell .imp-chip {
+  height: var(--imp-capsule-h);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: var(--imp-radius-pill);
+  background: var(--imp-island-surface);
+  border: 1px solid var(--imp-island-border);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background var(--imp-d-fast) var(--imp-ease),
+    border-color var(--imp-d-fast) var(--imp-ease),
+    transform var(--imp-d-fast) var(--imp-ease);
+}
+.os-shell .imp-chip:hover {
+  background: var(--imp-island-hover);
+}
+.os-shell .imp-chip:active {
+  transform: scale(0.96);
+}
+.os-shell .imp-chip--ring {
+  padding: 0;
+  justify-content: center;
+  width: var(--imp-capsule-h);
+}
+
+/* The scorelight dot for the workspace row. */
+.os-shell .imp-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--imp-radius-pill);
+  background: var(--os-text-muted);
+}
+
+/* Lit chip: a module detail is open in the island. */
+.os-shell .imp-chip--active {
+  background: var(--imp-island-hover);
+  border-color: #3a3a3c;
+}
+.os-shell .imp-chip-muted {
+  color: var(--os-text-muted);
+}
+
+/* ── Island panels ──────────────────────────────────────────────────────── */
+
+.os-shell .imp-panel {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  color: var(--os-text);
+}
+
+/* A control-centre toggle tile (impasto QuickTile). */
+.os-shell .imp-tile {
+  border-radius: var(--imp-radius-md);
+  background: var(--imp-island-surface);
+  border: 1px solid var(--imp-island-border);
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--imp-d-fast) var(--imp-ease),
+    border-color var(--imp-d-fast) var(--imp-ease),
+    transform var(--imp-d-fast) var(--imp-ease);
+}
+.os-shell .imp-tile:hover {
+  background: var(--imp-island-hover);
+}
+.os-shell .imp-tile:active {
+  transform: scale(0.98);
+}
+.os-shell .imp-tile--on {
+  border-color: var(--os-primary);
+}
+.os-shell .imp-tile--disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.os-shell .imp-tile-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--imp-island-hover);
+  color: var(--os-text-muted);
+  transition: background var(--imp-d-fast) var(--imp-ease),
+    color var(--imp-d-fast) var(--imp-ease);
+}
+.os-shell .imp-tile--on .imp-tile-icon {
+  background: var(--os-primary);
+  color: #fff;
+}
+.os-shell .imp-tile-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--os-text);
+  line-height: 1.2;
+}
+.os-shell .imp-tile-detail {
+  font-size: 10px;
+  color: var(--os-text-muted);
+  line-height: 1.2;
+  transition: color var(--imp-d-fast) var(--imp-ease);
+}
+.os-shell .imp-tile--on .imp-tile-detail {
+  color: var(--os-primary);
+}
+
+/* Power row buttons — destructive actions arm red, firing on a second click. */
+.os-shell .imp-power {
+  height: 28px;
+  border-radius: var(--imp-radius-sm);
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--os-text);
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background var(--imp-d-fast) var(--imp-ease),
+    border-color var(--imp-d-fast) var(--imp-ease),
+    width var(--imp-d-fast) var(--imp-ease),
+    color var(--imp-d-fast) var(--imp-ease);
+}
+.os-shell .imp-power:hover {
+  background: var(--imp-island-hover);
+  border-color: var(--imp-island-border);
+  color: var(--os-primary);
+}
+.os-shell .imp-power:hover .imp-power-label {
+  display: inline;
+}
+.os-shell .imp-power--armed {
+  background: var(--os-bad);
+  border-color: var(--os-bad);
+  color: #fff;
+}
+.os-shell .imp-power--armed:hover {
+  color: #fff;
+}
+.os-shell .imp-power-label {
+  display: none;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Small square door inside a panel (impasto IconButton). */
+.os-shell .imp-iconbtn {
+  width: 32px;
+  height: 28px;
+  border-radius: var(--imp-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--os-text);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--imp-d-fast) var(--imp-ease),
+    border-color var(--imp-d-fast) var(--imp-ease),
+    color var(--imp-d-fast) var(--imp-ease);
+}
+.os-shell .imp-iconbtn:hover {
+  background: var(--imp-island-hover);
+  border-color: var(--imp-island-border);
+  color: var(--os-primary);
+}
+
+/* Now-playing equaliser bars in the bar's media chip. */
+@keyframes imp-eq {
+  0%,
+  100% {
+    transform: scaleY(0.5);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.os-shell .imp-power--armed .imp-power-label {
+  display: inline;
+}
+
+/* 12px, radius-medium inset chip used inside panels. */
+.os-shell .imp-inset {
+  border-radius: var(--imp-radius-md);
+  background: var(--imp-island-surface);
+  border: 1px solid var(--imp-island-border);
+  transition: background var(--imp-d-fast) var(--imp-ease);
+}
+.os-shell .imp-inset--hover:hover {
+  background: var(--imp-island-hover);
+}
+
+/* Island hairline around an expanded capsule (impasto outline). */
+.os-shell .imp-outline {
+  border: 1px solid var(--imp-island-border);
+}
+
+/* Sliders (impasto Theme slider look: label + percent + bar). */
+.os-shell .imp-slider {
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, #fff var(--imp-slider-fill, 50%), #3a3a3c var(--imp-slider-fill, 50%));
+  outline: none;
+  cursor: pointer;
+}
+.os-shell .imp-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #fff;
+  border: 5px solid transparent;
+  background-clip: padding-box;
+  box-shadow: 0 0 0 1px #3a3a3c, 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+.os-shell .imp-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #fff;
+  border: 5px solid transparent;
+  background-clip: padding-box;
+  box-shadow: 0 0 0 1px #3a3a3c, 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
 

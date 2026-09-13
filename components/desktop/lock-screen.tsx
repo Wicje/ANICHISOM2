@@ -155,7 +155,7 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
               onClick={() => onUnlock()}
               className="w-full flex items-center justify-center gap-2 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white/90 text-xs font-semibold transition-all border border-white/15 shadow-sm"
             >
-              <Fingerprint className="w-4 h-4 text-[#10F4A0]" />
+              <Fingerprint className="w-4 h-4 text-[var(--os-primary)]" />
               <span>Simulate Touch ID / Guest Unlock</span>
             </button>
 

@@ -11,8 +11,8 @@ vi.mock('@/components/window-frame', () => ({
   WindowFrame: ({ children }: any) => <div data-testid="window-frame">{children}</div>,
 }));
 
-vi.mock('@/components/desktop/menu-bar', () => ({
-  MenuBar: () => <div data-testid="menu-bar" />,
+vi.mock('@/components/impasto/bar', () => ({
+  ImpastoBar: () => <div data-testid="menu-bar" />,
 }));
 
 vi.mock('@/components/desktop/dock', () => ({
@@ -29,6 +29,7 @@ vi.mock('@/components/desktop/mission-control', () => ({
 
 vi.mock('@/components/desktop/control-center', () => ({
   ControlCenter: () => <div data-testid="control-center" />,
+  ControlCenterView: () => <div data-testid="control-center-view" />,
 }));
 
 vi.mock('@/components/desktop/lock-screen', () => ({

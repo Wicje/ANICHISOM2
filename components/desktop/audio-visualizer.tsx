@@ -18,7 +18,7 @@ export function AudioVisualizer() {
       {bars.map((h, idx) => (
         <div
           key={idx}
-          className="w-1 bg-gradient-to-t from-[#10F4A0] to-cyan-400 rounded-full transition-all duration-200"
+          className="w-1 bg-gradient-to-t from-[var(--os-primary)] to-[#409cff] rounded-full transition-all duration-200"
           style={{ height: `${h}%` }}
         />
       ))}

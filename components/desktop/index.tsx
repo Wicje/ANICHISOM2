@@ -16,7 +16,7 @@ import { FS, LocalFile } from '@/lib/fs';
 import { Toaster, toast } from 'sonner';
 import { Skeleton, CardSkeleton, PageSkeleton, BootSplash } from '@/components/ui/skeleton';
 import { AnimatePresence, motion } from 'motion/react';
-import { MenuBar } from './menu-bar';
+import { ImpastoBar } from '@/components/impasto/bar';
 import { Dock } from './dock';
 import { WindowSwitcher } from './window-switcher';
 import { DesktopIcons } from './desktop-icons';
@@ -38,7 +38,6 @@ import { pluginSandboxHost } from '@/lib/services/plugin-sandbox.service';
 
 const Launchpad = React.lazy(() => import('./launchpad').then(m => ({ default: m.Launchpad })));
 const MissionControl = React.lazy(() => import('./mission-control').then(m => ({ default: m.MissionControl })));
-const ControlCenter = React.lazy(() => import('./control-center').then(m => ({ default: m.ControlCenter })));
 const LockScreen = React.lazy(() => import('./lock-screen').then(m => ({ default: m.LockScreen })));
 const ContextMenu = React.lazy(() => import('./context-menu').then(m => ({ default: m.ContextMenu })));
 const SnapshotsMenu = React.lazy(() => import('./snapshots-menu').then(m => ({ default: m.SnapshotsMenu })));
@@ -223,7 +222,6 @@ export function Desktop() {
   }, []);
   const [showLaunchpad, setShowLaunchpad] = useState(false);
   const [showMissionControl, setShowMissionControl] = useState(false);
-  const [showControlCenter, setShowControlCenter] = useState(false);
   const [showNotchNook, setShowNotchNook] = useState(false);
   const [showWidgetStack, setShowWidgetStack] = useState(false);
   const [showSwitcher, setShowSwitcher] = useState(false);
@@ -999,7 +997,7 @@ export function Desktop() {
 
   return (
     <div
-      className="fixed inset-0 w-full h-full overflow-hidden flex flex-col font-sans select-none"
+      className="os-shell fixed inset-0 w-full h-full overflow-hidden flex flex-col font-sans select-none"
       style={{ fontFamily }}
       onClick={() => setContextMenu(null)}
       onPointerDownCapture={(e) => {
@@ -1052,22 +1050,13 @@ export function Desktop() {
         />
       </div>
 
-      <MenuBar
-        showLaunchpad={showLaunchpad}
+      <ImpastoBar
         setShowLaunchpad={setShowLaunchpad}
-        showControlCenter={showControlCenter}
-        setShowControlCenter={setShowControlCenter}
         setShowMissionControl={setShowMissionControl}
-        showSnapshots={showSnapshots}
-        setShowSnapshots={setShowSnapshots}
-        applyWorkspaceLayout={applyWorkspaceLayout}
-        performanceMode={performanceMode}
-        setPerformanceMode={setPerformanceMode}
         logout={handleLogout}
         wipeSession={wipeSession}
+        onLock={() => setIsLocked(true)}
       />
-
-      {showControlCenter && <Suspense fallback={<PageSkeleton />}><ControlCenter onClose={() => setShowControlCenter(false)} /></Suspense>}
 
       <main className="flex-1 relative z-10 w-full h-full overflow-hidden pointer-events-none">
         <DesktopIcons />
@@ -1179,7 +1168,7 @@ export function Desktop() {
         <AIAgentBar />
         <DragShelf />
         <TelemetryHUD />
-        <HotCorners setShowMissionControl={setShowMissionControl} setShowLaunchpad={setShowLaunchpad} setShowControlCenter={setShowControlCenter} />
+        <HotCorners setShowMissionControl={setShowMissionControl} setShowLaunchpad={setShowLaunchpad} />
         <TrackpadGestures setShowMissionControl={setShowMissionControl} setShowLaunchpad={setShowLaunchpad} />
         <PWAUpdateToast />
         <RestorationModal />

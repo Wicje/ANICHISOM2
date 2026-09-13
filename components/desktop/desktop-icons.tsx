@@ -116,7 +116,7 @@ Because the OS uses IndexedDB, your assets remain fully private and instantly ac
             key={i}
             className={cn(
               "w-20 flex flex-col items-center gap-1.5 p-2 rounded-xl cursor-pointer group transition-all",
-              isSelected ? "bg-white/20 ring-1 ring-[#10F4A0]/60 shadow-lg shadow-black/40" : "hover:bg-white/10"
+              isSelected ? "bg-white/20 ring-1 ring-[#0a84ff]/60 shadow-lg shadow-black/40" : "hover:bg-white/10"
             )}
             onClick={(e) => {
               e.stopPropagation();
@@ -141,7 +141,7 @@ Because the OS uses IndexedDB, your assets remain fully private and instantly ac
             )}
             <span className={cn(
               "text-[11px] text-center font-medium text-white drop-shadow-md px-1.5 py-0.5 rounded-md leading-tight line-clamp-2",
-              isSelected ? "bg-[#10F4A0]/30 text-white font-semibold" : "bg-black/40"
+              isSelected ? "bg-[#0a84ff]/30 text-white font-semibold" : "bg-black/40"
             )}>
               {file.name}
             </span>
