@@ -7,6 +7,14 @@ import { Lock, User, Loader2, AlertCircle, ArrowRight, Power, RotateCw, Moon, Sp
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { audioSystem } from '@/lib/services/audio-engine';
+import {
+  isWebAuthnSupported,
+  isPlatformAuthenticatorAvailable,
+  registerPasskey,
+  authenticateWithPasskey,
+  getPasskeyMetadata,
+  savePasskeyMetadata,
+} from '@/lib/services/webauthn.service';
 
 interface LockScreenProps {
   onUnlock: () => void;
@@ -21,6 +29,32 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
   const [isChecking, setIsChecking] = useState(false);
   const [screensaverActive, setScreensaverActive] = useState(false);
   const [selectedUser, setSelectedUser] = useState(currentUser);
+
+  // WebAuthn / fingerprint unlock state
+  const [passkeyState, setPasskeyState] = useState<'checking' | 'available' | 'unavailable'>('checking');
+  const [passkeyCount, setPasskeyCount] = useState(0);
+  const [biometricBusy, setBiometricBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!isWebAuthnSupported()) {
+        if (!cancelled) setPasskeyState('unavailable');
+        return;
+      }
+      const hasPlatformAuth = await isPlatformAuthenticatorAvailable();
+      if (cancelled) return;
+      if (!hasPlatformAuth) {
+        setPasskeyState('unavailable');
+        return;
+      }
+      const meta = await getPasskeyMetadata();
+      if (cancelled) return;
+      setPasskeyCount(meta.length);
+      setPasskeyState('available');
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Sonoma Aerial Screensaver Videos / Wallpapers
   const aerialScenes = [
@@ -71,6 +105,52 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
       setIsChecking(false);
     }
   };
+
+  const handleFingerprint = async () => {
+    setBiometricBusy(true);
+    setError('');
+    try {
+      if (passkeyState === 'available') {
+        const meta = await getPasskeyMetadata();
+        if (meta.length > 0) {
+          try {
+            await authenticateWithPasskey(meta.map((m) => m.credentialId));
+          } catch {
+            setError('Fingerprint cancelled — falling back to guest session');
+            audioSystem.playClick();
+            onUnlock();
+            return;
+          }
+        } else {
+          // First unlock on this device — enroll a passkey, then enter.
+          const userId = selectedUser?.email || 'guest';
+          const name = selectedUser?.name || selectedUser?.email?.split('@')[0] || 'Guest';
+          const registered = await registerPasskey(userId, name, selectedUser?.name || 'Guest');
+          await savePasskeyMetadata(registered);
+        }
+        audioSystem.playClick();
+        onUnlock();
+        return;
+      }
+      // No fingerprint hardware — guest unlock
+      audioSystem.playClick();
+      onUnlock();
+    } catch {
+      audioSystem.playClick();
+      onUnlock();
+    } finally {
+      setBiometricBusy(false);
+    }
+  };
+
+  const passkeyLabel =
+    passkeyState === 'checking'
+      ? 'Checking for Touch ID…'
+      : passkeyState === 'available'
+        ? passkeyCount > 0
+          ? 'Unlock with Fingerprint'
+          : 'Set Up Fingerprint Unlock'
+        : 'Guest Unlock';
 
   return (
     <div
@@ -152,11 +232,16 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
           <div className="flex flex-col gap-2 w-full pt-1">
             <button
               type="button"
-              onClick={() => onUnlock()}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white/90 text-xs font-semibold transition-all border border-white/15 shadow-sm"
+              onClick={handleFingerprint}
+              disabled={biometricBusy || passkeyState === 'checking'}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white/90 text-xs font-semibold transition-all border border-white/15 shadow-sm disabled:opacity-50 disabled:cursor-default"
             >
-              <Fingerprint className="w-4 h-4 text-[var(--os-primary)]" />
-              <span>Simulate Touch ID / Guest Unlock</span>
+              {biometricBusy ? (
+                <Loader2 className="w-4 h-4 text-[var(--os-primary)] animate-spin" />
+              ) : (
+                <Fingerprint className="w-4 h-4 text-[var(--os-primary)]" />
+              )}
+              <span>{passkeyLabel}</span>
             </button>
 
             <div className="flex items-center gap-2 my-1">
@@ -174,7 +259,7 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
                     const supabase = createClient();
                     await supabase.auth.signInWithOAuth({
                       provider: 'google',
-                      options: { redirectTo: `${window.location.origin}/auth/callback?next=/os` },
+                      options: { redirectTo: `${window.location.origin}/auth/callback?next=/os/shell` },
                     });
                   } catch {
                     onUnlock();
@@ -194,7 +279,7 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
                     const supabase = createClient();
                     await supabase.auth.signInWithOAuth({
                       provider: 'github',
-                      options: { redirectTo: `${window.location.origin}/auth/callback?next=/os` },
+                      options: { redirectTo: `${window.location.origin}/auth/callback?next=/os/shell` },
                     });
                   } catch {
                     onUnlock();
