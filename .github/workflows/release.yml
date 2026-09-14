@@ -34,11 +34,9 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: continua-desktop/package-lock.json
 
-      # Frontend deps + the Tauri CLI binary (bundled by @tauri-apps/cli).
+      # All workspaces install from the root lockfile (apps/desktop included).
       - name: Install frontend deps
-        working-directory: continua-desktop
         run: npm ci --legacy-peer-deps
 
       # Ubuntu runners lack the WebKitGTK system libs Tauri compiles against.
@@ -56,7 +54,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectPath: ./continua-desktop
+          projectPath: ./apps/desktop
           tagName: ${{ github.ref_name }}
           releaseName: "Continua v__VERSION__"
           releaseBody: |

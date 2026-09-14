@@ -11,6 +11,7 @@ import { api, OpenTab, displayTitle, isTauri } from "./lib/tauri-bridge";
 import { BrowserChrome } from "./chrome/BrowserChrome";
 import { NewTab } from "./chrome/NewTab";
 import { CommandPalette } from "./chrome/CommandPalette";
+import { Toasts } from "./components/Toasts";
 
 /**
  * Rust pushes `tab:title-changed` / `tab:navigated` per webview event. Buffer
@@ -67,7 +68,6 @@ export default function App() {
   // Tabs live in Rust WebviewWindows; React keeps the canonical metadata.
   const [tabs, setTabs, patch] = useTabMirror();
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
-  const [closedStack, setClosedStack] = useState<{ url: string }[]>([]);
 
   // Mirror page titles pushed from Rust (tab:title-changed), coalesced.
   useEffect(() => {
@@ -107,11 +107,20 @@ export default function App() {
     if (focus) setActiveLabel(label);
   };
 
+  const openIncognito = async (url: string, focus = true) => {
+    const label = await api.openIncognitoTab(url);
+    setTabs((prev) => [
+      ...prev,
+      { label, url, title: displayTitle(url), incognito: true },
+    ]);
+    if (focus) setActiveLabel(label);
+  };
+
   const closeTab = async (label: string) => {
     const prev = tabs;
     const idx = prev.findIndex((t) => t.label === label);
-    const closing = prev[idx];
-    if (closing) setClosedStack((s) => [closing, ...s].slice(0, 10));
+    // Rust records the close into the durable recently-closed ring (except
+    // incognito/vault tabs), so Ctrl+Shift+T outlives this process.
 
     await api.closeTab(label);
     const nextList = prev.filter((t) => t.label !== label);
@@ -126,10 +135,21 @@ export default function App() {
   };
 
   const reopenLastClosed = async () => {
-    const next = closedStack[0];
-    if (!next) return;
-    setClosedStack((s) => s.slice(1));
-    await openTab(next.url);
+    const restarted = await api.reopenLastClosed();
+    if (restarted) {
+      setTabs((prev) => [...prev, restarted]);
+      setActiveLabel(restarted.label);
+    }
+  };
+
+  // Close every tab except `label` (pinned tabs survive, like most browsers).
+  const closeOthers = async (label: string) => {
+    const keep = tabs.filter((t) => t.label === label || t.pinned);
+    const others = tabs.filter((t) => t.label !== label && !t.pinned);
+    await Promise.all(others.map((t) => api.closeTab(t.label)));
+    setTabs(keep);
+    setActiveLabel((cur) => (cur === label ? label : cur));
+    if (tabs.some((t) => t.label === label)) void api.activateTab(label);
   };
 
   // Chrome-side tab ordering. Native webviews overlap the same rect, so a
@@ -148,15 +168,16 @@ export default function App() {
     });
   };
 
-  // Chrome-side pin: favicon-only tab, not persisted into the session.
+  // Chrome-side pin: favicon-only tab. The engine persists the pin into the
+  // session snapshot so it survives restarts (set_tab_pinned is durable).
   const togglePin = (label: string) => {
+    const tab = tabs.find((t) => t.label === label);
+    if (!tab) return;
+    const next = !Boolean((tab as { pinned?: boolean }).pinned);
     setTabs((prev) =>
-      prev.map((t) =>
-        t.label === label
-          ? { ...t, pinned: !Boolean((t as { pinned?: boolean }).pinned) }
-          : t,
-      ),
+      prev.map((t) => (t.label === label ? { ...t, pinned: next } : t)),
     );
+    void api.pinTab(label, next);
   };
 
   // Encrypt (or release) the active tab: the keyring manifest is mirrored
@@ -197,19 +218,30 @@ export default function App() {
     );
   };
 
+  // Adopt a tab list returned from the Rust side (workspace switch).
+  const adoptTabs = (session: OpenTab[]) => {
+    if (session && session.length > 0) {
+      setTabs(session);
+      setActiveLabel(session[session.length - 1].label);
+    }
+  };
+
   return (
     <>
       <BrowserChrome
         tabs={tabs}
         activeLabel={activeLabel}
         onOpen={openTab}
+        onOpenIncognito={openIncognito}
         onClose={closeTab}
         onActivate={api.activateTab}
         onReorder={reorderTabs}
         onTogglePin={togglePin}
+        onCloseOthers={closeOthers}
         onRestore={restoreLastSession}
         onSave={saveNow}
         onReopen={reopenLastClosed}
+        onSwitchWorkspace={adoptTabs}
         runtime={isTauri() ? "tauri" : "browser"}
       />
       {tabs.length === 0 && (
@@ -219,6 +251,7 @@ export default function App() {
         tabs={tabs}
         activeLabel={activeLabel}
         onOpen={openTab}
+        onOpenIncognito={openIncognito}
         onActivate={(label) => void api.activateTab(label)}
         onRestore={() => restoreLastSession()}
         onReopen={reopenLastClosed}
@@ -226,6 +259,7 @@ export default function App() {
         onPullRemote={pullRemote}
         onSync={() => api.syncSession()}
       />
+      <Toasts />
     </>
   );
 }

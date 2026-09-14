@@ -1,7 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, displayTitle } from "../lib/tauri-bridge";
-import type { DeviceInfo, SessionSummary, TabRecord } from "../lib/tauri-bridge";
+import type {
+  DeviceInfo,
+  HistoryItem,
+  SessionSummary,
+  TabRecord,
+} from "../lib/tauri-bridge";
 import { Favicon } from "../components/Favicon";
+import { IconBrand, IconStar, IconStarFilled } from "../components/icons";
 
 interface NewTabProps {
   onResume: (id?: string) => Promise<void>;
@@ -25,32 +31,69 @@ function hostOf(url: string): string {
   }
 }
 
+interface TopSite {
+  url: string;
+  host: string;
+  pinned: boolean;
+}
+
 export function NewTab({ onResume, onOpen }: NewTabProps) {
   const [device, setDevice] = useState<DeviceInfo | null>(null);
   const [lastSession, setLastSession] = useState<TabRecord[] | null>(null);
   const [memory, setMemory] = useState<SessionSummary[]>([]);
   const [continuaUrl, setContinuaUrl] = useState("…");
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [speedDial, setSpeedDial] = useState<string[]>([]);
 
   useEffect(() => {
     void api.deviceInfo().then(setDevice);
     void api.loadSession().then(setLastSession);
     void api.browseSessions().then(setMemory);
     void api.getContinuaUrl().then(setContinuaUrl);
+    void api.getHistory().then(setHistory);
+    void api.getBrowserConfig().then((c) => setSpeedDial(c?.speed_dial ?? []));
   }, []);
 
-  const quickLinks = [
-    { label: "Search", url: "https://duckduckgo.com" },
-    { label: "GitHub", url: "https://github.com" },
-    { label: "Hacker News", url: "https://news.ycombinator.com" },
-    { label: "Stack Overflow", url: "https://stackoverflow.com" },
-  ];
+  // Pinned speed-dial tiles first, then the hosts visited most from history.
+  const topSites = useMemo<TopSite[]>(() => {
+    const pins = speedDial.map((url) => ({
+      url,
+      host: hostOf(url),
+      pinned: true,
+    }));
+    const pinnedHosts = new Set(pins.map((p) => p.host));
+    const counts = new Map<string, { n: number; url: string }>();
+    for (const h of history) {
+      if (!/^https?:\/\//i.test(h.url)) continue;
+      const host = hostOf(h.url);
+      const cur = counts.get(host);
+      if (cur) cur.n++;
+      else counts.set(host, { n: 1, url: h.url });
+    }
+    const visited = [...counts.entries()]
+      .filter(([host]) => !pinnedHosts.has(host))
+      .sort((a, b) => b[1].n - a[1].n)
+      .slice(0, Math.max(0, 8 - pins.length))
+      .map(([host, { url }]) => ({ url, host, pinned: false }));
+    return [...pins, ...visited].slice(0, 8);
+  }, [history, speedDial]);
+
+  const toggleSpeedDial = (url: string, pinned: boolean) => {
+    const next = pinned
+      ? speedDial.filter((u) => u !== url)
+      : [...speedDial, url].slice(0, 12);
+    setSpeedDial(next);
+    void api.updateConfig({ speed_dial: next });
+  };
 
   const memories = memory.filter((m) => m.tabs.length > 0).slice(0, 6);
 
   return (
     <div className="start-page">
       <div className="start-hero">
-        <div className="brand-mark start-mark">◈</div>
+        <div className="brand-mark start-mark">
+          <IconBrand size={26} />
+        </div>
         <h1 className="start-title">Your workspace follows you.</h1>
         <p className="start-sub">
           One workspace in your pocket — open a page here, resume it on
@@ -128,23 +171,45 @@ export function NewTab({ onResume, onOpen }: NewTabProps) {
           )}
         </section>
 
-        <section className="start-card" aria-label="Quick links">
+        <section className="start-card" aria-label="Top sites">
           <div className="start-card-title">
-            <span>Quick access</span>
+            <span>Top sites</span>
+            {topSites.length > 0 && (
+              <span className="start-card-count">{topSites.length} tiles</span>
+            )}
           </div>
-          <ul className="resume-list">
-            {quickLinks.map((q) => (
-              <li key={q.url}>
-                <span className="tab-favicon">⌁</span>
-                <button className="resume-link" onClick={() => void onOpen(q.url)}>
-                  {q.label}
-                </button>
-              </li>
-            ))}
-            </ul>
-            <div className="start-card-sub">
-              {continuaUrl} · {device ? `${device.os}/${device.arch}` : "detecting…"}
+          {topSites.length > 0 ? (
+            <div className="topsites-grid">
+              {topSites.map((s) => (
+                <div className={`topsite${s.pinned ? " is-pinned" : ""}`} key={s.url}>
+                  <button
+                    className="topsite-open"
+                    onClick={() => void onOpen(s.url)}
+                    title={s.url}
+                  >
+                    <span className="topsite-glyph">
+                      {s.host[0]?.toUpperCase() ?? "•"}
+                    </span>
+                    <span className="topsite-host">{s.host}</span>
+                  </button>
+                  <button
+                    className="topsite-pin"
+                    title={s.pinned ? "Unpin from speed dial" : "Pin to speed dial"}
+                    onClick={() => toggleSpeedDial(s.url, s.pinned)}
+                  >
+                    {s.pinned ? <IconStarFilled size={12} /> : <IconStar size={12} />}
+                  </button>
+                </div>
+              ))}
             </div>
+          ) : (
+            <p className="start-card-empty">
+              Sites you visit often will appear here — pin any tile with ★ to keep it.
+            </p>
+          )}
+          <div className="start-card-sub">
+            {continuaUrl} · {device ? `${device.os}/${device.arch}` : "detecting…"}
+          </div>
         </section>
       </div>
     </div>

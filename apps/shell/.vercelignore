@@ -1,0 +1,7 @@
+../desktop
+../packages
+../chrome-extension
+../cloudflare-worker
+.vercel
+*.log
+osaasic.mp4

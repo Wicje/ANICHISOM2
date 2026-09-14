@@ -26,6 +26,9 @@ pub struct TabRecord {
     /// manifest; the session file keeps just this opaque reference.
     #[serde(default)]
     pub vault_id: Option<String>,
+    /// Pinned in the strip; restored pin-for-pin on the next launch.
+    #[serde(default)]
+    pub pinned: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -145,6 +148,121 @@ impl SessionManager {
         rows.truncate(30);
         rows
     }
+
+    // ─── Named workspaces ──────────────────────────────────────────────────
+    // A workspace is a normal session snapshot kept under an explicit name in
+    // `sessions/workspaces/`. Switching workspaces loads the file and replaces
+    // the live tab graph (the chrome calls `restore` semantics).
+
+    fn workspace_dir(&self, app: &AppHandle) -> Result<PathBuf, String> {
+        let dir = self
+            .session_dir(app)?
+            .parent()
+            .ok_or("no app config dir")?
+            .join("workspaces");
+        fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        Ok(dir)
+    }
+
+    /// A filesystem-friendly slug derived from a workspace name.
+    pub fn workspace_slug(name: &str) -> String {
+        let slug: String = name
+            .trim()
+            .to_ascii_lowercase()
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
+            .collect();
+        let slug = slug.trim_matches('-').to_string();
+        slug.chars().take(48).collect()
+    }
+
+    pub fn workspace_exists(&self, app: &AppHandle, name: &str) -> bool {
+        self.workspace_dir(app)
+            .map(|dir| dir.join(format!("{}.json", Self::workspace_slug(name))))
+            .map(|p| p.exists())
+            .unwrap_or(false)
+    }
+
+    /// Persist the live tab list under a named workspace. Returns the name.
+    pub fn save_workspace(
+        &self,
+        app: &AppHandle,
+        name: &str,
+        tabs: Vec<TabRecord>,
+        active: Option<String>,
+        immersive: bool,
+    ) -> Result<String, String> {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err("workspace needs a name".into());
+        }
+        let slug = Self::workspace_slug(name);
+        if slug.is_empty() {
+            return Err("workspace name has no usable characters".into());
+        }
+        let saved_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let snapshot = SessionSnapshot {
+            id: slug.clone(),
+            saved_at,
+            tabs,
+            active,
+            immersive,
+        };
+        let path = self.workspace_dir(app)?.join(format!("{slug}.json"));
+        fs::write(&path, serde_json::to_string_pretty(&snapshot).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+        Ok(name.to_string())
+    }
+
+    pub fn load_workspace(&self, app: &AppHandle, name: &str) -> Option<SessionSnapshot> {
+        let dir = self.workspace_dir(app).ok()?;
+        let path = dir.join(format!("{}.json", Self::workspace_slug(name)));
+        let raw = fs::read_to_string(path).ok()?;
+        serde_json::from_str(&raw).ok()
+    }
+
+    pub fn delete_workspace(&self, app: &AppHandle, name: &str) -> Result<(), String> {
+        let dir = self.workspace_dir(app)?;
+        let path = dir.join(format!("{}.json", Self::workspace_slug(name)));
+        if path.exists() {
+            fs::remove_file(&path).map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    }
+
+    /// Every named workspace, newest first (for the workspace menu).
+    pub fn list_workspaces(&self, app: &AppHandle) -> Vec<SessionSummary> {
+        let Ok(dir) = self.workspace_dir(app) else {
+            return Vec::new();
+        };
+        let Ok(entries) = fs::read_dir(&dir) else {
+            return Vec::new();
+        };
+        let mut rows: Vec<SessionSummary> = Vec::new();
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if !name.ends_with(".json") {
+                continue;
+            }
+            let slug = name.trim_end_matches(".json").to_string();
+            let Ok(raw) = fs::read_to_string(entry.path()) else {
+                continue;
+            };
+            let Ok(snapshot) = serde_json::from_str::<SessionSnapshot>(&raw) else {
+                continue;
+            };
+            rows.push(SessionSummary {
+                id: slug,
+                saved_at: snapshot.saved_at,
+                tabs: snapshot.tabs,
+            });
+        }
+        rows.sort_by(|a, b| b.saved_at.cmp(&a.saved_at));
+        rows
+    }
 }
 
 #[cfg(test)]
@@ -181,6 +299,7 @@ mod tests {
                 idx: 1,
                 scroll_y: 33.0,
                 vault_id: Some("vt-1".into()),
+                pinned: false,
             }],
             active: Some("tab-0".into()),
             immersive: false,

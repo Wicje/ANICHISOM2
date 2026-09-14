@@ -51,6 +51,8 @@ pub struct VaultManifest {
     pub idx: usize,
     #[serde(default)]
     pub scroll_y: f64,
+    #[serde(default)]
+    pub pinned: bool,
 }
 
 #[cfg(test)]
@@ -65,6 +67,7 @@ mod tests {
             history: vec!["https://secure.example".into(), "https://secure.example/inbox".into()],
             idx: 1,
             scroll_y: 42.0,
+            pinned: true,
         };
         let json = serde_json::to_string(&m).unwrap();
         let back: VaultManifest = serde_json::from_str(&json).unwrap();
@@ -80,5 +83,6 @@ mod tests {
         assert_eq!(back.title, "");
         assert!(back.history.is_empty());
         assert_eq!(back.idx, 0);
+        assert!(!back.pinned);
     }
 }

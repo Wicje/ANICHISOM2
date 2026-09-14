@@ -15,6 +15,23 @@ use tauri::{
 use crate::session::TabRecord;
 use crate::vault::VaultManifest;
 
+/// Injected at document start into every tab webview so external pages get
+/// the same slim translucent scrollbars as the chrome (WebKitGTK respects
+/// these pseudo-elements; `!important` survives most sites' own styles).
+pub const SCROLLBAR_STYLE_SCRIPT: &str = r#"(() => {
+  const style = document.createElement('style');
+  style.textContent = `
+    ::-webkit-scrollbar{width:8px;height:8px!important}
+    ::-webkit-scrollbar-track{background:transparent!important}
+    ::-webkit-scrollbar-thumb{background:rgba(128,128,128,.32)!important;
+      border-radius:999px!important;border:2px solid transparent!important;
+      background-clip:content-box!important}
+    ::-webkit-scrollbar-thumb:hover{background:rgba(128,128,128,.55)!important;background-clip:content-box!important}
+    ::-webkit-scrollbar-corner{background:transparent!important}
+  `;
+  document.documentElement.appendChild(style);
+})();"#;
+
 /// Per-tab metadata mirrored to the chrome and used for session snapshots.
 #[derive(Clone)]
 struct TabMeta {
@@ -35,6 +52,11 @@ struct TabMeta {
     /// Set once a tab is "vaulted": its real URL/title/history only ever live
     /// in the OS keyring manifest, never in the plaintext session file.
     vault_id: Option<String>,
+    /// Pinned (favicon-only) in the strip; persisted across restarts.
+    pinned: bool,
+    /// Private tab: never recorded to global history or session snapshots,
+    /// so it leaves no trace on disk after the window closes.
+    incognito: bool,
 }
 
 /// Back/forward availability for the chrome's nav buttons.
@@ -53,6 +75,11 @@ pub struct TabInfo {
     /// Present when the tab is vaulted (encrypted at rest).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub vault_id: Option<String>,
+    #[serde(default)]
+    pub pinned: bool,
+    /// Private (incognito) tab — rendered with a badge, never persisted.
+    #[serde(default)]
+    pub incognito: bool,
 }
 
 pub struct TabManager {
@@ -62,6 +89,12 @@ pub struct TabManager {
     next_id: u32,
     /// Height of the chrome strip in logical px. 0 = immersive/focus mode.
     chrome_height: f64,
+    /// Full chrome height (used to restore after exiting immersive mode).
+    chrome_max: f64,
+    /// Clean/focus mode: chrome collapsed, tabs reflow to the whole window.
+    immersive: bool,
+    /// Vertical tab rail takes the left 44px of the content area.
+    rail_enabled: bool,
     /// Last focused tab; restored as the active tab on the next launch.
     last_active: Option<String>,
 }
@@ -73,12 +106,29 @@ impl TabManager {
             dirty: false,
             next_id: 0,
             chrome_height: crate::CHROME_HEIGHT,
+            chrome_max: crate::CHROME_HEIGHT,
+            immersive: false,
+            rail_enabled: false,
             last_active: None,
         }
     }
 
     /// Create a tab window loading `url`, focus it, return its label.
     pub fn open(&mut self, app: &AppHandle, url: String) -> Result<String, String> {
+        self.open_with(app, url, false)
+    }
+
+    /// Create a private (incognito) tab window loading `url`.
+    pub fn open_incognito(&mut self, app: &AppHandle, url: String) -> Result<String, String> {
+        self.open_with(app, url, true)
+    }
+
+    fn open_with(
+        &mut self,
+        app: &AppHandle,
+        url: String,
+        incognito: bool,
+    ) -> Result<String, String> {
         let label = format!("tab-{}", self.next_id);
         self.next_id += 1;
 
@@ -100,9 +150,10 @@ impl TabManager {
         let app_title = app.clone();
         let label_title = label.clone();
 
-        WebviewWindowBuilder::new(app, label.clone(), WebviewUrl::External(parsed))
+        let window = WebviewWindowBuilder::new(app, label.clone(), WebviewUrl::External(parsed))
             .title("Continua")
             .decorations(false)
+            .initialization_script(SCROLLBAR_STYLE_SCRIPT)
             .position(x * scale, y * scale)
             .inner_size((w * scale).max(1.0), (h * scale).max(1.0))
             // window.open / target=_blank → open a managed tab in place.
@@ -117,12 +168,19 @@ impl TabManager {
                 NewWindowResponse::Deny
             })
             // Navigations fire page-load events; update the tab's URL + history.
-            .on_page_load(move |_window, payload| {
+            .on_page_load(move |window, payload| {
                 if payload.event() == PageLoadEvent::Finished {
                     if let Some(state) = app_load.try_state::<crate::AppState>() {
                         if let Ok(mut tabs) = state.tabs.lock() {
                             let url = payload.url().as_str().to_string();
                             tabs.record_navigation(&app_load, &label_load, &url);
+                        }
+                        // Link previews are a browser setting; newly loaded
+                        // pages get the overlay injected when enabled.
+                        if let Ok(cfg) = state.config.lock() {
+                            if cfg.link_preview {
+                                crate::inpage::link_preview_to(&window, true);
+                            }
                         }
                     }
                 }
@@ -138,6 +196,12 @@ impl TabManager {
             .build()
             .map_err(|e| e.to_string())?;
 
+        // Builder hints are unreliable on Linux WMs — force the correct
+        // position and size after creation so the tab fills the area below
+        // the chrome strip instead of drifting to a random spot.
+        let _ = window.set_position(tauri::LogicalPosition::new(x, y));
+        let _ = window.set_size(tauri::LogicalSize::new(w, h));
+
         self.open.push_back(TabMeta {
             label: label.clone(),
             url: url.clone(),
@@ -148,6 +212,8 @@ impl TabManager {
             scroll_url: None,
             restoring: false,
             vault_id: None,
+            pinned: false,
+            incognito,
         });
         self.last_active = Some(label.clone());
         self.dirty = true;
@@ -160,16 +226,25 @@ impl TabManager {
             window.close().map_err(|e| e.to_string())?;
         }
         let before = self.open.len();
-        // Closing a vault tab also wipes its keyring manifest (it's the only
-        // copy of that tab's URL).
-        let vault_id = self
+        // Snapshot the tab before removal so the durable recently-closed ring
+        // (Ctrl+Shift+T) can restore it across restarts. Incognito tabs are
+        // never remembered; vault tabs can't be reopened once their keyring
+        // manifest is deleted below.
+        let closing = self
             .open
             .iter()
             .find(|m| m.label == label)
-            .and_then(|m| m.vault_id.clone());
+            .cloned();
         self.open.retain(|m| m.label != label);
-        if let Some(vault_id) = vault_id {
-            let _ = Self::delete_vault_meta(app, &vault_id);
+        if let Some(m) = &closing {
+            if m.vault_id.is_none() && !m.incognito {
+                crate::config::record_closed(app, &m.url, &m.title);
+            }
+            // Closing a vault tab also wipes its keyring manifest (it's the
+            // only copy of that tab's URL).
+            if let Some(vault_id) = &m.vault_id {
+                let _ = Self::delete_vault_meta(app, vault_id);
+            }
         }
         if self.open.len() != before {
             self.dirty = true;
@@ -229,6 +304,9 @@ impl TabManager {
         meta.title = title.to_string();
         self.dirty = true;
         emit_title(app, label, title);
+        if meta.vault_id.is_none() && !meta.incognito {
+            crate::config::record_visit(app, &meta.url, title);
+        }
     }
 
     /// Record a finished main-frame navigation. Builds a per-tab history stack
@@ -244,6 +322,13 @@ impl TabManager {
         let Some(meta) = self.open.iter_mut().find(|m| m.label == label) else {
             return false;
         };
+
+        // Global "recent visits" ring feeds the omnibox and start page. Vault
+        // tabs stay out of the plaintext config so their endpoints never leak;
+        // incognito tabs never leave any trace at all.
+        if meta.vault_id.is_none() && !meta.incognito {
+            crate::config::record_visit(app, url, &meta.title);
+        }
 
         // Freshly restored tab: history was seeded from the session; the
         // settle load must not clobber it unless the page actually diverges.
@@ -374,6 +459,17 @@ impl TabManager {
         window.navigate(parsed).map_err(|e| e.to_string())
     }
 
+    /// Pin/unpin a tab in the strip. Persisted into the session snapshot so
+    /// pinned tabs survive restarts exactly like everything else.
+    pub fn set_pinned(&mut self, label: &str, pinned: bool) -> Result<(), String> {
+        let Some(meta) = self.open.iter_mut().find(|m| m.label == label) else {
+            return Err(format!("no such tab: {label}"));
+        };
+        meta.pinned = pinned;
+        self.dirty = true;
+        Ok(())
+    }
+
     /// Whether the tab can go back / forward (for chrome button states).
     pub fn nav_state(&self, label: &str) -> Result<NavState, String> {
         let Some(meta) = self.open.iter().find(|m| m.label == label) else {
@@ -421,6 +517,7 @@ impl TabManager {
                 }
                 meta.scroll_y = rec.scroll_y;
                 meta.scroll_url = Some(rec.url);
+                meta.pinned = rec.pinned;
                 meta.restoring = true;
                 self.dirty = true;
             }
@@ -453,6 +550,7 @@ impl TabManager {
             meta.scroll_y = manifest.scroll_y;
             meta.scroll_url = Some(manifest.url);
             meta.vault_id = Some(vault_id.to_string());
+            meta.pinned = manifest.pinned;
             meta.restoring = true;
             self.dirty = true;
         }
@@ -473,6 +571,8 @@ impl TabManager {
                 url: m.url.clone(),
                 title: m.title.clone(),
                 vault_id: m.vault_id.clone(),
+                pinned: m.pinned,
+                incognito: m.incognito,
             })
             .collect()
     }
@@ -527,15 +627,21 @@ impl TabManager {
             url: m.url.clone(),
             title: m.title.clone(),
             vault_id: m.vault_id.clone(),
+            pinned: m.pinned,
+            incognito: m.incognito,
         })
     }
 
     /// Snapshot of the current tab graph for the session file. Vault tabs are
     /// re-encrypted into the keyring and appear in the file only as an opaque
-    /// vault_id — their URLs never touch the plaintext session.
+    /// vault_id — their URLs never touch the plaintext session. Incognito tabs
+    /// are excluded entirely: a private session leaves no trace on disk.
     pub fn snapshot(&self, app: &AppHandle) -> Vec<TabRecord> {
         let mut records = Vec::with_capacity(self.open.len());
         for m in self.open.iter() {
+            if m.incognito {
+                continue;
+            }
             if let Some(vault_id) = &m.vault_id {
                 let _ = Self::persist_vault_meta(app, &m.label, m.clone(), vault_id);
             }
@@ -556,6 +662,7 @@ impl TabManager {
                 idx: 0,
                 scroll_y: 0.0,
                 vault_id: Some(vault_id.clone()),
+                pinned: m.pinned,
             }
         } else {
             TabRecord {
@@ -565,6 +672,7 @@ impl TabManager {
                 idx: m.idx,
                 scroll_y: m.scroll_y,
                 vault_id: None,
+                pinned: m.pinned,
             }
         }
     }
@@ -591,6 +699,7 @@ impl TabManager {
             history: meta.history.clone(),
             idx: meta.idx,
             scroll_y: meta.scroll_y,
+            pinned: meta.pinned,
         };
         let json = serde_json::to_string(&manifest).map_err(|e| e.to_string())?;
         if let Some(state) = app.try_state::<crate::AppState>() {
@@ -629,14 +738,34 @@ impl TabManager {
         self.dirty = false;
     }
 
-    /// Collapse (0) or restore (CHROME_HEIGHT) the chrome strip; tabs reflow
-    /// to fill the freed space. Toggled by focus/immersive mode.
+    /// Collapse (0) or restore (chrome_max) the chrome strip; tabs reflow to
+    /// fill the freed space. Toggled by focus/immersive mode.
     pub fn set_chrome_height(&mut self, height: f64) {
-        if self.chrome_height == height {
+        self.chrome_max = height;
+        if !self.immersive && (self.chrome_height - height).abs() > f64::EPSILON {
+            self.chrome_height = height;
+            self.dirty = true;
+        }
+    }
+
+    /// Enter/leave clean/focus mode: collapse to 0 or back up to the chrome
+    /// height the frontend last negotiated.
+    pub fn set_immersive(&mut self, enabled: bool) {
+        if self.immersive == enabled {
             return;
         }
-        self.chrome_height = height;
+        self.immersive = enabled;
+        self.chrome_height = if enabled { 0.0 } else { self.chrome_max };
         self.dirty = true;
+    }
+
+    /// Show/hide the vertical tab rail; the content area insets on the left so
+    /// the host page's rail column stays visible above the native webviews.
+    pub fn set_rail(&mut self, on: bool) {
+        if self.rail_enabled == on {
+            return;
+        }
+        self.rail_enabled = on;
     }
 
     /// True while the chrome strip is hidden (clean/focus mode).
@@ -676,10 +805,14 @@ impl TabManager {
         let (x, y) = (pos.x as f64 / scale, pos.y as f64 / scale);
         let (w, h) = (size.width as f64 / scale, size.height as f64 / scale);
 
+        // The vertical tab rail is drawn in the host page; inset the native
+        // webviews so the rail column stays visible on the left.
+        let (rx, rw) = if self.rail_enabled { (44.0, 44.0) } else { (0.0, 0.0) };
+
         Ok((
-            x,
+            x + rx,
             y + self.chrome_height,
-            w,
+            (w - rw).max(0.0),
             (h - self.chrome_height).max(0.0),
         ))
     }
@@ -718,6 +851,8 @@ mod tests {
             scroll_url: Some(url.into()),
             restoring: false,
             vault_id: None,
+            pinned: false,
+            incognito: false,
         }
     }
 
@@ -746,5 +881,23 @@ mod tests {
         assert_eq!(rec.vault_id.as_deref(), Some("vt-123"));
         // The real address never appears in the at-rest record.
         assert!(!serde_json::to_string(&rec).unwrap().contains("secret-bank"));
+    }
+
+    /// Incognito tabs carry the flag to the chrome mirror...
+    #[test]
+    fn incognito_flag_reaches_info() {
+        let m = TabMeta {
+            incognito: true,
+            ..meta("https://private.example.com")
+        };
+        let info = TabInfo {
+            label: m.label.clone(),
+            url: m.url.clone(),
+            title: m.title.clone(),
+            vault_id: m.vault_id.clone(),
+            pinned: m.pinned,
+            incognito: m.incognito,
+        };
+        assert!(info.incognito);
     }
 }

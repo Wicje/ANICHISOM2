@@ -4,6 +4,8 @@
 //! to the Tauri runtime and exposes commands for the React chrome UI.
 
 mod capture;
+mod config;
+mod inpage;
 mod session;
 mod sync;
 mod tab_engine;
@@ -15,6 +17,7 @@ use std::time::Duration;
 
 use tauri::{Emitter, Manager};
 
+use crate::config::BrowserConfig;
 use crate::session::{SessionManager, TabRecord};
 use crate::sync::SyncClient;
 use crate::tab_engine::{NavState, TabManager};
@@ -36,6 +39,7 @@ pub struct AppState {
     pub trust: Mutex<DeviceInfo>,
     pub sync: Mutex<SyncClient>,
     pub continua_url: Mutex<String>,
+    pub config: Mutex<BrowserConfig>,
     /// Keyed device id derived from the keyring fingerprint. Populated in
     /// `setup` once the app handle (and keyring) is available.
     pub device_id: Mutex<Option<String>>,
@@ -50,6 +54,25 @@ fn open_tab(state: tauri::State<'_, AppState>, app: tauri::AppHandle, url: Strin
         .lock()
         .map_err(|e| e.to_string())?
         .open(&app, url)?;
+    if let Ok(tabs) = state.tabs.lock() {
+        let _ = tabs.raise(&app, &label);
+    }
+    Ok(label)
+}
+
+/// Open a private (incognito) tab. Private tabs skip the global history ring
+/// and are excluded from every session snapshot, so no trace survives.
+#[tauri::command]
+fn open_incognito_tab(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+    url: String,
+) -> Result<String, String> {
+    let label = state
+        .tabs
+        .lock()
+        .map_err(|e| e.to_string())?
+        .open_incognito(&app, url)?;
     if let Ok(tabs) = state.tabs.lock() {
         let _ = tabs.raise(&app, &label);
     }
@@ -147,6 +170,30 @@ fn update_tab_layout(state: tauri::State<'_, AppState>, app: tauri::AppHandle) -
         .relayout(&app)
 }
 
+/// Pop the most recently closed tab from the durable ring (Ctrl+Shift+T) and
+/// reopen it as a normal tab. Returns the fresh tab's mirror.
+#[tauri::command]
+fn reopen_last_closed(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+) -> Result<Option<crate::tab_engine::TabInfo>, String> {
+    let Some(tab) = crate::config::reopen_last_closed(&app) else {
+        return Ok(None);
+    };
+    let label = state.tabs.lock().map_err(|e| e.to_string())?.open(&app, tab.url)?;
+    let info = state
+        .tabs
+        .lock()
+        .map_err(|e| e.to_string())?
+        .infos()
+        .into_iter()
+        .find(|i| i.label == label);
+    if let Ok(tabs) = state.tabs.lock() {
+        let _ = tabs.raise(&app, &label);
+    }
+    Ok(info)
+}
+
 /// Persist the current tab graph (as mirrored by the chrome).
 #[tauri::command]
 fn save_session(
@@ -171,43 +218,35 @@ fn save_session(
 /// Reopen a workspace checkpoint (the most recent session by default, or a
 /// chosen id from the memory timeline) with its full state — per-tab history,
 /// scroll positions, active tab and clean/focus mode all come back.
-#[tauri::command]
-fn restore_session(
-    state: tauri::State<'_, AppState>,
-    app: tauri::AppHandle,
-    id: Option<String>,
-    replace: Option<bool>,
+/// Tear down the current tab graph and rebuild it from a snapshot (the shared
+/// core of `restore_session`, `open_workspace` and cloud pulls). Returns the
+/// restored tabs (empty when tabs already existed and `replace` was false).
+fn apply_snapshot(
+    state: &AppState,
+    app: &tauri::AppHandle,
+    snap: crate::session::SessionSnapshot,
+    replace: bool,
 ) -> Result<Option<Vec<tab_engine::TabInfo>>, String> {
-    let session = state.session.lock().map_err(|e| e.to_string())?;
-    let snap = match id {
-        Some(ref sid) => session.load_snapshot(&app, sid),
-        None => session.load_latest(&app),
-    };
-    drop(session);
-    let Some(snap) = snap else {
-        return Ok(None);
-    };
-
     let mut tabs = state.tabs.lock().map_err(|e| e.to_string())?;
     // Imported/legacy checkpoints adopt the workspace wholesale.
-    if replace.unwrap_or(false) {
+    if replace {
         let existing = tabs.labels();
         for label in existing {
-            let _ = tabs.close(&app, &label);
+            let _ = tabs.close(app, &label);
         }
     }
     if !tabs.labels().is_empty() {
         return Ok(None);
     }
-    tabs.set_chrome_height(if snap.immersive { 0.0 } else { CHROME_HEIGHT });
-    let last = tabs.restore_from_snapshot(&app, snap.tabs)?;
-    tabs.relayout(&app)?;
+    tabs.set_immersive(snap.immersive);
+    let last = tabs.restore_from_snapshot(app, snap.tabs)?;
+    tabs.relayout(app)?;
     let active = last.or(snap.active);
     drop(tabs);
 
     if let Some(label) = &active {
         if let Ok(mut tabs) = state.tabs.lock() {
-            let _ = tabs.activate(&app, label);
+            let _ = tabs.activate(app, label);
         }
     } else if let Some(main) = app.get_webview_window("main") {
         let _ = main.set_focus();
@@ -221,6 +260,26 @@ fn restore_session(
 
     let tabs = state.tabs.lock().map_err(|e| e.to_string())?;
     Ok(Some(tabs.infos()))
+}
+
+#[tauri::command]
+fn restore_session(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+    id: Option<String>,
+    replace: Option<bool>,
+) -> Result<Option<Vec<tab_engine::TabInfo>>, String> {
+    let snap = {
+        let session = state.session.lock().map_err(|e| e.to_string())?;
+        match id {
+            Some(ref sid) => session.load_snapshot(&app, sid),
+            None => session.load_latest(&app),
+        }
+    };
+    let Some(snap) = snap else {
+        return Ok(None);
+    };
+    apply_snapshot(&state, &app, snap, replace.unwrap_or(false))
 }
 
 /// The workspace-memory timeline: every archived checkpoint, newest first.
@@ -322,7 +381,7 @@ fn set_immersive_inner(app: &tauri::AppHandle, enabled: bool) -> Result<(), Stri
         return Ok(());
     };
     let mut tabs = state.tabs.lock().map_err(|e| e.to_string())?;
-    tabs.set_chrome_height(if enabled { 0.0 } else { CHROME_HEIGHT });
+    tabs.set_immersive(enabled);
     tabs.relayout(app)?;
     drop(tabs);
     if let Some(main) = app.get_webview_window("main") {
@@ -357,6 +416,30 @@ fn set_immersive(
         }
     };
     set_immersive_inner(&app, mode)
+}
+
+/// Negotiate the chrome strip height from the frontend's measured layout.
+/// The chrome draws its own height in CSS; Rust just needs the same number so
+/// tabs reflow below it (especially with the bookmarks row added/removed).
+#[tauri::command]
+fn set_chrome_height(app: tauri::AppHandle, height: f64) -> Result<(), String> {
+    let Some(state) = app.try_state::<AppState>() else {
+        return Ok(());
+    };
+    let mut tabs = state.tabs.lock().map_err(|e| e.to_string())?;
+    tabs.set_chrome_height(height);
+    tabs.relayout(&app)
+}
+
+/// Enable/disable the vertical tab rail's left column inset.
+#[tauri::command]
+fn set_tab_rail(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    let Some(state) = app.try_state::<AppState>() else {
+        return Ok(());
+    };
+    let mut tabs = state.tabs.lock().map_err(|e| e.to_string())?;
+    tabs.set_rail(enabled);
+    tabs.relayout(&app)
 }
 
 /* Whether any Continua window (chrome or a tab) currently has focus.
@@ -477,6 +560,342 @@ fn normalize_url(url: &str) -> String {
 #[tauri::command]
 fn get_continua_url(state: tauri::State<'_, AppState>) -> String {
     state.continua_url.lock().map(|g| g.clone()).unwrap_or_default()
+}
+
+// ─── Browser config: search engine, theme, bookmarks, history ─────────────
+
+#[tauri::command]
+fn get_browser_config(state: tauri::State<'_, AppState>) -> crate::config::BrowserConfig {
+    state.config.lock().map(|c| c.clone()).unwrap_or_default()
+}
+
+#[tauri::command]
+fn set_search_engine(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+    engine: String,
+) -> Result<crate::config::BrowserConfig, String> {
+    if !["google", "duckduckgo", "bing", "brave"].contains(&engine.as_str()) {
+        return Err("unknown search engine".into());
+    }
+    let mut cfg = state.config.lock().map_err(|e| e.to_string())?;
+    cfg.search_engine = engine;
+    crate::config::persist(&app, &cfg);
+    Ok(cfg.clone())
+}
+
+#[tauri::command]
+fn set_theme(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+    theme: String,
+) -> Result<crate::config::BrowserConfig, String> {
+    if theme != "dark" && theme != "light" {
+        return Err("theme must be 'dark' or 'light'".into());
+    }
+    let mut cfg = state.config.lock().map_err(|e| e.to_string())?;
+    cfg.theme = theme;
+    crate::config::persist(&app, &cfg);
+    Ok(cfg.clone())
+}
+
+#[tauri::command]
+fn add_bookmark(app: tauri::AppHandle, url: String, title: Option<String>) -> Result<Vec<crate::config::Bookmark>, String> {
+    Ok(crate::config::add_bookmark(&app, &url, title.unwrap_or_default().as_str()))
+}
+
+#[tauri::command]
+fn remove_bookmark(app: tauri::AppHandle, url: String) -> Result<Vec<crate::config::Bookmark>, String> {
+    Ok(crate::config::remove_bookmark(&app, &url))
+}
+
+#[tauri::command]
+fn get_bookmarks(state: tauri::State<'_, AppState>) -> Vec<crate::config::Bookmark> {
+    state
+        .config
+        .lock()
+        .map(|c| c.bookmarks.clone())
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+fn is_bookmarked(app: tauri::AppHandle, url: String) -> bool {
+    crate::config::is_bookmarked(&app, &url)
+}
+
+#[tauri::command]
+fn get_history(state: tauri::State<'_, AppState>) -> Vec<crate::config::HistoryItem> {
+    state
+        .config
+        .lock()
+        .map(|c| c.history.iter().cloned().collect())
+        .unwrap_or_default()
+}
+
+/// Wipe the browsing history ring (config file, not the tab graph).
+#[tauri::command]
+fn clear_history(app: tauri::AppHandle) {
+    crate::config::clear_history(&app);
+}
+
+// ─── Settings, search suggestions, workspaces, app windows ────────────────
+
+/// Apply a sparse config patch (homepage, autosave interval, reader style,
+/// privacy toggles, speed dial…). Returns the fresh config.
+#[tauri::command]
+fn update_config(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+    patch: crate::config::ConfigPatch,
+) -> Result<crate::config::BrowserConfig, String> {
+    let mut cfg = state.config.lock().map_err(|e| e.to_string())?;
+    let updated = crate::config::apply_patch(&mut cfg, &patch)?;
+    crate::config::persist(&app, &cfg);
+    Ok(updated)
+}
+
+/// Live suggestions straight from the active search engine for the omnibox.
+/// Fetched server-side so remote pages (which have no IPC) don't need to.
+#[tauri::command]
+async fn search_suggestions(engine: String, query: String) -> Result<Vec<String>, String> {
+    let q = query.trim();
+    if q.chars().count() < 2 {
+        return Ok(Vec::new());
+    }
+    let http = reqwest::Client::builder()
+        .timeout(Duration::from_secs(4))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let request = match engine.as_str() {
+        "duckduckgo" => http
+            .get("https://duckduckgo.com/ac/")
+            .query(&[("q", q)]),
+        "bing" => http
+            .get("https://api.bing.com/osjson.aspx")
+            .query(&[("query", q)]),
+        "brave" => http
+            .get("https://search.brave.com/api/suggest")
+            .query(&[("q", q)]),
+        _ => http
+            .get("https://suggestqueries.google.com/complete/search")
+            .query(&[("client", "firefox"), ("q", q)]),
+    };
+    let resp = request.send().await.map_err(|e| e.to_string())?;
+    let text = resp.text().await.map_err(|e| e.to_string())?;
+    Ok(extract_suggestions(&text))
+}
+
+/// Pull the string suggestions out of the engine responses, which share a
+/// `[query, [suggestion, …]]` array shape (with a couple of object variants).
+fn extract_suggestions(text: &str) -> Vec<String> {
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(text) else {
+        return Vec::new();
+    };
+    let mut out: Vec<String> = Vec::new();
+    let push = |out: &mut Vec<String>, s: &str| {
+        if out.len() < 8 && !s.trim().is_empty() {
+            out.push(s.to_string());
+        }
+    };
+    if let Some(arr) = v.as_array() {
+        if let Some(items) = arr.get(1).and_then(|x| x.as_array()) {
+            for it in items {
+                if let Some(s) = it.as_str() {
+                    push(&mut out, s);
+                } else if let Some(s) = it.get("phrase").and_then(|x| x.as_str()) {
+                    push(&mut out, s);
+                }
+            }
+        }
+    } else if let Some(results) = v.get("results").and_then(|x| x.as_array()) {
+        for it in results {
+            if let Some(s) = it.as_str() {
+                push(&mut out, s);
+            } else if let Some(s) = it.get("phrase").and_then(|x| x.as_str()) {
+                push(&mut out, s);
+            } else if let Some(s) = it.get("q").and_then(|x| x.as_str()) {
+                push(&mut out, s);
+            }
+        }
+    }
+    out
+}
+
+#[tauri::command]
+fn set_link_preview(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    if let Some(state) = app.try_state::<AppState>() {
+        if let Ok(mut cfg) = state.config.lock() {
+            cfg.link_preview = enabled;
+            crate::config::persist(&app, &cfg);
+        }
+    }
+    crate::inpage::link_preview(&app, enabled)
+}
+
+// ─── Named workspaces ──────────────────────────────────────────────────────
+
+/// Snapshot the live tab graph under a named workspace and remember it as the
+/// active workspace. Returns the full workspace list for the chrome menu.
+#[tauri::command]
+fn save_workspace(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+    name: String,
+) -> Result<Vec<crate::session::SessionSummary>, String> {
+    let (snap, active, immersive) = {
+        let tabs = state.tabs.lock().map_err(|e| e.to_string())?;
+        (tabs.snapshot(&app), tabs.active_label(), tabs.immersive())
+    };
+    let session = state.session.lock().map_err(|e| e.to_string())?;
+    session.save_workspace(&app, &name, snap, active, immersive)?;
+    drop(session);
+    if let Ok(mut cfg) = state.config.lock() {
+        if cfg.active_workspace != name {
+            cfg.active_workspace = name;
+            crate::config::persist(&app, &cfg);
+        }
+    }
+    Ok(state.session.lock().map_err(|e| e.to_string())?.list_workspaces(&app))
+}
+
+/// Switch to a named workspace: replaces the live tab graph with its snapshot
+/// and re-activates it.
+#[tauri::command]
+fn open_workspace(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+    name: String,
+) -> Result<Option<Vec<tab_engine::TabInfo>>, String> {
+    let snap = state
+        .session
+        .lock()
+        .map_err(|e| e.to_string())?
+        .load_workspace(&app, &name);
+    let Some(snap) = snap else {
+        return Ok(None);
+    };
+    if let Ok(mut cfg) = state.config.lock() {
+        if cfg.active_workspace != name {
+            cfg.active_workspace = name;
+            crate::config::persist(&app, &cfg);
+        }
+    }
+    apply_snapshot(&state, &app, snap, true)
+}
+
+#[tauri::command]
+fn list_workspaces(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+) -> Result<Vec<crate::session::SessionSummary>, String> {
+    Ok(state.session.lock().map_err(|e| e.to_string())?.list_workspaces(&app))
+}
+
+#[tauri::command]
+fn delete_workspace(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+    name: String,
+) -> Result<Vec<crate::session::SessionSummary>, String> {
+    let session = state.session.lock().map_err(|e| e.to_string())?;
+    session.delete_workspace(&app, &name)?;
+    if let Ok(mut cfg) = state.config.lock() {
+        if cfg.active_workspace == name {
+            cfg.active_workspace = crate::config::default_workspace();
+            crate::config::persist(&app, &cfg);
+        }
+    }
+    Ok(session.list_workspaces(&app))
+}
+
+// ─── Open a site in its own native window ("floating app") ─────────────────
+
+static APP_WIN_SEQ: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// Open `url` in a fresh decorated OS window, independent of the tab strip —
+/// a lightweight "install this site as an app" without any chrome.
+#[tauri::command]
+fn open_app_window(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    let parsed: url::Url = url.parse().map_err(|_| format!("invalid URL: {url}"))?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err("only http(s) URLs can open in their own window".into());
+    }
+    let seq = APP_WIN_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let label = format!("appwin-{seq}");
+    let window = tauri::WebviewWindowBuilder::new(
+        &app,
+        label,
+        tauri::WebviewUrl::External(parsed),
+    )
+    .title("Continua")
+    .decorations(true)
+    .inner_size(1120.0, 780.0)
+    .initialization_script(crate::tab_engine::SCROLLBAR_STYLE_SCRIPT)
+    .build()
+    .map_err(|e| e.to_string())?;
+    // Cascade artfully off the main window rather than stacking on its origin.
+    if let Some(main) = app.get_webview_window("main") {
+        if let Ok(pos) = main.outer_position() {
+            let _ = window
+                .set_position(tauri::PhysicalPosition::new(pos.x + 36, pos.y + 36));
+        }
+    }
+    let _ = window.set_focus();
+    Ok(())
+}
+
+// ─── In-page tools: find, zoom, reader, dark flip ─────────────────────────
+
+#[derive(serde::Serialize)]
+struct FindResult {
+    count: usize,
+    idx: i32,
+}
+
+#[tauri::command]
+fn find_in_tab(app: tauri::AppHandle, label: String, query: String) -> Result<FindResult, String> {
+    let (count, idx) = crate::inpage::find(&app, &label, &query, 0)?;
+    Ok(FindResult { count, idx })
+}
+
+#[tauri::command]
+fn find_next(app: tauri::AppHandle, label: String, query: String) -> Result<FindResult, String> {
+    let (count, idx) = crate::inpage::find(&app, &label, &query, 1)?;
+    Ok(FindResult { count, idx })
+}
+
+#[tauri::command]
+fn find_prev(app: tauri::AppHandle, label: String, query: String) -> Result<FindResult, String> {
+    let (count, idx) = crate::inpage::find(&app, &label, &query, -1)?;
+    Ok(FindResult { count, idx })
+}
+
+#[tauri::command]
+fn zoom_tab(app: tauri::AppHandle, label: String, step: f64) -> Result<f64, String> {
+    crate::inpage::zoom(&app, &label, step)
+}
+
+#[tauri::command]
+fn reader_toggle(app: tauri::AppHandle, label: String) -> Result<(), String> {
+    crate::inpage::reader(&app, &label)
+}
+
+#[tauri::command]
+fn dark_toggle(app: tauri::AppHandle, label: String) -> Result<(), String> {
+    crate::inpage::dark(&app, &label)
+}
+
+#[tauri::command]
+fn set_tab_pinned(
+    state: tauri::State<'_, AppState>,
+    label: String,
+    pinned: bool,
+) -> Result<(), String> {
+    state
+        .tabs
+        .lock()
+        .map_err(|e| e.to_string())?
+        .set_pinned(&label, pinned)
 }
 
 /// Poll a PIN pairing session. Returns `waiting`, `approved`, or `expired`.
@@ -694,6 +1113,7 @@ fn spawn_heartbeat(app: tauri::AppHandle) {
 fn spawn_background(app: tauri::AppHandle) {
     std::thread::spawn(move || {
         let mut last_save = String::new();
+        let mut last_autosave = std::time::Instant::now();
 
         loop {
             std::thread::sleep(Duration::from_secs(5));
@@ -727,8 +1147,14 @@ fn spawn_background(app: tauri::AppHandle) {
                 );
             }
 
-            // Periodic autosave, deduped by content so only real changes hit disk.
-            if tabs.dirty() {
+            // Periodic autosave, deduped by content so only real changes hit
+            // disk, honoring the user-configurable interval from Settings.
+            let interval = state
+                .config
+                .lock()
+                .map(|c| c.autosave_interval)
+                .unwrap_or_else(|_| crate::config::default_autosave_interval());
+            if tabs.dirty() && last_autosave.elapsed().as_secs() as u64 >= interval {
                 let snap = tabs.snapshot(&app);
                 if !snap.is_empty() {
                     let key = serde_json::to_string(&snap).unwrap_or_default();
@@ -742,6 +1168,7 @@ fn spawn_background(app: tauri::AppHandle) {
                     }
                 }
                 tabs.mark_clean();
+                last_autosave = std::time::Instant::now();
             }
         }
     });
@@ -757,6 +1184,7 @@ pub fn run() {
             trust: Mutex::new(DeviceInfo::detect()),
             sync: Mutex::new(SyncClient::new()),
             continua_url: Mutex::new(DEFAULT_CONTINUA_URL.to_string()),
+            config: Mutex::new(BrowserConfig::default()),
             device_id: Mutex::new(None),
         })
         .plugin({
@@ -801,6 +1229,10 @@ pub fn run() {
                 if let Ok(mut guard) = state.continua_url.lock() {
                     *guard = url;
                 }
+                // Browser config (search engine, theme, bookmarks, history).
+                if let Ok(mut cfg) = state.config.lock() {
+                    *cfg = crate::config::load(app.handle());
+                }
             }
             spawn_background(app.handle().clone());
             spawn_heartbeat(app.handle().clone());
@@ -820,6 +1252,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             open_tab,
+            open_incognito_tab,
             close_tab,
             activate_tab,
             reload_tab,
@@ -828,12 +1261,15 @@ pub fn run() {
             navigate_tab,
             nav_state,
             set_immersive,
+            set_chrome_height,
+            set_tab_rail,
             list_tabs,
             close_all_tabs,
             update_tab_layout,
             save_session,
             load_session,
             restore_session,
+            reopen_last_closed,
             browse_sessions,
             export_session,
             import_session_json,
@@ -844,6 +1280,30 @@ pub fn run() {
             unmark_vault,
             set_continua_url,
             get_continua_url,
+            get_browser_config,
+            set_search_engine,
+            set_theme,
+            add_bookmark,
+            remove_bookmark,
+            get_bookmarks,
+            is_bookmarked,
+            get_history,
+            clear_history,
+            update_config,
+            search_suggestions,
+            set_link_preview,
+            save_workspace,
+            open_workspace,
+            list_workspaces,
+            delete_workspace,
+            open_app_window,
+            find_in_tab,
+            find_next,
+            find_prev,
+            zoom_tab,
+            reader_toggle,
+            dark_toggle,
+            set_tab_pinned,
             pair_device,
             sync_session,
             pull_session,
