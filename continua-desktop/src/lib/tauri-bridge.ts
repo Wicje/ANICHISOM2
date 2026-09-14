@@ -11,6 +11,12 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 export const isTauri = (): boolean =>
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
+/**
+ * What a freshly opened tab loads. The Continua OS backend is not deployed
+ * yet, so new tabs point at a reachable search page instead of a dead domain.
+ */
+export const DEFAULT_NEW_TAB_URL = "https://duckduckgo.com";
+
 /** Short human label from a URL (hostname minus www). */
 export const displayTitle = (url: string): string => {
   try {

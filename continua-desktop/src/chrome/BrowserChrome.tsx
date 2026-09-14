@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
-import { api, windowControls } from "../lib/tauri-bridge";
+import { api, DEFAULT_NEW_TAB_URL, windowControls } from "../lib/tauri-bridge";
 import { attachCadence } from "../lib/cadence";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { TabStrip } from "./TabStrip";
@@ -185,7 +185,7 @@ export function BrowserChrome({
       switch (k) {
         case "t":
           e.preventDefault();
-          void onOpen("https://continuaos.cc");
+          void onOpen(DEFAULT_NEW_TAB_URL);
           break;
         case "w":
           e.preventDefault();
@@ -422,7 +422,7 @@ export function BrowserChrome({
           activeLabel={activeLabel}
           onActivate={onActivate}
           onClose={onClose}
-          onNew={() => void onOpen("https://continuaos.cc")}
+          onNew={() => void onOpen(DEFAULT_NEW_TAB_URL)}
           onReorder={onReorder}
           onTogglePin={onTogglePin}
         />

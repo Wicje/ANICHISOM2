@@ -45,11 +45,15 @@ pub struct AppState {
 
 #[tauri::command]
 fn open_tab(state: tauri::State<'_, AppState>, app: tauri::AppHandle, url: String) -> Result<String, String> {
-    state
+    let label = state
         .tabs
         .lock()
         .map_err(|e| e.to_string())?
-        .open(&app, url)
+        .open(&app, url)?;
+    if let Ok(tabs) = state.tabs.lock() {
+        let _ = tabs.raise(&app, &label);
+    }
+    Ok(label)
 }
 
 #[tauri::command]
@@ -79,23 +83,41 @@ fn reload_tab(app: tauri::AppHandle, label: String) -> Result<(), String> {
         .ok_or_else(|| format!("no such tab: {label}"))?;
     window
         .eval("location.reload()")
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    if let Some(state) = app.try_state::<AppState>() {
+        if let Ok(tabs) = state.tabs.lock() {
+            let _ = tabs.raise(&app, &label);
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]
 fn back_tab(state: tauri::State<'_, AppState>, app: tauri::AppHandle, label: String) -> Result<(), String> {
-    state.tabs.lock().map_err(|e| e.to_string())?.back(&app, &label)
+    state.tabs.lock().map_err(|e| e.to_string())?.back(&app, &label)?;
+    if let Ok(tabs) = state.tabs.lock() {
+        let _ = tabs.raise(&app, &label);
+    }
+    Ok(())
 }
 
 #[tauri::command]
 fn forward_tab(state: tauri::State<'_, AppState>, app: tauri::AppHandle, label: String) -> Result<(), String> {
-    state.tabs.lock().map_err(|e| e.to_string())?.forward(&app, &label)
+    state.tabs.lock().map_err(|e| e.to_string())?.forward(&app, &label)?;
+    if let Ok(tabs) = state.tabs.lock() {
+        let _ = tabs.raise(&app, &label);
+    }
+    Ok(())
 }
 
 /// Navigate the active tab to a URL entered in the address bar (in place).
 #[tauri::command]
 fn navigate_tab(state: tauri::State<'_, AppState>, app: tauri::AppHandle, label: String, url: String) -> Result<(), String> {
-    state.tabs.lock().map_err(|e| e.to_string())?.navigate(&app, &label, url)
+    state.tabs.lock().map_err(|e| e.to_string())?.navigate(&app, &label, url)?;
+    if let Ok(tabs) = state.tabs.lock() {
+        let _ = tabs.raise(&app, &label);
+    }
+    Ok(())
 }
 
 #[tauri::command]

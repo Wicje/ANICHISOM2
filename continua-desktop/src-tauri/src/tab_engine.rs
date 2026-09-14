@@ -201,6 +201,18 @@ impl TabManager {
         Ok(())
     }
 
+    /// Raise a tab window above the chrome without reordering the strip.
+    /// Used after chrome-initiated actions so the page regains focus (and
+    /// pointer/keyboard input) without jumping tabs around.
+    pub fn raise(&self, app: &AppHandle, label: &str) -> Result<(), String> {
+        let Some(window) = app.get_webview_window(label) else {
+            return Err(format!("no such tab: {label}"));
+        };
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
     /// Update a tab's title if it changed; push the change to the chrome.
     pub fn record_title(&mut self, app: &AppHandle, label: &str, title: &str) {
         let title = title.trim();

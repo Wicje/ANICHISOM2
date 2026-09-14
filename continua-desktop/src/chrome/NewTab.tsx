@@ -39,10 +39,10 @@ export function NewTab({ onResume, onOpen }: NewTabProps) {
   }, []);
 
   const quickLinks = [
-    { label: "Desktop", url: "https://continuaos.cc/os/shell" },
-    { label: "Dashboard", url: "https://continuaos.cc" },
-    { label: "Workspace", url: "https://continuaos.cc/workspace" },
-    { label: "Vault", url: "https://continuaos.cc/vault" },
+    { label: "Search", url: "https://duckduckgo.com" },
+    { label: "GitHub", url: "https://github.com" },
+    { label: "Hacker News", url: "https://news.ycombinator.com" },
+    { label: "Stack Overflow", url: "https://stackoverflow.com" },
   ];
 
   const memories = memory.filter((m) => m.tabs.length > 0).slice(0, 6);
