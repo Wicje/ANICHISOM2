@@ -52,6 +52,7 @@ pub struct SessionSummary {
     pub tabs: Vec<TabRecord>,
 }
 
+#[derive(Clone)]
 pub struct SessionManager;
 
 impl SessionManager {

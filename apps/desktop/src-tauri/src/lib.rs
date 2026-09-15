@@ -13,7 +13,7 @@ mod tabview;
 mod trust;
 mod vault;
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tauri::{Emitter, Manager};
@@ -35,7 +35,7 @@ pub const DEFAULT_CONTINUA_URL: &str = "https://continuaos.cc";
 /// Shared application state.
 pub struct AppState {
     pub tabs: Mutex<TabManager>,
-    pub session: Mutex<SessionManager>,
+    pub session: Arc<Mutex<SessionManager>>,
     pub vault: Mutex<VaultEngine>,
     pub trust: Mutex<DeviceInfo>,
     pub sync: Mutex<SyncClient>,
@@ -82,11 +82,17 @@ fn open_incognito_tab(
 
 #[tauri::command]
 fn close_tab(state: tauri::State<'_, AppState>, app: tauri::AppHandle, label: String) -> Result<(), String> {
-    state
+    let target = state
         .tabs
         .lock()
         .map_err(|e| e.to_string())?
-        .close(&app, &label)
+        .close(&app, &label)?;
+    // Show the focused neighbor only after releasing the `tabs` lock, so the
+    // bounded main-thread navigation never blocks other tab commands.
+    if let Some((lbl, url)) = target {
+        crate::tabview::show_tab(&app, &lbl, &url)?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -275,12 +281,19 @@ fn restore_session(
 }
 
 /// The workspace-memory timeline: every archived checkpoint, newest first.
+/// Heavy file I/O runs on a blocking task — never on the GTK main thread
+/// (sync tauri commands execute there and stall every webview interaction).
 #[tauri::command]
-fn browse_sessions(
+async fn browse_sessions(
     state: tauri::State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<Vec<crate::session::SessionSummary>, String> {
-    Ok(state.session.lock().map_err(|e| e.to_string())?.list(&app))
+    let session = state.session.clone();
+    tauri::async_runtime::spawn_blocking(move || -> Result<Vec<crate::session::SessionSummary>, String> {
+        Ok(session.lock().map_err(|e| e.to_string())?.list(&app))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Export a checkpoint to the exports folder as a portable .json file and
@@ -776,11 +789,17 @@ fn open_workspace(
 }
 
 #[tauri::command]
-fn list_workspaces(
+async fn list_workspaces(
     state: tauri::State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<Vec<crate::session::SessionSummary>, String> {
-    Ok(state.session.lock().map_err(|e| e.to_string())?.list_workspaces(&app))
+    let session = state.session.clone();
+    Ok(tauri::async_runtime::spawn_blocking(move || match session.lock() {
+        Ok(s) => s.list_workspaces(&app),
+        Err(_) => Vec::new(),
+    })
+    .await
+    .map_err(|e| e.to_string())?)
 }
 
 #[tauri::command]
@@ -862,9 +881,28 @@ fn find_prev(app: tauri::AppHandle, label: String, query: String) -> Result<Find
     Ok(FindResult { count, idx })
 }
 
+/// Zoom the active page: `step` 0 resets to 100%, otherwise the persisted
+/// factor is nudged and clamped to [0.25, 3.0]. Applies WebKit's *native*
+/// zoom level (crisp, survives in-view navigation) and persists the factor so
+/// every tab reopens at the user's preferred zoom. Returns the new % factor.
 #[tauri::command]
-fn zoom_tab(app: tauri::AppHandle, label: String, step: f64) -> Result<f64, String> {
-    crate::inpage::zoom(&app, &label, step)
+fn zoom_tab(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+    _label: String,
+    step: f64,
+) -> Result<f64, String> {
+    let mut cfg = state.config.lock().map_err(|e| e.to_string())?;
+    let zoom = if step == 0.0 {
+        1.0
+    } else {
+        (cfg.zoom + step).clamp(0.25, 3.0)
+    };
+    cfg.zoom = zoom;
+    crate::config::persist(&app, &cfg);
+    drop(cfg);
+    crate::tabview::apply_zoom(&app, zoom);
+    Ok(zoom * 100.0)
 }
 
 #[tauri::command]
@@ -1113,19 +1151,24 @@ fn spawn_background(app: tauri::AppHandle) {
             let Some(state) = app.try_state::<AppState>() else {
                 continue;
             };
+
+            // Capture the active tab's scroll position via polled eval so the
+            // session file can restore it without any page cooperation. The
+            // tabs mutex is NOT held across the blocking eval — doing so
+            // inverted lock order against the main thread and deadlocked it.
+            let active = state.tabs.lock().ok().and_then(|t| t.active_label());
+            if let Some(label) = active {
+                let v = crate::tabview::eval_sync(&app, crate::tabview::SCROLL_READ_JS);
+                if let Ok(scroll) = v.trim().parse::<f64>() {
+                    if let Ok(mut tabs) = state.tabs.lock() {
+                        tabs.record_scroll(&label, scroll);
+                    }
+                }
+            }
+
             let Ok(mut tabs) = state.tabs.lock() else {
                 continue;
             };
-
-            // Capture the active tab's scroll position via polled eval so the
-            // session file can restore it without any page cooperation. Only
-            // the one tab currently loaded in the content view has a live page.
-            if let Some(label) = tabs.active_label() {
-                let v = crate::tabview::eval_sync(&app, crate::tabview::SCROLL_READ_JS);
-                if let Ok(scroll) = v.trim().parse::<f64>() {
-                    tabs.record_scroll(&label, scroll);
-                }
-            }
 
             // Periodic autosave, deduped by content so only real changes hit
             // disk, honoring the user-configurable interval from Settings.
@@ -1159,7 +1202,7 @@ pub fn run() {
     let builder = tauri::Builder::default()
         .manage(AppState {
             tabs: Mutex::new(TabManager::new()),
-            session: Mutex::new(SessionManager::new()),
+            session: Arc::new(Mutex::new(SessionManager::new())),
             vault: Mutex::new(VaultEngine::new()),
             trust: Mutex::new(DeviceInfo::detect()),
             sync: Mutex::new(SyncClient::new()),
@@ -1229,6 +1272,7 @@ pub fn run() {
             // Reparent the chrome webview into the single-window overlay and
             // capture the GTK main context for worker→main marshalling.
             crate::tabview::install(app.handle())?;
+            crate::tabview::arm_selftest(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| {

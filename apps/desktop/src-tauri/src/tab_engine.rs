@@ -150,17 +150,30 @@ impl TabManager {
         Ok(label)
     }
 
-    pub fn close(&mut self, app: &AppHandle, label: &str) -> Result<(), String> {
+    /// Remove `label`. Returns `Some((label, url))` when the closed tab was the
+    /// one on screen and a neighbor should be shown in the content view — the
+    /// caller performs that navigation OUTSIDE the `tabs` lock so the main
+    /// thread is never blocked while another command waits on the lock.
+    pub fn close(
+        &mut self,
+        app: &AppHandle,
+        label: &str,
+    ) -> Result<Option<(String, String)>, String> {
         let before = self.open.len();
+        let was_active = self.last_active.as_deref() == Some(label);
+        // The tab to focus if the closed tab was on screen: the one just after
+        // it in z-order, else the new top of the stack.
+        let mut next: Option<TabMeta> = None;
+        if was_active {
+            if let Some(i) = self.open.iter().position(|m| m.label == label) {
+                next = self.open.get(i + 1).cloned();
+            }
+        }
         // Snapshot the tab before removal so the durable recently-closed ring
         // (Ctrl+Shift+T) can restore it across restarts. Incognito tabs are
         // never remembered; vault tabs can't be reopened once their keyring
         // manifest is deleted below.
-        let closing = self
-            .open
-            .iter()
-            .find(|m| m.label == label)
-            .cloned();
+        let closing = self.open.iter().find(|m| m.label == label).cloned();
         self.open.retain(|m| m.label != label);
         if let Some(m) = &closing {
             if m.vault_id.is_none() && !m.incognito {
@@ -173,12 +186,20 @@ impl TabManager {
             }
         }
         if self.open.is_empty() {
+            self.last_active = None;
             crate::tabview::hide_content(app);
+        } else {
+            let focus = next.or_else(|| self.open.back().cloned());
+            if let Some(m) = &focus {
+                self.last_active = Some(m.label.clone());
+                self.dirty = true;
+                return Ok(Some((m.label.clone(), m.url.clone())));
+            }
         }
         if self.open.len() != before {
             self.dirty = true;
         }
-        Ok(())
+        Ok(None)
     }
 
     pub fn activate(&mut self, app: &AppHandle, label: &str) -> Result<(), String> {
@@ -387,10 +408,15 @@ impl TabManager {
     }
 
     pub fn close_all(&mut self, app: &AppHandle) -> Result<(), String> {
-        let labels: Vec<String> = self.open.iter().map(|m| m.label.clone()).collect();
-        for label in &labels {
-            self.close(app, label)?;
+        for meta in self.open.iter() {
+            if meta.vault_id.is_none() && !meta.incognito {
+                crate::config::record_closed(app, &meta.url, &meta.title);
+            }
         }
+        self.open.clear();
+        self.last_active = None;
+        self.dirty = true;
+        crate::tabview::hide_content(app);
         Ok(())
     }
 
@@ -673,9 +699,12 @@ impl TabManager {
         self.rail_enabled = on;
     }
 
-    /// True while the chrome strip is hidden (clean/focus mode).
+    /// True while the chrome strip is hidden (clean/focus mode). Mirrors the
+    /// explicit `immersive` flag — NEVER derived from the current chrome
+    /// height, since real (non-immersive) chrome strips measure well below
+    /// `CHROME_HEIGHT` and would otherwise look like immersive mode.
     pub fn immersive(&self) -> bool {
-        self.chrome_height < crate::CHROME_HEIGHT
+        self.immersive
     }
 
     /// Arm or disarm the clean-mode exit pill in the content view.
@@ -702,8 +731,12 @@ impl TabManager {
     }
 
     /// Reposition the content webview to fill the area below the chrome strip.
+    /// Layouts directly from `&self` values — must never re-lock the `tabs`
+    /// mutex, since callers (e.g. the window-event handler) often hold it.
+    /// Also refreshes the lock-free geometry cache for `tabview::relayout`.
     pub fn relayout(&self, app: &AppHandle) -> Result<(), String> {
-        crate::tabview::relayout(app)
+        crate::tabview::remember_layout(self.chrome_height(), self.rail_enabled());
+        crate::tabview::layout(app, self.chrome_height(), self.rail_enabled())
     }
 }
 

@@ -36,6 +36,10 @@ interface TabStripProps {
   onReorder?: (from: string, to: string, after?: boolean) => void;
   onTogglePin?: (label: string) => void;
   onOverflowChange?: (over: boolean) => void;
+  /** True when the vertical rail has taken over: hide the top tab pills
+   * (visibility, not display, so scrollWidth stays stable and overflow
+   * detection doesn't flutter). */
+  rail?: boolean;
 }
 
 interface DragState {
@@ -63,6 +67,7 @@ export const TabStrip = memo(function TabStrip({
   onReorder,
   onTogglePin,
   onOverflowChange,
+  rail,
 }: TabStripProps) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -127,7 +132,7 @@ export const TabStrip = memo(function TabStrip({
   ) : null;
 
   return (
-    <div className="tab-strip" ref={rootRef}>
+    <div className={`tab-strip${rail ? " is-rail" : ""}`} ref={rootRef}>
       {tabs.map((tab) => {
         const active = tab.label === activeLabel;
         const vaulted = Boolean(tab.vault_id);

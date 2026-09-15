@@ -639,8 +639,8 @@ export function BrowserChrome({
         background: "var(--chrome-bg)",
         display: "flex",
         flexDirection: "column",
-        gap: 4,
-        padding: "8px 10px",
+        gap: 6,
+        padding: "10px 12px",
         userSelect: "none",
         zIndex: 9999,
       }}
@@ -818,6 +818,7 @@ export function BrowserChrome({
             setRailOn(over);
             if (runtime === "tauri") void api.setTabRail(over);
           }}
+          rail={railOn}
         />
         <form className="bar-form" onSubmit={navigate}>
           <div className="omni-wrap" style={{ flex: 1, position: "relative" }}>

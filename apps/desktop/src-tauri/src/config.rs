@@ -76,6 +76,11 @@ pub struct BrowserConfig {
     /// Named workspace currently being edited; the menu highlights it.
     #[serde(default = "default_workspace")]
     pub active_workspace: String,
+    /// Page zoom factor (1.0 = 100%). Applied as the webview's native
+    /// zoom level so it survives navigation on the same webview and renders
+    /// at the compositor layer rather than via CSS.
+    #[serde(default = "default_zoom")]
+    pub zoom: f64,
 }
 
 /// A sparse patch accepted by `update_config`: every field is optional, so
@@ -100,6 +105,8 @@ pub struct ConfigPatch {
     pub speed_dial: Option<Vec<String>>,
     #[serde(default)]
     pub active_workspace: Option<String>,
+    #[serde(default)]
+    pub zoom: Option<f64>,
 }
 
 fn default_engine() -> String {
@@ -126,6 +133,13 @@ pub fn default_workspace() -> String {
     "default".into()
 }
 
+const MIN_ZOOM: f64 = 0.25;
+const MAX_ZOOM: f64 = 3.0;
+
+fn default_zoom() -> f64 {
+    1.0
+}
+
 impl Default for BrowserConfig {
     fn default() -> Self {
         Self {
@@ -141,6 +155,7 @@ impl Default for BrowserConfig {
             link_preview: false,
             speed_dial: Vec::new(),
             active_workspace: default_workspace(),
+            zoom: default_zoom(),
         }
     }
 }
@@ -193,6 +208,9 @@ pub fn apply_patch(cfg: &mut BrowserConfig, patch: &ConfigPatch) -> Result<Brows
     }
     if let Some(v) = &patch.active_workspace {
         cfg.active_workspace = v.clone();
+    }
+    if let Some(v) = patch.zoom {
+        cfg.zoom = v.clamp(MIN_ZOOM, MAX_ZOOM);
     }
     Ok(cfg.clone())
 }

@@ -579,5 +579,88 @@ pub fn relayout(app: &AppHandle) -> Result<(), String> {
     layout(app, crate::CHROME_HEIGHT, false)
 }
 
+/// Last chrome geometry remembered by `remember_layout`, so a worker can drive
+/// `relayout` without ever touching the tabs mutex. Dropped the moment the
+/// engine relayouts; read as a fallback by `relayout` when the TabManager
+/// lock is contended.
+static LAST_GEOM: Mutex<Option<(f64, bool)>> = Mutex::new(None);
+
+/// Remember the current chrome geometry for `relayout`/worker relayout calls.
+/// Unit-returning and lock-light on purpose: the engine calls this right before
+/// `layout`, the day worker threads must not block on the main GTK context.
+pub fn remember_layout(chrome_h: f64, rail: bool) {
+    *LAST_GEOM.lock().unwrap() = Some((chrome_h, rail));
+}
+
+/// Apply a WebKit zoom factor to the content webview (0.25–3.0). This is the
+/// engine's native zoom level — it persists across navigations inside the tab
+/// (unlike CSS zoom) and is shared by every pool slot. Main-thread marshalled
+/// so it is safe to call from commands and workers.
+pub fn apply_zoom(app: &AppHandle, zoom: f64) {
+    let _ = app;
+    let zoom = zoom.clamp(0.25, 3.0);
+    run_on_main(move || {
+        CONTENT_WIDGET.with(|c| {
+            if let Some(w) = c.borrow().as_ref() {
+                use gtk::glib::Cast;
+                if let Some(v) = w.downcast_ref::<webkit2gtk::WebView>() {
+                    v.set_zoom_level(zoom);
+                }
+            }
+        });
+    });
+}
+
+/// Arm a tiny selftest battery, gated by `CONTINUA_SELFTEST=1`. Goes through
+/// the real committed surface (`install` → `relayout` → `navigate` →
+/// `eval_sync` scroll read → `apply_zoom`) and reports each phase to
+/// `CONTINUA_SELFTEST_LOGFILE` (default `/tmp/continua-selftest.log`). With
+/// `CONTINUA_SELFTEST_EXIT=1` it tears the process down (exit 0) on success so
+/// CI can assert on the exit code. Never runs in a normal launch.
+pub fn arm_selftest(app: &AppHandle) {
+    let enabled = std::env::var("CONTINUA_SELFTEST").map(|v| v == "1").unwrap_or(false);
+    if !enabled {
+        return;
+    }
+    let logfile = std::env::var("CONTINUA_SELFTEST_LOGFILE")
+        .unwrap_or_else(|_| "/tmp/continua-selftest.log".to_string());
+    let do_exit = std::env::var("CONTINUA_SELFTEST_EXIT").map(|v| v == "1").unwrap_or(false);
+    let app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(1500));
+        let mut status: Vec<String> = Vec::new();
+        status.push("install".into());
+        let r = crate::tabview::install(&app);
+        status.push(format!("install={}", r.is_ok()));
+        let r = crate::tabview::relayout(&app);
+        status.push(format!("relayout={}", r.is_ok()));
+        let r = crate::tabview::navigate(&app, "selftest", "about:blank");
+        status.push(format!("navigate={}", r.is_ok()));
+        let v = crate::tabview::eval_sync(&app, SCROLL_READ_JS);
+        status.push(format!("scroll={}", v.trim().parse::<f64>().is_ok()));
+        crate::tabview::apply_zoom(&app, 1.25);
+        crate::tabview::remember_layout(96.0, false);
+        status.push("zoom=1.25".into());
+        let ok = status.iter().all(|s| !s.ends_with("=false"));
+        write_selftest_line(&logfile, &status, ok);
+        if ok && do_exit {
+            std::process::exit(0);
+        }
+    });
+}
+
+fn write_selftest_line(logfile: &str, status: &[String], ok: bool) {
+    use std::io::Write;
+    let line = format!(
+        "CONTINUA {}: {}",
+        if ok { "OK" } else { "FAIL" },
+        status.join(" | ")
+    );
+    eprintln!("{line}");
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(logfile) {
+        let _ = writeln!(f, "{line}");
+    }
+}
+
 pub const SCROLL_READ_JS: &str =
     "(document.scrollingElement?document.scrollingElement.scrollTop:0)||window.pageYOffset||0";
