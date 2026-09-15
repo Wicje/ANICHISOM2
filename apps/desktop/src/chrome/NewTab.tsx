@@ -7,7 +7,7 @@ import type {
   TabRecord,
 } from "../lib/tauri-bridge";
 import { Favicon } from "../components/Favicon";
-import { IconBrand, IconStar, IconStarFilled } from "../components/icons";
+import { IconStar, IconStarFilled } from "../components/icons";
 
 interface NewTabProps {
   onResume: (id?: string) => Promise<void>;
@@ -91,21 +91,10 @@ export function NewTab({ onResume, onOpen }: NewTabProps) {
   return (
     <div className="start-page">
       <div className="start-hero">
-        <div className="brand-mark start-mark">
-          <IconBrand size={26} />
-        </div>
-        <h1 className="start-title">Your workspace follows you.</h1>
+        <h1 className="start-title">Where to next?</h1>
         <p className="start-sub">
-          One workspace in your pocket — open a page here, resume it on
-          another machine.
+          Resume a session, jump to the top of your day, or just start typing.
         </p>
-        <div className="start-hero-foot">
-          <span className="hero-chip">Continua Browser</span>
-          <span className="hero-chip">{continuaUrl}</span>
-          <span className="hero-chip">
-            {device ? `${device.os} · ${device.arch}` : "detecting device…"}
-          </span>
-        </div>
       </div>
 
       <div className="start-grid">

@@ -226,6 +226,25 @@ export default function App() {
     }
   };
 
+  const introKey = "continua.intro.dismissed";
+  const [firstRun, setFirstRun] = useState(
+    () => localStorage.getItem(introKey) !== "1",
+  );
+
+  // First-run hint: a quiet chip with the shortcuts, only on the empty start
+  // page, auto-dismissing after a few seconds or on click.
+  const dismissIntro = useCallback(() => {
+    localStorage.setItem(introKey, "1");
+    setFirstRun(false);
+  }, []);
+
+  // Auto-dismiss the first-run tip after a few seconds.
+  useEffect(() => {
+    if (!firstRun || tabs.length > 0) return;
+    const t = setTimeout(dismissIntro, 12000);
+    return () => clearTimeout(t);
+  }, [firstRun, tabs.length, dismissIntro]);
+
   return (
     <>
       <BrowserChrome
@@ -246,6 +265,21 @@ export default function App() {
       />
       {tabs.length === 0 && (
         <NewTab onResume={restoreLastSession} onOpen={openTab} />
+      )}
+      {firstRun && tabs.length === 0 && (
+        <div className="intro-hint" onClick={dismissIntro} role="button" aria-label="Dismiss first-run tip">
+          <span className="intro-hint-fn">Continua shortcuts</span>
+          <span className="intro-hint-row">
+            <kbd>Ctrl+K</kbd> command palette
+          </span>
+          <span className="intro-hint-row">
+            <kbd>Ctrl+Shift+F</kbd> clean / focus mode
+          </span>
+          <span className="intro-hint-row">
+            <kbd>Ctrl+Shift+T</kbd> reopen closed tab
+          </span>
+          <small>click to dismiss</small>
+        </div>
       )}
       <CommandPalette
         tabs={tabs}

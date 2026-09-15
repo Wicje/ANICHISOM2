@@ -238,7 +238,9 @@ fn apply_snapshot(
     if !tabs.labels().is_empty() {
         return Ok(None);
     }
-    tabs.set_immersive(snap.immersive);
+    // Always restore in normal (non-immersive) mode — a relaunch should never
+    // drop the user straight into a chrome-less window without warning.
+    tabs.set_immersive(false);
     let last = tabs.restore_from_snapshot(app, snap.tabs)?;
     tabs.relayout(app)?;
     let active = last.or(snap.active);
@@ -250,15 +252,6 @@ fn apply_snapshot(
         }
     } else if let Some(main) = app.get_webview_window("main") {
         let _ = main.set_focus();
-    }
-
-    if snap.immersive {
-        if let Some(main) = app.get_webview_window("main") {
-            let _ = main.hide();
-        }
-        if let Ok(tabs) = state.tabs.lock() {
-            tabs.arm_clean_exit(app, true);
-        }
     }
 
     let tabs = state.tabs.lock().map_err(|e| e.to_string())?;

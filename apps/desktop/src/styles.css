@@ -1,61 +1,66 @@
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
 
-  /* ─── Dark: charcoal night (default) ─────────────────── */
-  --bg: #07080a;
-  --chrome-bg: #0c0e12;
-  --surface: #13151a;
-  --surface-card: rgba(19, 21, 26, 0.85);
-  --text: #ece7de;
-  --text-dim: #8b857c;
-  --border: rgba(255, 255, 255, 0.09);
-  --border-faint: rgba(255, 255, 255, 0.05);
-  --hover: rgba(255, 255, 255, 0.07);
-  --hover-faint: rgba(255, 255, 255, 0.045);
+  /* ─── Dark: Geist (Vercel) ────────────────────────────── */
+  --bg: #000;
+  --chrome-bg: #0a0a0a;
+  --surface: #111;
+  --surface-card: rgba(17, 17, 17, 0.85);
+  --text: #fff;
+  --text-dim: #888;
+  --border: #333;
+  --border-faint: rgba(255, 255, 255, 0.08);
+  --hover: rgba(255, 255, 255, 0.08);
+  --hover-faint: rgba(255, 255, 255, 0.05);
 
-  /* Brass accent */
-  --accent: #c9a94f;
-  --accent-hi: #e8cf8e;
-  --accent-deep: #a07b24;
-  --accent-ink: #0b0804;
-  --accent-soft: rgba(201, 169, 79, 0.14);
-  --accent-soft-2: rgba(201, 169, 79, 0.24);
-  --glow-a: rgba(201, 169, 79, 0.09);
-  --glow-b: rgba(160, 123, 36, 0.06);
-  --guide: rgba(201, 169, 79, 0.4);
+  /* Geist accent — single action blue */
+  --accent: #3291ff;
+  --accent-hi: #76b9ff;
+  --accent-deep: #0761d1;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(50, 145, 255, 0.14);
+  --accent-soft-2: rgba(50, 145, 255, 0.26);
+  --glow-a: rgba(50, 145, 255, 0.09);
+  --glow-b: rgba(7, 97, 209, 0.07);
+  --guide: rgba(50, 145, 255, 0.45);
 
-  /* Private (incognito) mode — violet so it reads instantly at a glance */
-  --incognito: #b48ae6;
-  --incognito-hi: #d3b1ff;
-  --incognito-soft: rgba(180, 138, 230, 0.14);
-  --incognito-soft-2: rgba(180, 138, 230, 0.26);
+  /* Private (incognito) mode — Geist violet */
+  --incognito: #7928ca;
+  --incognito-hi: #8a63d2;
+  --incognito-soft: rgba(121, 40, 202, 0.14);
+  --incognito-soft-2: rgba(121, 40, 202, 0.28);
+
+  /* Geist radius — strict near-square */
+  --radius: 6px;
+  --radius-sm: 4px;
 }
 
 :root[data-theme="light"] {
-  /* ─── Light: warm off-white ───────────────────────────── */
-  --bg: #f6f4ee;
-  --chrome-bg: #f1eee6;
+  /* ─── Light: Geist (Vercel) ───────────────────────────── */
+  --bg: #ffffff;
+  --chrome-bg: #fafafa;
   --surface: #ffffff;
   --surface-card: rgba(255, 255, 255, 0.85);
-  --text: #191914;
-  --text-dim: #6e675c;
-  --border: rgba(25, 25, 20, 0.14);
-  --border-faint: rgba(25, 25, 20, 0.07);
-  --hover: rgba(25, 25, 20, 0.07);
-  --hover-faint: rgba(25, 25, 20, 0.045);
+  --text: #000000;
+  --text-dim: #666666;
+  --border: #eaeaea;
+  --border-faint: rgba(0, 0, 0, 0.07);
+  --hover: rgba(0, 0, 0, 0.06);
+  --hover-faint: rgba(0, 0, 0, 0.04);
 
-  /* Brass accent (deepened for contrast on light) */
-  --accent: #967718;
-  --accent-hi: #b9973f;
-  --accent-deep: #7a5e10;
-  --accent-ink: #fffaf0;
-  --accent-soft: rgba(150, 119, 24, 0.12);
-  --accent-soft-2: rgba(150, 119, 24, 0.22);
-  --glow-a: rgba(150, 119, 24, 0.1);
-  --glow-b: rgba(150, 119, 24, 0.07);
-  --guide: rgba(150, 119, 24, 0.4);
+  /* Geist accent (deepened for contrast on light) */
+  --accent: #0070f3;
+  --accent-hi: #3291ff;
+  --accent-deep: #0761d1;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(0, 112, 243, 0.1);
+  --accent-soft-2: rgba(0, 112, 243, 0.2);
+  --glow-a: rgba(0, 112, 243, 0.1);
+  --glow-b: rgba(0, 112, 243, 0.07);
+  --guide: rgba(0, 112, 243, 0.4);
 
-  /* Private (incognito) mode — deepened violet for contrast on light */
+  /* Private (incognito) mode — Geist violet, deepened on light */
   --incognito: #6f3fa3;
   --incognito-hi: #8a5fc0;
   --incognito-soft: rgba(111, 63, 163, 0.12);
@@ -105,7 +110,7 @@ body,
   transition: border-color 0.2s;
 }
 
-/* Native window focused: lift the hairline into brass so focus is legible. */
+/* Native window focused: lift the hairline into the accent so focus is legible. */
 .chrome-focused {
   border-bottom-color: var(--guide);
 }
@@ -114,7 +119,7 @@ body,
 .brand-mark {
   width: 20px;
   height: 20px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: linear-gradient(135deg, var(--accent-hi), var(--accent-deep));
   color: var(--accent-ink);
   font-weight: 700;
@@ -149,7 +154,7 @@ body,
   color: var(--text);
   width: 26px;
   height: 26px;
-  border-radius: 7px;
+  border-radius: var(--radius);
   cursor: pointer;
   font-size: 12px;
   display: grid;
@@ -179,7 +184,7 @@ body,
   color: var(--text-dim);
   width: 34px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: 13px;
   cursor: pointer;
   display: grid;
@@ -212,7 +217,7 @@ body,
   color: var(--text);
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
@@ -238,7 +243,7 @@ body,
   height: 30px;
   max-width: 180px;
   min-width: 80px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-dim);
@@ -265,7 +270,7 @@ body,
   right: 10px;
   bottom: -1px;
   height: 2px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   background: linear-gradient(90deg, var(--accent), transparent);
   pointer-events: none;
 }
@@ -291,7 +296,7 @@ body,
 .tab-favicon {
   width: 14px;
   height: 14px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   font-size: 10px;
   display: grid;
   place-items: center;
@@ -314,7 +319,7 @@ body,
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 0 3px;
   width: 16px;
   height: 16px;
@@ -335,7 +340,7 @@ body,
   color: var(--text-dim);
   font-size: 16px;
   cursor: pointer;
-  border-radius: 7px;
+  border-radius: var(--radius);
   width: 24px;
   height: 24px;
   display: grid;
@@ -425,7 +430,7 @@ body,
   z-index: 60;
   min-width: 170px;
   padding: 5px;
-  border-radius: 9px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface-card);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
@@ -443,7 +448,7 @@ body,
   font-size: 13px;
   text-align: left;
   padding: 7px 9px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -459,7 +464,7 @@ body,
   height: 16px;
   display: grid;
   place-items: center;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--hover);
   color: var(--text-dim);
   font-size: 11px;
@@ -474,7 +479,7 @@ body,
 .address-bar {
   flex: 1;
   height: 30px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
@@ -506,7 +511,7 @@ body,
   right: 0;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
   overflow-y: auto;
   max-height: min(56vh, 420px);
@@ -523,7 +528,7 @@ body,
   align-items: center;
   gap: 9px;
   padding: 7px 9px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   cursor: pointer;
   color: var(--text);
   text-align: left;
@@ -541,7 +546,7 @@ body,
   flex: none;
   width: 20px;
   height: 20px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   display: grid;
   place-items: center;
   font-size: 11px;
@@ -590,7 +595,7 @@ body,
   line-height: 1;
   width: 30px;
   height: 30px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   cursor: pointer;
   display: grid;
   place-items: center;
@@ -628,7 +633,7 @@ body,
   height: 30px;
   min-width: 30px;
   padding: 0 7px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   cursor: pointer;
   flex: none;
 }
@@ -650,7 +655,7 @@ body,
   z-index: 60;
   min-width: 150px;
   padding: 5px;
-  border-radius: 9px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface-card);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
@@ -668,7 +673,7 @@ body,
   font-size: 13px;
   text-align: left;
   padding: 7px 9px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   cursor: pointer;
 }
 
@@ -691,7 +696,7 @@ body,
   align-items: center;
   gap: 8px;
   padding: 7px 9px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface-card);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
@@ -702,7 +707,7 @@ body,
 .findbar-input {
   width: 170px;
   height: 26px;
-  border-radius: 7px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
@@ -741,7 +746,7 @@ body,
   font-size: 13px;
   width: 22px;
   height: 22px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   display: grid;
   place-items: center;
@@ -773,7 +778,7 @@ body,
   z-index: 10001;
   min-width: 176px;
   padding: 5px;
-  border-radius: 9px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface-card);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
@@ -793,7 +798,7 @@ body,
   font-size: 13px;
   text-align: left;
   padding: 7px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   cursor: pointer;
 }
 
@@ -836,7 +841,7 @@ body,
   z-index: 60;
   min-width: 248px;
   padding: 6px;
-  border-radius: 9px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface-card);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
@@ -855,7 +860,7 @@ body,
   flex: 1;
   min-width: 0;
   height: 27px;
-  border-radius: 7px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
@@ -872,7 +877,7 @@ body,
 .workspace-save {
   appearance: none;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--accent-soft);
   color: var(--accent-hi);
   font: inherit;
@@ -908,7 +913,7 @@ body,
   font: inherit;
   text-align: left;
   padding: 7px 8px;
-  border-radius: 7px;
+  border-radius: var(--radius);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -955,7 +960,7 @@ body,
   flex: none;
   width: 20px;
   height: 20px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   display: grid;
   place-items: center;
   font-size: 14px;
@@ -1025,7 +1030,7 @@ body,
   cursor: pointer;
   width: 28px;
   height: 28px;
-  border-radius: 7px;
+  border-radius: var(--radius);
 }
 
 .settings-close:hover {
@@ -1068,7 +1073,7 @@ body,
 .settings-select {
   appearance: none;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
   font: inherit;
@@ -1086,7 +1091,7 @@ body,
   flex: 1;
   min-width: 0;
   height: 30px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
@@ -1104,7 +1109,7 @@ body,
   display: flex;
   gap: 4px;
   padding: 3px;
-  border-radius: 9px;
+  border-radius: var(--radius);
   background: var(--surface);
   border: 1px solid var(--border);
 }
@@ -1117,7 +1122,7 @@ body,
   font: inherit;
   font-size: 12px;
   padding: 5px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   cursor: pointer;
 }
 
@@ -1165,7 +1170,7 @@ body,
 .settings-danger {
   appearance: none;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: rgba(224, 108, 117, 0.12);
   color: #e06c75;
   font: inherit;
@@ -1195,7 +1200,7 @@ body,
 
 .topsite {
   position: relative;
-  border-radius: 10px;
+  border-radius: var(--radius);
   border: 1px solid transparent;
   padding: 3px 3px 1px;
 }
@@ -1227,7 +1232,7 @@ body,
 .topsite-glyph {
   width: 38px;
   height: 38px;
-  border-radius: 11px;
+  border-radius: var(--radius);
   display: grid;
   place-items: center;
   font-size: 18px;
@@ -1256,7 +1261,7 @@ body,
   width: 18px;
   height: 18px;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-dim);
   font-size: 13px;
@@ -1329,7 +1334,7 @@ body,
 .history-search {
   flex: 1;
   height: 28px;
-  border-radius: 7px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
@@ -1350,7 +1355,7 @@ body,
   color: var(--text-dim);
   font: inherit;
   font-size: 12px;
-  border-radius: 7px;
+  border-radius: var(--radius);
   padding: 5px 9px;
   cursor: pointer;
   flex: none;
@@ -1386,7 +1391,7 @@ body,
   align-items: center;
   gap: 10px;
   padding: 8px 9px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   cursor: pointer;
   text-align: left;
 }
@@ -1502,7 +1507,7 @@ body::after {
 .start-mark {
   width: 48px;
   height: 48px;
-  border-radius: 13px;
+  border-radius: var(--radius);
   font-size: 24px;
   box-shadow: 0 0 0 1px var(--guide), 0 0 24px var(--glow-a), 0 8px 24px rgba(0, 0, 0, 0.35);
 }
@@ -1535,6 +1540,73 @@ body::after {
   padding: 3px 10px;
 }
 
+.intro-hint {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4), 0 0 18px var(--glow-a);
+  font-size: 12.5px;
+  color: var(--text-dim);
+  cursor: pointer;
+  animation: intro-in 0.35s ease;
+  user-select: none;
+}
+
+.intro-hint:hover {
+  border-color: var(--accent);
+}
+
+.intro-hint-fn {
+  font-weight: 650;
+  font-size: 13px;
+  color: var(--text-strong);
+  margin-bottom: 2px;
+}
+
+.intro-hint-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.intro-hint kbd {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-strong);
+  background: var(--bg);
+  border: 1px solid var(--guide);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+}
+
+.intro-hint small {
+  margin-top: 3px;
+  opacity: 0.55;
+  font-size: 11px;
+}
+
+@keyframes intro-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 .start-title {
   margin: 8px 0 0;
   font-size: 30px;
@@ -1562,7 +1634,7 @@ body::after {
 .start-card {
   background: var(--surface-card);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 18px;
   display: flex;
   flex-direction: column;
@@ -1612,7 +1684,7 @@ body::after {
   align-items: center;
   gap: 10px;
   padding: 7px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   transition: background 0.15s;
 }
 
@@ -1645,7 +1717,7 @@ body::after {
   color: var(--accent);
   font-size: 13px;
   font-weight: 700;
-  border-radius: 9px;
+  border-radius: var(--radius);
   padding: 9px 14px;
   cursor: pointer;
   transition: background 0.15s;
@@ -1669,7 +1741,7 @@ body::after {
   appearance: none;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius);
   width: 100%;
   display: flex;
   align-items: baseline;
@@ -1730,7 +1802,7 @@ body::after {
   width: min(560px, calc(100vw - 40px));
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
@@ -1774,7 +1846,7 @@ body::after {
   color: var(--text-dim);
   width: 28px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -1825,7 +1897,7 @@ body::after {
   justify-content: space-between;
   gap: 12px;
   padding: 9px 10px;
-  border-radius: 9px;
+  border-radius: var(--radius);
   cursor: pointer;
   color: var(--text);
   text-align: left;
@@ -1918,7 +1990,7 @@ body::after {
   align-items: center;
   gap: 3px;
   padding: 2px 7px 2px 5px;
-  border-radius: 7px;
+  border-radius: var(--radius);
   max-width: 168px;
   transition: background 90ms ease-out;
 }
@@ -1949,7 +2021,7 @@ body::after {
   flex: none;
   width: 16px;
   height: 16px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   display: grid;
   place-items: center;
   font-size: 10px;
@@ -2015,7 +2087,7 @@ body::after {
   background: transparent;
   width: 30px;
   height: 30px;
-  border-radius: 9px;
+  border-radius: var(--radius);
   display: grid;
   place-items: center;
   color: var(--text-dim);
@@ -2073,7 +2145,7 @@ body::after {
   align-items: center;
   gap: 9px;
   padding: 9px 14px;
-  border-radius: 11px;
+  border-radius: var(--radius);
   background: var(--surface-card);
   border: 1px solid var(--border);
   box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
