@@ -6,6 +6,7 @@ import {
   DEFAULT_NEW_TAB_URL,
   displayTitle,
   isTauri,
+  newTabUrl,
   type Bookmark,
 } from "../lib/tauri-bridge";
 import { attachCadence } from "../lib/cadence";
@@ -114,9 +115,16 @@ export function CommandPalette({
   const [active, setActive] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  /** Configured homepage (ADR-006 #7): "New tab" honors it over the default. */
+  const [newTab, setNewTab] = useState(DEFAULT_NEW_TAB_URL);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
   const q = query.trim();
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    void api.getBrowserConfig().then((c) => setNewTab(newTabUrl(c)));
+  }, []);
 
   const pickImportFile = () => {
     window.setTimeout(() => fileRef.current?.click(), 0);
@@ -200,7 +208,7 @@ export function CommandPalette({
       label: "New tab",
       hint: "open the start page",
       icon: IconSpark,
-      run: () => void onOpen(DEFAULT_NEW_TAB_URL),
+      run: () => void onOpen(newTab),
     });
     raw.push({
       key: "restore",
@@ -338,7 +346,7 @@ export function CommandPalette({
       );
     }
     return result.slice(0, 14);
-  }, [q, tabs, activeLabel, bookmarks, onOpen, onOpenIncognito, onActivate, onRestore, onReopen, onToggleVault, onPullRemote, onSync]);
+  }, [q, tabs, activeLabel, bookmarks, newTab, onOpen, onOpenIncognito, onActivate, onRestore, onReopen, onToggleVault, onPullRemote, onSync]);
 
   useEffect(() => {
     if (!open) return;

@@ -17,6 +17,16 @@ export const isTauri = (): boolean =>
  */
 export const DEFAULT_NEW_TAB_URL = "https://duckduckgo.com";
 
+/**
+ * Where a new tab should land: the configured homepage when it is a valid
+ * http(s) URL, otherwise the neutral default (ADR-006 #7). Incognito tabs
+ * deliberately skip the homepage — it may identify the user.
+ */
+export const newTabUrl = (cfg?: { homepage?: string }): string => {
+  const hp = cfg?.homepage?.trim();
+  return hp && /^https?:\/\//i.test(hp) ? hp : DEFAULT_NEW_TAB_URL;
+};
+
 /** Short human label from a URL (hostname minus www). */
 export const displayTitle = (url: string): string => {
   try {
@@ -26,13 +36,20 @@ export const displayTitle = (url: string): string => {
   }
 };
 
-/** Cross-origin favicon via Google's service (works for nearly every site). */
-export const faviconUrl = (url: string): string => {
+/**
+ * Favicon straight from the site's own origin — no third-party favicon
+ * service, so the chrome never leaks visited hostnames to anyone
+ * (ADR-006 #2). Returns null for non-http(s) URLs; the caller falls back
+ * to a generated glyph.
+ */
+export const faviconUrl = (url: string): string | null => {
   try {
-    const host = new URL(url).host;
-    return `https://www.google.com/s2/favicons?domain=${host}&sz=64`;
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:"
+      ? `${u.origin}/favicon.ico`
+      : null;
   } catch {
-    return "🌐";
+    return null;
   }
 };
 
@@ -233,9 +250,6 @@ export const api = {
       () => undefined
     ),
 
-  closeAllTabs: () =>
-    invoke<void>("close_all_tabs").catch(() => undefined),
-
   relayout: () =>
     invoke<void>("update_tab_layout").catch(() => undefined),
 
@@ -267,12 +281,6 @@ export const api = {
 
   deviceInfo: () =>
     invoke<DeviceInfo>("get_device_info").catch(() => null),
-
-  vaultGet: (key: string) =>
-    invoke<string | null>("vault_get", { key }).catch(() => null),
-
-  vaultStore: (key: string, value: string) =>
-    invoke<void>("vault_store", { key, value }).catch(() => undefined),
 
   markVault: (label: string) =>
     invoke<RestoredTab | null>("mark_vault", { label }).catch(() => null),
@@ -361,9 +369,6 @@ export const api = {
 
   openAppWindow: (url: string) =>
     invoke<void>("open_app_window", { url }).catch(() => undefined),
-
-  isBookmarked: (url: string) =>
-    invoke<boolean>("is_bookmarked", { url }).catch(() => false),
 
   /** Negotiate measured chrome height so native tabs reflow below it. */
   setChromeHeight: (height: number) =>

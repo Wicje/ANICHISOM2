@@ -1,5 +1,12 @@
 # Continua Desktop — The Continuity Browser
 
+> **⚠ PARTIALLY SUPERSEDED (2026-09-15):** The architecture (§1–§3) and
+> shipped status (§10) remain accurate, but the roadmap is now governed by
+> `docs/decisions/`: ADR-002 (shell = surfaces in the browser, not a tab),
+> ADR-003 (multi-webview pool), ADR-005 (daily-driver bar). The "OS shell
+> living as a tab" item in §10 was aspirational — the link never existed in
+> the desktop frontend.
+
 **Vision**: A browser that never forgets. Session memory, login persistence, native workspace capture, and a cloud OS shell so any machine becomes interchangeable.
 
 **Status**: Plan v1 — zero budget, 4GB dev machine, solo executor.

@@ -1,4 +1,11 @@
 # Continua — Master Implementation Plan
+
+> **⚠ SUPERSEDED (2026-09-15):** The strategic decisions in this document
+> are historical. Current direction lives in `docs/decisions/` (ADR-001
+> desktop-first supersedes §3.4 "Tauri ➔ Background Daemon"; ADR-002 makes
+> the browser the shell host; ADR-004 freezes the web shell as an
+> experiment). Kept as a record of the July 2026 repositioning.
+
 ## The Work Continuity Layer Blueprint
 
 > **Mission Statement:** Continua makes your work independent of your hardware. Your phone is your identity and control key; your local daemon captures metadata-first context; the web client restores your working environment on any machine in seconds.

@@ -1,4 +1,5 @@
-//! In-page tooling — find-in-page, zoom, reader mode and a dark flip.
+//! In-page tooling — find-in-page, reader mode and a dark flip.
+//! (Zoom moved to the native WebKit zoom level in `tabview::apply_zoom`.)
 //!
 //! Tab webviews load arbitrary remote sites and never expose IPC, so every
 //! tool is a self-contained script evaluated inside the page. Scripts are
@@ -60,19 +61,6 @@ pub const FIND_SCRIPT: &str = r#"(function(){
     else cur.scrollIntoView({block:'center'});
   }
   return JSON.stringify(window.__contFind);
-})()"#;
-
-/// Zoom a page. `step` 0 resets to 100%; otherwise the current factor is
-/// nudged by `step` (0.15 per tick) and clamped to [0.5, 3.0]. Returns the
-/// new factor as JSON so the chrome can show a live % readout.
-pub const ZOOM_SCRIPT: &str = r#"(function(){
-  var html=document.documentElement;
-  var cur=parseFloat(html.getAttribute('data-cont-zoom')||'1');
-  var next={{D}}===0?1:Math.max(0.5,Math.min(3.0,Math.round((cur+{{D}})*100)/100));
-  html.setAttribute('data-cont-zoom',String(next));
-  html.style.zoom=String(next);
-  // Elements using percent/vw sizing reflow cleanly under zoom in WebKit.
-  return JSON.stringify(Math.round(next*100));
 })()"#;
 
 /// Toggle reader mode: swaps the page for an extracted article view in a
@@ -237,13 +225,6 @@ pub fn find(
     Ok((count, idx))
 }
 
-/// Apply a zoom delta (or reset when `step` == 0). Returns the new % factor.
-pub fn zoom(app: &tauri::AppHandle, _label: &str, step: f64) -> Result<f64, String> {
-    let js = substitute(ZOOM_SCRIPT, &[("{{D}}", &step.to_string())]);
-    let raw = eval_result(app, &js);
-    Ok(raw.parse::<f64>().unwrap_or(100.0))
-}
-
 pub fn reader(app: &tauri::AppHandle, _label: &str) -> Result<(), String> {
     let (font, width) = match app.try_state::<crate::AppState>() {
         Some(state) => match state.config.lock() {
@@ -318,13 +299,5 @@ mod tests {
         assert!(js.contains("var K='__contFind'"));
         assert!(js.contains("where {x}"));
         assert!(js.contains("return JSON.stringify"));
-    }
-
-    #[test]
-    fn zoom_clamps_bounds() {
-        // 0 → reset inline is handled by JS; static sanity: step format is a
-        // plain float so substituted values stay numeric.
-        let js = substitute(ZOOM_SCRIPT, &[("{{D}}", "0.15")]);
-        assert!(js.contains("cur+0.15"));
     }
 }

@@ -1,9 +1,8 @@
 //! Continua Desktop — library crate.
 //!
-//! Wires the Rust core (tabs, sessions, vault, capture, trust, sync)
+//! Wires the Rust core (tabs, sessions, vault, trust, sync)
 //! to the Tauri runtime and exposes commands for the React chrome UI.
 
-mod capture;
 mod config;
 mod inpage;
 mod session;
@@ -148,16 +147,6 @@ fn navigate_tab(state: tauri::State<'_, AppState>, app: tauri::AppHandle, label:
 #[tauri::command]
 fn nav_state(state: tauri::State<'_, AppState>, label: String) -> Result<NavState, String> {
     state.tabs.lock().map_err(|e| e.to_string())?.nav_state(&label)
-}
-
-#[tauri::command]
-fn list_tabs(state: tauri::State<'_, AppState>) -> Vec<String> {
-    state.tabs.lock().map(|t| t.labels()).unwrap_or_default()
-}
-
-#[tauri::command]
-fn close_all_tabs(state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
-    state.tabs.lock().map_err(|e| e.to_string())?.close_all(&app)
 }
 
 /// Keep existing tab webviews filling the area below the chrome strip.
@@ -500,16 +489,6 @@ fn on_global_shortcut(
     }
 }
 
-#[tauri::command]
-fn vault_store(state: tauri::State<'_, AppState>, key: String, value: String) -> Result<(), String> {
-    state.vault.lock().map_err(|e| e.to_string())?.store(&key, &value)
-}
-
-#[tauri::command]
-fn vault_get(state: tauri::State<'_, AppState>, key: String) -> Result<Option<String>, String> {
-    state.vault.lock().map_err(|e| e.to_string())?.get(&key)
-}
-
 /// Encrypt a tab into the vault: from now on the session file records only an
 /// opaque vault_id; URL/title/history/scroll live exclusively in the keyring.
 #[tauri::command]
@@ -621,11 +600,6 @@ fn get_bookmarks(state: tauri::State<'_, AppState>) -> Vec<crate::config::Bookma
         .lock()
         .map(|c| c.bookmarks.clone())
         .unwrap_or_default()
-}
-
-#[tauri::command]
-fn is_bookmarked(app: tauri::AppHandle, url: String) -> bool {
-    crate::config::is_bookmarked(&app, &url)
 }
 
 #[tauri::command]
@@ -1300,8 +1274,6 @@ pub fn run() {
             set_immersive,
             set_chrome_height,
             set_tab_rail,
-            list_tabs,
-            close_all_tabs,
             update_tab_layout,
             save_session,
             load_session,
@@ -1311,8 +1283,6 @@ pub fn run() {
             export_session,
             import_session_json,
             get_device_info,
-            vault_store,
-            vault_get,
             mark_vault,
             unmark_vault,
             set_continua_url,
@@ -1323,7 +1293,6 @@ pub fn run() {
             add_bookmark,
             remove_bookmark,
             get_bookmarks,
-            is_bookmarked,
             get_history,
             clear_history,
             update_config,

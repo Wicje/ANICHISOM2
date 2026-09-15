@@ -609,11 +609,9 @@ impl TabManager {
     }
 
     fn new_vault_id() -> String {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_millis())
-            .unwrap_or(0);
-        format!("vt-{now}")
+        // Un guessable keyring key (ADR-006 #11): 8 bytes of OS entropy,
+        // not a timestamp.
+        format!("vt-{}", crate::trust::random_hex(8))
     }
 
     /// Write (or re-encrypt) a tab's manifest into the OS keyring.

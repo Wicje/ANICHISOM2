@@ -65,18 +65,34 @@ impl Fingerprint {
     }
 
     fn random_secret() -> String {
-        // Cheap randomness from SystemTime + a per-machine stable counter;
-        // combined with the key mix this is opaque enough for device pairing.
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0);
-        let extra = std::process::id() as u128;
-        format!(
-            "{:032x}",
-            now.wrapping_mul(2654435761) ^ extra.wrapping_mul(0x9e3779b9)
-        )
+        // OS entropy (ADR-006 #4): 16 bytes from /dev/urandom hex-encoded.
+        // The old SystemTime+PID mix survives only as a fallback for
+        // environments without a urandom node (non-POSIX sandboxes).
+        crate::trust::random_hex(16)
     }
+}
+
+/// `n` random bytes from the OS entropy pool, hex-encoded; falls back to a
+/// SystemTime+PID mix only if the OS source is unreadable.
+pub fn random_hex(n: usize) -> String {
+    use std::io::Read;
+    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
+        let mut buf = vec![0u8; n];
+        if f.read_exact(&mut buf).is_ok() {
+            return buf.iter().map(|b| format!("{b:02x}")).collect();
+        }
+    }
+    // Fallback: predictably weaker, but only reachable where /dev/urandom
+    // does not exist (not the case on any supported Linux/macOS host).
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let extra = std::process::id() as u128;
+    format!(
+        "{:032x}",
+        now.wrapping_mul(2654435761) ^ extra.wrapping_mul(0x9e3779b9)
+    )
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

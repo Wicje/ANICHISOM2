@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { api, DEFAULT_NEW_TAB_URL, displayTitle, windowControls } from "../lib/tauri-bridge";
+import { api, DEFAULT_NEW_TAB_URL, displayTitle, newTabUrl, windowControls } from "../lib/tauri-bridge";
 import { engineBadge, searchUrlFor } from "../lib/tauri-bridge";
 import type {
   Bookmark,
@@ -430,7 +430,7 @@ export function BrowserChrome({
       switch (k) {
         case "t":
           e.preventDefault();
-          void onOpen(DEFAULT_NEW_TAB_URL);
+          void onOpen(newTabUrl(config ?? undefined));
           break;
         case "w":
           e.preventDefault();
@@ -797,7 +797,7 @@ export function BrowserChrome({
           activeLabel={activeLabel}
           onActivate={onActivate}
           onClose={onClose}
-          onNew={() => void onOpen(DEFAULT_NEW_TAB_URL)}
+          onNew={() => void onOpen(newTabUrl(config ?? undefined))}
           onNewIncognito={() => void onOpenIncognito(DEFAULT_NEW_TAB_URL)}
           onDuplicate={(label) => {
             const t = tabs.find((x) => x.label === label);

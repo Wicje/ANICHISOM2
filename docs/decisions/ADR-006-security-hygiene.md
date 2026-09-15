@@ -12,7 +12,7 @@ done-and-checked-off, not tracked forever.
 
 | # | Item | Where | Action |
 |---|------|-------|--------|
-| 1 | **Committed CRX signing key** | `chrome-extension/continua-context-bridge.pem` | Revoke/rotate the key, remove from repo + history if feasible, regenerate; never commit key material again |
+| 1 | **CRX signing key audit** | `chrome-extension/continua-context-bridge.pem` | ✅ Verified 2026-09-15: key is NOT in git (untracked, `*.pem` ignored, zero history entries, `0600` on disk). No repo leak. Rotate only if the local machine or key file was ever shared |
 | 2 | **Favicon privacy leak** | `apps/desktop/src/lib/tauri-bridge.ts` (Google s2) | Local favicon cache with graceful fallback to a generated glyph; no third-party pings from chrome |
 | 3 | **CSP is null** | `apps/desktop/src-tauri/tauri.conf.json` | Set a real CSP for the chrome webview |
 | 4 | **Predictable fingerprint secret** | `apps/desktop/src-tauri/src/trust.rs:67-79` | SystemTime+PID → OS entropy source (`getrandom`/`/dev/urandom`); document that FNV-1a is hashing, not crypto |

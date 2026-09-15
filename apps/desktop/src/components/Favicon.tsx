@@ -13,9 +13,47 @@ const hostOf = (url: string): string | null => {
 };
 
 /**
- * Memoized favicon with a one-shot dead-host cache: a bad icon hides itself
- * once and stays hidden for every tab on that host, so tab switching doesn't
- * re-fetch or re-flicker.
+ * Deterministic hue (0-359) from a hostname, so every host keeps a stable
+ * generated color across tabs and sessions.
+ */
+const hueOf = (host: string): number => {
+  let h = 0;
+  for (let i = 0; i < host.length; i++) {
+    h = (h * 31 + host.charCodeAt(i)) % 360;
+  }
+  return h;
+};
+
+/** Generated letter-glyph fallback: first character of the host on a
+ * deterministic soft-tinted background. Privacy-preserving (ADR-006 #2). */
+const Glyph = ({ url }: { url: string }) => {
+  const host = hostOf(url);
+  const letter = host
+    ? host.replace(/^www\./, "").charAt(0).toUpperCase() || "?"
+    : "?";
+  return (
+    <span
+      className="tab-favicon favicon-glyph"
+      style={{
+        background: `hsl(${hueOf(host ?? url)} 60% 38%)`,
+        color: "#fff",
+        borderRadius: 4,
+        fontSize: 10,
+        lineHeight: "14px",
+        textAlign: "center",
+        width: 14,
+        height: 14,
+      }}
+    >
+      {letter}
+    </span>
+  );
+};
+
+/**
+ * Memoized favicon with a one-shot dead-host cache: a bad icon falls back
+ * to the generated glyph once and stays there for every tab on that host,
+ * so tab switching doesn't re-fetch or re-flicker.
  */
 export const Favicon = memo(function Favicon({ url }: { url: string }) {
   const [failed, setFailed] = useState<boolean>(() => {
@@ -26,7 +64,7 @@ export const Favicon = memo(function Favicon({ url }: { url: string }) {
   const src = faviconUrl(url);
 
   useEffect(() => {
-    if (src === "🌐") {
+    if (src === null) {
       setFailed(true);
       return;
     }
@@ -51,8 +89,8 @@ export const Favicon = memo(function Favicon({ url }: { url: string }) {
     };
   }, [src, url]);
 
-  if (failed || src === "🌐") {
-    return <span className="tab-favicon">🌐</span>;
+  if (failed || src === null) {
+    return <Glyph url={url} />;
   }
 
   return (

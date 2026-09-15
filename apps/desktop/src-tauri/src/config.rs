@@ -215,18 +215,6 @@ pub fn apply_patch(cfg: &mut BrowserConfig, patch: &ConfigPatch) -> Result<Brows
     Ok(cfg.clone())
 }
 
-impl BrowserConfig {
-    pub fn search_url(&self, query: &str) -> String {
-        let q = query.trim();
-        match self.search_engine.as_str() {
-            "duckduckgo" => format!("https://duckduckgo.com/?q={q}"),
-            "bing" => format!("https://www.bing.com/search?q={q}"),
-            "brave" => format!("https://search.brave.com/search?q={q}"),
-            _ => format!("https://www.google.com/search?q={q}"),
-        }
-    }
-}
-
 pub fn config_path(app: &AppHandle) -> Option<PathBuf> {
     let dir = app.path().app_config_dir().ok()?;
     Some(dir.join("browser-config.json"))
@@ -339,17 +327,6 @@ pub fn remove_bookmark(app: &AppHandle, url: &str) -> Vec<Bookmark> {
     cfg.bookmarks.retain(|b| b.url != url);
     persist(app, &cfg);
     cfg.bookmarks.clone()
-}
-
-pub fn is_bookmarked(app: &AppHandle, url: &str) -> bool {
-    let Some(state) = app.try_state::<crate::AppState>() else {
-        return false;
-    };
-    state
-        .config
-        .lock()
-        .map(|cfg| cfg.bookmarks.iter().any(|b| b.url == url))
-        .unwrap_or(false)
 }
 
 /// Wipe the history ring. Returns nothing; the chrome refetches via

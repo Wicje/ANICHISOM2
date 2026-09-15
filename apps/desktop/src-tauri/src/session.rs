@@ -102,7 +102,52 @@ impl SessionManager {
         let archive = self.session_dir(app)?.join(format!("{id}.json"));
         let _ = fs::write(&archive, serde_json::to_string(&snapshot).map_err(|e| e.to_string())?);
 
+        // Archives accumulate forever without a cap (ADR-006 #6) — prune to
+        // the newest 30, matching the timeline display truncation in `list`.
+        self.prune_archives(app);
+
         Ok(id)
+    }
+
+    /// Delete all but the newest `keep` timestamped archives. Only files
+    /// named `{millis}.json` are candidates — `latest.json`, `workspaces/`,
+    /// and anything else is left untouched. Name order = time order because
+    /// ids are millisecond timestamps.
+    fn prune_archives(&self, app: &AppHandle) {
+        const KEEP: usize = 30;
+        let Ok(dir) = self.session_dir(app) else {
+            return;
+        };
+        let Ok(entries) = fs::read_dir(&dir) else {
+            return;
+        };
+        let mut archives: Vec<PathBuf> = entries
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| {
+                p.is_file()
+                    && p
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|n| {
+                            !n.starts_with('.')
+                                && n != "latest.json"
+                                && n.ends_with(".json")
+                                && n.strip_suffix(".json")
+                                    .map(|stem| stem.parse::<u64>().is_ok())
+                                    .unwrap_or(false)
+                        })
+                        .unwrap_or(false)
+            })
+            .collect();
+        if archives.len() <= KEEP {
+            return;
+        }
+        archives.sort(); // numeric-looking names sort like timestamps
+        let excess = archives.len() - KEEP;
+        for path in archives.into_iter().take(excess) {
+            let _ = fs::remove_file(path);
+        }
     }
 
     /// Load the latest session, if any.
