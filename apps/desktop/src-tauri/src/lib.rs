@@ -1167,6 +1167,16 @@ pub fn run() {
             config: Mutex::new(BrowserConfig::default()),
             device_id: Mutex::new(None),
         })
+        // Second launch must focus the running window, not panic on a
+        // duplicate Ctrl+Shift+F registration. Registered before the
+        // shortcut plugin so the newcomer exits cleanly.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(win) = app.get_webview_window("main") {
+                let _ = win.unminimize();
+                let _ = win.show();
+                let _ = win.set_focus();
+            }
+        }))
         .plugin({
             // Global shortcuts so clean/focus mode survives focus living on
             // a tab (remote pages — we never expose IPC to them).
