@@ -508,7 +508,8 @@ body,
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
-  overflow: hidden;
+  overflow-y: auto;
+  max-height: min(56vh, 420px);
   padding: 4px;
   z-index: 10000;
 }
@@ -2199,4 +2200,100 @@ body::after {
 
 .omni-row {
   transition: background 70ms ease-out;
+}
+
+/* ─── Responsive chrome: adapt to narrow windows & huge monitors ─── */
+
+/* Row 1 + row 2 containers (now class-driven so breakpoints can reflow). */
+.tool-row,
+.address-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Tab strip: hug the nav controls, shrink on demand, rail takes over on
+ * overflow; the measured width is also what feeds rail detection. */
+.tab-strip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 55%;
+  overflow-x: auto;
+}
+
+/* Address form: takes the leftover width but never stretches absurdly on a
+ * giant display. */
+.bar-form {
+  display: flex;
+  gap: 6px;
+  position: relative;
+  flex: 1;
+  min-width: 80px;
+  max-width: 920px;
+}
+
+/* Narrow-ish window: tighten the cluster so the address bar keeps room. */
+@media (max-width: 1000px) {
+  .tab-strip {
+    max-width: 46%;
+  }
+}
+
+/* Small window: drop redundant labels/controls, give tabs a smaller share. */
+@media (max-width: 860px) {
+  .brand-name,
+  .runtime-badge {
+    display: none;
+  }
+  .bar-form {
+    min-width: 40px;
+  }
+  .tab-strip {
+    max-width: 40%;
+  }
+  .nav-reader,
+  .nav-dark {
+    display: none;
+  }
+}
+
+/* Window floor (640px): compact padding; if the tabs still crowd the bar,
+ * let the tab strip wrap onto its own line so nothing gets squashed. */
+@media (max-width: 680px) {
+  .chrome {
+    padding: 6px 6px;
+    gap: 4px;
+  }
+  .tool-row,
+  .address-row {
+    gap: 6px;
+  }
+  .address-row {
+    flex-wrap: wrap;
+  }
+  .tab-strip {
+    order: 3;
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+  .chrome-btn,
+  .nav-btn,
+  .wc-btn {
+    width: 24px;
+    height: 24px;
+  }
+  .address-bar {
+    font-size: 11px;
+    padding: 0 8px;
+  }
+}
+
+/* Huge desktop: don't let dozens of tabs stretch the whole window width. */
+@media (min-width: 1600px) {
+  .tab-strip {
+    max-width: 40%;
+  }
 }

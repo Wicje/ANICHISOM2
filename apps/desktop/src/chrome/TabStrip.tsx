@@ -85,7 +85,8 @@ export const TabStrip = memo(function TabStrip({
     };
   }, [onOverflowChange, tabs.length]);
 
-  const clampMenu = (x: number, y: number) => ({
+  const clampMenu = (label: string, x: number, y: number) => ({
+    label,
     x: Math.min(Math.max(8, x), window.innerWidth - 190),
     y: Math.min(Math.max(8, y), window.innerHeight - 180),
   });
@@ -126,7 +127,7 @@ export const TabStrip = memo(function TabStrip({
   ) : null;
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, maxWidth: "55%", overflowX: "auto", minWidth: 0 }} ref={rootRef}>
+    <div className="tab-strip" ref={rootRef}>
       {tabs.map((tab) => {
         const active = tab.label === activeLabel;
         const vaulted = Boolean(tab.vault_id);
@@ -150,7 +151,7 @@ export const TabStrip = memo(function TabStrip({
             onContextMenu={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              setCtx(clampMenu(e.clientX, e.clientY));
+              setCtx(clampMenu(tab.label, e.clientX, e.clientY));
             }}
             onDoubleClick={() => {
               if (onTogglePin) onTogglePin(tab.label);

@@ -50,6 +50,8 @@ export interface RestoredTab {
   vault_id?: string | null;
   /** Private (incognito) tab — badge in the strip, never persisted. */
   incognito?: boolean;
+  /** Chrome-side pin (favicon-only tab); restored pin-for-pin from the session. */
+  pinned?: boolean;
 }
 
 /** A tab as live in the chrome: same shape as a restored tab. */
@@ -118,9 +120,6 @@ export interface ConfigPatch {
   speed_dial?: string[];
   active_workspace?: string;
 }
-
-const SEARCH_ENGINES = ["google", "duckduckgo", "bing", "brave"] as const;
-type SearchEngineId = (typeof SEARCH_ENGINES)[number];
 
 /** Search URL for a query under the given engine id. */
 export function searchUrlFor(engine: string, query: string): string {

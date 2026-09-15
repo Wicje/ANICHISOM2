@@ -277,20 +277,26 @@ export function BrowserChrome({
     void api.getBookmarks().then(setBookmarks);
   }, []);
 
-  // Re-measure the chrome whenever the bookmarks row appears/disappears and
-  // sync the height with Rust so native tabs reflow below the (now taller)
-  // chrome strip.
+  // Keep the measured chrome height in sync with whatever state the layout is
+  // in (bookmarks row appearing, responsive wrap at narrow widths, bigger
+  // buttons on wide desktops…). A ResizeObserver catches every height change
+  // so Rust can reflow the native tabs below the chrome strip.
   useEffect(() => {
-    if (runtime !== "tauri") return;
-    const raf = requestAnimationFrame(() => {
-      const el = chromeRef.current;
-      if (!el) return;
-      const h = el.offsetHeight;
-      setChromeH(h);
-      void api.setChromeHeight(h);
+    if (typeof ResizeObserver === "undefined") return;
+    let last = 0;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const h = Math.round(entry.contentRect.height);
+        if (Math.abs(h - last) < 3) continue;
+        last = h;
+        setChromeH(h);
+        if (runtime === "tauri") void api.setChromeHeight(h);
+      }
     });
-    return () => cancelAnimationFrame(raf);
-  }, [runtime, bookmarks.length]);
+    const el = chromeRef.current;
+    if (el) ro.observe(el);
+    return () => ro.disconnect();
+  }, [runtime]);
 
   // Complete the load progress line when the engine lands a navigation.
   useEffect(() => {
@@ -640,7 +646,7 @@ export function BrowserChrome({
       }}
     >
       {/* Row 1: brand + actions (drag region on the empty stretch) */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="tool-row">
         <div className="brand-mark">
           <IconBrand size={15} />
         </div>
@@ -732,7 +738,7 @@ export function BrowserChrome({
       </div>
 
       {/* Row 2: nav controls + tab strip + address bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="address-row">
         <div className="nav-controls">
           <button
             className="nav-btn"
@@ -767,7 +773,7 @@ export function BrowserChrome({
             <IconReload size={16} />
           </button>
           <button
-            className="nav-btn"
+            className="nav-btn nav-reader"
             title="Reader mode"
             onClick={() => {
               if (activeLabel) void api.readerToggle(activeLabel);
@@ -777,7 +783,7 @@ export function BrowserChrome({
             <IconReader size={16} />
           </button>
           <button
-            className="nav-btn"
+            className="nav-btn nav-dark"
             title="Flip page to dark (invert)"
             onClick={() => {
               if (activeLabel) void api.darkToggle(activeLabel);
@@ -813,7 +819,7 @@ export function BrowserChrome({
             if (runtime === "tauri") void api.setTabRail(over);
           }}
         />
-        <form onSubmit={navigate} style={{ display: "flex", flex: 1, gap: 6, position: "relative", minWidth: 0 }}>
+        <form className="bar-form" onSubmit={navigate}>
           <div className="omni-wrap" style={{ flex: 1, position: "relative" }}>
             <input
               className="address-bar"
@@ -942,12 +948,11 @@ export function BrowserChrome({
           activeLabel={activeLabel}
           height={chromeH}
           onActivate={onActivate}
-          onClose={(label) => void onClose(label).then(() => toast("Tab closed"))}
+          onClose={(label) => onClose(label).then(() => toast("Tab closed"))}
         />
       )}
       <HistoryPanel
         open={historyOpen}
-        activeLabel={activeLabel}
         onClose={() => setHistoryOpen(false)}
         onNavigate={(url) => {
           if (activeLabel) void api.navigateTab(activeLabel, url);

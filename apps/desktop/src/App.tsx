@@ -173,7 +173,7 @@ export default function App() {
   const togglePin = (label: string) => {
     const tab = tabs.find((t) => t.label === label);
     if (!tab) return;
-    const next = !Boolean((tab as { pinned?: boolean }).pinned);
+    const next = !tab.pinned;
     setTabs((prev) =>
       prev.map((t) => (t.label === label ? { ...t, pinned: next } : t)),
     );

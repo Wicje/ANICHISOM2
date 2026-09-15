@@ -7,7 +7,7 @@ export interface QuickAnswer {
   sub: string;
 }
 
-const formatNum = (n: number): string => Math.round(n * 1e6) / 1e6;
+const formatNum = (n: number): string => String(Math.round(n * 1e6) / 1e6);
 
 /** Tiny recursive-descent evaluator for + - * / ( ) with decimals. */
 function safeEval(expr: string): number | null {

@@ -5,7 +5,6 @@ import { Favicon } from "../components/Favicon";
 
 interface HistoryPanelProps {
   open: boolean;
-  activeLabel: string | null;
   onClose: () => void;
   onNavigate: (url: string) => void;
 }
@@ -34,7 +33,6 @@ function hostOf(url: string): string {
 
 export function HistoryPanel({
   open,
-  activeLabel,
   onClose,
   onNavigate,
 }: HistoryPanelProps) {
