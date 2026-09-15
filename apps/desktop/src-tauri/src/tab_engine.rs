@@ -149,6 +149,7 @@ impl TabManager {
         let label_load = label.clone();
         let app_title = app.clone();
         let label_title = label.clone();
+        let app_exit = app.clone();
 
         let window = WebviewWindowBuilder::new(app, label.clone(), WebviewUrl::External(parsed))
             .title("Continua")
@@ -156,6 +157,16 @@ impl TabManager {
             .initialization_script(SCROLLBAR_STYLE_SCRIPT)
             .position(x * scale, y * scale)
             .inner_size((w * scale).max(1.0), (h * scale).max(1.0))
+            // The clean-mode exit pill signals departure by navigating to the
+            // reserved continua://clean-exit/ URL; cancel it and drop out of
+            // immersive mode instead of loading anything.
+            .on_navigation(move |url| {
+                if url.scheme() == "continua" && url.host_str() == Some("clean-exit") {
+                    let _ = crate::set_immersive_inner(&app_exit, false);
+                    return false;
+                }
+                true
+            })
             // window.open / target=_blank → open a managed tab in place.
             .on_new_window(move |url_to_open, _features| {
                 if matches!(url_to_open.scheme(), "http" | "https") {
@@ -182,8 +193,21 @@ impl TabManager {
                                 crate::inpage::link_preview_to(&window, true);
                             }
                         }
+                        // Late-loading pages (opened before an immersive toggle)
+                        // still need the clean-mode exit pill armed.
+                        let armed = state
+                            .tabs
+                            .lock()
+                            .ok()
+                            .map(|t| t.immersive())
+                            .unwrap_or(false);
+                        if armed {
+                            if let Some(w) = app_load.get_webview_window(&label_load) {
+                                crate::inpage::clean_exit_pill(&w, true);
+                            }
+                        }
                     }
-                }
+            }
             })
             // Document title changes arrive live (no polling needed).
             .on_document_title_changed(move |_, title| {
@@ -771,6 +795,15 @@ impl TabManager {
     /// True while the chrome strip is hidden (clean/focus mode).
     pub fn immersive(&self) -> bool {
         self.chrome_height < crate::CHROME_HEIGHT
+    }
+
+    /// Arm or disarm the clean-mode exit pill in every open tab.
+    pub fn arm_clean_exit(&self, app: &AppHandle, armed: bool) {
+        for label in self.labels() {
+            if let Some(window) = app.get_webview_window(&label) {
+                crate::inpage::clean_exit_pill(&window, armed);
+            }
+        }
     }
 
     /// Reposition every tab to fill the area below the chrome strip.

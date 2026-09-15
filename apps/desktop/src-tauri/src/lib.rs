@@ -256,6 +256,9 @@ fn apply_snapshot(
         if let Some(main) = app.get_webview_window("main") {
             let _ = main.hide();
         }
+        if let Ok(tabs) = state.tabs.lock() {
+            tabs.arm_clean_exit(app, true);
+        }
     }
 
     let tabs = state.tabs.lock().map_err(|e| e.to_string())?;
@@ -383,6 +386,7 @@ fn set_immersive_inner(app: &tauri::AppHandle, enabled: bool) -> Result<(), Stri
     let mut tabs = state.tabs.lock().map_err(|e| e.to_string())?;
     tabs.set_immersive(enabled);
     tabs.relayout(app)?;
+    tabs.arm_clean_exit(app, enabled);
     drop(tabs);
     if let Some(main) = app.get_webview_window("main") {
         if enabled {

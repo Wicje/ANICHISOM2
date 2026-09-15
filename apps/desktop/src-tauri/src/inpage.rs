@@ -276,6 +276,45 @@ pub fn link_preview_to(window: &WebviewWindow, on: bool) {
     let _ = window.eval(js);
 }
 
+/// Clean-mode exit pill: while immersive, hovering the top edge reveals a
+/// small "Exit clean mode" pill. Clicking it navigates to the reserved
+/// `continua://clean-exit/` URL, which `tab_engine`'s navigation handler
+/// intercepts and cancels to drop out of immersive mode. Deliberately avoids
+/// global Tauri IPC, so tab websites stay sandboxed from the app.
+pub const CLEAN_EXIT_SCRIPT: &str = r#"(function(){
+  if(window.__contCleanPill){
+    window.__continua_clean__={{ARM}};
+    (window.__contCleanSync||function(){})();
+    return;
+  }
+  window.__contCleanPill=true;
+  var pill=document.createElement('div');
+  pill.id='continua-clean-exit';
+  pill.textContent='Exit clean mode · Esc';
+  pill.style.cssText='position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2147483646;padding:7px 16px;border-radius:0 0 12px 12px;background:rgba(18,22,28,.86);color:#eef1f6;font:12px system-ui,-apple-system,sans-serif;line-height:1;letter-spacing:.3px;cursor:pointer;box-shadow:0 6px 22px rgba(0,0,0,.35);opacity:0;transition:opacity .16s ease;pointer-events:none;border:1px solid rgba(255,255,255,.09);border-top:none';
+  (document.body||document.documentElement).appendChild(pill);
+  var sync=function(){
+    var near=window.__continua_clean__&&(window._contCleanY||0)<48;
+    pill.style.opacity=near?'1':'0';
+    pill.style.pointerEvents=near?'auto':'none';
+  };
+  window.__contCleanSync=sync;
+  document.addEventListener('mousemove',function(e){window._contCleanY=e.clientY;sync();},{passive:true});
+  document.addEventListener('mouseleave',function(){window._contCleanY=-1;sync();});
+  window.addEventListener('scroll',sync,{passive:true});
+  pill.addEventListener('click',function(){window.location.href='continua://clean-exit/';});
+  window.__continua_clean__={{ARM}};
+  sync();
+})()"#;
+
+pub fn clean_exit_pill(window: &WebviewWindow, armed: bool) {
+    let js = substitute(
+        CLEAN_EXIT_SCRIPT,
+        &[("{{ARM}}", if armed { "true" } else { "false" })],
+    );
+    let _ = window.eval(&js);
+}
+
 /// Apply the link-preview toggle to every open tab.
 pub fn link_preview(app: &tauri::AppHandle, on: bool) -> Result<(), String> {
     if let Some(state) = app.try_state::<crate::AppState>() {
