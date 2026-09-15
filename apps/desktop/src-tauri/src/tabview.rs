@@ -17,8 +17,9 @@ use std::sync::{mpsc, Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use gtk::prelude::*;
-use tauri::{AppHandle, Manager};
-use wry::{WebViewBuilder, WebViewBuilderExtUnix, NewWindowResponse};
+use tauri::{AppHandle, Emitter, Manager};
+use webkit2gtk::*;
+use wry::{NewWindowResponse, WebViewBuilder, WebViewBuilderExtUnix};
 
 use crate::AppState;
 
@@ -28,6 +29,9 @@ thread_local! {
     /// The single content webview (tab pages) plus the widget wry put into the fixed.
     static CONTENT: RefCell<Option<wry::WebView>> = const { RefCell::new(None) };
     static CONTENT_WIDGET: RefCell<Option<gtk::Widget>> = const { RefCell::new(None) };
+    /// Persistent web context (cookies, storage, downloads). Kept alive for the
+    /// webview's lifetime — wry warns dropping it breaks the view.
+    static WEB_CONTEXT: RefCell<Option<wry::WebContext>> = const { RefCell::new(None) };
 }
 
 /// Thread id of the GTK main thread, captured at install time.
@@ -108,10 +112,21 @@ fn build_content(app: &AppHandle) -> Result<(), String> {
     let some_fixed = FIXED.with(|f| f.borrow().clone());
     let fixed = some_fixed.ok_or("overlay not installed")?;
 
+    // Persistent web context: cookies / logins / storage survive restarts.
+    // Lives in thread_local WEB_CONTEXT so the box isn't dropped (wry keeps a
+    // borrow of it for the webview's lifetime).
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("webdata");
+    std::fs::create_dir_all(&data_dir).map_err(|e| e.to_string())?;
+    let mut web_context = wry::WebContext::new(Some(data_dir));
+
     let nav_app = app.clone();
     let title_app = app.clone();
     let newwin_app = app.clone();
-    let builder = WebViewBuilder::new()
+    let builder = WebViewBuilder::new_with_web_context(&mut web_context)
         .with_url("about:blank")
         .with_initialization_script(crate::tab_engine::SCROLLBAR_STYLE_SCRIPT)
         .with_navigation_handler(move |url| crate::tabview::on_navigation(&nav_app, url))
@@ -125,8 +140,128 @@ fn build_content(app: &AppHandle) -> Result<(), String> {
     let content_widget = fixed.children().into_iter().next_back();
 
     CONTENT.with(|c| *c.borrow_mut() = Some(view));
-    CONTENT_WIDGET.with(|c| *c.borrow_mut() = content_widget);
+    WEB_CONTEXT.with(|w| *w.borrow_mut() = Some(web_context));
+    CONTENT_WIDGET.with(|c| *c.borrow_mut() = content_widget.clone());
+
+    if let Some(widget) = content_widget {
+        wire_downloads(app, &widget);
+    }
     Ok(())
+}
+
+// ── downloads ────────────────────────────────────────────────────────────────
+
+/// OS Downloads directory (XDG), falling back to `$HOME/Downloads`.
+fn download_dir() -> std::path::PathBuf {
+    gtk::glib::user_special_dir(gtk::glib::UserDirectory::Downloads)
+        .unwrap_or_else(|| gtk::glib::home_dir().join("Downloads"))
+}
+
+/// A path in `dir` that does not exist yet; `file.pdf`, `file (1).pdf`, …
+fn unique_destination(dir: &std::path::Path, suggested: &str) -> std::path::PathBuf {
+    let name: String = suggested
+        .chars()
+        .map(|c| {
+            if matches!(c, '/' | '\\' | '\0' | ':') {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect();
+    let name = name.trim().to_string();
+    let name = if name.is_empty() { "download".into() } else { name };
+    let (stem, ext) = match name.rfind('.') {
+        Some(i) if i > 0 => (name[..i].to_string(), name[i..].to_string()),
+        _ => (name.clone(), String::new()),
+    };
+    let mut path = dir.join(&name);
+    let mut n = 1;
+    while path.exists() {
+        path = dir.join(format!("{stem} ({n}){ext}"));
+        n += 1;
+    }
+    path
+}
+
+fn emit_download(app: &AppHandle, state: &str, filename: &str, detail: &str) {
+    let _ = app.emit_to(
+        "main",
+        "download:state",
+        serde_json::json!({
+            "state": state,
+            "filename": filename,
+            "detail": detail,
+        }),
+    );
+}
+
+/// Attach WebKitGTK download handling to the content webview. Runs on the GTK
+/// main thread (called from `build_content`). Content-Disposition attachments
+/// are forced into WebKit's download pipeline; every download is saved to the
+/// OS Downloads folder with a unique name and surfaced to the chrome UI.
+fn wire_downloads(app: &AppHandle, widget: &gtk::Widget) {
+    use gtk::glib::Cast;
+
+    let Some(webview) = widget.downcast_ref::<webkit2gtk::WebView>() else {
+        return;
+    };
+
+    webview.connect_decide_policy(move |_view, decision, decision_type| {
+        if decision_type == webkit2gtk::PolicyDecisionType::Response {
+            if let Some(resp) = decision.downcast_ref::<webkit2gtk::ResponsePolicyDecision>() {
+                if let Some(response) = resp.response() {
+                    if let Some(headers) = response.http_headers() {
+                        if let Some(cd) = headers.one("Content-Disposition") {
+                            if cd.to_lowercase().contains("attachment") {
+                                decision.download();
+                                decision.use_();
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        true
+    });
+
+    let Some(context) = webview.context() else {
+        return;
+    };
+    let app_dl = app.clone();
+    context.connect_download_started(move |_ctx, download| {
+        let dir = download_dir();
+        let app_d = app_dl.clone();
+        download.connect_decide_destination(move |dl, suggested| {
+            let path = unique_destination(&dir, suggested);
+            let uri = match gtk::glib::filename_to_uri(&path, None) {
+                Ok(uri) => uri,
+                Err(_) => return false,
+            };
+            dl.set_destination(uri.as_str());
+
+            let app_f = app_d.clone();
+            let path_f = path.clone();
+            dl.connect_finished(move |_| {
+                let name_f = path_f.to_string_lossy().into_owned();
+                emit_download(&app_f, "finished", &name_f, "");
+            });
+            let app_e = app_d.clone();
+            let path_e = path.clone();
+            dl.connect_failed(move |_, err| {
+                let name_e = path_e.to_string_lossy().into_owned();
+                emit_download(&app_e, "failed", &name_e, &err.to_string());
+            });
+
+            let _ = app_d.emit_to("main", "download:state", serde_json::json!({
+                "state": "started",
+                "filename": suggested,
+                "detail": "",
+            }));
+            true
+        });
+    });
 }
 
 // ── wry event handlers (run on the main thread) ─────────────────────────────

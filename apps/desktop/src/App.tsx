@@ -12,6 +12,7 @@ import { BrowserChrome } from "./chrome/BrowserChrome";
 import { NewTab } from "./chrome/NewTab";
 import { CommandPalette } from "./chrome/CommandPalette";
 import { Toasts } from "./components/Toasts";
+import { toast } from "./lib/toast";
 
 /**
  * Rust pushes `tab:title-changed` / `tab:navigated` per webview event. Buffer
@@ -99,6 +100,29 @@ export default function App() {
     if (!isTauri()) return;
     void restoreLastSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Download events from the webview: surface toasts as files land in the
+  // OS Downloads folder.
+  useEffect(() => {
+    if (!isTauri()) return;
+    let unlisten: (() => void) | undefined;
+    listen<{ state: string; filename: string; detail: string }>(
+      "download:state",
+      (e) => {
+        const { state, filename, detail } = e.payload;
+        if (state === "finished") {
+          toast(`Saved ${filename.split("/").pop()} → Downloads`, "success");
+        } else if (state === "failed") {
+          toast(`Download failed: ${detail || filename}`, "danger");
+        } else if (state === "started") {
+          toast(`Downloading ${filename}…`);
+        }
+      },
+    ).then((fn) => {
+      unlisten = fn;
+    });
+    return () => unlisten?.();
   }, []);
 
   const openTab = async (url: string, focus = true) => {

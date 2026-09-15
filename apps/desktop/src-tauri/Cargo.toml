@@ -25,6 +25,8 @@ wry = { version = "0.55.1", default-features = false, features = ["protocol", "o
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
+webkit2gtk = { version = "2.0" }
+soup3 = { version = "0.5", default-features = false }
 
 [profile.release]
 lto = true
