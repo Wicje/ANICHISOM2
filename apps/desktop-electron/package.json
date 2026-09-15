@@ -1,0 +1,13 @@
+{
+  "name": "continua-desktop-electron",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Continua spike: same Continua chrome (React) hosted on Electron + Chromium, WebContentsView pool. Not any daily driver — a measured A/B vs WebKitGTK.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "44.4.0"
+  }
+}

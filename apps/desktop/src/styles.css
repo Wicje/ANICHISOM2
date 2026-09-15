@@ -95,6 +95,37 @@
   background: transparent;
 }
 
+/* ─── Text selection (Geist #79ffe1 on dark, accent on light) ── */
+::selection {
+  background: #79ffe1;
+  color: #000;
+}
+:root[data-theme="light"] ::selection {
+  background: rgba(0, 112, 243, 0.22);
+  color: inherit;
+}
+
+/* ─── Keyboard focus (a11y): visible ring on interactive elements ── */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: var(--radius-sm);
+}
+
+/* ─── Reduced motion: honor the user's OS setting ───────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 html,
 body,
 #root {
@@ -102,6 +133,8 @@ body,
   height: 100%;
   background: transparent;
   color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 /* ─── Chrome shell ─────────────────────────────────────── */

@@ -26,9 +26,20 @@ use crate::AppState;
 thread_local! {
     static FIXED: RefCell<Option<gtk::Fixed>> = const { RefCell::new(None) };
     static MAIN_WIDGET: RefCell<Option<gtk::Widget>> = const { RefCell::new(None) };
-    /// The single content webview (tab pages) plus the widget wry put into the fixed.
+    /// The focused content webview (the tab whose page is currently live), plus
+    /// the widget wry put into the fixed. This is the pool's ACTIVE slot; the
+    /// K−1 siblings live frozen in CONTENT_POOL (ADR-007 K).
     static CONTENT: RefCell<Option<wry::WebView>> = const { RefCell::new(None) };
     static CONTENT_WIDGET: RefCell<Option<gtk::Widget>> = const { RefCell::new(None) };
+    /// The K−1 frozen sibling webviews (many-tab pool, ADR-007 K=12 default,
+    /// overridable via CONTINUA_POOL_K). Each holds a live-but-frozen page —
+    /// same shared WebKit process, so K tabs cost ≈ one tab's RSS plus per-tab
+    /// frozen page metadata (metadata kept, view frozen, reload-free restore).
+    static CONTENT_POOL: RefCell<Vec<Option<wry::WebView>>> = const { RefCell::new(Vec::new()) };
+    static CONTENT_POOL_WIDGETS: RefCell<Vec<Option<gtk::Widget>>> = const { RefCell::new(Vec::new()) };
+    /// Full pool K (live slots: 1 focused + K−1 frozen). Set at install from
+    /// `CONTINUA_POOL_K` (default 12) — the org's many-tab daily-driver bar.
+    static POOL_K: OnceLock<usize> = const { OnceLock::new() };
     /// Persistent web context (cookies, storage, downloads). Kept alive for the
     /// webview's lifetime — wry warns dropping it breaks the view.
     static WEB_CONTEXT: RefCell<Option<wry::WebContext>> = const { RefCell::new(None) };
