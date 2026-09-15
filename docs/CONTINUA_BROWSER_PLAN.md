@@ -11,7 +11,8 @@
 - Chromium fork = 16GB RAM / 100GB disk build, perpetual upstream merges. Impossible on this hardware.
 - Tauri uses the **OS-native webview** (WebKitGTK on Linux, WebView2 on Windows, WKWebView on macOS).
 - Rust core gives native OS access: window titles, active apps, file watchers, system keyring → the "daemon" we killed is resurrected as the browser's back-end.
-- Built on `wry` → real multi-webview tabs, not iframe hacks.
+- Built on `wry` → native webviews, not iframe hacks. Tabs render in a
+  `wry` view hosted inside the chrome window (see §2).
 - Result: ~8MB binary, low RAM, compiles on a 4GB laptop.
 - Blockers: `webkit2gtk`, `libayatana-appindicator` — one `pacman -S` call each. (This is what blocked Tauri before.)
 
@@ -26,10 +27,12 @@
 │  Reuses existing: workspace-switcher, restore panel,       │
 │  continuity store, team store                              │
 ├────────────────────────────────────────────────────────────┤
-│  WebViews (wry) × N — each tab is a native webview         │
+│  Content view (wry) — ONE tab webview in a gtk::Fixed      │
+│  overlay under the chrome strip; switching tabs navigates  │
+│  it (WebKit shares one web process — one window).          │
 ├────────────────────────────────────────────────────────────┤
 │  Rust Core (contributes ~60-70% of product)                │
-│  ├── WebViewManager      — tabs, windows, navigation       │
+│  ├── WebViewManager      — tabs, navigation, overlay       │
 │  ├── CaptureEngine       — window titles, active app,      │
 │  │                         file watchers → context         │
 │  ├── SessionManager      — tab graph save/restore,         │
@@ -173,17 +176,28 @@ Everything stays free until users demand more.
 
 1. `pacman -S webkit2gtk libayatana-appindicator` — unblocks Tauri
 2. `npm create tauri-app@latest continua-desktop -- --template react-ts`
-3. Get wry multi-webview tabs rendering inside React chrome
+3. Get wry tab content rendering inside React chrome (single-window overlay)
 4. Commit + push to `git@github.com:ANICHISOM/Continua.git`
 
 ---
 
 ## 10. Implementation Status
 
-**Shipped (this repo, `continua-desktop/`):**
+**Shipped (this repo, `apps/desktop/`):**
 
+- Single-window tabbed browser — the React chrome (tauri `main` webview) is
+  reparented into a `gtk::Fixed` overlay spanning the window; tab pages load
+  in ONE `wry` content webview (`tabview.rs`). Switching tabs navigates that
+  view; geometry is driven from Rust (`chrome_height`, rail inset), scaled to
+  physical px. No per-tab OS windows: on Wayland they scattered/reshuffled
+  other tiled apps.
+- Worker→main marshalling — worker/command threads hop to the GTK main thread
+  via a captured glib `MainContext` (`run_on_main`); blocking reads use
+  `eval_sync` (channel + timeout, never on the main thread). The wry `WebView`
+  is `!Send` on Linux, so it lives in `thread_local!` storage.
 - Immersive/clean mode — runtime chrome height, global shortcuts
-  (`ctrl+shift+f`, `escape`), `set_immersive`.
+  (`ctrl+shift+f`, `escape`), `set_immersive`. Immersive hides the chrome and
+  covers the window with the page (single-window: the chrome stays mounted).
 - Workspace resurrection — rich `TabRecord` (history/index/scroll), session
   snapshots with active tab + immersive state, auto-restore on launch.
 - Context-memory new tab — checkpoint timeline of saved sessions, restore
@@ -205,8 +219,9 @@ branding, tests + HiDPI, input-fingerprinting research).
 
 **Scaffolded earlier (superseded by the above):**
 
-- `src-tauri/` (browser engine) — `tab_engine.rs` per-tab `WebviewWindow`
-  positioned below the chrome strip, `session.rs` (JSON snapshots in app
+- `src-tauri/` (browser engine) — `tab_engine.rs` first used per-tab
+  `WebviewWindow`s positioned below the chrome strip; replaced by the
+  single-window wry overlay (above). `session.rs` (JSON snapshots in app
   config dir), `vault.rs` (OS keyring + vault manifests), `trust.rs`
   (device fingerprint), `capture.rs` (native captures, xdotool on X11),
   `sync.rs` (context pushes to `/api/context/save`).
@@ -216,7 +231,9 @@ branding, tests + HiDPI, input-fingerprinting research).
 
 **Deferred (by operator):**
 
-- Multi-webview vs single-window wry: per-tab `WebviewWindow`s work; review
-  only if cross-platform decorations or tab pop-out ever bite.
+- Per-tab OS windows: the tauri child-webview positioning safeties did not
+  land upstream (tauri#10420 / wry#1745), and Wayland makes window
+  positioning a no-op, so tabs run in the in-app overlay. Revisit only for
+  pop-out-at-will tabs (needs upstream multi-webview position fixes).
 - Server-side session sync, moat device-auth, branded icon, HiDPI audit,
   Rust unit tests, input-fingerprint factor — all tracked in the roadmap.

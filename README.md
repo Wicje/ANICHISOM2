@@ -7,8 +7,8 @@ Monorepo layout:
 ```
 apps/
   desktop/   — Continua Browser (Tauri + React). The desktop-first product:
-               real multi-webview tabs, encrypted vault tabs, session
-               restore, history, bookmarks, private tabs.
+               single-window tabbed browser (in-app overlay), encrypted
+               vault tabs, session restore, history, bookmarks, private tabs.
   shell/     — ContinuaOS web shell (Next.js + Supabase). The cloud OS
                workspace / dashboard (formerly the repo root).
 packages/
@@ -25,8 +25,11 @@ docs/        — Design + roadmap docs (see docs/CONTINUA_BROWSER_PLAN.md).
 npm install            # installs all workspaces (legacy-peer-deps in .npmrc)
 
 # Desktop browser (primary product)
-npm run dev:desktop    # vite dev (port 1420)
-npm run tauri ...      # run Tauri CLI in apps/desktop
+npm run dev:desktop     # vite dev (port 1420)
+npm run tauri -w apps/desktop build   # Tauri CLI in apps/desktop
+npm run build:desktop   # frontend typecheck + vite build
+npm run test:desktop    # Rust unit tests (cargo test)
+npm run bundle:desktop  # tauri build (bundles/installers)
 
 # Web shell
 npm run dev:shell
