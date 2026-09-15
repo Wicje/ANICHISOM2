@@ -9,6 +9,7 @@ mod inpage;
 mod session;
 mod sync;
 mod tab_engine;
+mod tabview;
 mod trust;
 mod vault;
 
@@ -101,12 +102,7 @@ fn activate_tab(state: tauri::State<'_, AppState>, app: tauri::AppHandle, label:
 /// reload works regardless of the page origin.
 #[tauri::command]
 fn reload_tab(app: tauri::AppHandle, label: String) -> Result<(), String> {
-    let window = app
-        .get_webview_window(&label)
-        .ok_or_else(|| format!("no such tab: {label}"))?;
-    window
-        .eval("location.reload()")
-        .map_err(|e| e.to_string())?;
+    crate::tabview::reload(&app, &label)?;
     if let Some(state) = app.try_state::<AppState>() {
         if let Ok(tabs) = state.tabs.lock() {
             let _ = tabs.raise(&app, &label);
@@ -381,13 +377,12 @@ fn set_immersive_inner(app: &tauri::AppHandle, enabled: bool) -> Result<(), Stri
     tabs.relayout(app)?;
     tabs.arm_clean_exit(app, enabled);
     drop(tabs);
-    if let Some(main) = app.get_webview_window("main") {
-        if enabled {
-            main.hide().map_err(|e| e.to_string())?;
-        } else {
-            main.show().map_err(|e| e.to_string())?;
-            main.set_focus().map_err(|e| e.to_string())?;
-        }
+    // Single window: the chrome stays mounted; immersive just makes the
+    // content view cover the whole window and moves focus to the page.
+    if enabled {
+        crate::tabview::focus_content(app);
+    } else if let Some(main) = app.get_webview_window("main") {
+        let _ = main.set_focus();
     }
     Ok(())
 }
@@ -1122,26 +1117,14 @@ fn spawn_background(app: tauri::AppHandle) {
                 continue;
             };
 
-            // Capture each tab's scroll position via polled eval so the
-            // session file can restore it without any page cooperation.
-            for label in tabs.labels() {
-                let Some(webview) = app.get_webview_window(&label) else {
-                    continue;
-                };
-                let app_c = app.clone();
-                let label_c = label.clone();
-                let _ = webview.eval_with_callback(
-                    "(document.scrollingElement?document.scrollingElement.scrollTop:0)||window.pageYOffset||0",
-                    move |res| {
-                        if let Ok(v) = res.trim().parse::<f64>() {
-                            if let Some(state) = app_c.try_state::<AppState>() {
-                                if let Ok(mut tab_state) = state.tabs.lock() {
-                                    tab_state.record_scroll(&label_c, v);
-                                }
-                            }
-                        }
-                    },
-                );
+            // Capture the active tab's scroll position via polled eval so the
+            // session file can restore it without any page cooperation. Only
+            // the one tab currently loaded in the content view has a live page.
+            if let Some(label) = tabs.active_label() {
+                let v = crate::tabview::eval_sync(&app, crate::tabview::SCROLL_READ_JS);
+                if let Ok(scroll) = v.trim().parse::<f64>() {
+                    tabs.record_scroll(&label, scroll);
+                }
             }
 
             // Periodic autosave, deduped by content so only real changes hit
@@ -1233,6 +1216,9 @@ pub fn run() {
             }
             spawn_background(app.handle().clone());
             spawn_heartbeat(app.handle().clone());
+            // Reparent the chrome webview into the single-window overlay and
+            // capture the GTK main context for worker→main marshalling.
+            crate::tabview::install(app.handle())?;
             Ok(())
         })
         .on_window_event(|window, event| {

@@ -335,6 +335,7 @@ dependencies = [
 name = "continua-desktop"
 version = "0.1.0"
 dependencies = [
+ "gtk",
  "keyring",
  "reqwest 0.12.28",
  "serde",
@@ -343,6 +344,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-global-shortcut",
  "url",
+ "wry",
 ]
 
 [[package]]

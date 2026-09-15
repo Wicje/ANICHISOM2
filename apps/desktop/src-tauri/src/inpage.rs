@@ -5,10 +5,7 @@
 //! plain strings with unique `{{PLACEHOLDER}}` tokens substituted at runtime
 //! (never format!/concat braces, so page content can't break them).
 
-use std::time::Duration;
-
 use tauri::Manager;
-use tauri::webview::WebviewWindow;
 
 /// Find-in-page: highlights every match, returns `{count, idx}` and scrolls
 /// the active match into view. `dir` 0 = fresh search, 1 = next, -1 = prev.
@@ -199,17 +196,11 @@ pub const DARK_SCRIPT: &str = r#"(function(){
   html.setAttribute('data-cont-dark','1');
 })()"#;
 
-/// Run a script in a tab webview and block for up to 600ms for its result
-/// string (empty if the page is mid-load or the script returned nothing).
-fn eval_result(window: &WebviewWindow, js: &str) -> String {
-    let (tx, rx) = std::sync::mpsc::channel::<String>();
-    let res = window.eval_with_callback(js, move |out| {
-        let _ = tx.send(out);
-    });
-    if res.is_err() {
-        return String::new();
-    }
-    rx.recv_timeout(Duration::from_millis(600)).unwrap_or_default()
+/// Run a script in the content webview and wait up to 600ms for its result
+/// string. Must run on a worker thread (the GTK main thread is never
+/// blocked by these tools).
+fn eval_result(app: &tauri::AppHandle, js: &str) -> String {
+    crate::tabview::eval_sync(app, js)
 }
 
 fn substitute(script: &str, pairs: &[(&str, &str)]) -> String {
@@ -220,13 +211,13 @@ fn substitute(script: &str, pairs: &[(&str, &str)]) -> String {
     out
 }
 
-fn tab_window(app: &tauri::AppHandle, label: &str) -> Result<WebviewWindow, String> {
-    app.get_webview_window(label)
-        .ok_or_else(|| format!("no such tab: {label}"))
-}
-
 /// Find in page. Returns `{count, idx}`.
-pub fn find(app: &tauri::AppHandle, label: &str, query: &str, dir: i32) -> Result<(usize, i32), String> {
+pub fn find(
+    app: &tauri::AppHandle,
+    _label: &str,
+    query: &str,
+    dir: i32,
+) -> Result<(usize, i32), String> {
     let js = substitute(
         FIND_SCRIPT,
         &[
@@ -234,7 +225,7 @@ pub fn find(app: &tauri::AppHandle, label: &str, query: &str, dir: i32) -> Resul
             ("{{D}}", &dir.to_string()),
         ],
     );
-    let raw = eval_result(&tab_window(app, label)?, &js);
+    let raw = eval_result(app, &js);
     let parsed: Result<serde_json::Value, _> = serde_json::from_str(&raw);
     let (count, idx) = match parsed {
         Ok(v) => (
@@ -247,13 +238,13 @@ pub fn find(app: &tauri::AppHandle, label: &str, query: &str, dir: i32) -> Resul
 }
 
 /// Apply a zoom delta (or reset when `step` == 0). Returns the new % factor.
-pub fn zoom(app: &tauri::AppHandle, label: &str, step: f64) -> Result<f64, String> {
+pub fn zoom(app: &tauri::AppHandle, _label: &str, step: f64) -> Result<f64, String> {
     let js = substitute(ZOOM_SCRIPT, &[("{{D}}", &step.to_string())]);
-    let raw = eval_result(&tab_window(app, label)?, &js);
+    let raw = eval_result(app, &js);
     Ok(raw.parse::<f64>().unwrap_or(100.0))
 }
 
-pub fn reader(app: &tauri::AppHandle, label: &str) -> Result<(), String> {
+pub fn reader(app: &tauri::AppHandle, _label: &str) -> Result<(), String> {
     let (font, width) = match app.try_state::<crate::AppState>() {
         Some(state) => match state.config.lock() {
             Ok(cfg) => (cfg.reader_font.clone(), cfg.reader_width),
@@ -261,19 +252,20 @@ pub fn reader(app: &tauri::AppHandle, label: &str) -> Result<(), String> {
         },
         None => ("serif".into(), 720),
     };
-    let _ = eval_result(&tab_window(app, label)?, &reader_script(&font, width));
+    let _ = eval_result(app, &reader_script(&font, width));
     Ok(())
 }
 
-pub fn dark(app: &tauri::AppHandle, label: &str) -> Result<(), String> {
-    let _ = eval_result(&tab_window(app, label)?, DARK_SCRIPT);
+pub fn dark(app: &tauri::AppHandle, _label: &str) -> Result<(), String> {
+    let _ = eval_result(app, DARK_SCRIPT);
     Ok(())
 }
 
-/// Install or remove the link-preview overlay in one tab's page.
-pub fn link_preview_to(window: &WebviewWindow, on: bool) {
+/// Install or remove the link-preview overlay in the content view.
+pub fn link_preview(app: &tauri::AppHandle, on: bool) -> Result<(), String> {
     let js = if on { LINK_PREVIEW_ENABLE } else { LINK_PREVIEW_DISABLE };
-    let _ = window.eval(js);
+    crate::tabview::eval_async(app, js.into(), |_| {});
+    Ok(())
 }
 
 /// Clean-mode exit pill: while immersive, hovering the top edge reveals a
@@ -307,26 +299,12 @@ pub const CLEAN_EXIT_SCRIPT: &str = r#"(function(){
   sync();
 })()"#;
 
-pub fn clean_exit_pill(window: &WebviewWindow, armed: bool) {
+pub fn clean_exit_pill(app: &tauri::AppHandle, armed: bool) {
     let js = substitute(
         CLEAN_EXIT_SCRIPT,
         &[("{{ARM}}", if armed { "true" } else { "false" })],
     );
-    let _ = window.eval(&js);
-}
-
-/// Apply the link-preview toggle to every open tab.
-pub fn link_preview(app: &tauri::AppHandle, on: bool) -> Result<(), String> {
-    if let Some(state) = app.try_state::<crate::AppState>() {
-        if let Ok(tabs) = state.tabs.lock() {
-            for label in tabs.labels() {
-                if let Some(window) = app.get_webview_window(&label) {
-                    link_preview_to(&window, on);
-                }
-            }
-        }
-    }
-    Ok(())
+    crate::tabview::eval_async(app, js, |_| {});
 }
 
 #[cfg(test)]

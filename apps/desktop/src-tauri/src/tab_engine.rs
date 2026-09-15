@@ -1,16 +1,10 @@
-//! Tab engine — each tab is a native `WebviewWindow` positioned below
-//! the React chrome strip.
-//!
-//! Swap-in point for single-window multi-webview (wry) later: keep the
-//! `TabManager` public surface identical and change only the internals.
+//! Tab engine — tabs are metadata over ONE content webview (`tabview`)
+//! hosted inside the main window below the React chrome strip.
 
 use std::collections::VecDeque;
 
 use serde::Serialize;
-use tauri::{
-    AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder,
-    webview::{NewWindowResponse, PageLoadEvent},
-};
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::session::TabRecord;
 use crate::vault::VaultManifest;
@@ -132,105 +126,14 @@ impl TabManager {
         let label = format!("tab-{}", self.next_id);
         self.next_id += 1;
 
-        // Position the new tab under the chrome strip (logical px = CSS px).
-        let (x, y, w, h) = self.layout_rect(app)?;
-
-        // The window builder takes PHYSICAL pixels, so scale the logical rect
-        // up by the monitor factor (symmetric to how relayout divides later).
-        let main = app.get_webview_window("main").ok_or("main window unavailable")?;
-        let scale = main.scale_factor().map_err(|e| e.to_string())?;
-
-        let parsed: url::Url = url
-            .parse()
-            .map_err(|_| format!("invalid URL: {url}"))?;
-
-        let app_new = app.clone();
-        let app_load = app.clone();
-        let label_load = label.clone();
-        let app_title = app.clone();
-        let label_title = label.clone();
-        let app_exit = app.clone();
-
-        let window = WebviewWindowBuilder::new(app, label.clone(), WebviewUrl::External(parsed))
-            .title("Continua")
-            .decorations(false)
-            .initialization_script(SCROLLBAR_STYLE_SCRIPT)
-            .position(x * scale, y * scale)
-            .inner_size((w * scale).max(1.0), (h * scale).max(1.0))
-            // The clean-mode exit pill signals departure by navigating to the
-            // reserved continua://clean-exit/ URL; cancel it and drop out of
-            // immersive mode instead of loading anything.
-            .on_navigation(move |url| {
-                if url.scheme() == "continua" && url.host_str() == Some("clean-exit") {
-                    let _ = crate::set_immersive_inner(&app_exit, false);
-                    return false;
-                }
-                true
-            })
-            // window.open / target=_blank → open a managed tab in place.
-            .on_new_window(move |url_to_open, _features| {
-                if matches!(url_to_open.scheme(), "http" | "https") {
-                    if let Some(state) = app_new.try_state::<crate::AppState>() {
-                        if let Ok(mut tabs) = state.tabs.lock() {
-                            let _ = tabs.open(&app_new, url_to_open.to_string());
-                        }
-                    }
-                }
-                NewWindowResponse::Deny
-            })
-            // Navigations fire page-load events; update the tab's URL + history.
-            .on_page_load(move |window, payload| {
-                if payload.event() == PageLoadEvent::Finished {
-                    if let Some(state) = app_load.try_state::<crate::AppState>() {
-                        if let Ok(mut tabs) = state.tabs.lock() {
-                            let url = payload.url().as_str().to_string();
-                            tabs.record_navigation(&app_load, &label_load, &url);
-                        }
-                        // Link previews are a browser setting; newly loaded
-                        // pages get the overlay injected when enabled.
-                        if let Ok(cfg) = state.config.lock() {
-                            if cfg.link_preview {
-                                crate::inpage::link_preview_to(&window, true);
-                            }
-                        }
-                        // Late-loading pages (opened before an immersive toggle)
-                        // still need the clean-mode exit pill armed.
-                        let armed = state
-                            .tabs
-                            .lock()
-                            .ok()
-                            .map(|t| t.immersive())
-                            .unwrap_or(false);
-                        if armed {
-                            if let Some(w) = app_load.get_webview_window(&label_load) {
-                                crate::inpage::clean_exit_pill(&w, true);
-                            }
-                        }
-                    }
-            }
-            })
-            // Document title changes arrive live (no polling needed).
-            .on_document_title_changed(move |_, title| {
-                if let Some(state) = app_title.try_state::<crate::AppState>() {
-                    if let Ok(mut tabs) = state.tabs.lock() {
-                        tabs.record_title(&app_title, &label_title, &title);
-                    }
-                }
-            })
-            .build()
-            .map_err(|e| e.to_string())?;
-
-        // Builder hints are unreliable on Linux WMs — force the correct
-        // position and size after creation so the tab fills the area below
-        // the chrome strip instead of drifting to a random spot.
-        let _ = window.set_position(tauri::LogicalPosition::new(x, y));
-        let _ = window.set_size(tauri::LogicalSize::new(w, h));
+        // Validate early so a bad URL never a tab graph entry (it can't load).
+        url::Url::parse(&url).map_err(|_| format!("invalid URL: {url}"))?;
 
         self.open.push_back(TabMeta {
             label: label.clone(),
             url: url.clone(),
             title: url.clone(),
-            history: vec![url],
+            history: vec![url.clone()],
             idx: 0,
             scroll_y: 0.0,
             scroll_url: None,
@@ -242,13 +145,12 @@ impl TabManager {
         self.last_active = Some(label.clone());
         self.dirty = true;
 
+        crate::tabview::navigate(app, &label, &url)?;
+
         Ok(label)
     }
 
     pub fn close(&mut self, app: &AppHandle, label: &str) -> Result<(), String> {
-        if let Some(window) = app.get_webview_window(label) {
-            window.close().map_err(|e| e.to_string())?;
-        }
         let before = self.open.len();
         // Snapshot the tab before removal so the durable recently-closed ring
         // (Ctrl+Shift+T) can restore it across restarts. Incognito tabs are
@@ -270,6 +172,9 @@ impl TabManager {
                 let _ = Self::delete_vault_meta(app, vault_id);
             }
         }
+        if self.open.is_empty() {
+            crate::tabview::hide_content(app);
+        }
         if self.open.len() != before {
             self.dirty = true;
         }
@@ -277,18 +182,11 @@ impl TabManager {
     }
 
     pub fn activate(&mut self, app: &AppHandle, label: &str) -> Result<(), String> {
-        let Some(window) = app.get_webview_window(label) else {
+        let Some(meta) = self.open.iter().find(|m| m.label == label) else {
             return Err(format!("no such tab: {label}"));
         };
-        window.show().map_err(|e| e.to_string())?;
-        window.set_focus().map_err(|e| e.to_string())?;
-
-        // Refresh the title in the chrome on every activation.
-        if let Ok(title) = window.title() {
-            if !title.trim().is_empty() {
-                self.record_title(app, label, title.trim());
-            }
-        }
+        // Show the tab's page (or just focus it if it's already loaded).
+        crate::tabview::show_tab(app, label, &meta.url)?;
 
         // Bring the tab to the front of the z-order.
         if let Some(pos) = self.open.iter().position(|m| m.label == label) {
@@ -300,15 +198,11 @@ impl TabManager {
         Ok(())
     }
 
-    /// Raise a tab window above the chrome without reordering the strip.
-    /// Used after chrome-initiated actions so the page regains focus (and
-    /// pointer/keyboard input) without jumping tabs around.
-    pub fn raise(&self, app: &AppHandle, label: &str) -> Result<(), String> {
-        let Some(window) = app.get_webview_window(label) else {
-            return Err(format!("no such tab: {label}"));
-        };
-        window.show().map_err(|e| e.to_string())?;
-        window.set_focus().map_err(|e| e.to_string())?;
+    /// Raise the content view without reordering the strip. Used after
+    /// chrome-initiated actions so the page regains focus (and pointer /
+    /// keyboard input) without jumping tabs around.
+    pub fn raise(&self, app: &AppHandle, _label: &str) -> Result<(), String> {
+        crate::tabview::focus_content(app);
         Ok(())
     }
 
@@ -410,9 +304,11 @@ impl TabManager {
         if roll.scroll_y <= 0.0 || roll.scroll_url.as_deref() != Some(roll.url.as_str()) {
             return;
         }
-        if let Some(window) = app.get_webview_window(label) {
-            let _ = window.eval(format!("window.scrollTo(0, {})", roll.scroll_y));
-        }
+        crate::tabview::eval_async(
+            app,
+            format!("window.scrollTo(0, {})", roll.scroll_y),
+            |_| {},
+        );
     }
 
     /// Update the saved scroll offset for a tab (captured via polled eval).
@@ -439,12 +335,7 @@ impl TabManager {
         meta.idx -= 1;
         meta.restoring = false;
         let target = meta.history[meta.idx].clone();
-        let window = app
-            .get_webview_window(label)
-            .ok_or_else(|| format!("no such tab: {label}"))?;
-        window
-            .navigate(target.parse().map_err(|e: url::ParseError| e.to_string())?)
-            .map_err(|e| e.to_string())
+        crate::tabview::navigate(app, label, &target)
     }
 
     /// Navigate the tab one step forward through its history.
@@ -458,12 +349,7 @@ impl TabManager {
         meta.idx += 1;
         meta.restoring = false;
         let target = meta.history[meta.idx].clone();
-        let window = app
-            .get_webview_window(label)
-            .ok_or_else(|| format!("no such tab: {label}"))?;
-        window
-            .navigate(target.parse().map_err(|e: url::ParseError| e.to_string())?)
-            .map_err(|e| e.to_string())
+        crate::tabview::navigate(app, label, &target)
     }
 
     /// Navigate the tab (address bar) to a fresh URL.
@@ -474,13 +360,8 @@ impl TabManager {
         if let Some(meta) = self.open.iter_mut().find(|m| m.label == label) {
             meta.restoring = false;
         }
-        let parsed: url::Url = url
-            .parse()
-            .map_err(|_| format!("invalid URL: {url}"))?;
-        let window = app
-            .get_webview_window(label)
-            .ok_or_else(|| format!("no such tab: {label}"))?;
-        window.navigate(parsed).map_err(|e| e.to_string())
+        url::Url::parse(&url).map_err(|_| format!("invalid URL: {url}"))?;
+        crate::tabview::navigate(app, label, &url)
     }
 
     /// Pin/unpin a tab in the strip. Persisted into the session snapshot so
@@ -797,57 +678,32 @@ impl TabManager {
         self.chrome_height < crate::CHROME_HEIGHT
     }
 
-    /// Arm or disarm the clean-mode exit pill in every open tab.
+    /// Arm or disarm the clean-mode exit pill in the content view.
     pub fn arm_clean_exit(&self, app: &AppHandle, armed: bool) {
-        for label in self.labels() {
-            if let Some(window) = app.get_webview_window(&label) {
-                crate::inpage::clean_exit_pill(&window, armed);
-            }
-        }
+        crate::inpage::clean_exit_pill(app, armed);
     }
 
-    /// Reposition every tab to fill the area below the chrome strip.
+    /// Current chrome strip height in logical px (0 in immersive mode).
+    pub fn chrome_height(&self) -> f64 {
+        self.chrome_height
+    }
+
+    /// Whether the left rail column inset is active.
+    pub fn rail_enabled(&self) -> bool {
+        self.rail_enabled
+    }
+
+    /// Saved scroll offset for a tab, used to resurrect it after a reload.
+    pub fn scroll_for(&self, label: &str) -> Option<f64> {
+        self.open
+            .iter()
+            .find(|m| m.label == label)
+            .map(|m| m.scroll_y)
+    }
+
+    /// Reposition the content webview to fill the area below the chrome strip.
     pub fn relayout(&self, app: &AppHandle) -> Result<(), String> {
-        let (x, y, w, h) = self.layout_rect(app)?;
-        for label in &self.labels() {
-            if let Some(window) = app.get_webview_window(label) {
-                window
-                    .set_position(tauri::LogicalPosition::new(x, y))
-                    .ok();
-                window
-                    .set_size(tauri::LogicalSize::new(w, h))
-                    .ok();
-            }
-        }
-        Ok(())
-    }
-
-    /// Current layout rect for a newly created tab, derived from the main window.
-    /// Measurements are returned in logical px (the chrome strip height and
-    /// window positions are CSS px); physical sizes from the window are
-    /// divided by the scale factor so HiDPI displays lay out identically.
-    fn layout_rect(&self, app: &AppHandle) -> Result<(f64, f64, f64, f64), String> {
-        let main = app
-            .get_webview_window("main")
-            .ok_or("main window unavailable")?;
-
-        let scale = main.scale_factor().map_err(|e| e.to_string())?;
-        let pos = main.outer_position().map_err(|e| e.to_string())?;
-        let size = main.inner_size().map_err(|e| e.to_string())?;
-
-        let (x, y) = (pos.x as f64 / scale, pos.y as f64 / scale);
-        let (w, h) = (size.width as f64 / scale, size.height as f64 / scale);
-
-        // The vertical tab rail is drawn in the host page; inset the native
-        // webviews so the rail column stays visible on the left.
-        let (rx, rw) = if self.rail_enabled { (44.0, 44.0) } else { (0.0, 0.0) };
-
-        Ok((
-            x + rx,
-            y + self.chrome_height,
-            (w - rw).max(0.0),
-            (h - self.chrome_height).max(0.0),
-        ))
+        crate::tabview::relayout(app)
     }
 }
 
