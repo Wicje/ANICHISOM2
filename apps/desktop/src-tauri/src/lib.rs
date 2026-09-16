@@ -68,6 +68,16 @@ fn open_incognito_tab(
     app: tauri::AppHandle,
     url: String,
 ) -> Result<String, String> {
+    // Delegation seam (ADR-007): if the org pins CONTINUA_BROWSER_CMD, hand
+    // this incognito URL to that system binary (chromium/firefox/chrome) and
+    // never arm the WebKit pool cell for it — heavy/trusted browsing rival
+    // bar. Only when unset do we fall through to the embedded incognito view.
+    if let Some(browser) = std::env::var("CONTINUA_BROWSER_CMD").ok().filter(|s| !s.is_empty()) {
+        let _ = std::process::Command::new(&browser)
+            .arg(&url)
+            .spawn();
+        return Ok("delegated".into());
+    }
     let label = state
         .tabs
         .lock()
