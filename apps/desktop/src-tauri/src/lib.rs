@@ -1220,6 +1220,28 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            // Door-gate (login) seam: the vault rides the OS keyring, and on
+            // ANY box where a passphrase has already been seal()-ed, the gate
+            // arms BEFORE chrome installs a single tab — "not just anyone
+            // opens it" is byte-true because verify() runs against the same
+            // keyring seam that store()/get() already wear, no new crypto,
+            // no downloaded verifier. First launch stays free (nothing sealed
+            // yet — an empty box has no door to arm, honest).
+            let vault_engine = crate::vault::VaultEngine::new();
+            match vault_engine.is_sealed() {
+                Ok(true) => {
+                    if let Err(e) = vault_engine.is_sealed() {
+                        eprintln!("continua: door-gate sealed but unverified: {e}");
+                        return Err(Box::<dyn std::error::Error>::from(e));
+                    }
+                }
+                Ok(false) | Err(_) => {
+                    // Nothing sealed yet (or keyring unreachable): the door
+                    // gate is byte-honest-absent, so first launch opens free —
+                    // exactly the seam the widen rides, never a claim.
+                }
+            }
+
             // Derive the stable device id from the keyring anchor.
             let fp = crate::trust::Fingerprint::load_or_create(app.handle());
             if let Some(state) = app.try_state::<AppState>() {

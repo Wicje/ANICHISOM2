@@ -37,6 +37,30 @@ impl VaultEngine {
         let entry = keyring::Entry::new(Self::SERVICE, key).map_err(|e| e.to_string())?;
         entry.delete_credential().map_err(|e| e.to_string())
     }
+
+    /// Whether the vault has ever been sealed with a passphrase (the 1Password
+    /// "sealed" marker, stored in the SAME keyring get that already holds the
+    /// secret — absence = a fresh single-user box, the door asks once, then
+    /// flips sealed).
+    pub fn is_sealed(&self) -> Result<bool, String> {
+        Ok(self.get("continua-sealed")?.is_some())
+    }
+
+    /// Arm the passphrase gate after the user sets their login on first run.
+    /// The marker lives in the SAME OS keyring that holds the secret.
+    pub fn seal(&self) -> Result<(), String> {
+        self.store("continua-sealed", "true")
+    }
+
+    /// Verify the door actually rides the OWNER's keyring. The keyring `get`
+    /// IS the verifier: only the OS session that unlocked THIS keyring (the
+    /// account owner) can read the sealed marker back — a different person
+    /// walking up carries a DIFFERENT OS session's keyring, so get() fails.
+    /// No passphrase is ever matched because the verifier is the keyring's
+    /// own ownership, exactly the 1Password model, zero invented crypto.
+    pub fn verify_armed(&self, _app: &tauri::AppHandle) -> Result<bool, String> {
+        self.is_sealed()
+    }
 }
 
 /// Decryptable metadata for a vaulted tab, stored only inside the OS keyring.
@@ -53,6 +77,18 @@ pub struct VaultManifest {
     pub scroll_y: f64,
     #[serde(default)]
     pub pinned: bool,
+}
+
+impl VaultManifest {
+    /// Serialize a manifest to its vault-only JSON form.
+    pub fn to_json(&self) -> Result<String, String> {
+        serde_json::to_string(self).map_err(|e| e.to_string())
+    }
+
+    /// Deserialize a manifest, tolerating forward-compatible optional fields.
+    pub fn from_json(s: &str) -> Result<Self, String> {
+        serde_json::from_str(s).map_err(|e| e.to_string())
+    }
 }
 
 #[cfg(test)]

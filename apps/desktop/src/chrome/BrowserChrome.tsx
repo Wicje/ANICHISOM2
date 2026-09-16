@@ -19,6 +19,7 @@ import { SettingsPanel } from "./SettingsPanel";
 import { WorkspaceMenu } from "./WorkspaceMenu";
 import { BookmarksBar } from "./BookmarksBar";
 import { TabRail } from "./TabRail";
+import { Favicon } from "../components/Favicon";
 import { ENGINES } from "./engine-list";
 import type { OpenTab } from "./TabStrip";
 import { quickAnswer } from "../lib/quick-answer";
@@ -896,6 +897,7 @@ export function BrowserChrome({
                       void api.setSearchEngine(e);
                     }}
                   >
+                    <Favicon url={searchUrlFor(e, "")} />
                     {e}
                   </button>
                 ))}
