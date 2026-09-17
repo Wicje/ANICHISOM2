@@ -182,21 +182,33 @@ body,
 
 .chrome-btn {
   appearance: none;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-dim);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   font-size: 12px;
   display: grid;
   place-items: center;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
 }
 
 .chrome-btn:hover {
   background: var(--hover);
+  color: var(--text);
+  border-color: var(--border-faint);
+}
+
+.chrome-btn:active {
+  transform: scale(0.92);
+}
+
+.chrome-btn.is-active {
+  background: var(--accent-soft);
+  color: var(--accent-hi);
+  border-color: var(--accent-soft-2);
 }
 
 [data-tauri-drag-region] {
@@ -241,6 +253,10 @@ body,
   align-items: center;
   gap: 2px;
   flex-shrink: 0;
+  background: var(--hover-faint);
+  border: 1px solid var(--border-faint);
+  border-radius: var(--radius-pill);
+  padding: 3px 4px;
 }
 
 .nav-btn {
@@ -248,24 +264,36 @@ body,
   border: none;
   background: transparent;
   color: var(--text);
-  width: 26px;
-  height: 26px;
-  border-radius: var(--radius);
+  width: 32px;
+  height: 30px;
+  border-radius: var(--radius-pill);
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
   display: grid;
   place-items: center;
-  transition: background 0.15s, opacity 0.15s;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
 }
 
 .nav-btn:hover:not(:disabled) {
   background: var(--hover);
 }
 
+.nav-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
 .nav-btn:disabled {
   opacity: 0.35;
   cursor: default;
+}
+
+.nav-reader, .nav-dark {
+  color: var(--text-dim);
+}
+
+.nav-reader:hover:not(:disabled), .nav-dark:hover:not(:disabled) {
+  color: var(--accent-hi);
 }
 
 .tab {
@@ -2373,7 +2401,8 @@ body::after {
 .address-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  padding: 2px 0;
 }
 
 /* Tab strip: hug the nav controls, shrink on demand, rail takes over on

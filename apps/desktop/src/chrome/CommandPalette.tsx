@@ -3,11 +3,11 @@ import type { ComponentType } from "react";
 import { listen } from "@tauri-apps/api/event";
 import {
   api,
-  DEFAULT_NEW_TAB_URL,
   displayTitle,
   isTauri,
   isTauriNative,
   newTabUrl,
+  START_TAB_URL,
   type Bookmark,
 } from "../lib/tauri-bridge";
 import { attachCadence } from "../lib/cadence";
@@ -120,7 +120,7 @@ export function CommandPalette({
   const [notice, setNotice] = useState<string | null>(null);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   /** Configured homepage (ADR-006 #7): "New tab" honors it over the default. */
-  const [newTab, setNewTab] = useState(DEFAULT_NEW_TAB_URL);
+  const [newTab, setNewTab] = useState(START_TAB_URL);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const q = query.trim();
@@ -275,7 +275,7 @@ export function CommandPalette({
       label: "New private tab",
       hint: "incognito — no history, no saved session",
       icon: IconIncognito,
-      run: () => void onOpenIncognito("https://duckduckgo.com"),
+      run: () => void onOpenIncognito(START_TAB_URL),
     });
     raw.push({
       key: "immersive",

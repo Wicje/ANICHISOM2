@@ -39,17 +39,26 @@ const invoke = <T>(cmd: string, args?: Record<string, unknown>): Promise<T> =>
 export const DEFAULT_NEW_TAB_URL = "https://duckduckgo.com";
 
 /**
+ * Sentinel for "open the local start page". The native host maps it to its
+ * bundled offline start page — new tabs are instant and never depend on the
+ * network (previously: DDG-or-blank lottery on slow/offline connections).
+ */
+export const START_TAB_URL = "continua://start";
+const LEGACY_HOME_URL = "continua://home";
+
+/**
  * Where a new tab should land: the configured homepage when it is a valid
- * http(s) URL, otherwise the neutral default (ADR-006 #7). Incognito tabs
+ * http(s) URL, otherwise the local start page (ADR-008). Incognito tabs
  * deliberately skip the homepage — it may identify the user.
  */
 export const newTabUrl = (cfg?: { homepage?: string }): string => {
   const hp = cfg?.homepage?.trim();
-  return hp && /^https?:\/\//i.test(hp) ? hp : DEFAULT_NEW_TAB_URL;
+  return hp && /^https?:\/\//i.test(hp) ? hp : START_TAB_URL;
 };
 
 /** Short human label from a URL (hostname minus www). */
 export const displayTitle = (url: string): string => {
+  if (url === START_TAB_URL || url === LEGACY_HOME_URL) return "New Tab";
   try {
     return new URL(url).hostname.replace(/^www\./, "");
   } catch {

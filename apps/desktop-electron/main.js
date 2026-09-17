@@ -24,6 +24,8 @@ const OFFLINE_FILE = path.join(__dirname, "offline.html");
 const START_URL = "file://" + START_PAGE_FILE;
 const OFFLINE_URL = "file://" + OFFLINE_FILE;
 const isWeb = (u) => !!u && /^https?:\/\//i.test(u);
+const isStartUrl = (u) => u === "continua://start" || u === "continua://home" || !u;
+const resolveUrl = (u) => (isStartUrl(u) ? START_URL : u);
 let CHROME_H = 96;
 let TAB_RAIL_W = 0;
 // While a React-chrome overlay is open (settings/history/palette/...), hide
@@ -160,7 +162,7 @@ function makeView(meta) {
     if (url.startsWith("file://")) return;
     view.webContents.loadURL(`${OFFLINE_URL}?u=${encodeURIComponent(url)}`).catch(() => {});
   });
-  view.webContents.on("did-navigate", (_e, url) => { meta.url = url; scheduleSave(); });
+  view.webContents.on("did-navigate", (_e, url) => { meta.url = url === START_URL ? "continua://start" : url; scheduleSave(); });
   view.webContents.on("page-title-updated", (_e, title) => { meta.title = title; });
   chrome.contentView.addChildView(view);
   return view;
@@ -187,15 +189,16 @@ function ensureLive(lab) {
     m.view = makeView(m);
     m.discarded = false;
     if (m.scrollY) m.pendingScroll = m.scrollY;
-    m.view.webContents.loadURL(m.url).catch(() => {});
+    m.view.webContents.loadURL(resolveUrl(m.history[m.idx] || m.url)).catch(() => {});
   }
   return m;
 }
 
 function openTab(url, incognito = false) {
-  const target = url && url !== "continua://home" ? url : START_URL;
+  const target = resolveUrl(url);
+  const startish = target === START_URL;
   const lab = label(incognito ? "tab-incog" : "tab");
-  const meta = { label: lab, url: target, title: target, history: [target], idx: 0, scrollY: 0, pinned: false, incognito, zoom: 100, discarded: false, lastActive: Date.now(), view: null };
+  const meta = { label: lab, url: startish ? "continua://start" : target, title: startish ? "New Tab" : target, history: [target], idx: 0, scrollY: 0, pinned: false, incognito, zoom: 100, discarded: false, lastActive: Date.now(), view: null };
   // enforce pool budget before adding
   if ([...tabs.values()].filter(m => !m.discarded).length >= POOL_K) prunePool();
   meta.view = makeView(meta);
@@ -272,7 +275,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     case "open_incognito_tab": return openTab(args.url || START_URL, true);
     case "close_tab": closeTab(args.label); return;
     case "activate_tab": activate(args.label); return;
-    case "navigate_tab": { const t = tabs.get(args.label); if (t) { t.url = args.url; t.history = t.history.slice(0, t.idx + 1).concat(args.url); t.idx++; ensureLive(args.label).view.webContents.loadURL(args.url).catch(() => {}); } return; }
+    case "navigate_tab": { const t = tabs.get(args.label); if (t) { const target = resolveUrl(args.url); t.url = target === START_URL ? "continua://start" : target; t.history = t.history.slice(0, t.idx + 1).concat(target); t.idx++; ensureLive(args.label).view.webContents.loadURL(target).catch(() => {}); } return; }
     case "reload_tab": m?.view?.webContents.reload(); return;
     case "back_tab": case "forward_tab": { // history-aware within pooled view
       const t = tabs.get(args.label); if (!t) return;
@@ -586,9 +589,10 @@ app.whenReady().then(async () => {
   const saved = store.loadSession();
   if (saved?.length) {
     saved.forEach((t, i) => {
-      const url = t.url && t.url !== "continua://home" ? t.url : START_URL;
+      const target = resolveUrl(t.url);
+      const startish = target === START_URL;
       const lab = `tab-restore-${Date.now()}-${i}`;
-      tabs.set(lab, { label: lab, url, title: t.title || url, history: [url], idx: 0, scrollY: 0, pinned: !!t.pinned, incognito: false, zoom: 100, discarded: true, lastActive: 0, view: null });
+      tabs.set(lab, { label: lab, url: startish ? "continua://start" : target, title: startish ? "New Tab" : (t.title || target), history: [target], idx: 0, scrollY: 0, pinned: !!t.pinned, incognito: false, zoom: 100, discarded: true, lastActive: 0, view: null });
       order.push(lab);
     });
     const activeIdx = Math.max(0, saved.findIndex(t => t.label === store.state.active));
