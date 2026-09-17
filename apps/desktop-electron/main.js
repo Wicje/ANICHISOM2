@@ -6,7 +6,7 @@
  * continuity via store.js, delta sync to Supabase (TLS, no E2E).
  * Privacy tax removed: no vault, no fingerprint gate, plain partitions.
  */
-const { app, BrowserWindow, WebContentsView, ipcMain, session, shell, Menu } = require("electron");
+const { app, BrowserWindow, WebContentsView, ipcMain, session, shell, Menu, globalShortcut } = require("electron");
 const path = require("path");
 const os = require("os");
 const fs = require("fs");
@@ -141,9 +141,16 @@ setInterval(heartbeat, 60000);
 
 // ---------- pool ----------
 let lastLayoutSig = "";
+// Studio mode (clean recording): chrome UI hides itself and content views
+// expand to the full window. A floating pill offers Exit; the global
+// shortcut toggles back even with the chrome hidden.
+let studio = false;
+let studioPill = null;
 function layoutViews() {
   if (!chrome) return;
   const { width, height } = chrome.getContentBounds();
+  const ch = studio ? 0 : CHROME_H;
+  const rw = studio ? 0 : TAB_RAIL_W;
   // Per-view guard: one destroyed webContents throwing must never abort the
   // loop — that left two views painted side-by-side (the mystery stripe).
   for (const [lab, m] of tabs) {
@@ -152,13 +159,13 @@ function layoutViews() {
       if (m.view.webContents.isDestroyed()) { m.view = null; m.discarded = true; continue; }
       const vis = !modalHidden && lab === focused;
       m.view.setVisible(vis);
-      if (vis) m.view.setBounds({ x: TAB_RAIL_W, y: CHROME_H, width: Math.max(200, width - TAB_RAIL_W), height: Math.max(200, height - CHROME_H) });
+      if (vis) m.view.setBounds({ x: rw, y: ch, width: Math.max(200, width - rw), height: Math.max(200, height - ch) });
     } catch (e) {
       console.error(`[continua] layout failed for ${lab}: ${e?.message || e}`);
       try { m.view = null; m.discarded = true; } catch {}
     }
   }
-  const sig = `${width}x${height} rail=${TAB_RAIL_W} chromeH=${CHROME_H} focused=${focused} live=${[...tabs.values()].filter(t => !t.discarded && t.view).length}`;
+  const sig = `${width}x${height} rail=${rw} chromeH=${ch} studio=${studio} focused=${focused} live=${[...tabs.values()].filter(t => !t.discarded && t.view).length}`;
   if (sig !== lastLayoutSig) { lastLayoutSig = sig; console.error(`[continua] layout ${sig}`); }
 }
 
@@ -302,6 +309,27 @@ function closeTab(lab) {
   scheduleSave();
 }
 
+// ---------- studio mode (clean recording) ----------
+function setStudio(on, source) {
+  studio = !!on;
+  try {
+    if (studioPill && !studioPill.isDestroyed()) studioPill.close();
+    studioPill = null;
+    if (studio) {
+      studioPill = new BrowserWindow({
+        width: 230, height: 44, frame: false, transparent: true,
+        alwaysOnTop: true, skipTaskbar: true, resizable: false,
+        webPreferences: { preload: path.join(__dirname, "studio-preload.js"), contextIsolation: true, sandbox: true },
+      });
+      studioPill.loadFile(path.join(__dirname, "studio-pill.html")).catch(() => {});
+      studioPill.on("closed", () => { studioPill = null; });
+    }
+  } catch (e) { console.error(`[continua] studio pill: ${e?.message || e}`); }
+  try { chrome?.webContents.send("studio", studio); } catch {}
+  layoutViews();
+  console.error(`[continua] studio ${studio ? "on" : "off"} (via ${source})`);
+}
+
 // ---------- chrome window ----------
 function createChrome() {
   chrome = new BrowserWindow({ width: 1280, height: 800, backgroundColor: "#0a0a0a", title: "Continua",
@@ -351,7 +379,18 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     case "get_browser_config": case "getBrowserConfig": return store.getConfig();
     case "update_config": return store.patchConfig(args.patch || {});
     case "set_link_preview": return store.patchConfig({ link_preview: !!args.enabled });
-    case "set_immersive": case "update_tab_layout": layoutViews(); return;
+    case "set_immersive": setStudio(typeof args.enabled === "boolean" ? args.enabled : !studio, "ipc"); return;
+    case "update_tab_layout": layoutViews(); return;
+    case "toggle_devtools": {
+      const t = args.label ? tabs.get(args.label) : focused ? tabs.get(focused) : null;
+      try {
+        if (t?.view) {
+          if (t.view.webContents.isDevToolsOpened()) t.view.webContents.closeDevTools();
+          else t.view.webContents.openDevTools({ mode: "detach" });
+        } else chrome?.webContents.toggleDevTools();
+      } catch {}
+      return;
+    }
     case "set_chrome_height": CHROME_H = args.height || args.chromeH || 96; layoutViews(); return;
     case "set_tab_rail": TAB_RAIL_W = args.enabled ? TAB_RAIL_WIDTH_PX : 0; layoutViews(); return;
     case "chrome_modal": modalHidden = !!args.open; layoutViews(); return;
@@ -641,6 +680,12 @@ app.whenReady().then(async () => {  // No native File/Edit/View menu — the Rea
     autoUpdater.checkForUpdates().catch(() => {});
   } catch { /* electron-updater not installed — `npm install` enables it */ }
   createChrome();
+  // Global studio toggle: works even with the chrome hidden (recording).
+  try {
+    globalShortcut.register("CommandOrControl+Shift+F", () => {
+      setStudio(!studio, "global-shortcut");
+    });
+  } catch (e) { console.error(`[continua] globalShortcut: ${e?.message || e}`); }
   // zero-loss restore: only active tab goes live, rest rehydrate on click (fast startup)
   const saved = store.loadSession();
   if (saved?.length) {
@@ -657,4 +702,4 @@ app.whenReady().then(async () => {  // No native File/Edit/View menu — the Rea
   layoutViews();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createChrome(); });
 });
-app.on("window-all-closed", () => { persistNow(); app.quit(); });
+app.on("window-all-closed", () => { try { globalShortcut.unregisterAll(); } catch {} persistNow(); app.quit(); });

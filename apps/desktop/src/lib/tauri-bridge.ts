@@ -10,7 +10,10 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 
 declare global {
   interface Window {
-    continuaBridge?: { invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown> };
+    continuaBridge?: {
+      invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
+      onStudio?: (cb: (on: boolean) => void) => () => void;
+    };
   }
 }
 
@@ -448,6 +451,17 @@ export const api = {
   tabAudioState: () =>
     invoke<Record<string, { audible: boolean; muted: boolean }>>("tab_audio_state").catch(() => ({})),
 
+  /** Studio-mode pushes from the host (global shortcut while chrome hidden). */
+  onStudio: (cb: (on: boolean) => void): (() => void) => {
+    try {
+      const un = window.continuaBridge?.onStudio?.(cb);
+      if (typeof un === "function") return un;
+    } catch {}
+    return () => undefined;
+  },
+
+  toggleDevTools: () =>
+    invoke<void>("toggle_devtools").catch(() => undefined),
   listDevices: () =>
     invoke<Array<{ id: string; device_name: string; trust_level: string; platform: string; last_seen_at: string }>>("list_devices").catch(() => []),
 

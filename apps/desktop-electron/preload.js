@@ -44,6 +44,12 @@ function normalize(cmd) {
 
 contextBridge.exposeInMainWorld("continuaBridge", {
   invoke: (cmd, args) => ipcRenderer.invoke("continua", normalize(cmd), args || {}),
+  // Host-pushed events (studio mode). Returns an unsubscribe function.
+  onStudio: (cb) => {
+    const h = (_evt, on) => { try { cb(!!on); } catch {} };
+    ipcRenderer.on("studio", h);
+    return () => ipcRenderer.removeListener("studio", h);
+  },
   // legacy per-method shape (old spike) — all routed through the same channel
   openTab: (url) => ipcRenderer.invoke("continua", "open_tab", { url }),
   openIncognitoTab: (url) => ipcRenderer.invoke("continua", "open_incognito_tab", { url }),

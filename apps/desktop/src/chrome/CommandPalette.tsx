@@ -280,10 +280,18 @@ export function CommandPalette({
     raw.push({
       key: "immersive",
       group: "Actions",
-      label: "Toggle clean/focus mode",
-      hint: "hide the chrome for recording (global)",
+      label: "Toggle studio mode",
+      hint: "hide all chrome for recording (Ctrl+Shift+F)",
       icon: IconFocus,
       run: () => void api.setImmersive(),
+    });
+    raw.push({
+      key: "devtools",
+      group: "Actions",
+      label: "Toggle developer tools",
+      hint: "inspect the active page (Ctrl+Shift+I)",
+      icon: IconSpark,
+      run: () => void api.toggleDevTools(),
     });
     const vaulted = tabs.find((t) => t.label === activeLabel)?.vault_id;
     raw.push({

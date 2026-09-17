@@ -126,6 +126,18 @@ export function BrowserChrome({
   const [recent, setRecent] = useState<HistoryItem[]>([]);
   const [downloadsOpen, setDownloadsOpen] = useState(false);
   const [audio, setAudio] = useState<Record<string, { audible: boolean; muted: boolean }>>({});
+  // Studio mode: the whole chrome hides for clean screen recording (the
+  // host expands content to fullscreen; a pill + global shortcut exit).
+  const [studioHide, setStudioHide] = useState(false);
+  const toggleStudio = () => {
+    setStudioHide((v) => {
+      const next = !v;
+      void api.setImmersive(next);
+      toast(next ? "Studio mode — chrome hidden (Ctrl+Shift+F to exit)" : "Chrome restored", next ? "success" : undefined);
+      return next;
+    });
+  };
+  useEffect(() => api.onStudio((on) => setStudioHide(on)), []);
   // Address-bar bookmark star.
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   // Find bar (Ctrl+F) + page tools + search engine.
@@ -473,6 +485,17 @@ export function BrowserChrome({
         });
         return;
       }
+      if (e.shiftKey && k === "f") {
+        // Studio mode: hide the entire chrome for clean screen recording.
+        e.preventDefault();
+        toggleStudio();
+        return;
+      }
+      if (e.shiftKey && k === "i") {
+        e.preventDefault();
+        void api.toggleDevTools();
+        return;
+      }
       switch (k) {
         case "t":
           e.preventDefault();
@@ -714,8 +737,8 @@ export function BrowserChrome({
         left: 0,
         right: 0,
         height: "auto",
+        display: studioHide ? "none" : "flex",
         background: "var(--chrome-bg)",
-        display: "flex",
         flexDirection: "column",
         gap: 6,
         padding: "10px 12px",
@@ -783,8 +806,8 @@ export function BrowserChrome({
         </button>
         <button
           className="chrome-btn"
-          onClick={() => void api.setImmersive(true)}
-          title="Clean mode — hide all chrome (Ctrl+Shift+F to return)"
+          onClick={toggleStudio}
+          title="Studio mode — hide all chrome for recording (Ctrl+Shift+F)"
         >
           <IconFocus size={15} />
         </button>

@@ -27,6 +27,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "studio-preload.js",
       "store.js",
       "store-sqlite.js",
       "pool.js",
@@ -34,6 +35,7 @@
       "start-page.html",
       "offline.html",
       "crash.html",
+      "studio-pill.html",
       "../desktop/dist/**/*"
     ],
     "linux": {

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Studio</title>
+<style>
+  html, body { margin: 0; background: transparent; font-family: -apple-system, "SF Pro Text", sans-serif; }
+  .pill {
+    -webkit-app-region: drag;
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(22, 22, 23, 0.92); color: #f5f5f7;
+    border: 1px solid #2c2c2e; border-radius: 980px;
+    padding: 7px 8px 7px 12px; font-size: 12px; user-select: none;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #ff453a; animation: blink 1.6s infinite; }
+  @keyframes blink { 50% { opacity: 0.35; } }
+  #clock { font-variant-numeric: tabular-nums; color: #86868b; }
+  button {
+    -webkit-app-region: no-drag; cursor: pointer;
+    border: none; border-radius: 980px; background: #0071e3; color: #fff;
+    font-size: 12px; font-weight: 600; padding: 5px 12px;
+  }
+</style>
+</head>
+<body>
+<div class="pill">
+  <span class="dot"></span><span>Studio</span><span id="clock">00:00</span>
+  <button id="exit">Exit</button>
+</div>
+<script>
+  const t0 = Date.now();
+  setInterval(() => {
+    const s = Math.floor((Date.now() - t0) / 1000);
+    document.getElementById("clock").textContent =
+      String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+  }, 1000);
+  document.getElementById("exit").addEventListener("click", () => window.studioPill.exit());
+</script>
+</body>
+</html>
