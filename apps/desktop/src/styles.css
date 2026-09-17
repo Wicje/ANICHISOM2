@@ -2293,17 +2293,28 @@ body::after {
 }
 
 .rail-close {
-  width: 30px;
-  height: 30px;
-  display: grid;
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 16px;
+  height: 16px;
+  display: none;
   place-items: center;
-  border-radius: var(--radius);
-  color: inherit;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
   cursor: pointer;
+}
+
+.rail-item:hover .rail-close,
+.rail-item.is-active .rail-close {
+  display: grid;
 }
 
 .rail-close:hover {
   background: rgba(217, 45, 32, 0.16);
+  border-color: rgba(217, 45, 32, 0.4);
   color: #d92d20;
 }
 
