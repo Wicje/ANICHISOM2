@@ -14,6 +14,17 @@ const { Store } = require("./store");
 const { pickVictims } = require("./pool");
 const { buildSavePayload, mergeRemoteTabs } = require("./sync");
 
+// Boxes without a usable GPU (broken libva/iHD, headless Wayland) get a
+// dying GPU process and black canvases in fresh renderers. Opt out of
+// hardware acceleration there via CONTINUA_SOFTWARE_GL=1 (set by the
+// launcher on such boxes). Untouched everywhere else.
+if (process.env.CONTINUA_SOFTWARE_GL === "1") {
+  try {
+    app.disableHardwareAcceleration();
+    console.error("[continua] software GL forced (CONTINUA_SOFTWARE_GL=1)");
+  } catch {}
+}
+
 const POOL_K = parseInt(process.env.CONTINUA_POOL_K || "6", 10);
 const RSS_BUDGET = 1.0 * 1024 * 1024 * 1024;
 const DISCARD_AFTER_MS = 30 * 1000;
@@ -159,7 +170,11 @@ function makeView(meta) {
   // Offline / DNS failures render a friendly local page with retry — never white.
   view.webContents.on("did-fail-load", (_e, code, desc, url, isMain) => {
     if (!isMain || code === -3 /* aborted */) return;
-    if (url.startsWith("file://")) return;
+    if (url.startsWith("file://")) {
+      console.error(`[continua] content file load failed ${code} ${desc} ${url}`);
+      return;
+    }
+    console.error(`[continua] content load failed ${code} ${desc} ${url}`);
     view.webContents.loadURL(`${OFFLINE_URL}?u=${encodeURIComponent(url)}`).catch(() => {});
   });
   view.webContents.on("did-navigate", (_e, url) => { meta.url = url === START_URL ? "continua://start" : url; scheduleSave(); });
@@ -562,8 +577,7 @@ function wireDownloads(ses) {
   // audio badge forwarding: media started/stopped + mute state per view polled by chrome via tab_audio_state
 }
 
-app.whenReady().then(async () => {
-  // No native File/Edit/View menu — the React chrome owns all controls.
+app.whenReady().then(async () => {  // No native File/Edit/View menu — the React chrome owns all controls.
   try { Menu.setApplicationMenu(null); } catch {}
   // SQLite FTS5 store, JSON fallback when better-sqlite3 is not installed.
   try {
