@@ -146,9 +146,9 @@ export default function App() {
   // the host, but the strip highlight, address bar and nav buttons all
   // mirror activeLabel. Fire-and-forget invoke left them stale, so going
   // "back" to a tab looked broken even as the page switched.
-  const activateTab = (label: string) => {
+  const activateTab = async (label: string) => {
     setActiveLabel(label);
-    void api.activateTab(label);
+    await api.activateTab(label);
   };
 
   const closeTab = async (label: string) => {    const prev = tabs;
