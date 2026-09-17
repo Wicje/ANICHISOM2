@@ -6,17 +6,21 @@ import {
   DEFAULT_NEW_TAB_URL,
   displayTitle,
   isTauri,
+  isTauriNative,
   newTabUrl,
   type Bookmark,
 } from "../lib/tauri-bridge";
 import { attachCadence } from "../lib/cadence";
+import { useChromeModal } from "../lib/chrome-modal";
 import {
   IconBrand,
+  IconCamera,
   IconCheck,
   IconClock,
   IconClose,
   IconFocus,
   IconIncognito,
+  IconPrinter,
   IconSettings,
   IconSpark,
   IconStack,
@@ -120,6 +124,7 @@ export function CommandPalette({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const q = query.trim();
+  useChromeModal("palette", open);
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -130,18 +135,19 @@ export function CommandPalette({
     window.setTimeout(() => fileRef.current?.click(), 0);
   };
 
-  const runPair = async () => {
+  const openSettingsSync = () => {
     setOpen(false);
-    const pin = window.prompt(
-      "Pair this machine: enter the 6-char PIN shown on your Continua OS (meta+P)."
-    );
-    if (!pin) return;
-    const status = await api.pairDevice(pin);
-    setNotice(status === "approved" ? "Paired — cloud sync enabled." : `Pair: ${status}`);
+    window.dispatchEvent(new CustomEvent("continua:open-settings"));
+    setNotice(null);
+  };
+
+  const runPair = async () => {
+    // No window.prompt — pairing lives in Settings → Sync (ADR-008).
+    openSettingsSync();
   };
 
   useEffect(() => {
-    if (!isTauri()) return;
+    if (!isTauriNative()) return;
     let un: (() => void) | undefined;
     listen("palette:toggle", () => {
       setOpen((v) => {
@@ -243,6 +249,27 @@ export function CommandPalette({
       run: () => void onReopen(),
     });
     raw.push({
+      key: "screenshot",
+      group: "Actions",
+      label: "Screenshot this page",
+      hint: "save PNG to Pictures",
+      icon: IconCamera,
+      run: () => {
+        void (async () => {
+          const r = await api.screenshotTab(activeLabel ?? undefined);
+          setNotice(r?.path ? `Saved to ${r.path}` : "Screenshot failed");
+        })();
+      },
+    });
+    raw.push({
+      key: "print",
+      group: "Actions",
+      label: "Print this page",
+      hint: "system print dialog / PDF",
+      icon: IconPrinter,
+      run: () => void api.printTab(activeLabel ?? undefined),
+    });
+    raw.push({
       key: "private",
       group: "Actions",
       label: "New private tab",
@@ -275,7 +302,7 @@ export function CommandPalette({
       key: "pair",
       group: "Sync",
       label: "Pair machine (cloud sync)",
-      hint: "6-char PIN approval on your phone",
+      hint: "opens Settings → Sync",
       icon: IconBrand,
       run: () => void runPair(),
     });
@@ -309,18 +336,9 @@ export function CommandPalette({
       key: "server-url",
       group: "Sync",
       label: "Set Continua server URL",
-      hint: "point sync at your real domain now",
+      hint: "opens Settings → Sync",
       icon: IconSettings,
-      run: () => {
-        void (async () => {
-          const current = await api.getContinuaUrl();
-          const next = window.prompt("Continua server URL (https://…)", current);
-          if (next && next.trim()) {
-            await api.setContinuaUrl(next.trim());
-            setNotice(`Continua server set to ${next.trim()}`);
-          }
-        })();
-      },
+      run: () => openSettingsSync(),
     });
     raw.push({
       key: "pull",

@@ -8,11 +8,14 @@
     "packages/*"
   ],
   "scripts": {
+    "dev:browser": "npm -w apps/desktop-electron run dev",
     "dev:desktop": "npm -w apps/desktop run dev",
     "build:desktop": "npm -w apps/desktop run build",
+    "build:browser-chrome": "npm -w apps/desktop run build",
     "bundle:desktop": "npm -w apps/desktop run bundle",
     "typecheck:desktop": "npm -w apps/desktop exec tsc -- --noEmit",
     "test:desktop": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml",
+    "test:browser": "npm -w apps/desktop-electron run test",
     "dev:shell": "npm -w apps/shell run dev",
     "build:shell": "npm -w apps/shell run build",
     "test:shell": "npm -w apps/shell run test"

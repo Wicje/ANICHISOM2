@@ -1,66 +1,54 @@
 /**
- * Continua Electron spike — preload.
+ * Continua Electron preload — unified `continua` IPC seam (ADR-008).
  *
- * Implements CONTINUA's seam contract: exposes `window.continuaBridge`, the
- * same object the React chrome imports from tauri-bridge.ts, but backed by
- * Electron IPC (contextBridge -> ipcRenderer.invoke) instead of Tauri invoke.
- *
- * The package.json name is "continua-desktop" so the rust-free chrome boots
- * identically. isTauri() will be false (no __TAURI_INTERNALS__), so the
- * chrome's browser-mode fallback path is what actually runs — proving the
- * engine-agnostic seam is real, not just a figment of the Tauri build.
+ * Contract: window.continuaBridge.invoke(cmd, args) -> ipcRenderer.invoke('continua', cmd, args)
+ * where cmd is snake_case matching tauri-bridge.ts (open_tab, navigate_tab, ...).
+ * Kebab-case aliases (open-tab, ...) kept for backward compat with old spike code.
  */
 const { contextBridge, ipcRenderer } = require("electron");
 
-// ── the contract: same member set the React chrome imports ──
-const api = {
-  openTab: (url) => ipcRenderer.invoke("open-tab", { url }),
-  openIncognitoTab: (url) => ipcRenderer.invoke("open-incognito-tab", { url }),
-  closeTab: (label) => ipcRenderer.invoke("close-tab", { label }),
-  activateTab: (label) => ipcRenderer.invoke("activate-tab", { label }),
-  navigateTab: (label, url) => ipcRenderer.invoke("navigate-tab", { label, url }),
-  reloadTab: (label) => ipcRenderer.invoke("reload-tab", { label }),
-  backTab: (label) => ipcRenderer.invoke("back-tab", { label }),
-  forwardTab: (label) => ipcRenderer.invoke("forward-tab", { label }),
-  pinTab: (label) => ipcRenderer.invoke("pin-tab", { label }),
-  findInTab: (label, text) => ipcRenderer.invoke("find-in-tab", { label, text }),
-  stopFind: (label) => ipcRenderer.invoke("stop-find", { label }),
-  setZoom: (label, zoom) => ipcRenderer.invoke("set-zoom", { label, zoom }),
-  applyZoom: (dir) => ipcRenderer.invoke("apply-zoom", { dir }),
-  readerToggle: (label) => ipcRenderer.invoke("reader-toggle", { label }),
-  setSearchEngine: (engine) => ipcRenderer.invoke("set-search-engine", { engine }),
-  getSession: () => ipcRenderer.invoke("get-session"),
-  saveSession: () => ipcRenderer.invoke("save-session"),
-  restoreSession: (json) => ipcRenderer.invoke("restore-session", { json }),
-  deviceInfo: () => ipcRenderer.invoke("device-info"),
-  markVault: (label, shielded) => ipcRenderer.invoke("mark-vault", { label, shielded }),
-  relayout: (chromeH, tabRail) => ipcRenderer.invoke("relayout", { chromeH, tabRail }),
-  setImmersive: (on, label) => ipcRenderer.invoke("set-immersive", { on, label }),
-  historyAfter: (t) => ipcRenderer.invoke("history-after", { t }),
-  clearHistory: () => ipcRenderer.invoke("clear-history"),
-  getBookmarks: () => ipcRenderer.invoke("get-bookmarks"),
-  bookmark: () => ipcRenderer.invoke("bookmark"),
-  addBookmark: (url, title) => ipcRenderer.invoke("add-bookmark", { url, title }),
-  newTabUrl: () => ipcRenderer.invoke("new-tab-url"),
-  typeAhead: (term) => ipcRenderer.invoke("type-ahead", { term }),
-  poolState: () => ipcRenderer.invoke("pool-state"),
+const KEBAB_TO_SNAKE = {
+  "open-tab": "open_tab",
+  "open-incognito-tab": "open_incognito_tab",
+  "close-tab": "close_tab",
+  "activate-tab": "activate_tab",
+  "navigate-tab": "navigate_tab",
+  "reload-tab": "reload_tab",
+  "back-tab": "back_tab",
+  "forward-tab": "forward_tab",
+  "pin-tab": "set_tab_pinned",
+  "find-in-tab": "find_in_tab",
+  "stop-find": "stop_find",
+  "set-zoom": "zoom_tab",
+  "apply-zoom": "zoom_tab",
+  "reader-toggle": "reader_toggle",
+  "set-search-engine": "set_search_engine",
+  "get-session": "load_session",
+  "save-session": "save_session",
+  "restore-session": "restore_session",
+  "device-info": "get_device_info",
+  "mark-vault": "mark_vault",
+  "history-after": "get_history",
+  "clear-history": "clear_history",
+  "get-bookmarks": "get_bookmarks",
+  "add-bookmark": "add_bookmark",
+  "new-tab-url": "new_tab_url",
+  "type-ahead": "search_suggestions",
+  "pool-state": "pool_state",
 };
 
-// selftest battery seam — same shape as arm_selftest on the Tauri side
-const selftest = {
-  battery: (opts) => ipcRenderer.invoke("selftest:battery", opts),
-};
+function normalize(cmd) {
+  if (!cmd) return cmd;
+  return KEBAB_TO_SNAKE[cmd] || cmd;
+}
 
 contextBridge.exposeInMainWorld("continuaBridge", {
-  isTauri: () => false, // ENGINE SEAM: chrome must keep working without it
-  api,
-  selftest,
-});
-
-// RSS + startup capture, called from the battery harness
-process.on("message", (m) => {
-  if (m?.selftest) {
-    const rss = process.memoryUsage?.().rss ?? 0;
-    process.send({ selftest: { rss, heapUsed: process.memoryUsage?.().heapUsed ?? 0, now: Date.now() } });
-  }
+  invoke: (cmd, args) => ipcRenderer.invoke("continua", normalize(cmd), args || {}),
+  // legacy per-method shape (old spike) — all routed through the same channel
+  openTab: (url) => ipcRenderer.invoke("continua", "open_tab", { url }),
+  openIncognitoTab: (url) => ipcRenderer.invoke("continua", "open_incognito_tab", { url }),
+  closeTab: (label) => ipcRenderer.invoke("continua", "close_tab", { label }),
+  activateTab: (label) => ipcRenderer.invoke("continua", "activate_tab", { label }),
+  navigateTab: (label, url) => ipcRenderer.invoke("continua", "navigate_tab", { label, url }),
+  reloadTab: (label) => ipcRenderer.invoke("continua", "reload_tab", { label }),
 });

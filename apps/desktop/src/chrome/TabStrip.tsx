@@ -1,12 +1,15 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { displayTitle } from "../lib/tauri-bridge";
+import { api, displayTitle } from "../lib/tauri-bridge";
+import { useChromeModal } from "../lib/chrome-modal";
 import type { TabRecord } from "../lib/tauri-bridge";
 import { Favicon } from "../components/Favicon";
 import {
+  IconAudio,
   IconCaretDown,
   IconClose,
   IconDuplicate,
   IconIncognito,
+  IconMuted,
   IconPin,
   IconPlus,
   IconAppWindow,
@@ -36,6 +39,9 @@ interface TabStripProps {
   onReorder?: (from: string, to: string, after?: boolean) => void;
   onTogglePin?: (label: string) => void;
   onOverflowChange?: (over: boolean) => void;
+  /** Live audio state per tab label (polled by chrome, Electron host). */
+  audio?: Record<string, { audible: boolean; muted: boolean }>;
+  onToggleMute?: (label: string, muted: boolean) => void;
   /** True when the vertical rail has taken over: hide the top tab pills
    * (visibility, not display, so scrollWidth stays stable and overflow
    * detection doesn't flutter). */
@@ -67,11 +73,14 @@ export const TabStrip = memo(function TabStrip({
   onReorder,
   onTogglePin,
   onOverflowChange,
+  audio,
+  onToggleMute,
   rail,
 }: TabStripProps) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [ctx, setCtx] = useState<MenuState | null>(null);
+  useChromeModal("tab-menu", menuOpen || ctx !== null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const target = ctx ? tabs.find((t) => t.label === ctx.label) : undefined;
 
@@ -197,6 +206,23 @@ export const TabStrip = memo(function TabStrip({
           >
             <Favicon url={tab.url} />
             <span className="tab-title">{tab.title || displayTitle(tab.url)}</span>
+            {(() => {
+              const a = audio?.[tab.label];
+              if (!a || (!a.audible && !a.muted)) return null;
+              return (
+                <button
+                  className={`tab-audio${a.muted ? " is-muted" : ""}`}
+                  title={a.muted ? "Unmute tab" : "Mute tab"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onToggleMute) onToggleMute(tab.label, !a.muted);
+                    else void api.setTabMuted(tab.label, !a.muted);
+                  }}
+                >
+                  {a.muted ? <IconMuted size={11} /> : <IconAudio size={11} />}
+                </button>
+              );
+            })()}
             {incognito && (
               <span className="tab-incognito-badge" title="Private tab — no history or session saved">
                 <IconIncognito size={11} />
@@ -219,7 +245,7 @@ export const TabStrip = memo(function TabStrip({
           </div>
         );
       })}
-      <button className="tab-new" onClick={onNew} title="New tab">
+      <button className="tab-new" onClick={onNew} title="New tab (Ctrl+T)">
         <IconPlus size={14} />
       </button>
       {newMenu}
@@ -238,6 +264,18 @@ export const TabStrip = memo(function TabStrip({
             >
               <span className="ctx-ico"><IconPin size={13} /></span>
               {target.pinned ? "Unpin tab" : "Pin tab"}
+            </button>
+            <button
+              className="ctx-item"
+              onClick={() => ctxAction(() => {
+                const a = audio?.[ctx.label];
+                const next = !(a?.muted ?? false);
+                if (onToggleMute) onToggleMute(ctx.label, next);
+                else void api.setTabMuted(ctx.label, next);
+              })}
+            >
+              <span className="ctx-ico">{audio?.[ctx.label]?.muted ? <IconAudio size={13} /> : <IconMuted size={13} />}</span>
+              {audio?.[ctx.label]?.muted ? "Unmute tab" : "Mute tab"}
             </button>
             {onDuplicate && (
               <button

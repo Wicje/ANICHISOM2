@@ -216,6 +216,10 @@ export default function LandingPage() {
           className="text-base sm:text-xl text-[var(--os-text-muted)] max-w-3xl leading-relaxed mb-10">
           The browser that carries your identity, workspace, and open context between physical machines. Install it once, sign in on any computer, and pick up exactly where you left off. The machine can be temporary. Your workspace isn&apos;t.
         </motion.p>
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.7, delay: 0.25 }}
+          className="text-xs sm:text-sm text-[var(--os-text-muted)] max-w-3xl leading-relaxed mb-10 font-mono">
+          Chromium-based daily driver · Linux AppImage available now · macOS &amp; Windows ship from GitHub Releases
+        </motion.p>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.3 }} className="flex flex-wrap items-center justify-center gap-4 mb-16">
           <Magnetic>
             <Link href={CONTINUA_DOWNLOAD_URL} className="px-9 py-4 rounded-2xl font-extrabold text-sm bg-gradient-to-r from-primary via-secondary to-cyan-400 text-white shadow-2xl shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2.5">

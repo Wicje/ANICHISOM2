@@ -1,128 +1,101 @@
 ---
-title: "Continua — Geist (Vercel) reference design"
-source: "https://vercel.com / geist-org/geist-ui"
-tokens: extracted from geist-ui theme presets (dark + light)
+title: "Continua — Apple (designmd.supply) reference design"
+source: "https://designmd.supply/guides/apple.com (generated from Apple brand identity via Context.dev)"
+tokens: primary #0071e3, secondary #0066cc, tertiary #f5f5f7, neutral 0 #fff / 50 #f5f5f7 / 100 #e5e7eb / 900 #1d1d1f, muted #6e6e73, error #d92d20
 scope: apps/desktop (browser chrome + start page)
+supersedes: the Geist (Vercel) reference previously in this file
 ---
 
-# DESIGN.md — Continua · Geist (Vercel)
+# DESIGN.md — Continua · Apple
 
 Design system reference for the Continua desktop browser UI, derived from
-Vercel's Geist design language. The browser chrome is a **launcher-style
-toolbar**, so we adopt Geist's restraint: strong type over ornament, a strict
-near-square radius, 1px hairline borders, and a single saturated action color.
+Apple's design language (via designmd.supply). The browser chrome stays
+quiet so content dominates: generous space, short confident copy, SF type,
+one action blue, pill actions, soft 8px cards, no shadows, no gradients.
+
+> Dark-mode mapping: Apple.com is light-first, but Continua is dark-first
+> (and Apple dark surfaces are near-black). Dark theme keeps `#000` window /
+> `#161617`-family chrome with white text; the blue tokens stay identical
+> (`primary #0071e3` fills, `#2997ff` for small link text on dark only, where
+> `#0066cc` would fail contrast). Everything else follows the guide exactly.
 
 ## Overview
 
-- Precise, editorial, dark-first. Black #000 canvas like Vercel's dark UI.
-- One accent color only (Geist link/success blue). Error keeps its own red;
-  incognito keeps violet for safety; no other decorative color.
-- Hairline borders do the separation work — no heavy shadows, no gradients
-  except the single accent-tinted glow used for the active/focused states.
-- Typography is the hero: tab titles, address text and hints are the visual
-  surface, set in Inter (Geist Sans is preferred once a vendored font exists),
-  mono for URLs and keyboard hints.
+- Restrained, premium, editorial. Content dominates; chrome is quiet.
+- One accent color only (Apple blue). Error keeps its own red; incognito
+  keeps violet for safety; no other decorative color.
+- Borders do the separation work — no shadows, no glassmorphism, no complex
+  gradients.
+- Typography is the hero: SF Pro Display for headlines, SF Pro Text for UI.
 
 ## Colors
 
-Dark (default):
 | Token | Value | Use |
 |---|---|---|
-| background | `#000` | window / app shell |
-| chrome-bg | `#0a0a0a` | toolbar strip |
-| surface | `#111` | cards, panels (Geist accents_1) |
-| surface-card | `rgba(17,17,17,0.85)` | translucent cards |
-| foreground | `#fff` | primary text |
-| secondary | `#888` | secondary text (Geist accents_5/6) |
-| border | `#333` | 1px hairlines (Geist accents_2) |
-| border-faint | `rgba(255,255,255,0.08)` | faint separators |
-| hover | `rgba(255,255,255,0.08)` | row / tile hover |
-| link / accent | `#3291ff` | primary action, focus ring, active tab |
-| accent-deep / dark | `#0761d1` | pressed, hover of primary action |
-| accent-hi / light | `#76b9ff` | focus glow, hover text on dark |
-| selection | `#79ffe1` | text selection |
-| code | `#79ffe1` | inline code / vault key |
-| error | `#e00` | destructive, close hover |
-| warning | `#f5a623` | status warnings |
-| incognito | `#7928ca` → light `#8a63d2` | private-tab identity (Geist violet) |
+| primary | `#0071e3` | filled CTA buttons, active/focus states |
+| secondary | `#0066cc` | links, outline buttons (light) |
+| link-on-dark | `#2997ff` | small link text on dark surfaces only |
+| tertiary | `#f5f5f7` | light section / page tint |
+| neutral.900 | `#1d1d1f` | primary text (light) |
+| neutral.50 | `#f5f5f7` | page tint behind hero sections |
+| neutral.100 | `#e5e7eb` | subtle borders (light) |
+| on-surface.muted | `#6e6e73` | secondary explanatory text |
+| error | `#d92d20` | destructive only |
+| incognito | `#7928ca` | private-tab identity (unchanged house rule) |
 
-Light:
-| Token | Value |
-|---|---|
-| background | `#fff` |
-| chrome-bg | `#fafafa` |
-| surface | `#fff` |
-| foreground | `#000` |
-| secondary | `#666` |
-| border | `#eaeaea` |
-| link / accent | `#0070f3` |
-| accent-dark | `#0761d1` |
-| hover | `rgba(0,0,0,0.06)` |
-| error | `#e00` |
-| incognito | `#7928ca` |
+Dark surfaces: window `#000`, chrome `#0a0a0a`, cards `#161617`, primary
+text `#f5f5f7`, secondary `#86868b`, hairlines `rgba(255,255,255,0.12)`.
 
 ## Typography
 
-- Sans stack: `"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
-  (swap the first entry for `"Geist"` once the font is vendored).
-- Mono stack: `Menlo, Monaco, Lucida Console, "Liberation Mono", "DejaVu Sans Mono", monospace`
-  — reserved for URLs, keyboard hints (`kbd`), timestamps, device info.
-- Hierarchy (approx): chrome buttons 12px/500; tab titles 13px/500; address
-  input 13px; start-page h1 30px/650 tracking -0.02em; card titles 13px/600;
-  dimmed metadata 11–11.5px/450 with 0.05em letterspacing.
-- Line height 1.5 for body text; tight (1.15) for display text.
+- Display stack: `-apple-system, "SF Pro Display", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif`
+  (Inter renders on Linux where SF is absent; keep it in the stack after SF).
+- Text stack: `-apple-system, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif`.
+- Mono (URLs, kbd hints, IDs): `ui-monospace, "SF Mono", Menlo, Monaco, monospace`.
+- Headlines short (2–5 words), semibold; button labels regular; generous
+  headline↔subhead spacing — never compressed.
 
 ## Layout
 
-- Unit: 16px. Horizontal chrome gutter 10px, vertical 8px; 4px between rows.
-- Start page: centered column, max ~1120px; hero at top, three equal cards
-  (grid, 1fr gaps 12px), stacking below 900px.
-- Vertical rail (overflow tabs) fixed 44px, hairline right border on the rail.
-- Breakpoints: mobile <650px, tablet <900px, desktop ≥900px — chrome compact
-  at ≤1000px (icon-strings hidden), ≤860px (labels hidden), ≤680px (icons
-  hidden).
+- Centered editorial hero: headline → short subhead → paired CTA row.
+- Spacing scale: xs 4 / sm 12 / md 20 / lg 44 / xl 102.
+- Start page: centered column; hero at top; cards below; generous negative
+  space — never dense dashboard grids.
+- Navigation (tab strip, toolbar) visually quieter than content.
 
 ## Elevation
 
-- Flattened, Vercel-style: panels pop with 1px `#333` borders + a faint
-  background, not depth.
-- The only shadow is a soft ambient glow used for focus/active states and the
-  first-run hint: `0 8px 28px rgba(0,0,0,0.4), 0 0 18px rgba(50,145,255,0.09)`.
-- Dropdown/palette surface: solid `#111`, 1px `#333` border, no drop shadow.
+- `box-shadow: none` everywhere. Thin borders instead of shadows for cards
+  and panels. No glassmorphism, no ambient glows.
 
 ## Shapes
 
-- Radius: **6px** (Geist `layout.radius`). Applied uniformly to buttons, cards,
-  tiles, inputs, pills, panel corners.
-- Do NOT use large-radius (12px+) "pill/card" shapes — that is the brass-era
-  language we are retiring.
-- Exceptions: scrollbar thumb radius stays fully round (999px); the browser
-  window itself is undecorated/square.
+- `rounded.full = 980px` — signature pill for buttons and the address bar.
+- `rounded.md = 8px` — cards, tiles, panels, menus.
+- `rounded.sm = 4px` — compact elements, kbd hints.
+- Primary actions min-height 44px in hero/marketing contexts; compact
+  `8px 16px` pills in dense chrome rows.
 
 ## Components
 
-- **Chrome buttons**: ghost squares ~28px, radius 6px, icon 14–15px; hover =
-  background `rgba(255,255,255,0.08)`; active/pressed = accent-tinted.
-- **Address bar**: full-width input, radius 6px, 1px `#333` border, focus
-  border `#3291ff` + faint blue glow ring; URL text in mono 12px.
-- **Tab**: 7px radius, active tab gets a 2px accent underline or accent-red
-  text; vault shows the real title + a muted 11px lock glyph; incognito shows
-  a violet badge.
-- **Buttons (primary)**: solid `#fff` background with black text (Vercel style)
-  OR solid accent `#0070f3`/`#3291ff` with white text; radius 6px; 500 weight.
-  Secondary = ghost `#111` with 1px `#333` border.
-- **Cards / tiles**: `#111` surface, 1px `#333` border, radius 6px, padding
-  12–16px. Hover: border brightens to `#666`.
-- **kbd hints**: 1px border, 2px bottom border (keycap feel), mono 11px.
-- **Toasts / first-run hint**: `#111` surface + 1px `#333` border + the soft
-  ambient glow; compact single-line where possible.
+- **Buttons**: primary = solid `#0071e3`, white text, pill; secondary =
+  transparent, `#0066cc` border + text, pill; link = blue text, no
+  border/padding. Paired primary + secondary in hero blocks.
+- **Address bar**: pill, 1px border, focus border `primary`; URL text mono.
+- **Tab**: 8px radius; active tab gets a quiet surface fill (no underline);
+  incognito shows violet badge; audio shows speaker glyph.
+- **Cards / tiles**: 8px radius, 16px padding, 1px border, no shadow. Hover:
+  border brightens.
+- **kbd hints**: 1px border, mono 11px.
+- **Toasts**: quiet surface + 1px border, compact single-line.
 
 ## Do's and Don'ts
 
-- DO keep one accent color; let type and hairlines carry the design.
-- DO use mono fonts for anything machine-y (URLs, shortcuts, IDs).
-- DON'T re-introduce brass/gold, vintage shadows, or 12px+ card radii.
-- DON'T use gradients (bar the single accent glow used on focus/active).
+- DO keep one accent color; let type and space carry the design.
+- DO use pill buttons with sentence-case short labels.
+- DO keep copy short, specific, benefit-driven.
+- DON'T use heavy shadows, glassmorphism, or complex gradients.
+- DON'T use square buttons for primary actions.
+- DON'T build dense, data-heavy layouts as the default.
 - DON'T let decorative color falsify state — blue = interactive, violet =
   incognito, red = error only.
-- DO keep density: this is a toolbar, not a dashboard.

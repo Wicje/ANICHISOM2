@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New Tab — Continua</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --blue: #0071e3; --blue-link: #0066cc;
+    --bg: #f5f5f7; --card: #ffffff; --text: #1d1d1f; --muted: #6e6e73;
+    --border: #e5e7eb;
+    --sf: -apple-system, "SF Pro Display", "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000000; --card: #161617; --text: #f5f5f7; --muted: #86868b;
+      --border: #2c2c2e; --blue-link: #2997ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text); background: var(--bg);
+    font-family: var(--sf);
+    display: flex; align-items: center; justify-content: center; padding: 44px 20px;
+  }
+  .wrap { width: min(560px, 94vw); text-align: center; }
+  h1 { font-size: clamp(32px, 6vw, 48px); font-weight: 700; letter-spacing: -0.01em;
+    margin: 0 0 12px; }
+  #clock { color: var(--muted); font-size: 17px; margin-bottom: 20px; font-variant-numeric: tabular-nums; }
+  form { display: flex; gap: 8px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 980px; padding: 5px 5px 5px 20px; }
+  form:focus-within { border-color: var(--blue); }
+  input { flex: 1; background: transparent; border: none; outline: none; color: inherit;
+    font: inherit; font-size: 17px; min-width: 0; }
+  button.go { border: 1px solid transparent; cursor: pointer; border-radius: 980px;
+    padding: 11px 24px; min-height: 44px; color: #fff; background: var(--blue);
+    font: inherit; font-size: 17px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 12px; margin-top: 28px; }
+  .grid a { text-decoration: none; color: inherit; background: var(--card);
+    border: 1px solid var(--border); border-radius: 8px; padding: 16px 6px 12px;
+    display: flex; flex-direction: column; gap: 8px; align-items: center; font-size: 13px; }
+  .grid a:hover { border-color: var(--muted); }
+  .glyph { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center;
+    justify-content: center; font-weight: 600; color: #fff; background: var(--muted); }
+  #offline { display: none; margin-top: 14px; font-size: 13px; color: var(--muted); }
+  #offline a { color: var(--blue-link); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Where to next?</h1>
+  <div id="clock"></div>
+  <form id="s">
+    <input id="q" placeholder="Search or type a URL" autocomplete="off" spellcheck="false">
+    <button class="go" type="submit">Go</button>
+  </form>
+  <div id="offline">You're offline. Tabs and history are safe — search needs a connection.</div>
+  <div class="grid" id="links"></div>
+</div>
+<script>
+  const clock = () => {
+    const d = new Date();
+    document.getElementById("clock").textContent =
+      d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }) + " · " +
+      d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+  clock(); setInterval(clock, 20000);
+  const sites = [
+    ["GitHub", "https://github.com", "G", "#6e5494"],
+    ["YouTube", "https://youtube.com", "Y", "#c4302b"],
+    ["Gmail", "https://mail.google.com", "M", "#d93025"],
+    ["Drive", "https://drive.google.com", "D", "#188038"],
+    ["Calendar", "https://calendar.google.com", "C", "#1a73e8"],
+    ["Maps", "https://maps.google.com", "M", "#34a853"],
+    ["Reddit", "https://reddit.com", "R", "#ff4500"],
+    ["News", "https://news.ycombinator.com", "H", "#ff6600"],
+  ];
+  const grid = document.getElementById("links");
+  for (const [name, url, g, c] of sites) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.innerHTML = `<span class="glyph" style="background:${c}">${g}</span><span>${name}</span>`;
+    grid.appendChild(a);
+  }
+  const showOffline = () => {
+    document.getElementById("offline").style.display = navigator.onLine ? "none" : "block";
+  };
+  window.addEventListener("online", showOffline);
+  window.addEventListener("offline", showOffline);
+  showOffline();
+  document.getElementById("s").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const q = document.getElementById("q").value.trim();
+    if (!q) return;
+    const isUrl = /^https?:\/\//i.test(q) || (/^\S+\.\S{2,}/.test(q) && !/\s/.test(q));
+    location.href = isUrl ? (/^https?:\/\//i.test(q) ? q : "https://" + q)
+                          : "https://duckduckgo.com/?q=" + encodeURIComponent(q);
+  });
+  document.getElementById("q").focus();
+</script>
+</body>
+</html>

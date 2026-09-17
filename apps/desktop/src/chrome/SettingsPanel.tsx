@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { api } from "../lib/tauri-bridge";
+import { useChromeModal } from "../lib/chrome-modal";
 import type { BrowserConfigItem, ConfigPatch } from "../lib/tauri-bridge";
 import { ENGINES } from "./engine-list";
 import { IconClose } from "../components/icons";
@@ -43,10 +45,49 @@ export function SettingsPanel({
   onClose,
 }: SettingsPanelProps) {
   const [draft, setDraft] = useState("");
+  const [pin, setPin] = useState("");
+  const [serverUrl, setServerUrl] = useState("");
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const [sync, setSync] = useState<{ paired: boolean; deviceId: string; lastVersion: number; pending?: number; lastSyncAt?: number; lastSyncError?: string | null } | null>(null);
+  const [devices, setDevices] = useState<Array<{ id: string; device_name: string; trust_level: string; platform: string; last_seen_at: string }>>([]);
+  const [extPath, setExtPath] = useState("");
+  const [extensions, setExtensions] = useState<Array<{ id: string; name: string; path: string; enabled?: boolean }>>([]);
+  const [extDir, setExtDir] = useState("");
+  useChromeModal("settings", open);
+
+  const refreshSync = () => {
+    void api.syncStatus().then((s) => setSync({ paired: s.paired, deviceId: s.deviceId, lastVersion: s.lastVersion, pending: (s as { pending?: number }).pending, lastSyncAt: (s as { lastSyncAt?: number }).lastSyncAt, lastSyncError: (s as { lastSyncError?: string }).lastSyncError }));
+    void api.listDevices().then(setDevices);
+    void api.listExtensions().then(setExtensions);
+    void api.extensionsDir().then(setExtDir);
+  };
 
   useEffect(() => {
-    if (open) setDraft(config?.homepage ?? "");
+    if (open) {
+      setDraft(config?.homepage ?? "");
+      setSyncMsg(null);
+      void api.getContinuaUrl().then(setServerUrl);
+      refreshSync();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, config]);
+
+  const doPair = async () => {
+    const p = pin.trim();
+    if (!p) { setSyncMsg("Enter the 6-character PIN from your other device."); return; }
+    setSyncMsg("Waiting for approval… (up to 20s)");
+    const status = await api.pairDevice(p);
+    setSyncMsg(status === "ok" || status === "approved" ? "Paired — cloud sync enabled." : status === "pending" ? "Still pending — approve on your other device, then Pair again." : `Pair: ${status}`);
+    refreshSync();
+    setPin("");
+  };
+
+  const doSaveUrl = async () => {
+    const u = serverUrl.trim();
+    if (!u) return;
+    await api.setContinuaUrl(u);
+    setSyncMsg(`Sync server set to ${u}`);
+  };
 
   if (!open) return null;
 
@@ -171,10 +212,114 @@ export function SettingsPanel({
             </label>
           </Row>
 
+          <Row label="Vertical tabs">
+            <label className="settings-toggle">
+              <input
+                type="checkbox"
+                checked={Boolean(config?.vertical_tabs)}
+                onChange={(e) => onPatch({ vertical_tabs: e.target.checked })}
+              />
+              <span>Pin the tab rail on</span>
+            </label>
+          </Row>
+
           <Row label="Browsing data">
             <button className="settings-danger" onClick={onClearHistory}>
               Clear history
             </button>
+          </Row>
+
+          <Row label="Sync server">
+            <input
+              className="settings-input"
+              value={serverUrl}
+              placeholder="https://your-sync-host"
+              onChange={(e) => setServerUrl(e.target.value)}
+              onBlur={() => void doSaveUrl()}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.currentTarget.blur(); void doSaveUrl(); } }}
+              spellCheck={false}
+            />
+          </Row>
+
+          <Row label="Pair device">
+            <div className="settings-sync">
+              <input
+                className="settings-input"
+                value={pin}
+                placeholder="6-char PIN"
+                maxLength={16}
+                onChange={(e) => setPin(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") void doPair(); }}
+                spellCheck={false}
+              />
+              <button className="settings-btn" onClick={() => void doPair()}>Pair</button>
+            </div>
+          </Row>
+
+          <Row label="Continuity">
+            <div className="settings-sync">
+              <span className="settings-status">{sync ? (sync.paired ? `Paired · ${sync.deviceId}` : "Not paired — local only") : "…"}</span>
+              <button className="settings-btn" onClick={() => { void api.syncSession().then((r) => { setSyncMsg(`Sync ${ (r as { ok?: boolean })?.ok === false ? "queued offline" : "pushed"}.`); refreshSync(); }); }}>Sync now</button>
+              <button className="settings-btn" onClick={() => { void api.pullSession().then(() => { setSyncMsg("Pull requested — remote tabs merge in."); refreshSync(); }); }}>Pull</button>
+            </div>
+            {sync && (
+              <p className="settings-status">
+                queue {sync.pending ?? 0} · v{sync.lastVersion}
+                {sync.lastSyncAt ? ` · last sync ${new Date(sync.lastSyncAt).toLocaleTimeString()}` : ""}
+                {sync.lastSyncError ? ` · error: ${sync.lastSyncError}` : ""}
+              </p>
+            )}
+            {devices.length > 0 && (
+              <ul className="settings-devices">
+                {devices.map((d) => (
+                  <li key={d.id}>{d.device_name} · {d.trust_level}{d.platform ? ` · ${d.platform}` : ""}</li>
+                ))}
+              </ul>
+            )}
+            {syncMsg && <p className="settings-notice">{syncMsg}</p>}
+          </Row>
+
+          <Row label="Extensions">
+            <div className="settings-sync">
+              <input
+                className="settings-input"
+                value={extPath}
+                placeholder="/path/to/unpacked-extension"
+                onChange={(e) => setExtPath(e.target.value)}
+                spellCheck={false}
+              />
+              <button className="settings-btn" onClick={() => {
+                const p = extPath.trim();
+                if (!p) return;
+                void api.loadExtension(p).then((r) => {
+                  const res = r as { error?: string; name?: string; id?: string };
+                  setSyncMsg(res?.error ? `Extension: ${res.error}` : `Loaded ${res?.name || res?.id}`);
+                  setExtPath("");
+                  refreshSync();
+                });
+              }}>Load</button>
+            </div>
+            <p className="settings-status">
+              Autoload folder{extDir ? `: ${extDir}` : ""} — drop an unpacked extension
+              (e.g. Bitwarden) in as its own subfolder and restart. Toggles apply instantly.
+            </p>
+            {extensions.length > 0 && (
+              <ul className="settings-devices">
+                {extensions.map((e) => (
+                  <li key={e.id}>
+                    <label className="settings-toggle">
+                      <input
+                        type="checkbox"
+                        checked={e.enabled !== false}
+                        onChange={() => void api.setExtensionEnabled(e.id, e.enabled === false).then(() => refreshSync())}
+                      />
+                      <span>{e.name || e.id}</span>
+                    </label>
+                    <button className="settings-link" onClick={() => void api.removeExtension(e.id).then(() => refreshSync())}>remove</button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Row>
         </div>
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api, DEFAULT_NEW_TAB_URL, displayTitle, newTabUrl, windowControls } from "../lib/tauri-bridge";
@@ -11,9 +11,11 @@ import type {
   SessionSummary,
 } from "../lib/tauri-bridge";
 import { attachCadence } from "../lib/cadence";
+import { useChromeModal } from "../lib/chrome-modal";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { TabStrip } from "./TabStrip";
 import { HistoryPanel } from "./HistoryPanel";
+import { DownloadsPanel } from "./DownloadsPanel";
 import { FindBar } from "./FindBar";
 import { SettingsPanel } from "./SettingsPanel";
 import { WorkspaceMenu } from "./WorkspaceMenu";
@@ -26,6 +28,8 @@ import { quickAnswer } from "../lib/quick-answer";
 import { toast } from "../lib/toast";
 import {
   IconBrand,
+  IconDownload,
+  IconStack,
   IconRestore,
   IconSave,
   IconClock,
@@ -62,7 +66,7 @@ interface BrowserChromeProps {
   onSave: () => Promise<void>;
   onReopen: () => Promise<void>;
   onSwitchWorkspace?: (session: OpenTab[]) => void;
-  runtime: "tauri" | "browser";
+  runtime: "tauri" | "electron" | "browser";
 }
 
 type Suggestion =
@@ -120,6 +124,8 @@ export function BrowserChrome({
   // History panel (Ctrl+H) and the ring that feeds omnibox suggestions.
   const [historyOpen, setHistoryOpen] = useState(false);
   const [recent, setRecent] = useState<HistoryItem[]>([]);
+  const [downloadsOpen, setDownloadsOpen] = useState(false);
+  const [audio, setAudio] = useState<Record<string, { audible: boolean; muted: boolean }>>({});
   // Address-bar bookmark star.
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   // Find bar (Ctrl+F) + page tools + search engine.
@@ -128,11 +134,23 @@ export function BrowserChrome({
   const [engineMenu, setEngineMenu] = useState(false);
   // Live search-engine suggestions for the omnibox.
   const [suggestRows, setSuggestRows] = useState<string[]>([]);
-  // Settings + workspaces.
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [config, setConfig] = useState<BrowserConfigItem | null>(null);
   const [workspaces, setWorkspaces] = useState<SessionSummary[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState("default");
+  // Palette (Ctrl+K) asks for Settings → Sync without window.prompt (ADR-008).
+  useEffect(() => {
+    const open = () => setSettingsOpen(true);
+    window.addEventListener("continua:open-settings", open);
+    return () => window.removeEventListener("continua:open-settings", open);
+  }, []);
+  /** True on any native host (Tauri legacy or Electron product). Tauri-only
+   * window/event APIs keep `runtime === "tauri"` guards; shared IPC uses this. */
+  const isNative = runtime === "tauri" || runtime === "electron";
+  // Native content views paint above HTML overlays: hide them while the
+  // omnibox popover or menus are open (panels handle themselves).
+  useChromeModal("suggestions", suggestOpen);
+  useChromeModal("engine-menu", engineMenu);
   const suggestSeq = useRef(0);
   const addressRef = useRef<HTMLInputElement | null>(null);
   const scheduleRelayout = useRef<((force: boolean) => void) | null>(null);
@@ -210,7 +228,7 @@ export function BrowserChrome({
   // Keep native tab webviews filling the area below the chrome. Resize storms
   // are coalesced to one relayout per frame, and no-op resizes are skipped.
   useEffect(() => {
-    if (runtime !== "tauri") return;
+    if (!isNative) return;
     let rafId: number | null = null;
     let lastHeight: number = window.innerHeight;
 
@@ -233,13 +251,13 @@ export function BrowserChrome({
       if (rafId !== null) cancelAnimationFrame(rafId);
       scheduleRelayout.current = null;
     };
-  }, [runtime]);
+  }, [isNative]);
 
   // Re-layout after tabs are created/restored in a batch.
   useEffect(() => {
-    if (runtime !== "tauri" || !scheduleRelayout.current) return;
+    if (!isNative || !scheduleRelayout.current) return;
     scheduleRelayout.current(true);
-  }, [runtime, tabs.length]);
+  }, [isNative, tabs.length]);
 
   // Auto-save session before the app closes.
   useEffect(() => {
@@ -257,7 +275,7 @@ export function BrowserChrome({
 
   // Refresh back/forward button states for the active tab.
   useEffect(() => {
-    if (runtime !== "tauri" || !activeLabel) {
+    if (!isNative || !activeLabel) {
       setCanBack(false);
       setCanForward(false);
       return;
@@ -266,17 +284,30 @@ export function BrowserChrome({
       setCanBack(s.back);
       setCanForward(s.forward);
     });
-  }, [runtime, activeLabel, tabs]);
+  }, [isNative, activeLabel, tabs]);
 
   // Keep the omnibox's history suggestions fresh as the user browses.
+  // Debounced: getHistory ships hundreds of rows over IPC; navigating
+  // rapidly must not stall typing.
   useEffect(() => {
-    void api.getHistory().then(setRecent);
+    const t = window.setTimeout(() => void api.getHistory().then(setRecent), 800);
+    return () => window.clearTimeout(t);
   }, [activeLabel, tabs]);
 
   // Load bookmarks once; keep the star in sync across the session.
   useEffect(() => {
     void api.getBookmarks().then(setBookmarks);
   }, []);
+
+  // Poll tab audio state (audible/muted badges, Electron host).
+  useEffect(() => {
+    if (tabs.length === 0) return;
+    let stop = false;
+    const poll = () => void api.tabAudioState().then((s) => { if (!stop) setAudio(s); });
+    poll();
+    const t = window.setInterval(poll, 3000);
+    return () => { stop = true; window.clearInterval(t); };
+  }, [tabs.length]);
 
   // Keep the measured chrome height in sync with whatever state the layout is
   // in (bookmarks row appearing, responsive wrap at narrow widths, bigger
@@ -291,13 +322,13 @@ export function BrowserChrome({
         if (Math.abs(h - last) < 3) continue;
         last = h;
         setChromeH(h);
-        if (runtime === "tauri") void api.setChromeHeight(h);
+        if (isNative) void api.setChromeHeight(h);
       }
     });
     const el = chromeRef.current;
     if (el) ro.observe(el);
     return () => ro.disconnect();
-  }, [runtime]);
+  }, [isNative]);
 
   // Complete the load progress line when the engine lands a navigation.
   useEffect(() => {
@@ -316,11 +347,14 @@ export function BrowserChrome({
       setEngine(c.search_engine);
       setConfig(c);
       setActiveWorkspace(c.active_workspace ?? "default");
+      if (c.vertical_tabs) void api.setTabRail(true);
     });
     void api.listWorkspaces().then((ws) => {
       setWorkspaces(ws);
     });
   }, []);
+
+  const railVisible = railOn || !!config?.vertical_tabs;
 
   // Live search-engine suggestions, debounced and race-guarded.
   useEffect(() => {
@@ -376,7 +410,15 @@ export function BrowserChrome({
       if (patch.theme) setTheme(patch.theme as "dark" | "light");
       // Link previews need to gate on live pages immediately.
       if (patch.link_preview !== undefined) void api.setLinkPreview(Boolean(patch.link_preview));
+      // Vertical rail pinning reflows native views immediately.
+      if (patch.vertical_tabs !== undefined && isNative) void api.setTabRail(Boolean(patch.vertical_tabs) || railOn);
     });
+  };
+
+  const toggleVerticalTabs = () => {
+    const next = !config?.vertical_tabs;
+    applyPatch({ vertical_tabs: next });
+    if (isNative) void api.setTabRail(next || railOn);
   };
 
   // Keyboard shortcuts: Ctrl+T/W/L/R/H/F, Ctrl+Shift+T/N, Ctrl+=/-/0, F5.
@@ -428,6 +470,13 @@ export function BrowserChrome({
         void onOpenIncognito(DEFAULT_NEW_TAB_URL);
         return;
       }
+      if (e.shiftKey && k === "s") {
+        e.preventDefault();
+        void api.screenshotTab(activeLabel ?? undefined).then((r) => {
+          toast(r?.path ? `Screenshot saved to ${r.path}` : "Screenshot failed", r?.path ? "success" : "danger");
+        });
+        return;
+      }
       switch (k) {
         case "t":
           e.preventDefault();
@@ -445,6 +494,10 @@ export function BrowserChrome({
         case "h":
           e.preventDefault();
           setHistoryOpen((v) => !v);
+          break;
+        case "j":
+          e.preventDefault();
+          setDownloadsOpen((v) => !v);
           break;
         case "f":
           e.preventDefault();
@@ -477,8 +530,9 @@ export function BrowserChrome({
       if (rows.length >= 5) break;
     }
 
-    // Past visits that match but aren't currently open.
-    for (const h of recent) {
+    // Past visits that match but aren't currently open (scan capped: the
+    // full ring is for the History panel, not per-keystroke filtering).
+    for (const h of recent.slice(0, 120)) {
       if (openUrls.has(h.url)) continue;
       const host = hostOf(h.url);
       const title = h.title || host;
@@ -627,6 +681,33 @@ export function BrowserChrome({
     }
   };
 
+  // Stable TabStrip callbacks: TabStrip is memo'd, so fresh inline arrows
+  // would re-render every tab on each omnibox keystroke. These keep identity
+  // across keystroke renders (only tabs/prop changes invalidate).
+  const handleDuplicate = useCallback((label: string) => {
+    const t = tabs.find((x) => x.label === label);
+    if (t) void onOpen(t.url);
+  }, [tabs, onOpen]);
+  const handleOpenAppWindow = useCallback((label: string) => {
+    const t = tabs.find((x) => x.label === label);
+    if (t) void api.openAppWindow(t.url).then(() => toast(`Opened “${t.title || t.url}” in a new window`));
+  }, [tabs]);
+  const handleTogglePinToast = useCallback((label: string) => {
+    onTogglePin?.(label);
+    const tab = tabs.find((t) => t.label === label);
+    toast(tab?.pinned ? "Tab unpinned" : "Tab pinned");
+  }, [tabs, onTogglePin]);
+  const handleToggleMute = useCallback((label: string, muted: boolean) => {
+    void api.setTabMuted(label, muted).then(() => {
+      setAudio((prev) => ({ ...prev, [label]: { audible: prev[label]?.audible ?? false, muted } }));
+      toast(muted ? "Tab muted" : "Tab unmuted");
+    });
+  }, []);
+  const handleOverflow = useCallback((over: boolean) => {
+    setRailOn(over);
+    if (isNative) void api.setTabRail(over || !!config?.vertical_tabs);
+  }, [isNative, config?.vertical_tabs]);
+
   return (
     <div
       ref={chromeRef}
@@ -652,11 +733,12 @@ export function BrowserChrome({
           <IconBrand size={15} />
         </div>
         <span className="brand-name">Continua</span>
-        <span className="runtime-badge">{runtime === "tauri" ? "native" : "preview"}</span>
+        <span className="runtime-badge">{runtime === "browser" ? "preview" : "native"}</span>
         <div style={{ flex: 1, alignSelf: "stretch" }} data-tauri-drag-region />
         <WorkspaceMenu
           workspaces={workspaces}
           active={activeWorkspace}
+          currentCount={tabs.length}
           onCreate={createWorkspace}
           onSwitch={switchWorkspace}
           onDelete={deleteWorkspace}
@@ -684,6 +766,20 @@ export function BrowserChrome({
         </button>
         <button
           className="chrome-btn"
+          onClick={() => setDownloadsOpen((v) => !v)}
+          title="Downloads (Ctrl+J)"
+        >
+          <IconDownload size={15} />
+        </button>
+        <button
+          className={`chrome-btn${config?.vertical_tabs ? " is-active" : ""}`}
+          onClick={toggleVerticalTabs}
+          title="Vertical tabs (pin rail on/off)"
+        >
+          <IconStack size={15} />
+        </button>
+        <button
+          className="chrome-btn"
           onClick={() => setSettingsOpen((v) => !v)}
           title="Settings (Ctrl+,)"
         >
@@ -706,7 +802,7 @@ export function BrowserChrome({
         >
           {theme === "dark" ? <IconSun size={15} /> : <IconMoon size={15} />}
         </button>
-        {runtime === "tauri" && (
+        {isNative && (
           <div className="window-controls">
             <button
               className="wc-btn"
@@ -800,26 +896,15 @@ export function BrowserChrome({
           onClose={onClose}
           onNew={() => void onOpen(newTabUrl(config ?? undefined))}
           onNewIncognito={() => void onOpenIncognito(DEFAULT_NEW_TAB_URL)}
-          onDuplicate={(label) => {
-            const t = tabs.find((x) => x.label === label);
-            if (t) void onOpen(t.url);
-          }}
-          onOpenAppWindow={(label) => {
-            const t = tabs.find((x) => x.label === label);
-            if (t) void api.openAppWindow(t.url).then(() => toast(`Opened “${t.title || t.url}” in a new window`));
-          }}
+          onDuplicate={handleDuplicate}
+          onOpenAppWindow={handleOpenAppWindow}
           onCloseOthers={onCloseOthers}
           onReorder={onReorder}
-          onTogglePin={(label) => {
-            onTogglePin?.(label);
-            const tab = tabs.find((t) => t.label === label);
-            toast(tab?.pinned ? "Tab unpinned" : "Tab pinned");
-          }}
-          onOverflowChange={(over) => {
-            setRailOn(over);
-            if (runtime === "tauri") void api.setTabRail(over);
-          }}
-          rail={railOn}
+          onTogglePin={handleTogglePinToast}
+          audio={audio}
+          onToggleMute={handleToggleMute}
+          onOverflowChange={handleOverflow}
+          rail={railVisible}
         />
         <form className="bar-form" onSubmit={navigate}>
           <div className="omni-wrap" style={{ flex: 1, position: "relative" }}>
@@ -922,7 +1007,7 @@ export function BrowserChrome({
         </form>
       </div>
 
-      {/* Row 3: bookmarks quick bar (only when bookmarks exist). */}
+      {/* Row 3: bookmarks quick bar (with HTML import when empty). */}
       <BookmarksBar
         bookmarks={bookmarks}
         activeUrl={activeUrl}
@@ -932,6 +1017,7 @@ export function BrowserChrome({
             void api.navigateTab(activeLabel, url);
           } else void onOpen(url);
         }}
+        onChanged={setBookmarks}
       />
 
       {/* Slim page-load progress along the chrome's bottom edge. */}
@@ -944,8 +1030,8 @@ export function BrowserChrome({
         aria-hidden="true"
       />
 
-      {/* Vertical tab rail when the strip overflows (Rust insets the webviews). */}
-      {railOn && (
+      {/* Vertical tab rail: pinned on in settings, or auto on overflow. */}
+      {railVisible && (
         <TabRail
           tabs={tabs}
           activeLabel={activeLabel}
@@ -967,6 +1053,7 @@ export function BrowserChrome({
         activeLabel={activeLabel}
         onClose={() => setFindOpen(false)}
       />
+      <DownloadsPanel open={downloadsOpen} onClose={() => setDownloadsOpen(false)} />
       <SettingsPanel
         open={settingsOpen}
         config={config}

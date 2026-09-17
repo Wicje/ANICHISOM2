@@ -1,13 +1,55 @@
 {
-  "name": "continua-desktop-electron",
+  "name": "continua-browser",
   "private": true,
-  "version": "0.1.0",
-  "description": "Continua spike: same Continua chrome (React) hosted on Electron + Chromium, WebContentsView pool. Not any daily driver — a measured A/B vs WebKitGTK.",
+  "version": "0.2.0",
+  "description": "Continua Browser — Electron Chromium product host (ADR-008). WebContentsView pool K=6, local-first continuity.",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "dev": "electron .",
+    "test": "node --test pool.test.js sync.test.js",
+    "dist": "electron-builder --publish never",
+    "dist:linux": "electron-builder --linux --publish never",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:mac": "electron-builder --mac --publish never"
   },
   "devDependencies": {
-    "electron": "44.4.0"
+    "electron": "44.4.0",
+    "electron-builder": "^25.1.8"
+  },
+  "optionalDependencies": {
+    "electron-updater": "^6.3.0",
+    "better-sqlite3": "^11.10.0"
+  },
+  "build": {
+    "appId": "app.continua.browser",
+    "productName": "Continua",
+    "files": [
+      "main.js",
+      "preload.js",
+      "store.js",
+      "store-sqlite.js",
+      "start-page.html",
+      "offline.html",
+      "../desktop/dist/**/*"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Network"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.utilities"
+    }
   }
 }

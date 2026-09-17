@@ -1,29 +1,29 @@
 :root {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    sans-serif;
+  font-family: -apple-system, "SF Pro Text", "SF Pro Icons", "Inter",
+    "Helvetica Neue", Helvetica, Arial, sans-serif;
 
-  /* ─── Dark: Geist (Vercel) ────────────────────────────── */
+  /* ─── Dark: Apple mapping (designmd.supply/guides/apple.com) ── */
   --bg: #000;
   --chrome-bg: #0a0a0a;
-  --surface: #111;
-  --surface-card: rgba(17, 17, 17, 0.85);
-  --text: #fff;
-  --text-dim: #888;
-  --border: #333;
-  --border-faint: rgba(255, 255, 255, 0.08);
+  --surface: #161617;
+  --surface-card: #161617;
+  --text: #f5f5f7;
+  --text-dim: #86868b;
+  --border: #2c2c2e;
+  --border-faint: rgba(255, 255, 255, 0.12);
   --hover: rgba(255, 255, 255, 0.08);
   --hover-faint: rgba(255, 255, 255, 0.05);
 
-  /* Geist accent — single action blue */
-  --accent: #3291ff;
-  --accent-hi: #76b9ff;
-  --accent-deep: #0761d1;
+  /* Apple action blue — one accent only */
+  --accent: #0071e3;
+  --accent-hi: #2997ff;
+  --accent-deep: #0066cc;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(50, 145, 255, 0.14);
-  --accent-soft-2: rgba(50, 145, 255, 0.26);
-  --glow-a: rgba(50, 145, 255, 0.09);
-  --glow-b: rgba(7, 97, 209, 0.07);
-  --guide: rgba(50, 145, 255, 0.45);
+  --accent-soft: rgba(0, 113, 227, 0.16);
+  --accent-soft-2: rgba(0, 113, 227, 0.32);
+  --glow-a: transparent;
+  --glow-b: transparent;
+  --guide: rgba(0, 113, 227, 0.55);
 
   /* Private (incognito) mode — Geist violet */
   --incognito: #7928ca;
@@ -31,34 +31,35 @@
   --incognito-soft: rgba(121, 40, 202, 0.14);
   --incognito-soft-2: rgba(121, 40, 202, 0.28);
 
-  /* Geist radius — strict near-square */
-  --radius: 6px;
+  /* Apple radius — pills for actions, 8px cards */
+  --radius: 8px;
   --radius-sm: 4px;
+  --radius-pill: 980px;
 }
 
 :root[data-theme="light"] {
-  /* ─── Light: Geist (Vercel) ───────────────────────────── */
+  /* ─── Light: Apple (designmd.supply) ──────────────────── */
   --bg: #ffffff;
-  --chrome-bg: #fafafa;
+  --chrome-bg: #f5f5f7;
   --surface: #ffffff;
-  --surface-card: rgba(255, 255, 255, 0.85);
-  --text: #000000;
-  --text-dim: #666666;
-  --border: #eaeaea;
+  --surface-card: #ffffff;
+  --text: #1d1d1f;
+  --text-dim: #6e6e73;
+  --border: #e5e7eb;
   --border-faint: rgba(0, 0, 0, 0.07);
-  --hover: rgba(0, 0, 0, 0.06);
-  --hover-faint: rgba(0, 0, 0, 0.04);
+  --hover: rgba(0, 0, 0, 0.05);
+  --hover-faint: rgba(0, 0, 0, 0.03);
 
-  /* Geist accent (deepened for contrast on light) */
-  --accent: #0070f3;
-  --accent-hi: #3291ff;
-  --accent-deep: #0761d1;
+  /* Apple action blue */
+  --accent: #0071e3;
+  --accent-hi: #0066cc;
+  --accent-deep: #0066cc;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(0, 112, 243, 0.1);
-  --accent-soft-2: rgba(0, 112, 243, 0.2);
-  --glow-a: rgba(0, 112, 243, 0.1);
-  --glow-b: rgba(0, 112, 243, 0.07);
-  --guide: rgba(0, 112, 243, 0.4);
+  --accent-soft: rgba(0, 113, 227, 0.1);
+  --accent-soft-2: rgba(0, 113, 227, 0.2);
+  --glow-a: transparent;
+  --glow-b: transparent;
+  --guide: rgba(0, 113, 227, 0.5);
 
   /* Private (incognito) mode — Geist violet, deepened on light */
   --incognito: #6f3fa3;
@@ -153,14 +154,13 @@ body,
   width: 20px;
   height: 20px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, var(--accent-hi), var(--accent-deep));
-  color: var(--accent-ink);
+  background: var(--accent);
+  color: #fff;
   font-weight: 700;
   font-size: 11px;
   line-height: 1;
   display: grid;
   place-items: center;
-  box-shadow: 0 0 0 1px var(--guide), 0 1px 8px var(--glow-a);
 }
 
 .brand-name {
@@ -368,22 +368,23 @@ body,
 
 .tab-new {
   appearance: none;
-  border: none;
-  background: transparent;
-  color: var(--text-dim);
+  border: 1px solid transparent;
+  background: var(--accent-soft);
+  color: var(--accent-hi);
   font-size: 16px;
   cursor: pointer;
-  border-radius: var(--radius);
-  width: 24px;
-  height: 24px;
+  border-radius: var(--radius-pill);
+  width: 32px;
+  height: 28px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
 
 .tab-new:hover {
-  background: var(--hover-faint);
-  color: var(--text);
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
 }
 
 /* ─── Tab drag & pin affordances ────────────────────────── */
@@ -859,70 +860,121 @@ body,
 }
 
 .workspace-btn {
-  min-width: 96px;
-  max-width: 190px;
-  font-size: 12px;
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  min-width: 0;
+  max-width: 210px;
+  padding: 0 8px 0 11px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.workspace-btn:hover, .workspace-btn.is-open {
+  border-color: var(--accent);
+}
+
+.workspace-btn-name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.workspace-btn-count {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-hi);
+  background: var(--accent-soft);
+  border-radius: var(--radius-pill);
+  padding: 1px 7px;
+  font-variant-numeric: tabular-nums;
+}
+
+.workspace-btn svg:last-child {
+  color: var(--text-dim);
+  flex: none;
 }
 
 .workspace-pop {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   right: 0;
   z-index: 60;
-  min-width: 248px;
-  padding: 6px;
+  width: 300px;
+  padding: 8px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
-  background: var(--surface-card);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(14px);
+  background: var(--surface);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+}
+
+.workspace-head {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+  padding: 4px 8px 2px;
 }
 
 .workspace-new {
   display: flex;
-  gap: 5px;
+  gap: 6px;
+  padding: 2px;
 }
 
 .workspace-input {
   flex: 1;
   min-width: 0;
-  height: 27px;
-  border-radius: var(--radius);
+  height: 32px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--bg);
   color: var(--text);
   font: inherit;
   font-size: 13px;
-  padding: 0 8px;
+  padding: 0 12px;
   outline: none;
 }
 
 .workspace-input:focus {
-  border-color: var(--accent-deep);
+  border-color: var(--accent);
 }
 
 .workspace-save {
   appearance: none;
-  border: none;
-  border-radius: var(--radius);
-  background: var(--accent-soft);
-  color: var(--accent-hi);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #fff;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  padding: 0 10px;
+  padding: 0 14px;
+  height: 32px;
   cursor: pointer;
 }
 
-.workspace-save:hover {
+.workspace-save:hover:not(:disabled) {
   background: var(--accent-deep);
-  color: #fff;
+}
+
+.workspace-save:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .workspace-sep {
@@ -932,20 +984,20 @@ body,
 }
 
 .workspace-empty {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-dim);
-  padding: 8px 6px;
+  padding: 10px 8px;
   line-height: 1.5;
 }
 
 .workspace-row {
   appearance: none;
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--text);
   font: inherit;
   text-align: left;
-  padding: 7px 8px;
+  padding: 8px;
   border-radius: var(--radius);
   cursor: pointer;
   display: flex;
@@ -959,9 +1011,18 @@ body,
 
 .workspace-row.is-active {
   background: var(--accent-soft);
+  border-color: var(--accent-soft-2);
 }
 
 .workspace-row.is-active .workspace-row-name {
+  color: var(--accent-hi);
+}
+
+.workspace-row-check {
+  flex: none;
+  width: 16px;
+  display: grid;
+  place-items: center;
   color: var(--accent-hi);
 }
 
@@ -1533,8 +1594,8 @@ body::after {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 48px 24px 64px;
-  gap: 36px;
+  padding: 40px 24px 64px;
+  gap: 28px;
 }
 
 .start-mark {
@@ -1550,7 +1611,8 @@ body::after {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  max-width: 640px;
 }
 
 .start-hero-foot {
@@ -1641,14 +1703,11 @@ body::after {
 }
 
 .start-title {
-  margin: 8px 0 0;
-  font-size: 30px;
-  letter-spacing: -0.6px;
-  font-weight: 800;
-  background: linear-gradient(90deg, var(--text), var(--accent-hi));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  margin: 0;
+  font-size: 40px;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  line-height: 1.1;
 }
 
 .start-sub {
@@ -1661,17 +1720,17 @@ body::after {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 16px;
-  width: min(800px, 100%);
+  width: min(880px, 100%);
 }
 
 .start-card {
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 22px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   backdrop-filter: blur(6px);
 }
 
@@ -2417,3 +2476,149 @@ body::after {
     max-width: 40%;
   }
 }
+/* ─── Downloads panel (Ctrl+J) ─────────────────────────────── */
+.downloads-overlay { position: fixed; inset: 0; z-index: 60; display: flex; justify-content: flex-end; background: rgba(0,0,0,.35); }
+.downloads-panel { width: min(430px, 92vw); max-height: 100%; overflow: auto; display: flex; flex-direction: column; background: var(--surface-card); border-left: 1px solid var(--border); backdrop-filter: blur(14px); animation: panel-slide 140ms ease-out; }
+.downloads-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.downloads-title { font-weight: 700; font-size: 14px; color: var(--text); flex: 1; }
+.downloads-clear, .downloads-close { appearance: none; border: 1px solid var(--border); background: var(--hover-faint); color: var(--text-dim); font: inherit; font-size: 12px; border-radius: var(--radius); padding: 5px 9px; cursor: pointer; }
+.downloads-clear:hover:not(:disabled) { color: var(--text); border-color: var(--accent-deep); }
+.downloads-empty { padding: 18px 14px; color: var(--text-dim); font-size: 13px; }
+.downloads-list { list-style: none; margin: 0; padding: 6px; }
+.download-row { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: var(--radius); }
+.download-row:hover { background: var(--hover-faint); }
+.download-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.download-name { font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.download-sub { font-size: 11px; color: var(--text-dim); }
+.download-bar { height: 4px; border-radius: 2px; background: var(--border); overflow: hidden; }
+.download-fill { display: block; height: 100%; background: var(--accent); }
+.download-actions { display: flex; gap: 6px; }
+.download-actions button { appearance: none; border: 1px solid var(--border); background: transparent; color: var(--text-dim); font-size: 12px; border-radius: var(--radius); padding: 4px 8px; cursor: pointer; }
+.download-actions button:hover { color: var(--text); border-color: var(--accent-deep); }
+
+/* ─── Settings sync rows ───────────────────────────────────── */
+.settings-sync { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.settings-btn { appearance: none; border: 1px solid var(--border); background: var(--hover-faint); color: var(--text); font: inherit; font-size: 12px; border-radius: var(--radius); padding: 6px 10px; cursor: pointer; }
+.settings-btn:hover { border-color: var(--accent-deep); }
+.settings-status { font-size: 12px; color: var(--text-dim); }
+.settings-notice { font-size: 12px; color: var(--accent); margin: 6px 0 0; }
+
+/* ─── Bookmarks import + tab audio ─────────────────────────── */
+.bookmarks-bar.is-empty { display: flex; padding: 2px 8px; }
+.bookmark-import { appearance: none; border: 1px dashed var(--border); background: transparent; color: var(--text-dim); font-size: 12px; border-radius: var(--radius); padding: 4px 10px; cursor: pointer; }
+.bookmark-import:hover { color: var(--text); border-color: var(--accent-deep); }
+.tab-audio { appearance: none; border: none; background: transparent; color: var(--text-dim); cursor: pointer; padding: 2px; border-radius: 4px; display: inline-flex; }
+.tab-audio:hover { color: var(--text); background: var(--hover-faint); }
+.tab-audio.is-muted { color: var(--danger, #e5534b); }
+
+/* ─── Onboarding wizard ────────────────────────────────────── */
+.onboard-overlay { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.55); }
+.onboard-panel { width: min(480px, 92vw); background: var(--surface-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; backdrop-filter: blur(14px); }
+.onboard-title { margin: 0 0 4px; font-size: 20px; color: var(--text); }
+.onboard-step { margin: 0 0 12px; font-size: 12px; color: var(--text-dim); }
+.onboard-text { font-size: 13px; color: var(--text-dim); margin: 0 0 12px; }
+.onboard-label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text-dim); margin-bottom: 10px; }
+.onboard-keys { font-size: 12px; color: var(--text-dim); }
+.onboard-nav { display: flex; gap: 8px; align-items: center; margin-top: 16px; }
+.settings-btn.is-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.onboard-skip { appearance: none; border: none; background: transparent; color: var(--text-dim); font-size: 12px; cursor: pointer; margin-left: auto; }
+.onboard-skip:hover { color: var(--text); }
+
+/* ─── Settings devices + extensions ────────────────────────── */
+.settings-devices { list-style: none; margin: 8px 0 0; padding: 0; font-size: 12px; color: var(--text-dim); display: flex; flex-direction: column; gap: 4px; }
+.settings-link { appearance: none; border: none; background: transparent; color: var(--accent); font-size: 12px; cursor: pointer; margin-left: 8px; }
+.settings-link:hover { text-decoration: underline; }
+
+/* ─── Start page refresh (Apple editorial) ─────────────── */
+.start-title {
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.start-card {
+  border-radius: 8px;
+  box-shadow: none;
+  transition: border-color 120ms ease;
+}
+.start-card:hover {
+  transform: none;
+  border-color: var(--text-dim);
+  box-shadow: none;
+}
+.topsite-glyph {
+  background: var(--hover);
+  color: var(--text);
+  font-weight: 600;
+}
+.resume-link:hover, .memory-row:hover { color: var(--accent-hi); }
+
+/* ─── Chrome: quiet Apple chrome ───────────────────────── */
+.tab { border-radius: 8px; }
+.tab-active {
+  border-bottom: none;
+  border-image: none;
+  background: var(--hover);
+}
+.address-bar { border-radius: var(--radius-pill); }
+.address-bar:focus {
+  border-color: var(--accent);
+  box-shadow: none;
+}
+.chrome-btn { border-radius: 8px; }
+.chrome-btn:hover { color: var(--accent-hi); }
+.settings-btn, .downloads-clear, .downloads-close,
+.history-clear, .bookmark-import, .onboard-panel .settings-btn {
+  border-radius: var(--radius-pill);
+}
+.settings-btn.is-primary, button.go {
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+}
+.settings-notice { color: var(--accent-hi); }
+.download-fill { background: var(--accent); }
+.bookmark-import:hover { border-color: var(--accent); }
+
+/* ─── Tune-up: density + refinement within Apple tokens ──── */
+/* Kill leftover gradient tab indicator (Apple: no gradients). */
+.tab-active::after { display: none; }
+
+/* Tabs: more presence, clearer active, red close hover. */
+.tab { height: 34px; font-size: 13px; }
+.tab-active { background: var(--hover); border-color: transparent; }
+.tab-active .tab-title { font-weight: 600; }
+.tab-close:hover { background: rgba(217, 45, 32, 0.16); color: #d92d20; }
+
+/* Omnibox: taller field, softer popover, roomier rows. */
+.address-bar { height: 36px; font-size: 13px; }
+.omni-pop { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); padding: 6px; }
+.omni-row { padding: 8px 10px; }
+.omni-ico { width: 24px; height: 24px; }
+
+/* Keyboard hints: keycap feel, mono. */
+kbd {
+  font-family: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
+  font-size: 11px; border: 1px solid var(--border);
+  border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px;
+  background: var(--hover-faint); color: var(--text-dim); white-space: nowrap;
+}
+
+/* Focus visibility: quiet blue outline for keyboard users. */
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+
+/* Start page: tighter hero, denser tiles. */
+.start-page { gap: 20px; }
+.start-hero { margin-bottom: 4px; }
+.start-grid { gap: 16px; }
+.topsites-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px; }
+.topsite-glyph { width: 34px; height: 34px; font-size: 15px; }
+
+/* Panels: consistent 8px, quiet headers. */
+.history-panel, .downloads-panel, .settings-panel, .palette, .onboard-panel {
+  border-radius: 8px; box-shadow: none;
+}
+
+/* Text selection: Apple blue tint. */
+::selection { background: var(--accent-soft-2); }

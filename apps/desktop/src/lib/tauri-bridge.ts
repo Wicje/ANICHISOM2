@@ -1,15 +1,36 @@
 /**
- * Tauri bridge — typed wrappers over IPC commands.
+ * Native bridge — Tauri IPC with Electron Chromium fallback (ADR-008).
  *
- * Every call degrades gracefully when not running inside Tauri
- * (plain `vite dev` in a browser), so the chrome UI is previewable
- * without the native shell.
+ * Product engine is Electron (`window.continuaBridge.invoke`), Tauri is
+ * legacy-lite. Every call tries Electron first, then Tauri, then mock, so
+ * the React chrome is byte-identical on both hosts with zero component edits.
  */
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
-export const isTauri = (): boolean =>
+declare global {
+  interface Window {
+    continuaBridge?: { invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown> };
+  }
+}
+
+export const isElectron = (): boolean =>
+  typeof window !== "undefined" && typeof window.continuaBridge?.invoke === "function";
+
+export const isTauriNative = (): boolean =>
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+/** True on any native host (Electron product or Tauri legacy). Keeps all
+ * existing `if (!isTauri()) return` guards working on Electron. */
+export const isTauri = (): boolean => isTauriNative() || isElectron();
+
+const electronInvoke = <T>(cmd: string, args?: Record<string, unknown>): Promise<T> | null =>
+  isElectron() ? (window.continuaBridge!.invoke(cmd, args) as Promise<T>) : null;
+
+/** Unified invoke: Electron product first, Tauri legacy second. All existing
+ * `invoke(cmd, args).catch(...)` call sites route here with no further edits. */
+const invoke = <T>(cmd: string, args?: Record<string, unknown>): Promise<T> =>
+  electronInvoke<T>(cmd, args) ?? (isTauriNative() ? tauriInvoke<T>(cmd, args) : Promise.reject(new Error("no-native-host")));
 
 /**
  * What a freshly opened tab loads. The Continua OS backend is not deployed
@@ -123,6 +144,8 @@ export interface BrowserConfigItem {
   speed_dial?: string[];
   /** Named workspace currently being edited. */
   active_workspace?: string;
+  /** Vertical tab rail pinned on (otherwise auto on overflow). */
+  vertical_tabs?: boolean;
 }
 
 /** A sparse settings patch for `updateConfig`; only present keys change. */
@@ -136,6 +159,7 @@ export interface ConfigPatch {
   link_preview?: boolean;
   speed_dial?: string[];
   active_workspace?: string;
+  vertical_tabs?: boolean;
 }
 
 /** Search URL for a query under the given engine id. */
@@ -237,6 +261,7 @@ export const api = {
       link_preview: false,
       speed_dial: [],
       active_workspace: "default",
+      vertical_tabs: false,
     })),
 
   navState: (label: string) =>
@@ -377,12 +402,86 @@ export const api = {
   /** Toggle the vertical tab rail inset (the host page draws the rail). */
   setTabRail: (enabled: boolean) =>
     invoke<void>("set_tab_rail", { enabled }).catch(() => undefined),
+
+  /** Hide content views while a chrome overlay is open (Electron stacking). */
+  setChromeModal: (open: boolean) =>
+    invoke<void>("chrome_modal", { open }).catch(() => undefined),
+
+  listDownloads: () =>
+    invoke<DownloadItem[]>("list_downloads").catch(() => []),
+
+  openDownload: (id: string) =>
+    invoke<void>("open_download", { id }).catch(() => undefined),
+
+  revealDownload: (id: string) =>
+    invoke<void>("reveal_download", { id }).catch(() => undefined),
+
+  cancelDownload: (id: string) =>
+    invoke<void>("cancel_download", { id }).catch(() => undefined),
+
+  clearDownloads: () =>
+    invoke<DownloadItem[]>("clear_downloads").catch(() => []),
+
+  setTabMuted: (label: string, muted: boolean) =>
+    invoke<boolean>("set_tab_muted", { label, muted }).catch(() => muted),
+
+  screenshotTab: (label?: string) =>
+    invoke<{ path?: string; error?: string }>("screenshot_tab", { label: label ?? null })
+      .catch((): { path?: string; error?: string } => ({ error: "unavailable" })),
+
+  printTab: (label?: string) =>
+    invoke<void>("print_tab", { label: label ?? null }).catch(() => undefined),
+
+  tabAudioState: () =>
+    invoke<Record<string, { audible: boolean; muted: boolean }>>("tab_audio_state").catch(() => ({})),
+
+  listDevices: () =>
+    invoke<Array<{ id: string; device_name: string; trust_level: string; platform: string; last_seen_at: string }>>("list_devices").catch(() => []),
+
+  listExtensions: () =>
+    invoke<Array<{ id: string; name: string; path: string; enabled?: boolean }>>("list_extensions").catch(() => []),
+
+  loadExtension: (path: string) =>
+    invoke<{ id?: string; name?: string; error?: string }>("load_extension", { path }).catch(() => ({ error: "unavailable" })),
+
+  removeExtension: (id: string) =>
+    invoke<boolean>("remove_extension", { id }).catch(() => false),
+
+  setExtensionEnabled: (id: string, enabled: boolean) =>
+    invoke<unknown>("set_extension_enabled", { id, enabled }).catch(() => false),
+
+  extensionsDir: () =>
+    invoke<string>("extensions_dir").catch(() => ""),
 };
 
-/** OS window controls for the borderless main window. */
+/** One download tracked by the native host. */
+export interface DownloadItem {
+  id: string;
+  filename: string;
+  path: string;
+  url: string;
+  state: "progressing" | "completed" | "cancelled" | "failed";
+  received: number;
+  total: number;
+  startedAt: number;
+}
+
+/** OS window controls — Electron via IPC, Tauri via window API. */
 export const windowControls = {
-  minimize: () => getCurrentWindow().minimize().catch(() => undefined),
-  toggleMaximize: () => getCurrentWindow().toggleMaximize().catch(() => undefined),
-  isMaximized: () => getCurrentWindow().isMaximized().catch(() => false),
-  close: () => getCurrentWindow().close().catch(() => undefined),
+  minimize: () =>
+    isElectron()
+      ? window.continuaBridge!.invoke("window_control", { action: "minimize" }).catch(() => undefined)
+      : isTauriNative() ? getCurrentWindow().minimize().catch(() => undefined) : Promise.resolve(undefined),
+  toggleMaximize: () =>
+    isElectron()
+      ? window.continuaBridge!.invoke("window_control", { action: "toggleMaximize" }).catch(() => undefined)
+      : isTauriNative() ? getCurrentWindow().toggleMaximize().catch(() => undefined) : Promise.resolve(undefined),
+  isMaximized: (): Promise<boolean> =>
+    isElectron()
+      ? (window.continuaBridge!.invoke("window_control", { action: "isMaximized" }) as Promise<boolean>).catch(() => false)
+      : isTauriNative() ? getCurrentWindow().isMaximized().catch(() => false) : Promise.resolve(false),
+  close: () =>
+    isElectron()
+      ? window.continuaBridge!.invoke("window_control", { action: "close" }).catch(() => undefined)
+      : isTauriNative() ? getCurrentWindow().close().catch(() => undefined) : Promise.resolve(undefined),
 };

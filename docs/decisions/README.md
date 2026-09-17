@@ -17,4 +17,6 @@ must never contradict the code or each other.
 | [003](ADR-003-content-webview-pool.md) | Multi-live-webview pool replaces single-live-page | Accepted (Phase 1) |
 | [004](ADR-004-web-shell-experiment.md) | `apps/shell` is a frozen experiment + cloud backend | Accepted |
 | [005](ADR-005-daily-driver-bar.md) | The daily-driver bar: six criteria, all mandatory | Accepted |
-| [006](ADR-006-security-hygiene.md) | Security & hygiene debt register (Phase 0) | Accepted |
+| [006](ADR-006-security-hygiene.md) | Security & hygiene debt register (Phase 0) | Downgraded to best-effort by ADR-008 |
+| [007](ADR-007-engine-sealed.md) | WebKitGTK sealed | Superseded by ADR-008 (Tauri = legacy-lite) |
+| [008](ADR-008-chromium-dailydriver.md) | Chromium daily-driver + continuity, privacy tax removed | Accepted |

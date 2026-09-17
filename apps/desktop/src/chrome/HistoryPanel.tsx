@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, displayTitle, isTauri } from "../lib/tauri-bridge";
+import { useChromeModal } from "../lib/chrome-modal";
 import type { HistoryItem } from "../lib/tauri-bridge";
 import { Favicon } from "../components/Favicon";
 
@@ -40,6 +41,7 @@ export function HistoryPanel({
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const itemsRef = useRef(items);
+  useChromeModal("history", open);
 
   // Refetch fresh history each time the panel opens (visits land live).
   useEffect(() => {
@@ -55,11 +57,17 @@ export function HistoryPanel({
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
-    return items.filter(
-      (i) =>
-        i.title.toLowerCase().includes(q) ||
-        i.url.toLowerCase().includes(q),
-    );
+    const scored = items.map((i) => {
+      const t = (i.title || "").toLowerCase();
+      const u = i.url.toLowerCase();
+      let s = -1;
+      if (t.includes(q)) s = 100 - t.indexOf(q); // title matches rank first
+      else if (u.includes(q)) s = 50 - Math.min(49, u.indexOf(q));
+      try { if (new URL(i.url).hostname.toLowerCase().includes(q)) s += 10; } catch {}
+      return { i, s };
+    }).filter((r) => r.s >= 0);
+    scored.sort((a, b) => b.s - a.s);
+    return scored.map((r) => r.i);
   }, [items, query]);
 
   const clearAll = () => {
@@ -84,9 +92,10 @@ export function HistoryPanel({
           <input
             ref={inputRef}
             className="history-search"
-            placeholder="Search history…"
+            placeholder="Search history… (Enter opens top hit)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && visible.length > 0) go(visible[0].url); }}
             spellCheck={false}
           />
           <button

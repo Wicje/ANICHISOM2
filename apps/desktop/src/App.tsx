@@ -7,9 +7,10 @@ import {
   type SetStateAction,
 } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { api, OpenTab, displayTitle, isTauri } from "./lib/tauri-bridge";
+import { api, OpenTab, displayTitle, isElectron, isTauri, isTauriNative } from "./lib/tauri-bridge";
 import { BrowserChrome } from "./chrome/BrowserChrome";
 import { NewTab } from "./chrome/NewTab";
+import { Onboarding } from "./chrome/Onboarding";
 import { CommandPalette } from "./chrome/CommandPalette";
 import { Toasts } from "./components/Toasts";
 import { toast } from "./lib/toast";
@@ -71,8 +72,9 @@ export default function App() {
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
 
   // Mirror page titles pushed from Rust (tab:title-changed), coalesced.
+  // Tauri-legacy only: Electron pushes state through IPC responses instead.
   useEffect(() => {
-    if (!isTauri()) return;
+    if (!isTauriNative()) return;
     let unlisten: (() => void) | undefined;
     listen<{ label: string; title: string }>("tab:title-changed", (e) =>
       patch(e.payload.label, { title: e.payload.title }),
@@ -84,7 +86,7 @@ export default function App() {
 
   // Track real in-page navigations from Rust (tab:navigated), coalesced.
   useEffect(() => {
-    if (!isTauri()) return;
+    if (!isTauriNative()) return;
     let unlisten: (() => void) | undefined;
     listen<{ label: string; url: string }>("tab:navigated", (e) =>
       patch(e.payload.label, { url: e.payload.url }),
@@ -103,9 +105,9 @@ export default function App() {
   }, []);
 
   // Download events from the webview: surface toasts as files land in the
-  // OS Downloads folder.
+  // OS Downloads folder. Tauri-legacy only (Electron polls the manager).
   useEffect(() => {
-    if (!isTauri()) return;
+    if (!isTauriNative()) return;
     let unlisten: (() => void) | undefined;
     listen<{ state: string; filename: string; detail: string }>(
       "download:state",
@@ -254,6 +256,7 @@ export default function App() {
   const [firstRun, setFirstRun] = useState(
     () => localStorage.getItem(introKey) !== "1",
   );
+  const [onboarded] = useState(() => localStorage.getItem("continua.onboarded") === "1");
 
   // First-run hint: a quiet chip with the shortcuts, only on the empty start
   // page, auto-dismissing after a few seconds or on click.
@@ -268,6 +271,14 @@ export default function App() {
     const t = setTimeout(dismissIntro, 12000);
     return () => clearTimeout(t);
   }, [firstRun, tabs.length, dismissIntro]);
+
+  const [showOnboarding, setShowOnboarding] = useState(() => !onboarded);
+  const closeOnboarding = useCallback(() => {
+    localStorage.setItem("continua.onboarded", "1");
+    localStorage.setItem(introKey, "1");
+    setFirstRun(false);
+    setShowOnboarding(false);
+  }, [introKey]);
 
   return (
     <>
@@ -285,12 +296,12 @@ export default function App() {
         onSave={saveNow}
         onReopen={reopenLastClosed}
         onSwitchWorkspace={adoptTabs}
-        runtime={isTauri() ? "tauri" : "browser"}
+        runtime={isTauriNative() ? "tauri" : isElectron() ? "electron" : "browser"}
       />
       {tabs.length === 0 && (
         <NewTab onResume={restoreLastSession} onOpen={openTab} />
       )}
-      {firstRun && tabs.length === 0 && (
+      {firstRun && tabs.length === 0 && !showOnboarding && (
         <div className="intro-hint" onClick={dismissIntro} role="button" aria-label="Dismiss first-run tip">
           <span className="intro-hint-fn">Continua shortcuts</span>
           <span className="intro-hint-row">
@@ -318,6 +329,15 @@ export default function App() {
         onSync={() => api.syncSession()}
       />
       <Toasts />
+      {showOnboarding && (
+        <Onboarding
+          onDone={closeOnboarding}
+          onOpenSettingsSync={() => {
+            closeOnboarding();
+            window.dispatchEvent(new CustomEvent("continua:open-settings"));
+          }}
+        />
+      )}
     </>
   );
 }

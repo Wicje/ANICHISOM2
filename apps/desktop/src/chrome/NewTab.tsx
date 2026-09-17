@@ -88,10 +88,13 @@ export function NewTab({ onResume, onOpen }: NewTabProps) {
 
   const memories = memory.filter((m) => m.tabs.length > 0).slice(0, 6);
 
+  const hour = new Date().getHours();
+  const greeting = hour < 5 ? "Up late?" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+
   return (
     <div className="start-page">
       <div className="start-hero">
-        <h1 className="start-title">Where to next?</h1>
+        <h1 className="start-title">{greeting} — where to next?</h1>
         <p className="start-sub">
           Resume a session, jump to the top of your day, or just start typing.
         </p>

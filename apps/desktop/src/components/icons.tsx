@@ -270,3 +270,46 @@ export const IconStack = (p: IconProps) => (
     <path d="M4 13l8 4.5 8-4.5" opacity={0.45} />
   </svg>
 );
+
+/** Downloads — down-arrow into tray. */
+export const IconDownload = (p: IconProps) => (
+  <svg {...svg(p)}>
+    <path d="M12 4v9" />
+    <path d="M8 9l4 4 4-4" />
+    <path d="M4.5 15v3.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5V15" />
+  </svg>
+);
+
+/** Audio playing — speaker with waves. */
+export const IconAudio = (p: IconProps) => (
+  <svg {...svg(p)}>
+    <path d="M4 10v4h3l4 3.5v-11L7 10z" />
+    <path d="M15 9.5a4 4 0 0 1 0 5M17.5 7.5a7 7 0 0 1 0 9" />
+  </svg>
+);
+
+/** Muted — speaker with cross. */
+export const IconMuted = (p: IconProps) => (
+  <svg {...svg(p)}>
+    <path d="M4 10v4h3l4 3.5v-11L7 10z" />
+    <path d="M15.5 10.5l5 5M20.5 10.5l-5 5" />
+  </svg>
+);
+
+/** Screenshot — camera. */
+export const IconCamera = (p: IconProps) => (
+  <svg {...svg(p)}>
+    <rect x="3" y="7" width="18" height="13" rx="2" />
+    <path d="M8.5 7l1.4-2.4h4.2L15.5 7" />
+    <circle cx="12" cy="13" r="3.4" />
+  </svg>
+);
+
+/** Print — printer. */
+export const IconPrinter = (p: IconProps) => (
+  <svg {...svg(p)}>
+    <path d="M7 8V3.5h10V8" />
+    <rect x="3.5" y="8" width="17" height="8.5" rx="2" />
+    <rect x="7" y="13.5" width="10" height="7" rx="1" />
+  </svg>
+);
