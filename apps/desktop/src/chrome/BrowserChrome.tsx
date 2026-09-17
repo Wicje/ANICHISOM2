@@ -28,6 +28,7 @@ import { quickAnswer } from "../lib/quick-answer";
 import { toast } from "../lib/toast";
 import {
   IconBrand,
+  IconCaretDown,
   IconDownload,
   IconStack,
   IconRestore,
@@ -960,9 +961,11 @@ export function BrowserChrome({
               type="button"
               className={`engine-btn${engineMenu ? " is-open" : ""}`}
               onClick={() => setEngineMenu((v) => !v)}
-              title="Search engine"
+              title={`Search engine: ${engine} — click to change`}
             >
-              {engineBadge(engine) || "G"}
+              <span className="engine-badge">{engineBadge(engine) || "G"}</span>
+              <span className="engine-name">{engine}</span>
+              <IconCaretDown size={12} />
             </button>
             {engineMenu && (
               <div className="engine-pop" onMouseLeave={() => setEngineMenu(false)}>

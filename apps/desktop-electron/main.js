@@ -38,7 +38,10 @@ const isWeb = (u) => !!u && /^https?:\/\//i.test(u);
 const isStartUrl = (u) => u === "continua://start" || u === "continua://home" || !u;
 const resolveUrl = (u) => (isStartUrl(u) ? START_URL : u);
 let CHROME_H = 96;
+// Matches .tab-rail width in styles.css exactly — any drift shows as a
+// black window-bg gap with the page shifted right (seen in screenshots).
 let TAB_RAIL_W = 0;
+const TAB_RAIL_WIDTH_PX = 44;
 // While a React-chrome overlay is open (settings/history/palette/...), hide
 // content views: native WebContentsViews always paint above the window's own
 // HTML, so dropdowns would otherwise render underneath the website.
@@ -312,7 +315,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     case "set_link_preview": return store.patchConfig({ link_preview: !!args.enabled });
     case "set_immersive": case "update_tab_layout": layoutViews(); return;
     case "set_chrome_height": CHROME_H = args.height || args.chromeH || 96; layoutViews(); return;
-    case "set_tab_rail": TAB_RAIL_W = args.enabled ? 56 : 0; layoutViews(); return;
+    case "set_tab_rail": TAB_RAIL_W = args.enabled ? TAB_RAIL_WIDTH_PX : 0; layoutViews(); return;
     case "chrome_modal": modalHidden = !!args.open; layoutViews(); return;
     case "save_session": return store.saveSession(args.tabs || [...tabs.values()].map(t => ({ label: t.label, url: t.url, title: t.title })), args.active ?? focused);
     case "load_session": return store.loadSession();

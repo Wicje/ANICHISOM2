@@ -25,12 +25,14 @@ export const TabRail = memo(function TabRail({
     <div className="tab-rail" style={{ top: height }} data-tauri-drag-region>
       {tabs.map((tab) => {
         const active = tab.label === activeLabel;
-        const showClose = armed === tab.label;
+        // Active tab always offers its close glyph; others reveal it on
+        // hover — closing from the rail must be discoverable, not hidden.
+        const showClose = active || armed === tab.label;
         return (
           <button
             key={tab.label}
             className={`rail-item${active ? " is-active" : ""}`}
-            title={tab.title || displayTitle(tab.url)}
+            title={`${tab.title || displayTitle(tab.url)} — click to switch, middle-click to close`}
             onClick={() => void onActivate(tab.label)}
             onMouseEnter={() => setArmed(tab.label)}
             onMouseLeave={() => setArmed((c) => (c === tab.label ? null : c))}

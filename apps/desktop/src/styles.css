@@ -140,6 +140,7 @@ body,
 
 /* ─── Chrome shell ─────────────────────────────────────── */
 .chrome {
+  background: var(--chrome-bg);
   border-bottom: 1px solid var(--border);
   transition: border-color 0.2s;
 }
@@ -685,25 +686,43 @@ body,
 /* ─── Search engine selector (omnibox) ──────────────────── */
 .engine-btn {
   appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid var(--border);
   background: var(--surface);
-  color: var(--text-dim);
+  color: var(--text);
   font: inherit;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  height: 30px;
-  min-width: 30px;
-  padding: 0 7px;
-  border-radius: var(--radius);
+  height: 36px;
+  padding: 0 12px 0 8px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   flex: none;
 }
 
 .engine-btn:hover,
 .engine-btn.is-open {
-  color: var(--text);
-  border-color: var(--accent-deep);
+  border-color: var(--accent);
+}
+
+.engine-badge {
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  padding: 2px 7px;
+  letter-spacing: 0.02em;
+}
+
+.engine-name {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.engine-btn svg {
+  color: var(--text-dim);
 }
 
 .engine-wrap {
@@ -2103,6 +2122,7 @@ body::after {
   min-height: 24px;
   margin-top: 1px;
   overflow: hidden;
+  background: var(--chrome-bg);
 }
 
 .bookmark-item {
@@ -2440,7 +2460,7 @@ body::after {
   position: relative;
   flex: 1;
   min-width: 80px;
-  max-width: 920px;
+  max-width: 1180px;
 }
 
 /* Narrow-ish window: tighten the cluster so the address bar keeps room. */
