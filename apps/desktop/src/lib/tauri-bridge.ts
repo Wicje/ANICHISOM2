@@ -204,6 +204,10 @@ export const api = {
   openTab: (url: string) =>
     isTauri() ? invoke<string>("open_tab", { url }) : Promise.resolve(`tab-mock-${Math.random().toString(36).slice(2)}`),
 
+  /** Ground truth from the host: adopt native tabs React doesn't know (drift repair). */
+  listTabs: () =>
+    invoke<OpenTab[]>("list_tabs").catch(() => []),
+
   openIncognitoTab: (url: string) =>
     isTauri()
       ? invoke<string>("open_incognito_tab", { url })

@@ -230,10 +230,32 @@ export default function App() {
   const restoreLastSession = async (id?: string, replace = false) => {
     const session = await api.restoreSession(id, replace);
     if (session && session.length > 0) {
-      setTabs(session);
-      setActiveLabel(session[session.length - 1].label);
+      // Merge, never blind-replace: a late/empty response must not wipe tabs
+      // another restore already placed (the ghost-tab race).
+      setTabs((prev) => {
+        const seen = new Set(prev.map((t) => t.label));
+        const fresh = session.filter((t) => !seen.has(t.label));
+        return fresh.length ? [...prev, ...fresh] : prev;
+      });
+      setActiveLabel((cur) => cur ?? session[session.length - 1].label);
     }
   };
+
+  // Boot reconcile: adopt any native tabs React doesn't know about (drift
+  // repair — e.g. tabs restored host-side before the chrome mounted).
+  useEffect(() => {
+    if (!isTauri()) return;
+    void api.listTabs().then((native) => {
+      if (!native || native.length === 0) return;
+      setTabs((prev) => {
+        const seen = new Set(prev.map((t) => t.label));
+        const missing = native.filter((t) => !seen.has(t.label));
+        return missing.length ? [...prev, ...missing] : prev;
+      });
+      setActiveLabel((cur) => cur ?? native[native.length - 1].label);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Pull a cloud session (paired device) and adopt it as the live workspace.
   const pullRemote = async () => {

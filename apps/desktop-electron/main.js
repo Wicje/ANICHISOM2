@@ -287,6 +287,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
   const m = args.label ? tabs.get(args.label) : focused ? tabs.get(focused) : null;
   switch (op) {
     case "open_tab": return openTab(args.url || START_URL, false);
+    case "list_tabs": return [...tabs.entries()].map(([lab, t]) => ({ label: lab, url: t.url, title: t.title, pinned: !!t.pinned, incognito: !!t.incognito }));
     case "open_incognito_tab": return openTab(args.url || START_URL, true);
     case "close_tab": closeTab(args.label); return;
     case "activate_tab": activate(args.label); return;

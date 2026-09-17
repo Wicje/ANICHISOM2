@@ -110,7 +110,6 @@ export function BrowserChrome({
   runtime,
 }: BrowserChromeProps) {
   const [address, setAddress] = useState("");
-  const [restored, setRestored] = useState(false);
   const [maximized, setMaximized] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">(() =>
     localStorage.getItem("continua-theme") === "light" ? "light" : "dark",
@@ -217,13 +216,9 @@ export function BrowserChrome({
     localStorage.setItem("continua-theme", theme);
   }, [theme]);
 
-  // Restore last session on launch.
-  useEffect(() => {
-    if (!restored) {
-      if (tabs.length === 0) onRestore().finally(() => setRestored(true));
-      else setRestored(true);
-    }
-  }, [restored, onRestore, tabs.length]);
+  // Session restore is owned by App (single caller). A second restore here
+  // raced it: whichever response landed last won, and an empty late
+  // response wiped the strip while native tabs stayed live (ghost tabs).
 
   // Keep native tab webviews filling the area below the chrome. Resize storms
   // are coalesced to one relayout per frame, and no-op resizes are skipped.
