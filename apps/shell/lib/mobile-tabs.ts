@@ -8,6 +8,11 @@ export interface MobileTab {
   title: string;
 }
 
+export interface MobileWorkspace {
+  name: string;
+  tabs: MobileTab[];
+}
+
 const DEVICE_KEY = "continua-mobile-device-id";
 
 export function mobileDeviceId(): string {
@@ -40,6 +45,35 @@ async function pullBrowser(): Promise<{ tabs: MobileTab[]; version: number }> {
 
 export async function loadTabs(): Promise<MobileTab[]> {
   return (await pullBrowser()).tabs;
+}
+
+export async function loadWorkspaces(): Promise<MobileWorkspace[]> {
+  const res = await fetch("/api/context/pull?domains=browser", { credentials: "same-origin" });
+  if (!res.ok) throw new Error("pull failed");
+  const body = await res.json();
+  const records: Array<{ domain?: string; data?: { workspaces?: MobileWorkspace[] } }> =
+    body?.data?.records || body?.data?.domains || body?.data || [];
+  const rec = Array.isArray(records) ? records.find((r) => r.domain === "browser") || records[0] : records;
+  return rec?.data?.workspaces || [];
+}
+
+/** Open a whole workspace on desktop: push its tabs (merge adopts them). */
+export async function openWorkspaceOnDesktop(ws: MobileWorkspace): Promise<void> {
+  const { tabs, version } = await pullBrowser();
+  const have = new Set(tabs.map((t) => t.url));
+  const merged = [...tabs, ...ws.tabs.filter((t) => t.url && !have.has(t.url))];
+  const res = await fetch("/api/context/save", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      domain: "browser",
+      data: { tabs: merged },
+      version: version > 0 ? version : 1,
+      deviceId: mobileDeviceId(),
+    }),
+  });
+  if (!res.ok) throw new Error(`save failed (${res.status})`);
 }
 
 /** Append a tab so desktop pull-merge adopts it (send-to-desktop). */

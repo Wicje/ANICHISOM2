@@ -2746,3 +2746,36 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 
 /* Text selection: Apple blue tint. */
 ::selection { background: var(--accent-soft-2); }
+
+/* ─── Settings stacked rows (logins) ─────────────────────── */
+.settings-stack { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
+
+/* ─── Tab groups ─────────────────────────────────────────── */
+.tab-group-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.ctx-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-dim);
+  padding: 4px 9px 2px;
+}
+.ctx-newgroup { padding: 2px 4px; }
+.ctx-input {
+  width: 100%;
+  height: 30px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  padding: 0 10px;
+  outline: none;
+}
+.ctx-input:focus { border-color: var(--accent); }

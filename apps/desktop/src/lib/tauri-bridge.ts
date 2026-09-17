@@ -102,6 +102,15 @@ export interface RestoredTab {
   incognito?: boolean;
   /** Chrome-side pin (favicon-only tab); restored pin-for-pin from the session. */
   pinned?: boolean;
+  /** Tab group id; resolved against the group registry for name/color. */
+  group?: string | null;
+}
+
+/** A named tab group with its Apple-safe color. */
+export interface TabGroup {
+  id: string;
+  name: string;
+  color: string;
 }
 
 /** A tab as live in the chrome: same shape as a restored tab. */
@@ -158,6 +167,8 @@ export interface BrowserConfigItem {
   active_workspace?: string;
   /** Vertical tab rail pinned on (otherwise auto on overflow). */
   vertical_tabs?: boolean;
+  /** Named tab-group registry (synced). */
+  tab_groups?: TabGroup[];
 }
 
 /** A sparse settings patch for `updateConfig`; only present keys change. */
@@ -172,6 +183,7 @@ export interface ConfigPatch {
   speed_dial?: string[];
   active_workspace?: string;
   vertical_tabs?: boolean;
+  tab_groups?: TabGroup[];
 }
 
 /** Search URL for a query under the given engine id. */
@@ -462,6 +474,30 @@ export const api = {
 
   toggleDevTools: () =>
     invoke<void>("toggle_devtools").catch(() => undefined),
+
+  loginStatus: () =>
+    invoke<{ available: boolean }>("login_status").catch(() => ({ available: false })),
+
+  listLogins: () =>
+    invoke<Array<{ id: string; origin: string; username: string; addedAt: number }>>("list_logins").catch(() => []),
+
+  addLogin: (origin: string, username: string, password: string) =>
+    invoke<{ id?: string; error?: string }>("add_login", { origin, username, password }).catch(() => ({ error: "unavailable" })),
+
+  removeLogin: (id: string) =>
+    invoke<boolean>("remove_login", { id }).catch(() => false),
+
+  fillLogin: (id?: string, label?: string) =>
+    invoke<{ ok?: boolean; error?: string; detail?: string }>("fill_login", { id: id ?? null, label: label ?? null }).catch(() => ({ error: "unavailable" })),
+
+  setTabGroup: (label: string, group: string | null) =>
+    invoke<string | null>("set_tab_group", { label, group }).catch(() => null),
+
+  listGroups: () =>
+    invoke<TabGroup[]>("list_groups").catch(() => []),
+
+  createGroup: (name: string) =>
+    invoke<TabGroup | null>("create_group", { name }).catch(() => null),
   listDevices: () =>
     invoke<Array<{ id: string; device_name: string; trust_level: string; platform: string; last_seen_at: string }>>("list_devices").catch(() => []),
 

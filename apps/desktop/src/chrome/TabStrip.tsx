@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { api, displayTitle } from "../lib/tauri-bridge";
 import { useChromeModal } from "../lib/chrome-modal";
-import type { TabRecord } from "../lib/tauri-bridge";
+import type { TabGroup, TabRecord } from "../lib/tauri-bridge";
 import { Favicon } from "../components/Favicon";
 import {
   IconAudio,
@@ -24,6 +24,8 @@ export interface OpenTab extends TabRecord {
   pinned?: boolean;
   /** Private (incognito) tab: badge in the strip, no disk trace. */
   incognito?: boolean;
+  /** Tab group id (resolved against the registry for color). */
+  group?: string | null;
 }
 
 interface TabStripProps {
@@ -42,6 +44,10 @@ interface TabStripProps {
   /** Live audio state per tab label (polled by chrome, Electron host). */
   audio?: Record<string, { audible: boolean; muted: boolean }>;
   onToggleMute?: (label: string, muted: boolean) => void;
+  /** Group registry + assignment (persisted + synced). */
+  groups?: TabGroup[];
+  onSetGroup?: (label: string, group: string | null) => void;
+  onGroupsChanged?: () => void;
   /** True when the vertical rail has taken over: hide the top tab pills
    * (visibility, not display, so scrollWidth stays stable and overflow
    * detection doesn't flutter). */
@@ -75,12 +81,17 @@ export const TabStrip = memo(function TabStrip({
   onOverflowChange,
   audio,
   onToggleMute,
+  groups,
+  onSetGroup,
+  onGroupsChanged,
   rail,
 }: TabStripProps) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [ctx, setCtx] = useState<MenuState | null>(null);
+  const [groupName, setGroupName] = useState("");
   useChromeModal("tab-menu", menuOpen || ctx !== null);
+  const groupById = new Map((groups ?? []).map((g) => [g.id, g]));
   const rootRef = useRef<HTMLDivElement | null>(null);
   const target = ctx ? tabs.find((t) => t.label === ctx.label) : undefined;
 
@@ -205,6 +216,13 @@ export const TabStrip = memo(function TabStrip({
             }
           >
             <Favicon url={tab.url} />
+            {tab.group && groupById.get(tab.group) && (
+              <span
+                className="tab-group-dot"
+                style={{ background: groupById.get(tab.group)!.color }}
+                title={`Group: ${groupById.get(tab.group)!.name}`}
+              />
+            )}
             <span className="tab-title">{tab.title || displayTitle(tab.url)}</span>
             {(() => {
               const a = audio?.[tab.label];
@@ -296,6 +314,51 @@ export const TabStrip = memo(function TabStrip({
                 <span className="ctx-ico"><IconAppWindow size={13} /></span>
                 Open in a new window
               </button>
+            )}
+            {onSetGroup && (
+              <>
+                <div className="ctx-sep" />
+                <div className="ctx-label">Group</div>
+                {(groups ?? []).map((g) => (
+                  <button
+                    key={g.id}
+                    className="ctx-item"
+                    onClick={() => ctxAction(() => onSetGroup(ctx.label, target?.group === g.id ? null : g.id))}
+                  >
+                    <span className="ctx-ico"><span className="tab-group-dot" style={{ background: g.color }} /></span>
+                    {g.name}{target?.group === g.id ? " ✓" : ""}
+                  </button>
+                ))}
+                {target?.group && (
+                  <button className="ctx-item" onClick={() => ctxAction(() => onSetGroup(ctx.label, null))}>
+                    <span className="ctx-ico"><IconClose size={13} /></span>
+                    Ungroup tab
+                  </button>
+                )}
+                <div className="ctx-newgroup">
+                  <input
+                    className="ctx-input"
+                    value={groupName}
+                    placeholder="New group name…"
+                    onChange={(e) => setGroupName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && groupName.trim()) {
+                        const nm = groupName.trim();
+                        setGroupName("");
+                        ctxAction(() => {
+                          void api.createGroup(nm).then((g) => {
+                            if (g) {
+                              onGroupsChanged?.();
+                              onSetGroup(ctx.label, g.id);
+                            }
+                          });
+                        });
+                      }
+                    }}
+                    spellCheck={false}
+                  />
+                </div>
+              </>
             )}
             <div className="ctx-sep" />
             {onCloseOthers && (

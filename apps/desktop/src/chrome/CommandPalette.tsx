@@ -270,6 +270,21 @@ export function CommandPalette({
       run: () => void api.printTab(activeLabel ?? undefined),
     });
     raw.push({
+      key: "fill-login",
+      group: "Actions",
+      label: "Fill login for this site",
+      hint: "OS-keyring vault",
+      icon: IconCheck,
+      run: () => {
+        void (async () => {
+          const r = await api.fillLogin(undefined, activeLabel ?? undefined);
+          const res = r as { ok?: boolean; error?: string; detail?: string };
+          if (res?.ok) setNotice("Login filled.");
+          else setNotice(res?.error === "no-login" ? "No saved login for this site — add one in Settings → Logins." : `Fill failed: ${res?.error || res?.detail || "unknown"}`);
+        })();
+      },
+    });
+    raw.push({
       key: "private",
       group: "Actions",
       label: "New private tab",

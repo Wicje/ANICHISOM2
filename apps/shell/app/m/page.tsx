@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { loadTabs, pushTab, type MobileTab } from '@/lib/mobile-tabs';
+import { loadTabs, loadWorkspaces, openWorkspaceOnDesktop, pushTab, type MobileTab, type MobileWorkspace } from '@/lib/mobile-tabs';
 
 function hostOf(url: string): string {
   try {
@@ -14,6 +14,7 @@ function hostOf(url: string): string {
 
 export default function MobileHome() {
   const [tabs, setTabs] = useState<MobileTab[]>([]);
+  const [workspaces, setWorkspaces] = useState<MobileWorkspace[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'locked'>('loading');
   const [error, setError] = useState('');
   const [url, setUrl] = useState('');
@@ -26,6 +27,7 @@ export default function MobileHome() {
     setError('');
     try {
       setTabs(await loadTabs());
+      try { setWorkspaces(await loadWorkspaces()); } catch { /* workspaces need a newer desktop */ }
       setState('ready');
     } catch (e) {
       setState(String((e as Error)?.message) === 'unauthorized' ? 'locked' : 'ready');
@@ -129,6 +131,29 @@ export default function MobileHome() {
               </ul>
             )}
           </section>
+
+          {workspaces.length > 0 && (
+            <section style={{ marginTop: 20 }}>
+              <div style={styles.label}>Workspaces</div>
+              <ul style={styles.list}>
+                {workspaces.map((w) => (
+                  <li key={w.name} style={styles.row}>
+                    <span style={styles.glyph}>▤</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={styles.title}>{w.name}</div>
+                      <div style={styles.host}>{w.tabs.length} tabs</div>
+                    </div>
+                    <button
+                      style={styles.small}
+                      onClick={() => void openWorkspaceOnDesktop(w).then(() => refresh()).catch(() => setError('Open failed'))}
+                    >
+                      Open
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </>
       )}
     </main>
@@ -142,6 +167,7 @@ const styles: Record<string, CSSProperties> = {
   sub: { fontSize: 13, color: '#86868b', marginTop: 2 },
   refresh: { width: 40, height: 40, borderRadius: 20, border: '1px solid #2c2c2e', background: '#161617', color: '#f5f5f7', fontSize: 18 },
   install: { height: 40, padding: '0 16px', borderRadius: 20, border: 'none', background: '#0071e3', color: '#fff', fontWeight: 600, fontSize: 15 },
+  small: { height: 36, padding: '0 16px', borderRadius: 18, border: '1px solid #0071e3', background: 'transparent', color: '#2997ff', fontWeight: 600, fontSize: 14 },
   card: { background: '#161617', border: '1px solid #2c2c2e', borderRadius: 12, padding: 16, marginBottom: 16 },
   label: { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#86868b', marginBottom: 10 },
   input: { flex: 1, minWidth: 0, height: 44, borderRadius: 22, border: '1px solid #2c2c2e', background: '#000', color: '#f5f5f7', padding: '0 16px', fontSize: 16 },

@@ -53,6 +53,11 @@ export function SettingsPanel({
   const [extPath, setExtPath] = useState("");
   const [extensions, setExtensions] = useState<Array<{ id: string; name: string; path: string; enabled?: boolean }>>([]);
   const [extDir, setExtDir] = useState("");
+  const [loginsAvail, setLoginsAvail] = useState(false);
+  const [logins, setLogins] = useState<Array<{ id: string; origin: string; username: string; addedAt: number }>>([]);
+  const [lgUrl, setLgUrl] = useState("");
+  const [lgUser, setLgUser] = useState("");
+  const [lgPass, setLgPass] = useState("");
   useChromeModal("settings", open);
 
   const refreshSync = () => {
@@ -60,6 +65,8 @@ export function SettingsPanel({
     void api.listDevices().then(setDevices);
     void api.listExtensions().then(setExtensions);
     void api.extensionsDir().then(setExtDir);
+    void api.loginStatus().then((s) => setLoginsAvail(!!s.available));
+    void api.listLogins().then(setLogins);
   };
 
   useEffect(() => {
@@ -68,6 +75,9 @@ export function SettingsPanel({
       setSyncMsg(null);
       void api.getContinuaUrl().then(setServerUrl);
       refreshSync();
+      // Live pairing state: approval may arrive from another device.
+      const t = window.setInterval(refreshSync, 10000);
+      return () => window.clearInterval(t);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, config]);
@@ -259,6 +269,12 @@ export function SettingsPanel({
           <Row label="Continuity">
             <div className="settings-sync">
               <span className="settings-status">{sync ? (sync.paired ? `Paired · ${sync.deviceId}` : "Not paired — local only") : "…"}</span>
+              {sync?.deviceId && (
+                <button className="settings-btn" title="Copy this device's ID" onClick={() => {
+                  void navigator.clipboard?.writeText(sync.deviceId).catch(() => undefined);
+                  setSyncMsg("Device ID copied.");
+                }}>Copy ID</button>
+              )}
               <button className="settings-btn" onClick={() => { void api.syncSession().then((r) => { setSyncMsg(`Sync ${ (r as { ok?: boolean })?.ok === false ? "queued offline" : "pushed"}.`); refreshSync(); }); }}>Sync now</button>
               <button className="settings-btn" onClick={() => { void api.pullSession().then(() => { setSyncMsg("Pull requested — remote tabs merge in."); refreshSync(); }); }}>Pull</button>
             </div>
@@ -277,6 +293,38 @@ export function SettingsPanel({
               </ul>
             )}
             {syncMsg && <p className="settings-notice">{syncMsg}</p>}
+          </Row>
+
+          <Row label="Logins">
+            {!loginsAvail ? (
+              <span className="settings-status">OS keyring unavailable — logins disabled on this machine.</span>
+            ) : (
+              <div className="settings-stack">
+                <div className="settings-sync">
+                  <input className="settings-input" value={lgUrl} placeholder="https://site.com" onChange={(e) => setLgUrl(e.target.value)} spellCheck={false} />
+                  <input className="settings-input" value={lgUser} placeholder="Username" onChange={(e) => setLgUser(e.target.value)} spellCheck={false} autoComplete="off" />
+                  <input className="settings-input" type="password" value={lgPass} placeholder="Password" onChange={(e) => setLgPass(e.target.value)} autoComplete="new-password" />
+                  <button className="settings-btn" onClick={() => {
+                    if (!lgUrl.trim() || !lgUser.trim() || !lgPass) { setSyncMsg("Fill site, username and password."); return; }
+                    void api.addLogin(lgUrl.trim(), lgUser.trim(), lgPass).then((r) => {
+                      const res = r as { id?: string; error?: string };
+                      if (res?.id) { setLgUrl(""); setLgUser(""); setLgPass(""); setSyncMsg("Login saved (OS-keyring encrypted)."); refreshSync(); }
+                      else setSyncMsg(`Save failed: ${res?.error || "unknown"}`);
+                    });
+                  }}>Save</button>
+                </div>
+                <span className="settings-status">Encrypted with the OS keyring — never stored in plain text. Fill from the palette: “Fill login”.</span>
+                {logins.length > 0 && (
+                  <ul className="settings-devices">
+                    {logins.map((l) => (
+                      <li key={l.id}>{l.username} · {l.origin}
+                        <button className="settings-link" onClick={() => void api.removeLogin(l.id).then(() => refreshSync())}>remove</button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </Row>
 
           <Row label="Extensions">

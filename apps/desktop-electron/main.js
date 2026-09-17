@@ -6,13 +6,13 @@
  * continuity via store.js, delta sync to Supabase (TLS, no E2E).
  * Privacy tax removed: no vault, no fingerprint gate, plain partitions.
  */
-const { app, BrowserWindow, WebContentsView, ipcMain, session, shell, Menu, globalShortcut } = require("electron");
+const { app, BrowserWindow, WebContentsView, ipcMain, session, shell, Menu, globalShortcut, safeStorage } = require("electron");
 const path = require("path");
 const os = require("os");
 const fs = require("fs");
 const { Store } = require("./store");
 const { pickVictims } = require("./pool");
-const { buildSavePayload, mergeRemoteTabs } = require("./sync");
+const { buildSavePayload, mergeRemoteTabs, mergeRemoteWorkspaces } = require("./sync");
 
 // Boxes without a usable GPU (broken libva/iHD, headless Wayland) get a
 // dying GPU process and black canvases in fresh renderers. Opt out of
@@ -75,7 +75,7 @@ function scheduleSave() {
 }
 function persistNow() {
   if (!store) return;
-  const live = [...tabs.entries()].filter(([, m]) => !m.incognito).map(([lab, m]) => ({ label: lab, url: m.url, title: m.title, pinned: !!m.pinned }));
+  const live = [...tabs.entries()].filter(([, m]) => !m.incognito).map(([lab, m]) => ({ label: lab, url: m.url, title: m.title, pinned: !!m.pinned, group: m.group || null }));
   store.saveSession(live, focused);
   live.forEach(t => store.enqueue({ op: "upsert_tab", ...t }));
 }
@@ -92,7 +92,12 @@ async function flushSync() {
   if (!ops.length) { lastSyncAt = Date.now(); return { ok: true, pending: 0 }; }
   try {
     // Collapse queue to current tab graph → single domain save (server merges via vector clocks).
-    const payload = buildSavePayload(tabs, focused, store.cfg.device_id, syncVersion);
+    let workspaces = null;
+    try {
+      const ws = store.listWorkspaces ? store.listWorkspaces() : [];
+      workspaces = ws.map(w => ({ name: w.id, tabs: w.tabs }));
+    } catch {}
+    const payload = buildSavePayload(tabs, focused, store.cfg.device_id, syncVersion, workspaces, getGroups());
     const res = await fetch(`${url}/api/context/save`, {
       method: "POST", headers: authHeaders(),
       body: JSON.stringify(payload),
@@ -123,8 +128,30 @@ async function pullMerge() {
     const out = [];
     for (const t of mergeRemoteTabs(tabs, remote)) {
       const lab = openTab(t.url);
+      if (t.group) { const m = tabs.get(lab); if (m) m.group = t.group; }
       out.push({ label: lab, url: t.url, title: t.title });
     }
+    // Adopt unknown remote workspaces (phone/PWA saves land here).
+    try {
+      const localNames = store.listWorkspaces ? store.listWorkspaces().map(w => w.id) : [];
+      for (const w of mergeRemoteWorkspaces(localNames, rec?.data?.workspaces)) {
+        try { store.saveWorkspace(w.name, w.tabs); } catch {}
+        out.push({ workspace: w.name, tabs: w.tabs.length });
+      }
+    } catch {}
+    // Adopt unknown remote groups (ids + names + colors merge by id).
+    try {
+      const local = getGroups();
+      const have = new Set(local.map(g => g.id));
+      let changed = false;
+      for (const g of rec?.data?.groups || []) {
+        if (!g?.id || have.has(g.id)) continue;
+        have.add(g.id);
+        local.push({ id: g.id, name: (g.name || "Untitled").slice(0, 32), color: g.color || "#0071e3" });
+        changed = true;
+      }
+      if (changed) saveGroups(local);
+    } catch {}
     lastSyncAt = Date.now();
     return out;
   } catch { return []; }
@@ -261,7 +288,7 @@ function openTab(url, incognito = false) {
   const target = resolveUrl(url);
   const startish = target === START_URL;
   const lab = label(incognito ? "tab-incog" : "tab");
-  const meta = { label: lab, url: startish ? "continua://start" : target, title: startish ? "New Tab" : target, history: [target], idx: 0, scrollY: 0, pinned: false, incognito, zoom: 100, discarded: false, lastActive: Date.now(), view: null };
+  const meta = { label: lab, url: startish ? "continua://start" : target, title: startish ? "New Tab" : target, history: [target], idx: 0, scrollY: 0, pinned: false, group: null, incognito, zoom: 100, discarded: false, lastActive: Date.now(), view: null };
   // enforce pool budget before adding
   if ([...tabs.values()].filter(m => !m.discarded).length >= POOL_K) prunePool();
   meta.view = makeView(meta);
@@ -356,7 +383,14 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
   const m = args.label ? tabs.get(args.label) : focused ? tabs.get(focused) : null;
   switch (op) {
     case "open_tab": return openTab(args.url || START_URL, false);
-    case "list_tabs": return [...tabs.entries()].map(([lab, t]) => ({ label: lab, url: t.url, title: t.title, pinned: !!t.pinned, incognito: !!t.incognito }));
+    case "list_tabs": return [...tabs.entries()].map(([lab, t]) => ({ label: lab, url: t.url, title: t.title, pinned: !!t.pinned, group: t.group || null, incognito: !!t.incognito }));
+    case "set_tab_group": {
+      const t = tabs.get(args.label);
+      if (t) { t.group = typeof args.group === "string" && args.group ? args.group : null; scheduleSave(); }
+      return t?.group || null;
+    }
+    case "list_groups": return listGroups();
+    case "create_group": return createGroup(args.name);
     case "open_incognito_tab": return openTab(args.url || START_URL, true);
     case "close_tab": closeTab(args.label); return;
     case "activate_tab": activate(args.label); return;
@@ -394,7 +428,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     case "set_chrome_height": CHROME_H = args.height || args.chromeH || 96; layoutViews(); return;
     case "set_tab_rail": TAB_RAIL_W = args.enabled ? TAB_RAIL_WIDTH_PX : 0; layoutViews(); return;
     case "chrome_modal": modalHidden = !!args.open; layoutViews(); return;
-    case "save_session": return store.saveSession(args.tabs || [...tabs.values()].map(t => ({ label: t.label, url: t.url, title: t.title })), args.active ?? focused);
+    case "save_session": return store.saveSession(args.tabs || [...tabs.values()].map(t => ({ label: t.label, url: t.url, title: t.title, group: t.group || null })), args.active ?? focused);
     case "load_session": return store.loadSession();
     case "restore_session": { // merge, never destructive replace
       const ids = store.restoreSession(args.id) || [];
@@ -503,6 +537,39 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       return;
     }
     case "reader_toggle": return await toggleReader(args.label);
+    case "login_status": return { available: loginsAvailable() };
+    case "list_logins": return getLogins().map(l => ({ id: l.id, origin: l.origin, username: l.username, addedAt: l.addedAt }));
+    case "add_login": {
+      if (!loginsAvailable()) return { error: "unavailable" };
+      const origin = originOf(args.origin || "");
+      if (!origin || !args.username || !args.password) return { error: "bad-args" };
+      const crypto = require("crypto");
+      const id = "lg-" + crypto.randomBytes(6).toString("hex");
+      const list = getLogins().filter(l => !(l.origin === origin && l.username === args.username));
+      list.push({ id, origin, username: args.username, passwordEnc: safeStorage.encryptString(args.password).toString("base64"), addedAt: Date.now() });
+      store.cfg.logins = list; store._saveCfg();
+      return { id };
+    }
+    case "remove_login": {
+      store.cfg.logins = getLogins().filter(l => l.id !== args.id);
+      store._saveCfg();
+      return true;
+    }
+    case "fill_login": {
+      // User-triggered only. Matches the active tab's origin exactly.
+      const t = args.label ? tabs.get(args.label) : focused ? tabs.get(focused) : null;
+      const origin = t ? originOf(t.url) : null;
+      if (!origin) return { error: "no-origin" };
+      const login = getLogins().find(l => l.id === args.id && l.origin === origin) || getLogins().find(l => l.origin === origin);
+      if (!login) return { error: "no-login" };
+      if (!loginsAvailable()) return { error: "unavailable" };
+      let pass = "";
+      try { pass = safeStorage.decryptString(Buffer.from(login.passwordEnc, "base64")); } catch { return { error: "decrypt" }; }
+      try {
+        const r = await t.view.webContents.executeJavaScript(FILL_JS(login.username, pass));
+        return { ok: r === "filled", detail: r };
+      } catch { return { error: "fill" }; }
+    }
     case "list_extensions": return listExtensions();
     case "load_extension": return await loadExtension(args.path);
     case "remove_extension": return removeExtension(args.id);
@@ -524,6 +591,43 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     default: return null;
   }
 });
+
+// ---------- logins (Mozilla model: OS-keyring-sealed key + encrypted DB) ----------
+// Secrets are encrypted with safeStorage (Keychain/libsecret/DPAPI) — only
+// ciphertext touches disk (store.cfg.logins). No background sniffing: fills
+// are always user-triggered from the palette or Settings.
+function loginsAvailable() {
+  try { return safeStorage.isEncryptionAvailable(); } catch { return false; }
+}
+function getLogins() {
+  try { return Array.isArray(store?.cfg?.logins) ? store.cfg.logins : []; } catch { return []; }
+}
+function originOf(u) {
+  try {
+    const x = new URL(u);
+    return x.protocol === "http:" || x.protocol === "https:" ? x.origin : null;
+  } catch { return null; }
+}
+const FILL_JS = (user, pass) => `
+(() => {
+  const norm = (s) => (s || "").toLowerCase();
+  const inputs = [...document.querySelectorAll('input')];
+  const passEl = inputs.find(i => (i.type || "").toLowerCase() === "password" && i.offsetParent !== null) || inputs.find(i => (i.type || "").toLowerCase() === "password");
+  if (!passEl) return "no-password-field";
+  const form = passEl.form;
+  const scope = form ? [...form.querySelectorAll('input')] : inputs;
+  const userEl = scope.find(i => i !== passEl && /user|name|email|login|account/i.test((i.name || "") + (i.id || "") + (i.type || "") + (i.getAttribute("autocomplete") || "")))
+    || scope.find(i => i !== passEl && ((i.type || "").toLowerCase() === "text" || (i.type || "").toLowerCase() === "email"));
+  const set = (el, v) => {
+    el.focus();
+    el.value = v;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  if (userEl) set(userEl, ${JSON.stringify(user)});
+  set(passEl, ${JSON.stringify(pass)});
+  return "filled";
+})()`;
 
 // ---------- reader mode (readability-lite, per-tab toggle) ----------
 const readerCache = new Map(); // label -> original HTML
@@ -625,6 +729,31 @@ function removeExtension(id) {
   } catch { return false; }
 }
 
+// ---------- tab groups (persisted registry + per-tab assignment) ----------
+const GROUP_COLORS = ["#0071e3", "#7c5cff", "#188038", "#e8710a", "#d92d20", "#0090a3"];
+function getGroups() {
+  try {
+    const g = store?.getConfig ? store.getConfig().tab_groups : store?.state?.config?.tab_groups;
+    return Array.isArray(g) ? g : [];
+  } catch { return []; }
+}
+function saveGroups(groups) {
+  try {
+    if (store.patchConfig) store.patchConfig({ tab_groups: groups });
+    else if (store.state?.config) { store.state.config.tab_groups = groups; store._saveSoon ? store._saveSoon() : store._save(); }
+  } catch {}
+}
+function listGroups() { return getGroups(); }
+function createGroup(name) {
+  const clean = (name || "").trim().slice(0, 32) || "Untitled";
+  const groups = getGroups();
+  const crypto = require("crypto");
+  const g = { id: "grp-" + crypto.randomBytes(4).toString("hex"), name: clean, color: GROUP_COLORS[groups.length % GROUP_COLORS.length] };
+  groups.push(g);
+  saveGroups(groups);
+  return g;
+}
+
 function uniqueDownloadPath(dir, filename) {  const safe = (filename || "download").replace(/[\\/:*?"<>|]/g, "_").slice(0, 180) || "download";
   let p = path.join(dir, safe);
   if (!fs.existsSync(p)) return p;
@@ -693,7 +822,7 @@ app.whenReady().then(async () => {  // No native File/Edit/View menu — the Rea
       const target = resolveUrl(t.url);
       const startish = target === START_URL;
       const lab = `tab-restore-${Date.now()}-${i}`;
-      tabs.set(lab, { label: lab, url: startish ? "continua://start" : target, title: startish ? "New Tab" : (t.title || target), history: [target], idx: 0, scrollY: 0, pinned: !!t.pinned, incognito: false, zoom: 100, discarded: true, lastActive: 0, view: null });
+      tabs.set(lab, { label: lab, url: startish ? "continua://start" : target, title: startish ? "New Tab" : (t.title || target), history: [target], idx: 0, scrollY: 0, pinned: !!t.pinned, group: t.group || null, incognito: false, zoom: 100, discarded: true, lastActive: 0, view: null });
       order.push(lab);
     });
     const activeIdx = Math.max(0, saved.findIndex(t => t.label === store.state.active));

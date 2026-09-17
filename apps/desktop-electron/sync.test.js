@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { buildSavePayload, mergeRemoteTabs } = require("./sync");
+const { buildSavePayload, mergeRemoteTabs, mergeRemoteWorkspaces } = require("./sync");
 
 test("save payload excludes incognito tabs", () => {
   const tabs = new Map([
@@ -21,7 +21,7 @@ test("merge skips existing urls and malformed records", () => {
     { title: "no url" },
     null,
   ];
-  assert.deepEqual(mergeRemoteTabs(local, remote), [{ url: "https://b.com", title: "B" }]);
+  assert.deepEqual(mergeRemoteTabs(local, remote), [{ url: "https://b.com", title: "B", group: null }]);
 });
 
 test("merge dedupes within the remote batch", () => {
@@ -30,6 +30,25 @@ test("merge dedupes within the remote batch", () => {
     { url: "https://b.com" },
   ]);
   assert.equal(out.length, 1);
+});
+
+test("save payload carries groups + workspaces", () => {
+  const tabs = new Map([["a", { url: "https://a.com", title: "A", group: "grp-1" }]]);
+  const p = buildSavePayload(tabs, "a", "dev-1", 3,
+    [{ name: "Work", tabs: [] }], [{ id: "grp-1", name: "Work", color: "#0071e3" }]);
+  assert.equal(p.data.tabs[0].group, "grp-1");
+  assert.deepEqual(p.data.workspaces, [{ name: "Work", tabs: [] }]);
+  assert.deepEqual(p.data.groups, [{ id: "grp-1", name: "Work", color: "#0071e3" }]);
+});
+
+test("merge workspaces unions by name, skips malformed", () => {
+  const added = mergeRemoteWorkspaces(["Home"], [
+    { name: "Home", tabs: [] },
+    { name: "Work", tabs: [{ url: "https://w.com" }] },
+    { tabs: [] },
+    null,
+  ]);
+  assert.deepEqual(added, [{ name: "Work", tabs: [{ url: "https://w.com" }] }]);
 });
 
 // ---- perf budgets (fail on regression) ----

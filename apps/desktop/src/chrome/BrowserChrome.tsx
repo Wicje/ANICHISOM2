@@ -62,6 +62,7 @@ interface BrowserChromeProps {
   onActivate: (label: string) => Promise<void>;
   onReorder?: (from: string, to: string, after?: boolean) => void;
   onTogglePin?: (label: string) => void;
+  onSetGroup?: (label: string, group: string | null) => void;
   onCloseOthers?: (label: string) => Promise<void>;
   onRestore: () => Promise<void>;
   onSave: () => Promise<void>;
@@ -103,6 +104,7 @@ export function BrowserChrome({
   onActivate,
   onReorder,
   onTogglePin,
+  onSetGroup,
   onCloseOthers,
   onRestore,
   onSave,
@@ -922,6 +924,9 @@ export function BrowserChrome({
           onTogglePin={handleTogglePinToast}
           audio={audio}
           onToggleMute={handleToggleMute}
+          groups={config?.tab_groups ?? []}
+          onSetGroup={onSetGroup}
+          onGroupsChanged={() => void api.getBrowserConfig().then((c) => { if (c) setConfig(c); })}
           onOverflowChange={handleOverflow}
           rail={railVisible}
         />

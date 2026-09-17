@@ -214,6 +214,13 @@ export default function App() {
     void api.pinTab(label, next);
   };
 
+  // Tab group assignment: mirrored into chrome state instantly, persisted
+  // + synced by the host (set_tab_group is durable).
+  const setGroup = (label: string, group: string | null) => {
+    setTabs((prev) => prev.map((t) => (t.label === label ? { ...t, group: group ?? undefined } : t)));
+    void api.setTabGroup(label, group);
+  };
+
   // Encrypt (or release) the active tab: the keyring manifest is mirrored
   // straight back into chrome state so the vault badge updates instantly.
   const toggleVault = async (label: string) => {
@@ -321,6 +328,7 @@ export default function App() {
         onActivate={activateTab}
         onReorder={reorderTabs}
         onTogglePin={togglePin}
+        onSetGroup={setGroup}
         onCloseOthers={closeOthers}
         onRestore={restoreLastSession}
         onSave={saveNow}

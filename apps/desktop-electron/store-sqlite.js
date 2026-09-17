@@ -43,6 +43,7 @@ function create(userDataPath) {
     CREATE TABLE IF NOT EXISTS snapshots(id TEXT PRIMARY KEY, saved_at INTEGER, tabs_json TEXT, active TEXT);
     CREATE TABLE IF NOT EXISTS sync_queue(id INTEGER PRIMARY KEY AUTOINCREMENT, op_json TEXT, at INTEGER);
   `);
+  try { db.exec("ALTER TABLE tabs ADD COLUMN grp TEXT"); } catch { /* exists on rerun */ }
   try { db.exec("CREATE INDEX IF NOT EXISTS idx_history_at ON history(at DESC)"); } catch {}
 
   const get = (k, d = null) => {
@@ -94,7 +95,7 @@ function create(userDataPath) {
     saveSession(tabs, active) {
       const tx = db.transaction(() => {
         db.exec("DELETE FROM tabs");
-        tabs.forEach((t, i) => db.prepare("INSERT INTO tabs(label,url,title,pinned,idx) VALUES(?,?,?,?,?)").run(t.label || `tab-${i}`, t.url, t.title || t.url, t.pinned ? 1 : 0, i));
+        tabs.forEach((t, i) => db.prepare("INSERT INTO tabs(label,url,title,pinned,idx,grp) VALUES(?,?,?,?,?,?)").run(t.label || `tab-${i}`, t.url, t.title || t.url, t.pinned ? 1 : 0, i, t.group || null));
         if (active !== undefined) set("active", active || "");
       });
       tx();
@@ -102,9 +103,9 @@ function create(userDataPath) {
       return "local-sqlite";
     },
     loadSession() {
-      const rows = db.prepare("SELECT label,url,title,pinned FROM tabs ORDER BY idx").all();
+      const rows = db.prepare("SELECT label,url,title,pinned,grp FROM tabs ORDER BY idx").all();
       this._syncActive();
-      return rows.length ? rows.map(r => ({ label: r.label, url: r.url, title: r.title, pinned: !!r.pinned })) : null;
+      return rows.length ? rows.map(r => ({ label: r.label, url: r.url, title: r.title, pinned: !!r.pinned, group: r.grp || null })) : null;
     },
     snapshot(tabs, active) {
       const id = "snap-" + Date.now();
@@ -153,19 +154,22 @@ function create(userDataPath) {
     getConfig() {
       const c = {};
       try {
-        const rows = db.prepare("SELECT k,v FROM meta WHERE k IN ('search_engine','theme','homepage','autosave_interval')").all();
+        const rows = db.prepare("SELECT k,v FROM meta WHERE k IN ('search_engine','theme','homepage','autosave_interval','tab_groups')").all();
         rows.forEach(r => { c[r.k] = r.v; });
       } catch {}
+      let tabGroups = [];
+      try { tabGroups = JSON.parse(c.tab_groups || "[]"); } catch {}
       return {
         search_engine: c.search_engine || "google", theme: c.theme || "dark",
         homepage: c.homepage || "", autosave_interval: Number(c.autosave_interval || 2),
         vertical_tabs: c.vertical_tabs === "1" || c.vertical_tabs === true,
+        tab_groups: Array.isArray(tabGroups) ? tabGroups : [],
         bookmarks: this.getBookmarks(), history: this.getHistory().slice(0, 300),
       };
     },
     patchConfig(patch) {
       Object.entries(patch || {}).forEach(([k, v]) => {
-        if (["search_engine", "theme", "homepage", "autosave_interval", "vertical_tabs", "reader_font", "reader_width", "link_preview", "speed_dial", "active_workspace"].includes(k))
+        if (["search_engine", "theme", "homepage", "autosave_interval", "vertical_tabs", "tab_groups", "reader_font", "reader_width", "link_preview", "speed_dial", "active_workspace"].includes(k))
           set(k, typeof v === "object" ? JSON.stringify(v) : v);
       });
       return this.getConfig();
