@@ -25,15 +25,17 @@ if (process.env.CONTINUA_SOFTWARE_GL === "1") {
   } catch {}
 }
 
-const POOL_K = parseInt(process.env.CONTINUA_POOL_K || "6", 10);
+const POOL_K = parseInt(process.env.CONTINUA_POOL_K || (os.totalmem() < 5 * 1024 * 1024 * 1024 ? "3" : "6"), 10);
 const RSS_BUDGET = 1.0 * 1024 * 1024 * 1024;
 const DISCARD_AFTER_MS = 30 * 1000;
 // Local offline-first start page (works with no network). Remote search stays
 // in the omnibox/start-page search box — new tabs never white-screen.
 const START_PAGE_FILE = path.join(__dirname, "start-page.html");
 const OFFLINE_FILE = path.join(__dirname, "offline.html");
+const CRASH_FILE = path.join(__dirname, "crash.html");
 const START_URL = "file://" + START_PAGE_FILE;
 const OFFLINE_URL = "file://" + OFFLINE_FILE;
+const CRASH_URL = "file://" + CRASH_FILE;
 const isWeb = (u) => !!u && /^https?:\/\//i.test(u);
 const isStartUrl = (u) => u === "continua://start" || u === "continua://home" || !u;
 const resolveUrl = (u) => (isStartUrl(u) ? START_URL : u);
@@ -167,17 +169,29 @@ function makeView(meta) {
     backgroundThrottling: true,
   }});
   view.webContents.setZoomFactor((meta.zoom || 100) / 100);
-  // Renderer death (OOM / GPU fallout after long heavy sessions like
-  // Pinterest) paints a black canvas. Log the cause and reload once —
-  // a dead page must never sit black with no recourse.
+  // Renderer death (OOM-killed on small boxes after heavy sessions like
+  // Pinterest) paints a black canvas. Background tabs are discarded to
+  // metadata (no point reloading what the OOM killer will take again);
+  // the focused tab reloads twice, then lands on a crash page with retry.
+  // Events from pruned/closed views are ignored (no phantom reloads).
   let crashReloads = 0;
-  view.webContents.on("render-process-gone", (_e, details) => {
+  const gone = (_e, details) => {
+    if (m.discarded || !m.view) return; // pruned or closed — not a crash
     console.error(`[continua] renderer gone for ${meta.label} (${meta.url}): ${details?.reason || "unknown"}`);
-    if (crashReloads < 2 && !meta.incognito) {
+    if (meta.label !== focused) {
+      try { chrome.contentView.removeChildView(m.view); } catch {}
+      m.view = null; m.discarded = true;
+      scheduleSave();
+      return;
+    }
+    if (crashReloads < 2) {
       crashReloads++;
       try { view.webContents.reload(); } catch {}
+    } else {
+      view.webContents.loadURL(`${CRASH_URL}?u=${encodeURIComponent(meta.history[meta.idx] || meta.url || "")}`).catch(() => {});
     }
-  });
+  };
+  view.webContents.on("render-process-gone", gone);
   view.webContents.on("unresponsive", () => console.error(`[continua] unresponsive: ${meta.label} (${meta.url})`));
   view.webContents.on("responsive", () => console.error(`[continua] responsive again: ${meta.label}`));
   view.webContents.on("did-finish-load", () => {

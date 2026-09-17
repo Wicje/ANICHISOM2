@@ -29,8 +29,11 @@
       "preload.js",
       "store.js",
       "store-sqlite.js",
+      "pool.js",
+      "sync.js",
       "start-page.html",
       "offline.html",
+      "crash.html",
       "../desktop/dist/**/*"
     ],
     "linux": {
