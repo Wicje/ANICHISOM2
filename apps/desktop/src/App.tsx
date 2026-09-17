@@ -142,8 +142,16 @@ export default function App() {
     if (focus) setActiveLabel(label);
   };
 
-  const closeTab = async (label: string) => {
-    const prev = tabs;
+  // Activating a tab must move React state too — the native view swaps in
+  // the host, but the strip highlight, address bar and nav buttons all
+  // mirror activeLabel. Fire-and-forget invoke left them stale, so going
+  // "back" to a tab looked broken even as the page switched.
+  const activateTab = (label: string) => {
+    setActiveLabel(label);
+    void api.activateTab(label);
+  };
+
+  const closeTab = async (label: string) => {    const prev = tabs;
     const idx = prev.findIndex((t) => t.label === label);
     // Rust records the close into the durable recently-closed ring (except
     // incognito/vault tabs), so Ctrl+Shift+T outlives this process.
@@ -155,7 +163,7 @@ export default function App() {
       if (cur !== label) return cur;
       if (nextList.length === 0) return null;
       const neighbor = nextList[Math.min(Math.max(idx, 0), nextList.length - 1)];
-      if (neighbor) void api.activateTab(neighbor.label);
+      if (neighbor) activateTab(neighbor.label);
       return neighbor?.label ?? null;
     });
   };
@@ -288,7 +296,7 @@ export default function App() {
         onOpen={openTab}
         onOpenIncognito={openIncognito}
         onClose={closeTab}
-        onActivate={api.activateTab}
+        onActivate={activateTab}
         onReorder={reorderTabs}
         onTogglePin={togglePin}
         onCloseOthers={closeOthers}
@@ -321,7 +329,7 @@ export default function App() {
         activeLabel={activeLabel}
         onOpen={openTab}
         onOpenIncognito={openIncognito}
-        onActivate={(label) => void api.activateTab(label)}
+        onActivate={activateTab}
         onRestore={() => restoreLastSession()}
         onReopen={reopenLastClosed}
         onToggleVault={toggleVault}
