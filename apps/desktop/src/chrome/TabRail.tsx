@@ -29,7 +29,7 @@ export const TabRail = memo(function TabRail({
         // hover — closing from the rail must be discoverable, not hidden.
         const showClose = active || armed === tab.label;
         return (
-          <button
+          <div
             key={tab.label}
             className={`rail-item${active ? " is-active" : ""}`}
             title={`${tab.title || displayTitle(tab.url)} — click to switch, middle-click to close`}
@@ -44,7 +44,18 @@ export const TabRail = memo(function TabRail({
             }}
           >
             {showClose ? (
-              <IconClose size={14} className="rail-close" />
+              <span
+                className="rail-close"
+                role="button"
+                aria-label="Close tab"
+                title="Close tab"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void onClose(tab.label);
+                }}
+              >
+                <IconClose size={14} />
+              </span>
             ) : tab.incognito ? (
               <span className="rail-badge rail-inc">
                 <IconIncognito size={12} />
@@ -54,7 +65,7 @@ export const TabRail = memo(function TabRail({
                 <Favicon url={tab.url} />
               </div>
             )}
-          </button>
+          </div>
         );
       })}
     </div>

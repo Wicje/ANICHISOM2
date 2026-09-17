@@ -138,15 +138,26 @@ async function heartbeat() {
 setInterval(heartbeat, 60000);
 
 // ---------- pool ----------
+let lastLayoutSig = "";
 function layoutViews() {
   if (!chrome) return;
   const { width, height } = chrome.getContentBounds();
-  for (const [, m] of tabs) {
-    if (!m.view || m.discarded) continue;
-    const vis = !modalHidden && m.label === focused;
-    m.view.setVisible(vis);
-    if (vis) m.view.setBounds({ x: TAB_RAIL_W, y: CHROME_H, width: Math.max(200, width - TAB_RAIL_W), height: Math.max(200, height - CHROME_H) });
+  // Per-view guard: one destroyed webContents throwing must never abort the
+  // loop — that left two views painted side-by-side (the mystery stripe).
+  for (const [lab, m] of tabs) {
+    try {
+      if (!m.view || m.discarded) continue;
+      if (m.view.webContents.isDestroyed()) { m.view = null; m.discarded = true; continue; }
+      const vis = !modalHidden && lab === focused;
+      m.view.setVisible(vis);
+      if (vis) m.view.setBounds({ x: TAB_RAIL_W, y: CHROME_H, width: Math.max(200, width - TAB_RAIL_W), height: Math.max(200, height - CHROME_H) });
+    } catch (e) {
+      console.error(`[continua] layout failed for ${lab}: ${e?.message || e}`);
+      try { m.view = null; m.discarded = true; } catch {}
+    }
   }
+  const sig = `${width}x${height} rail=${TAB_RAIL_W} chromeH=${CHROME_H} focused=${focused} live=${[...tabs.values()].filter(t => !t.discarded && t.view).length}`;
+  if (sig !== lastLayoutSig) { lastLayoutSig = sig; console.error(`[continua] layout ${sig}`); }
 }
 
 function makeView(meta) {
