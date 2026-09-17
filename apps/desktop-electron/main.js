@@ -167,6 +167,19 @@ function makeView(meta) {
     backgroundThrottling: true,
   }});
   view.webContents.setZoomFactor((meta.zoom || 100) / 100);
+  // Renderer death (OOM / GPU fallout after long heavy sessions like
+  // Pinterest) paints a black canvas. Log the cause and reload once —
+  // a dead page must never sit black with no recourse.
+  let crashReloads = 0;
+  view.webContents.on("render-process-gone", (_e, details) => {
+    console.error(`[continua] renderer gone for ${meta.label} (${meta.url}): ${details?.reason || "unknown"}`);
+    if (crashReloads < 2 && !meta.incognito) {
+      crashReloads++;
+      try { view.webContents.reload(); } catch {}
+    }
+  });
+  view.webContents.on("unresponsive", () => console.error(`[continua] unresponsive: ${meta.label} (${meta.url})`));
+  view.webContents.on("responsive", () => console.error(`[continua] responsive again: ${meta.label}`));
   view.webContents.on("did-finish-load", () => {
     meta.title = view.webContents.getTitle() || meta.title;
     if (meta.pendingScroll) { view.webContents.executeJavaScript(`window.scrollTo(0, ${meta.pendingScroll});`).catch(() => {}); meta.pendingScroll = null; }

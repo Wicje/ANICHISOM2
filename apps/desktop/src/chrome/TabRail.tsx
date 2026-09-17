@@ -1,7 +1,7 @@
 import { memo, useState } from "react";
 import { displayTitle } from "../lib/tauri-bridge";
 import { Favicon } from "../components/Favicon";
-import { IconClose, IconIncognito } from "../components/icons";
+import { IconClose, IconIncognito, IconPlus } from "../components/icons";
 import type { OpenTab } from "./TabStrip";
 
 interface TabRailProps {
@@ -10,6 +10,7 @@ interface TabRailProps {
   height: number;
   onActivate: (label: string) => Promise<void>;
   onClose: (label: string) => Promise<void>;
+  onNew: () => void;
 }
 
 export const TabRail = memo(function TabRail({
@@ -18,6 +19,7 @@ export const TabRail = memo(function TabRail({
   height,
   onActivate,
   onClose,
+  onNew,
 }: TabRailProps) {
   const [armed, setArmed] = useState<string | null>(null);
 
@@ -68,6 +70,9 @@ export const TabRail = memo(function TabRail({
           </div>
         );
       })}
+      <button className="rail-item rail-new" onClick={onNew} title="New tab (Ctrl+T)">
+        <IconPlus size={15} />
+      </button>
     </div>
   );
 });

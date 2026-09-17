@@ -1036,6 +1036,7 @@ export function BrowserChrome({
           height={chromeH}
           onActivate={onActivate}
           onClose={(label) => onClose(label).then(() => toast("Tab closed"))}
+          onNew={() => void onOpen(newTabUrl(config ?? undefined))}
         />
       )}
       <HistoryPanel

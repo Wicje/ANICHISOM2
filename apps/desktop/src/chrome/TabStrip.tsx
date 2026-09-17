@@ -112,8 +112,8 @@ export const TabStrip = memo(function TabStrip({
 
   const newMenu = onNewIncognito ? (
     <div className="tab-new-menu">
-      <button className="tab-new caret" onClick={() => setMenuOpen((v) => !v)} title="New…">
-        <IconCaretDown size={13} />
+      <button className="tab-new-split" onClick={() => setMenuOpen((v) => !v)} title="New tab or private tab">
+        <IconCaretDown size={12} />
       </button>
       {menuOpen && (
         <div className="tab-new-pop" onMouseLeave={() => setMenuOpen(false)}>
@@ -124,7 +124,7 @@ export const TabStrip = memo(function TabStrip({
               onNew();
             }}
           >
-            <span className="tab-new-ico"><IconPlus size={13} /></span> New tab
+            <span className="tab-new-ico"><IconPlus size={13} /></span> New tab <kbd>Ctrl+T</kbd>
           </button>
           <button
             className="tab-new-opt"
@@ -245,10 +245,12 @@ export const TabStrip = memo(function TabStrip({
           </div>
         );
       })}
-      <button className="tab-new" onClick={onNew} title="New tab (Ctrl+T)">
-        <IconPlus size={14} />
-      </button>
-      {newMenu}
+      <div className="tab-new-wrap">
+        <button className="tab-new" onClick={onNew} title="New tab (Ctrl+T)">
+          <IconPlus size={14} />
+        </button>
+        {newMenu}
+      </div>
 
       {ctx && target && (
         <>
