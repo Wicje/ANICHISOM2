@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/tauri-bridge";
 import { useChromeModal } from "../lib/chrome-modal";
 import type { BrowserConfigItem, ConfigPatch } from "../lib/tauri-bridge";
+import { BUILTIN_THEMES, applyTheme, decodeShare, encodeShare, resolveTheme, type Theme } from "../lib/themes";
+import { sanitizeEngine } from "../lib/tauri-bridge";
+import { SHORTCUT_ACTIONS, comboFor, comboOf, prettyCombo } from "../lib/shortcuts";
 import { ENGINES } from "./engine-list";
 import { IconClose } from "../components/icons";
 
@@ -11,6 +14,8 @@ interface SettingsPanelProps {
   onPatch: (patch: ConfigPatch) => void;
   onClearHistory: () => void;
   onClose: () => void;
+  /** Host of the active tab (for "remember this site"). */
+  activeOrigin?: string;
 }
 
 const AUTOSAVE_OPTIONS: Array<[number, string]> = [
@@ -43,6 +48,7 @@ export function SettingsPanel({
   onPatch,
   onClearHistory,
   onClose,
+  activeOrigin,
 }: SettingsPanelProps) {
   const [draft, setDraft] = useState("");
   const [pin, setPin] = useState("");
@@ -58,7 +64,28 @@ export function SettingsPanel({
   const [lgUrl, setLgUrl] = useState("");
   const [lgUser, setLgUser] = useState("");
   const [lgPass, setLgPass] = useState("");
+  const [themeLink, setThemeLink] = useState("");
+  const [engName, setEngName] = useState("");
+  const [engUrl, setEngUrl] = useState("");
+  const [capturing, setCapturing] = useState<string | null>(null);
+  const [siteOrigin, setSiteOrigin] = useState("");
+  const [siteZoom, setSiteZoom] = useState("100");
   useChromeModal("settings", open);
+
+  // Shortcut capture: press any combo while an action is armed.
+  useEffect(() => {
+    if (!capturing) return;
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const combo = comboOf(e);
+      if (!combo) return;
+      onPatch({ shortcuts: { ...(config?.shortcuts ?? {}), [capturing]: combo } });
+      setCapturing(null);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [capturing, config?.shortcuts, onPatch]);
 
   const refreshSync = () => {
     void api.syncStatus().then((s) => setSync({ paired: s.paired, deviceId: s.deviceId, lastVersion: s.lastVersion, pending: (s as { pending?: number }).pending, lastSyncAt: (s as { lastSyncAt?: number }).lastSyncAt, lastSyncError: (s as { lastSyncError?: string }).lastSyncError }));
@@ -152,6 +179,67 @@ export function SettingsPanel({
             </div>
           </Row>
 
+          <Row label="Gallery">
+            <div className="settings-stack">
+              <div className="theme-swatches">
+                {[...BUILTIN_THEMES, ...((config?.custom_themes ?? []) as Theme[])].map((t) => (
+                  <button
+                    key={t.id}
+                    className={`theme-swatch${(config?.theme_id ?? "midnight") === t.id ? " is-active" : ""}`}
+                    title={t.name}
+                    onClick={() => {
+                      applyTheme(resolveTheme(t.id, (config?.custom_themes ?? []) as Theme[]));
+                      onPatch({ theme_id: t.id });
+                    }}
+                  >
+                    <span className="theme-dot" style={{ background: t.accent }} />
+                    <span className="theme-name">{t.name}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="settings-sync">
+                <input
+                  className="settings-input"
+                  value={themeLink}
+                  placeholder="Paste a continua://theme/ link to import"
+                  onChange={(e) => setThemeLink(e.target.value)}
+                  spellCheck={false}
+                />
+                <button className="settings-btn" onClick={() => {
+                  const t = decodeShare(themeLink.trim());
+                  if (!t) { setSyncMsg("That theme link did not parse."); return; }
+                  const customs = [...((config?.custom_themes ?? []) as Theme[]).filter((x) => x.id !== t.id), t];
+                  applyTheme(t);
+                  onPatch({ custom_themes: customs, theme_id: t.id });
+                  setThemeLink("");
+                  setSyncMsg(`Theme “${t.name}” imported.`);
+                }}>Import</button>
+                <button className="settings-btn" onClick={() => {
+                  const t = resolveTheme(config?.theme_id ?? "midnight", (config?.custom_themes ?? []) as Theme[]);
+                  void navigator.clipboard?.writeText(encodeShare(t)).catch(() => undefined);
+                  setSyncMsg("Theme link copied — share it anywhere.");
+                }}>Share</button>
+              </div>
+            </div>
+          </Row>
+
+          <Row label="Density">
+            <div className="settings-seg">
+              <button
+                className={(config?.density ?? "comfortable") === "comfortable" ? "is-active" : ""}
+                onClick={() => onPatch({ density: "comfortable" })}
+              >
+                Comfortable
+              </button>
+              <button
+                className={config?.density === "compact" ? "is-active" : ""}
+                onClick={() => onPatch({ density: "compact" })}
+              >
+                Compact
+              </button>
+            </div>
+          </Row>
+
           <Row label="Homepage">
             <input
               className="settings-input"
@@ -231,6 +319,101 @@ export function SettingsPanel({
               />
               <span>Pin the tab rail on</span>
             </label>
+          </Row>
+
+          <Row label="Search engines">
+            <div className="settings-stack">
+              <div className="settings-sync">
+                <input className="settings-input" value={engName} placeholder="Name (e.g. GitHub)" maxLength={24} onChange={(e) => setEngName(e.target.value)} spellCheck={false} />
+                <input className="settings-input" value={engUrl} placeholder="https://github.com/search?q={q}" onChange={(e) => setEngUrl(e.target.value)} spellCheck={false} />
+                <button className="settings-btn" onClick={() => {
+                  const e = sanitizeEngine({ name: engName, url: engUrl.trim() });
+                  if (!e) { setSyncMsg("Engine needs a name and an https URL containing {q}."); return; }
+                  onPatch({ custom_engines: [...(config?.custom_engines ?? []), e] });
+                  setEngName(""); setEngUrl("");
+                  setSyncMsg(`Engine “${e.name}” added — pick it from the omnibox pill.`);
+                }}>Add</button>
+              </div>
+              {(config?.custom_engines ?? []).length > 0 && (
+                <ul className="settings-devices">
+                  {(config?.custom_engines ?? []).map((e) => (
+                    <li key={e.id}>{e.name} · {e.url}
+                      <button className="settings-link" onClick={() => onPatch({ custom_engines: (config?.custom_engines ?? []).filter((x) => x.id !== e.id) })}>remove</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </Row>
+
+          <Row label="Toolbar">
+            <div className="settings-stack">
+              {(["restore", "save", "history", "downloads", "rail", "settings", "studio", "theme"] as const).map((id) => (
+                <label key={id} className="settings-toggle">
+                  <input
+                    type="checkbox"
+                    checked={!(config?.toolbar_hidden ?? []).includes(id)}
+                    onChange={() => {
+                      const hidden = (config?.toolbar_hidden ?? []).includes(id)
+                        ? (config?.toolbar_hidden ?? []).filter((x) => x !== id)
+                        : [...(config?.toolbar_hidden ?? []), id];
+                      onPatch({ toolbar_hidden: hidden });
+                    }}
+                  />
+                  <span style={{ textTransform: "capitalize" }}>{id === "rail" ? "Vertical tabs" : id}</span>
+                </label>
+              ))}
+            </div>
+          </Row>
+
+          <Row label="Shortcuts">
+            <div className="settings-stack">
+              {SHORTCUT_ACTIONS.map((a) => (
+                <div key={a.id} className="settings-sync" style={{ justifyContent: "space-between" }}>
+                  <span className="settings-status">{a.label}</span>
+                  <button
+                    className="settings-btn"
+                    onClick={() => setCapturing(capturing === a.id ? null : a.id)}
+                  >
+                    {capturing === a.id ? "Press keys…" : prettyCombo(comboFor(a.id, config?.shortcuts ?? {}))}
+                  </button>
+                </div>
+              ))}
+              <span className="settings-status">Click a combo, press new keys. Esc re-arms nothing — press Escape twice to cancel.</span>
+            </div>
+          </Row>
+
+          <Row label="Site prefs">
+            <div className="settings-stack">
+              <div className="settings-sync">
+                <input className="settings-input" value={siteOrigin} placeholder="example.com" onChange={(e) => setSiteOrigin(e.target.value)} spellCheck={false} />
+                <input className="settings-input" value={siteZoom} placeholder="100" inputMode="numeric" onChange={(e) => setSiteZoom(e.target.value)} spellCheck={false} style={{ maxWidth: 76 }} />
+                <button className="settings-btn" onClick={() => {
+                  const origin = siteOrigin.trim().toLowerCase().replace(/^https?:\/\//, "").split("/")[0];
+                  const zoom = Math.min(200, Math.max(50, Number(siteZoom) || 100));
+                  if (!origin || !origin.includes(".")) { setSyncMsg("Enter a host like example.com."); return; }
+                  onPatch({ site_prefs: { ...(config?.site_prefs ?? {}), [origin]: { ...(config?.site_prefs ?? {})[origin], zoom } } });
+                  setSiteOrigin(""); setSiteZoom("100");
+                }}>Save zoom</button>
+                {activeOrigin && (
+                  <button className="settings-btn" onClick={() => setSiteOrigin(activeOrigin)}>This site</button>
+                )}
+              </div>
+              {Object.entries(config?.site_prefs ?? {}).length > 0 && (
+                <ul className="settings-devices">
+                  {Object.entries(config?.site_prefs ?? {}).map(([origin, p]) => (
+                    <li key={origin}>{origin} · {p.zoom ?? 100}%{p.muted ? " · muted" : ""}
+                      <button className="settings-link" onClick={() => onPatch({ site_prefs: { ...(config?.site_prefs ?? {}), [origin]: { ...p, muted: !p.muted } } })}>{p.muted ? "unmute" : "mute"}</button>
+                      <button className="settings-link" onClick={() => {
+                        const next = { ...(config?.site_prefs ?? {}) };
+                        delete next[origin];
+                        onPatch({ site_prefs: next });
+                      }}>remove</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </Row>
 
           <Row label="Browsing data">

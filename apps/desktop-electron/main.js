@@ -108,7 +108,7 @@ async function flushSync() {
       const ws = store.listWorkspaces ? store.listWorkspaces() : [];
       workspaces = ws.map(w => ({ name: w.id, tabs: w.tabs }));
     } catch {}
-    const payload = buildSavePayload(tabs, focused, store.cfg.device_id, syncVersion, workspaces, getGroups(), activeProfileId);
+    const payload = buildSavePayload(tabs, focused, store.cfg.device_id, syncVersion, workspaces, getGroups(), activeProfileId, store.getConfig ? store.getConfig().theme_id : undefined);
     const res = await fetch(`${url}/api/context/save`, {
       method: "POST", headers: authHeaders(),
       body: JSON.stringify(payload),
@@ -471,9 +471,13 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     case "find_in_tab": case "find_next": { m?.view?.webContents.findInPage(args.query || args.text || ""); return { count: 0, idx: -1 }; }
     case "find_prev": { m?.view?.webContents.findInPage(args.query || "", { forward: false }); return { count: 0, idx: -1 }; }
     case "stop_find": m?.view?.webContents.stopFindInPage("clearSelection"); return;
-    case "zoom_tab": { const t = tabs.get(args.label); if (t) { t.zoom = Math.min(200, Math.max(50, (t.zoom || 100) + (args.step || 0))); t.view?.webContents.setZoomFactor(t.zoom / 100); return t.zoom; } return 100; }
+    case "zoom_tab": { const t = tabs.get(args.label); if (t) { t.zoom = typeof args.value === "number" ? Math.min(200, Math.max(50, args.value)) : Math.min(200, Math.max(50, (t.zoom || 100) + (args.step || 0))); t.view?.webContents.setZoomFactor(t.zoom / 100); return t.zoom; } return 100; }
     case "reader_toggle": case "dark_toggle": return; // v1 no-op (reader ships Phase 3)
-    case "set_search_engine": return store.patchConfig({ search_engine: args.engine });
+    case "set_search_engine": {
+      const customs = (store.getConfig ? store.getConfig().custom_engines : []) || [];
+      if (!["google", "duckduckgo", "bing", "brave"].includes(args.engine) && !customs.find(e => e.id === args.engine)) return { error: "unknown engine" };
+      return store.patchConfig({ search_engine: args.engine });
+    }
     case "get_browser_config": case "getBrowserConfig": return store.getConfig();
     case "update_config": return store.patchConfig(args.patch || {});
     case "set_link_preview": return store.patchConfig({ link_preview: !!args.enabled });
@@ -667,6 +671,10 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       return { activeId: activeProfileId, profiles: profileState.profiles };
     }
     case "switch_profile": return await switchProfile(args.id);
+    case "set_profile_theme": {
+      const p = profiles.setProfileTheme(userDataPath, profileState, args.id, args.themeId);
+      return p ? { activeId: activeProfileId, profiles: profileState.profiles } : { error: "not-found" };
+    }
     case "window_control": if (args.action === "minimize") chrome.minimize(); else if (args.action === "toggleMaximize") chrome.isMaximized() ? chrome.unmaximize() : chrome.maximize(); else if (args.action === "close") chrome.close(); else if (args.action === "isMaximized") return chrome.isMaximized(); return;
     default: return null;
   }

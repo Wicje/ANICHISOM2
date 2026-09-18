@@ -2828,3 +2828,78 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   outline: none;
 }
 .ctx-input:focus { border-color: var(--accent); }
+
+/* ─── Theme gallery + density (personalization Phase 1) ── */
+.theme-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.theme-swatch {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  border-radius: var(--radius-pill);
+  padding: 5px 11px 5px 6px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.theme-swatch:hover {
+  border-color: var(--accent-soft-2);
+}
+
+.theme-swatch.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.theme-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  flex: none;
+}
+
+.theme-name {
+  font-weight: 600;
+}
+
+/* Compact density: tighter chrome rows for control freaks. */
+:root[data-density="compact"] .chrome-btn {
+  width: 28px;
+  height: 28px;
+}
+
+:root[data-density="compact"] .tab {
+  height: 28px;
+  font-size: 11px;
+}
+
+:root[data-density="compact"] .address-bar {
+  height: 28px;
+  font-size: 12px;
+}
+
+:root[data-density="compact"] .nav-btn {
+  width: 28px;
+  height: 26px;
+}
+
+/* Living start page: the hero mark glows slowly with the active theme
+   (disabled automatically by the prefers-reduced-motion rule above). */
+@keyframes glow-breathe {
+  0%, 100% { box-shadow: 0 0 0 1px var(--guide), 0 0 24px var(--glow-a), 0 8px 24px rgba(0, 0, 0, 0.35); }
+  50% { box-shadow: 0 0 0 1px var(--guide), 0 0 44px var(--glow-a), 0 8px 24px rgba(0, 0, 0, 0.35); }
+}
+
+.start-mark {
+  animation: glow-breathe 6s ease-in-out infinite;
+}
