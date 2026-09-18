@@ -13,6 +13,7 @@ declare global {
     continuaBridge?: {
       invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
       onStudio?: (cb: (on: boolean) => void) => () => void;
+      onTabUpdated?: (cb: (info: { label: string; url: string; title: string }) => void) => () => void;
     };
   }
 }
@@ -545,6 +546,15 @@ export const api = {
   onStudio: (cb: (on: boolean) => void): (() => void) => {
     try {
       const un = window.continuaBridge?.onStudio?.(cb);
+      if (typeof un === "function") return un;
+    } catch {}
+    return () => undefined;
+  },
+
+  /** Navigation/title pushes per webview event (Electron host). */
+  onTabUpdated: (cb: (info: { label: string; url: string; title: string }) => void): (() => void) => {
+    try {
+      const un = (window.continuaBridge as unknown as { onTabUpdated?: (cb: (info: { label: string; url: string; title: string }) => void) => () => void })?.onTabUpdated?.(cb);
       if (typeof un === "function") return un;
     } catch {}
     return () => undefined;
