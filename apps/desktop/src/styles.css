@@ -2685,6 +2685,10 @@ body::after {
   display: none;
 }
 
+.id-extra {
+  display: contents;
+}
+
 @media (max-width: 800px) {
   .identity-stack {
     display: flex;
