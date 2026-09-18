@@ -198,7 +198,12 @@ function layoutViews() {
       if (m.view.webContents.isDestroyed()) { m.view = null; m.discarded = true; continue; }
       const vis = !modalHidden && lab === focused;
       m.view.setVisible(vis);
-      if (vis) m.view.setBounds({ x: rw, y: ch, width: Math.max(200, width - rw), height: Math.max(200, height - ch) });
+      if (vis) sizeView(m.view);
+      // Focused view runs full-speed (rAF/video/shaders); background views
+      // stay throttled so 6 live tabs don't burn the GPU. The pending
+      // (swap-on-ready) view is exempt — throttling it is what stalled first
+      // paint on animation-heavy pages.
+      try { m.view.webContents.setBackgroundThrottling(!vis && lab !== pendingFocus); } catch {}
     } catch (e) {
       console.error(`[continua] layout failed for ${lab}: ${e?.message || e}`);
       try { m.view = null; m.discarded = true; } catch {}
@@ -212,7 +217,11 @@ function makeView(meta) {
   const partition = meta.incognito ? `incognito-${meta.label}` : activePartition();
   const view = new WebContentsView({ webPreferences: {
     partition, contextIsolation: true, sandbox: true, nodeIntegration: false,
-    backgroundThrottling: true,
+    // NOTE: throttling is managed per-view in layoutViews (focused = full
+    // speed). Leaving it true here starves hidden loading views of rAF/
+    // timers, so animation-heavy pages compile shaders with no frames flowing
+    // and first paint takes forever (the black-canvas report).
+    backgroundThrottling: false,
   }});
   view.webContents.setZoomFactor((meta.zoom || 100) / 100);
   // Renderer death (OOM-killed on small boxes after heavy sessions like
@@ -221,6 +230,7 @@ function makeView(meta) {
   // the focused tab reloads twice, then lands on a crash page with retry.
   // Events from pruned/closed views are ignored (no phantom reloads).
   let crashReloads = 0;
+  let loadArmed = false; // paint-probe armed once per view (see did-finish-load)
   const gone = (_e, details) => {
     if (m.discarded || !m.view) return; // pruned or closed — not a crash
     console.error(`[continua] renderer gone for ${meta.label} (${meta.url}): ${details?.reason || "unknown"}`);
@@ -241,18 +251,24 @@ function makeView(meta) {
   view.webContents.on("unresponsive", () => console.error(`[continua] unresponsive: ${meta.label} (${meta.url})`));
   view.webContents.on("responsive", () => console.error(`[continua] responsive again: ${meta.label}`));
   view.webContents.on("did-finish-load", () => {
+    if (tabs.get(meta.label)?.view !== view || view.webContents.isDestroyed()) return;
     meta.title = view.webContents.getTitle() || meta.title;
     if (meta.pendingScroll) { view.webContents.executeJavaScript(`window.scrollTo(0, ${meta.pendingScroll});`).catch(() => {}); meta.pendingScroll = null; }
     if (!meta.incognito && isWeb(meta.url)) store?.appendHistory(meta.url, meta.title);
     scheduleSave();
-    // Swap-on-ready: a discarded tab becomes visible only once its page has
-    // actually painted (stale pendingFocus from a superseded click is ignored).
-    if (pendingFocus === meta.label) {
-      pendingFocus = null;
-      focused = meta.label;
-      meta.lastActive = Date.now();
-      prunePool(); layoutViews();
-    }
+    // Paint-aware swap: did-finish-load fires before first paint on
+    // shader-heavy pages (WebGL/canvas/video), so swapping immediately shows
+    // a black canvas while the compositor catches up. Wait for frames to
+    // actually flow instead — double-rAF resolves only when unthrottled
+    // frames are produced. Capped so slow pages still resolve; the 4s
+    // safety timeout in activate() remains the absolute fallback.
+    if (pendingFocus !== meta.label || loadArmed) return;
+    loadArmed = true;
+    const probe = `new Promise((res) => { let n = 0; const tick = () => { if (++n >= 2) res(1); else requestAnimationFrame(tick); }; requestAnimationFrame(tick); setTimeout(() => res(0), ${FRAME_WAIT_MS}); })`;
+    view.webContents.executeJavaScript(probe, true).then(
+      () => swapIfPending(meta.label),
+      () => swapIfPending(meta.label),
+    );
   });
   // Offline / DNS failures render a friendly local page with retry — never white.
   view.webContents.on("did-fail-load", (_e, code, desc, url, isMain) => {
@@ -267,7 +283,40 @@ function makeView(meta) {
   view.webContents.on("did-navigate", (_e, url) => { meta.url = url === START_URL ? "continua://start" : url; scheduleSave(); });
   view.webContents.on("page-title-updated", (_e, title) => { meta.title = title; });
   chrome.contentView.addChildView(view);
+  // Paint while loading: a view with no bounds may never composite a frame
+  // until shown, which reads as "black canvas that takes forever" on heavy
+  // sites. Size it now (still hidden); layoutViews() owns visibility.
+  sizeView(view);
+  try { view.setVisible(false); } catch {}
+  try { view.webContents.setBackgroundThrottling(false); } catch {}
   return view;
+}
+
+// First-frames signal for the paint-aware swap (see did-finish-load).
+const FRAME_WAIT_MS = 1200;
+function swapIfPending(lab) {
+  if (pendingFocus !== lab) return; // superseded click — stay on current page
+  const m = tabs.get(lab);
+  if (!m || !m.view || m.discarded) { pendingFocus = null; return; }
+  try {
+    if (m.view.webContents.isDestroyed()) { m.view = null; m.discarded = true; pendingFocus = null; return; }
+  } catch { pendingFocus = null; return; }
+  pendingFocus = null;
+  focused = lab;
+  m.lastActive = Date.now();
+  prunePool(); layoutViews();
+}
+
+// Content-area geometry shared by layoutViews (visible views) and makeView
+// (hidden loading views need bounds too, or they never paint).
+function sizeView(view) {
+  if (!chrome || !view) return;
+  try {
+    const { width, height } = chrome.getContentBounds();
+    const ch = studio ? 0 : CHROME_H;
+    const rw = studio ? 0 : TAB_RAIL_W;
+    view.setBounds({ x: rw, y: ch, width: Math.max(200, width - rw), height: Math.max(200, height - ch) });
+  } catch {}
 }
 
 function prunePool() {
@@ -519,7 +568,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     case "open_app_window": { const w = new BrowserWindow({ width: 1000, height: 700 }); w.loadURL(args.url); return; }
     case "new_tab_url": return store.getConfig().homepage || START_URL;
     case "get_active_url": return m?.url || START_URL;
-    case "pool_state": return { live: [...tabs.values()].filter(t => !t.discarded).length, discarded: [...tabs.values()].filter(t => t.discarded).length, rssMb: (rss() / 1048576).toFixed(1), budgetMb: (RSS_BUDGET / 1048576).toFixed(0), active: focused, k: POOL_K };
+    case "pool_state": return { live: [...tabs.values()].filter(t => !t.discarded).length, discarded: [...tabs.values()].filter(t => t.discarded).length, rssMb: (rss() / 1048576).toFixed(1), budgetMb: (RSS_BUDGET / 1048576).toFixed(0), active: focused, k: POOL_K, gpu: gpuStatus(), pendingFocus };
     case "list_downloads": return [...downloads.values()].reverse().slice(0, 50);
     case "open_download": { const d = downloads.get(args.id); if (d?.path) shell.openPath(d.path).catch(() => {}); return; }
     case "reveal_download": { const d = downloads.get(args.id); if (d?.path) shell.showItemInFolder(d.path); return; }
@@ -894,8 +943,31 @@ async function switchProfile(id) {
   return { activeId: activeProfileId, profiles: profileState.profiles, tabs: [...tabs.entries()].map(([lab, t]) => ({ label: lab, url: t.url, title: t.title, pinned: !!t.pinned, group: t.group || null, incognito: !!t.incognito })) };
 }
 
+// ---------- GPU diagnostics (black-canvas triage) ----------
+// Animation-heavy pages go black when the GPU process dies or all raster
+// falls back to software. This surfaces compositor state in the logs and in
+// pool_state so a report can answer "GPU or pool?" without guessing.
+let lastGpuCrash = 0;
+function gpuStatus() {
+  try {
+    const s = app.getGPUFeatureStatus?.() || {};
+    return {
+      webgl: s.webgl || "unknown",
+      canvas: s.gpu_compositing || s.canvas || "unknown",
+      compositing: s.gpu_compositing || "unknown",
+      videoDecode: s.video_decode || "unknown",
+      lastCrash: lastGpuCrash || undefined,
+    };
+  } catch { return { webgl: "unknown" }; }
+}
+
 app.whenReady().then(async () => {  // No native File/Edit/View menu — the React chrome owns all controls.
   try { Menu.setApplicationMenu(null); } catch {}
+  try { console.error(`[continua] gpu ${JSON.stringify(gpuStatus())}`); } catch {}
+  app.on("gpu-process-crashed", (_e, killed) => {
+    lastGpuCrash = Date.now();
+    console.error(`[continua] GPU process crashed (killed=${!!killed}) — heavy pages may paint black until relaunch`);
+  });
   userDataPath = app.getPath("userData");
   profileState = profiles.loadProfiles(userDataPath);
   activeProfileId = profileState.activeId;
