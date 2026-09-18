@@ -1,5 +1,9 @@
 # ContinuaOS — Build Log
 
+> **⚠ CLOSED (2026-09-18, ADR-009):** the web-OS experiment was deleted;
+> `apps/shell` is now the headless sync backend only. No further entries —
+> browser work is logged in git history + `docs/decisions/`.
+
 > **Living document.** Updated after every work session.
 > Refer to `ARCHITECTURE.md` for the full system overview and implementation plan.
 

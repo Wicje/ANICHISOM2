@@ -15,23 +15,27 @@
  */
 const path = require("path");
 
-function createJsonFallback(userDataPath) {
+function createJsonFallback(userDataPath, profileId) {
   const { Store } = require("./store");
-  const s = new Store(userDataPath);
+  const s = new Store(userDataPath, profileId);
   s.backend = "json-fallback";
   return s;
 }
 
-function create(userDataPath) {
+function create(userDataPath, profileId) {
   let Database;
   try {
     Database = require("better-sqlite3");
   } catch {
-    return createJsonFallback(userDataPath);
+    return createJsonFallback(userDataPath, profileId);
   }
   const fs = require("fs");
   try { fs.mkdirSync(userDataPath, { recursive: true }); } catch {}
-  const db = new Database(path.join(userDataPath, "continua.db"));
+  // Per-profile DB: `personal` reuses continua.db (migrates JSON once);
+  // other profiles get continua-<id>.db with their own FTS history.
+  const legacy = !profileId || profileId === "personal" || profileId === "default";
+  const dbFile = legacy ? "continua.db" : `continua-${profileId || "personal"}.db`;
+  const db = new Database(path.join(userDataPath, dbFile));
   db.pragma("journal_mode = WAL");
   db.exec(`
     CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT);

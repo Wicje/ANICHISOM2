@@ -7,24 +7,28 @@ browsing context (tabs, history, scroll positions, workspaces) follows you
 across machines, encrypted, via your own cloud.
 
 ```
+WHAT WE BUILD (product — all investment goes here):
 apps/
   desktop-electron/ — Continua Browser (Electron + Chromium). THE PRODUCT:
-                WebContentsView pool (6 live, LRU discard), local-first
-                continuity (SQLite FTS + Supabase delta sync), workspaces,
-                downloads manager, reader, extensions autoload, onboarding.
-                Run it: npm run dev:browser
-  desktop/   — React chrome + legacy Tauri WebKitGTK host (frozen lite
-                fallback). Chrome UI in src/ is shared by both hosts.
-  shell/     — ContinuaOS web shell (Next.js + Supabase). FROZEN
-                EXPERIMENT + cloud backend: the sync/continuity API and
-                restore dashboard live here. No further product investment
-                (ADR-004).
-packages/
-  sdk/       — Plugin SDK (dormant, Phase 3).
-chrome-extension/   — Continua Context Bridge (Manifest V3).
-cloudflare-worker/  — Edge proxy (unused; shell has its own /api/proxy).
+                WebContentsView pool (6 live, LRU discard), per-profile
+                isolation (Work ↔ Personal partitions + sharded stores),
+                local-first continuity (SQLite FTS + Supabase delta sync),
+                workspaces, downloads manager, reader, extensions autoload,
+                onboarding. Run it: npm run dev:browser
+  desktop/src/  — Shared React chrome UI (used by the product above).
+  shell/        — Sync backend ONLY (Next.js + Supabase): /api/context,
+                /api/devices, /api/connect, pairing pages, /download.
+                Web-OS UI deleted (ADR-009). No product UI investment.
+
+FROZEN (no investment — do not build on these):
+  desktop/src-tauri/ — Legacy Tauri WebKitGTK host (Linux-lite fallback).
+  packages/sdk/       — Plugin SDK (archived, no importers).
+  chrome-extension/   — REDUNDANT Context Bridge (MV3): kept only because
+                      the backend download route zips it. No investment.
+  cloudflare-worker/  — ARCHIVED edge proxy (unused; shell /api/proxy wins).
 docs/
-  decisions/ — Architecture Decision Records. START HERE.
+  decisions/ — Architecture Decision Records. START HERE. ADR-009 is the
+               latest ground truth (shell backend-only).
 ```
 
 ## Download
@@ -42,7 +46,8 @@ docs/
   swap-on-ready (no white flash).
 - **Continuity without the tax** — local-first session (autosave + snapshots),
   delta sync to your Continua cloud over TLS, merge-on-pull (never destructive),
-  workspaces, memory timeline, recently-closed ring.
+  profiles (Work ↔ Personal: separate cookies, history, extensions), workspaces,
+  memory timeline, recently-closed ring.
 - **Daily-driver kit** — command palette (Ctrl+K), omnibox suggestions,
   find-in-page, reader mode, per-tab zoom + mute badges, vertical tab rail,
   screenshot (Ctrl+Shift+S), print/PDF, downloads manager, history search,
@@ -63,7 +68,7 @@ npm run dev:desktop
 npm run build:desktop
 npm run test:desktop    # Rust unit tests (cargo test)
 
-# Web shell (experiment + backend)
+# Sync backend (no product UI)
 npm run dev:shell
 npm run build:shell
 ```
@@ -76,8 +81,8 @@ Linux build deps: `webkit2gtk` (+ `libayatana-appindicator` for tray).
   frozen Linux-lite fallback. Privacy-first/vault/E2E were deliberately
   removed — continuity is TLS + Supabase RLS.
 - Design system: Apple (designmd.supply) — see `apps/desktop/DESIGN.md`.
-- Next: password-manager story (Bitwarden via extension autoload), tab
-  groups, mobile companion (see below), backend pairing polish.
+- Next: password-manager story (Bitwarden via extension autoload), tab-group
+  collapse in the strip, mobile companion, backend pairing polish.
 
 All decisions and their rationale: **`docs/decisions/`**. Plan documents
 marked SUPERSEDED are historical records, not direction.

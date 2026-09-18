@@ -8,7 +8,8 @@ test("save payload excludes incognito tabs", () => {
     ["p", { url: "https://private.com", title: "P", incognito: true }],
   ]);
   const p = buildSavePayload(tabs, "a", "dev-1", 7);
-  assert.equal(p.domain, "browser");
+  assert.equal(p.domain, "browser-profile-personal");
+  assert.equal(p.data.profileId, "personal");
   assert.equal(p.version, 7);
   assert.deepEqual(p.data.tabs.map((t) => t.url), ["https://a.com"]);
 });
@@ -30,6 +31,13 @@ test("merge dedupes within the remote batch", () => {
     { url: "https://b.com" },
   ]);
   assert.equal(out.length, 1);
+});
+
+test("save payload scopes to the active profile", () => {
+  const tabs = new Map([["a", { url: "https://a.com", title: "A" }]]);
+  const p = buildSavePayload(tabs, "a", "dev-1", 3, [], [], "work");
+  assert.equal(p.domain, "browser-profile-work");
+  assert.equal(p.data.profileId, "work");
 });
 
 test("save payload carries groups + workspaces", () => {

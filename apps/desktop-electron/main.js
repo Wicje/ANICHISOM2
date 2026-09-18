@@ -11,6 +11,7 @@ const path = require("path");
 const os = require("os");
 const fs = require("fs");
 const { Store } = require("./store");
+const profiles = require("./profiles");
 const { pickVictims } = require("./pool");
 const { buildSavePayload, mergeRemoteTabs, mergeRemoteWorkspaces } = require("./sync");
 
@@ -51,18 +52,27 @@ let modalHidden = false;
 
 let chrome = null;
 let store = null;
+let userDataPath = null;
+let profileState = null; // { activeId, profiles: [{id,name,color}] }
+let activeProfileId = "personal";
 let tabs = new Map(); // label -> meta
 let order = [];       // creation order for LRU display
 let focused = null;
 let pendingFocus = null; // swap-on-ready target (discarded-tab rehydrate)
-let closedRing = [];
+let closedRings = new Map(); // profileId -> recently-closed ring (never cross profiles)
 let downloads = new Map(); // id -> {id, filename, path, url, state, received, total, startedAt}
 let dlSeq = 0;
 let seq = 0;
 const label = (p) => `${p}-${Date.now()}-${(seq++).toString(36)}`;
 
 const rss = () => process.memoryUsage?.().rss ?? 0;
-const mainPartition = "persist:continua-main";
+// Chrome-style profile isolation: one Electron partition per profile, so
+// cookies / storage / service workers never cross Work ↔ Personal.
+const activePartition = () => profiles.partitionFor(activeProfileId);
+const closedRing = () => {
+  if (!closedRings.has(activeProfileId)) closedRings.set(activeProfileId, []);
+  return closedRings.get(activeProfileId);
+};
 
 // ---------- store / sync (real endpoints: /api/context/save+pull, /api/devices/*) ----------
 let saveTimer = null;
@@ -77,7 +87,8 @@ function persistNow() {
   if (!store) return;
   const live = [...tabs.entries()].filter(([, m]) => !m.incognito).map(([lab, m]) => ({ label: lab, url: m.url, title: m.title, pinned: !!m.pinned, group: m.group || null }));
   store.saveSession(live, focused);
-  live.forEach(t => store.enqueue({ op: "upsert_tab", ...t }));
+  // Live tabs carry their profile so Work and Personal never merge server-side.
+  live.forEach(t => store.enqueue({ op: "upsert_tab", profileId: activeProfileId, ...t }));
 }
 setInterval(() => { if (store && tabs.size) store.snapshot([...tabs.entries()].filter(([, m]) => !m.incognito).map(([lab, m]) => ({ label: lab, url: m.url, title: m.title })), focused); }, 5 * 60 * 1000);
 
@@ -97,7 +108,7 @@ async function flushSync() {
       const ws = store.listWorkspaces ? store.listWorkspaces() : [];
       workspaces = ws.map(w => ({ name: w.id, tabs: w.tabs }));
     } catch {}
-    const payload = buildSavePayload(tabs, focused, store.cfg.device_id, syncVersion, workspaces, getGroups());
+    const payload = buildSavePayload(tabs, focused, store.cfg.device_id, syncVersion, workspaces, getGroups(), activeProfileId);
     const res = await fetch(`${url}/api/context/save`, {
       method: "POST", headers: authHeaders(),
       body: JSON.stringify(payload),
@@ -117,11 +128,12 @@ async function pullMerge() {
   const url = apiBase(), token = store.cfg.capability_token;
   if (!url || !token) return [];
   try {
-    const res = await fetch(`${url}/api/context/pull?domains=browser`, { headers: { authorization: `Bearer ${token}` } });
+    const domain = `browser-profile-${activeProfileId}`;
+    const res = await fetch(`${url}/api/context/pull?domains=${domain},browser`, { headers: { authorization: `Bearer ${token}` } });
     if (!res.ok) return [];
     const body = await res.json();
     const records = body?.data?.records || body?.data || [];
-    const rec = Array.isArray(records) ? records.find(r => r.domain === "browser") || records[0] : records;
+    const rec = Array.isArray(records) ? records.find(r => r.domain === domain) || records.find(r => r.domain === "browser") || records[0] : records;
     const remote = rec?.data?.tabs || rec?.tabs || [];
     if (!Array.isArray(remote)) return [];
     try { if (rec?.version && rec.version >= syncVersion) syncVersion = rec.version + 1; } catch {}
@@ -197,7 +209,7 @@ function layoutViews() {
 }
 
 function makeView(meta) {
-  const partition = meta.incognito ? `incognito-${meta.label}` : mainPartition;
+  const partition = meta.incognito ? `incognito-${meta.label}` : activePartition();
   const view = new WebContentsView({ webPreferences: {
     partition, contextIsolation: true, sandbox: true, nodeIntegration: false,
     backgroundThrottling: true,
@@ -328,8 +340,11 @@ function closeTab(lab) {
   if (!m) return;
   if (m.view) { try { chrome.contentView.removeChildView(m.view); m.view.webContents.close(); } catch {} }
   if (m.incognito) { try { session.fromPartition(`incognito-${lab}`).clearStorageData(); } catch {} }
-  else closedRing.unshift({ label: lab, url: m.url, title: m.title }); // vault-free: plain ring
-  if (closedRing.length > 25) closedRing.length = 25;
+  else {
+    const ring = closedRing();
+    ring.unshift({ label: lab, url: m.url, title: m.title }); // vault-free: plain ring, per-profile
+    if (ring.length > 25) ring.length = 25;
+  }
   tabs.delete(lab); order = order.filter(x => x !== lab);
   store?.enqueue({ op: "close_tab", label: lab });
   if (focused === lab) { focused = order[order.length - 1] || null; if (focused) activate(focused); }
@@ -435,7 +450,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       const out = [];
       for (const t of ids) { if ([...tabs.values()].find(x => x.url === t.url)) continue; const lab = openTab(t.url); out.push({ label: lab, url: t.url, title: t.title || t.url }); }
       return out; }
-    case "reopen_last_closed": { const t = closedRing.shift(); if (!t) return null; const lab = openTab(t.url); return { label: lab, url: t.url, title: t.title }; }
+    case "reopen_last_closed": { const t = closedRing().shift(); if (!t) return null; const lab = openTab(t.url); return { label: lab, url: t.url, title: t.title }; }
     case "export_session": return JSON.stringify({ tabs: [...tabs.values()].map(t => ({ url: t.url, title: t.title })), active: focused });
     case "import_session_json": { try { const d = JSON.parse(args.raw); (d.tabs || []).forEach(t => openTab(t.url)); return (d.tabs || []).length; } catch { return 0; } }
     case "browse_sessions": return store.browseSessions();
@@ -575,11 +590,11 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     case "remove_extension": return removeExtension(args.id);
     case "set_extension_enabled": {
       store.cfg.extension_state = store.cfg.extension_state || {};
-      store.cfg.extension_state[args.id] = !!args.enabled;
+      store.cfg.extension_state[`${activeProfileId}:${args.id}`] = !!args.enabled;
       store._saveCfg();
-      const ses = session.fromPartition(mainPartition);
+      const ses = session.fromPartition(activePartition());
       if (args.enabled) {
-        const e = (store.cfg.extensions || []).find(x => x.id === args.id);
+        const e = getExtList().find(x => x.id === args.id);
         if (e?.path) return await loadExtension(e.path);
         return { error: "no-path" };
       }
@@ -587,6 +602,22 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       return true;
     }
     case "extensions_dir": return extDir();
+    case "list_profiles": return { activeId: activeProfileId, profiles: profileState.profiles };
+    case "create_profile": {
+      const p = profiles.createProfile(userDataPath, profileState, args.name || "Untitled");
+      return { activeId: activeProfileId, profiles: profileState.profiles, created: p };
+    }
+    case "rename_profile": {
+      const p = profiles.renameProfile(userDataPath, profileState, args.id, args.name);
+      return p ? { activeId: activeProfileId, profiles: profileState.profiles } : { error: "not-found" };
+    }
+    case "delete_profile": {
+      if (args.id === activeProfileId) return { error: "active" };
+      const r = profiles.deleteProfile(userDataPath, profileState, args.id);
+      if (r.error) return r;
+      return { activeId: activeProfileId, profiles: profileState.profiles };
+    }
+    case "switch_profile": return await switchProfile(args.id);
     case "window_control": if (args.action === "minimize") chrome.minimize(); else if (args.action === "toggleMaximize") chrome.isMaximized() ? chrome.unmaximize() : chrome.maximize(); else if (args.action === "close") chrome.close(); else if (args.action === "isMaximized") return chrome.isMaximized(); return;
     default: return null;
   }
@@ -660,12 +691,33 @@ async function toggleReader(lab) {
   } catch {}
 }
 
-// ---------- extensions (Chromium loadExtension + autoload dir) ----------
+// ---------- extensions (Chromium loadExtension + autoload dir, per-profile) ----------
 // Drop unpacked extensions (e.g. Bitwarden) into
-//   <userData>/extensions/<name>/manifest.json
-// and they load automatically on every boot. Per-extension on/off switches
-// persist in cfg.extension_state.
-function extDir() { return path.join(app.getPath("userData"), "extensions"); }
+//   <userData>/profiles/<profileId>/extensions/<name>/manifest.json
+// and they load automatically on every boot for that profile only.
+// Per-profile on/off switches persist in cfg.extension_state as "<profileId>:<extId>".
+function extDir() {
+  try {
+    if (userDataPath) return path.join(profiles.profileDir(userDataPath, activeProfileId), "extensions");
+  } catch {}
+  return path.join(app.getPath("userData"), "extensions");
+}
+function extListKey() { return `extensions:${activeProfileId}`; }
+function getExtList() {
+  try {
+    // Migrate legacy global list into Personal once.
+    if (Array.isArray(store?.cfg?.extensionsByProfile?.[activeProfileId])) return store.cfg.extensionsByProfile[activeProfileId];
+    if (activeProfileId === "personal" && Array.isArray(store?.cfg?.extensions)) return store.cfg.extensions;
+    return [];
+  } catch { return []; }
+}
+function setExtList(list) {
+  try {
+    store.cfg.extensionsByProfile = store.cfg.extensionsByProfile || {};
+    store.cfg.extensionsByProfile[activeProfileId] = list;
+    store._saveCfg();
+  } catch {}
+}
 function scanExtensionDirs() {
   const dir = extDir();
   try { fs.mkdirSync(dir, { recursive: true }); } catch {}
@@ -679,32 +731,37 @@ function scanExtensionDirs() {
   return out;
 }
 function isExtEnabled(id) {
-  try { return store?.cfg?.extension_state?.[id] !== false; } catch { return true; }
+  try {
+    const namespaced = store?.cfg?.extension_state?.[`${activeProfileId}:${id}`];
+    if (typeof namespaced === "boolean") return namespaced;
+    return store?.cfg?.extension_state?.[id] !== false;
+  } catch { return true; }
 }
 function listExtensions() {
   try {
-    const cfg = store?.cfg?.extensions || [];
+    const cfg = getExtList();
     return cfg.map(e => ({ id: e.id, name: e.name || e.id, path: e.path, enabled: isExtEnabled(e.id) }));
   } catch { return []; }
 }
 async function loadExtension(p) {
   try {
-    const ses = session.fromPartition(mainPartition);
+    const ses = session.fromPartition(activePartition());
     const ext = await ses.loadExtension(p, { allowFileAccess: true });
-    const list = store.cfg.extensions || [];
+    const list = getExtList();
     if (!list.find(e => e.id === ext.id)) list.push({ id: ext.id, name: ext.name, path: p });
-    store.cfg.extensions = list; store._saveCfg();
+    setExtList(list);
     return { id: ext.id, name: ext.name };
   } catch (e) { return { error: String(e?.message || e) }; }
 }
 async function autoloadExtensions() {
   // Merge order: scanned dirs first (drop-in wins), then persisted leftovers.
+  // Strictly per-profile: Work never sees Personal's extensions.
   const seen = new Set();
   const candidates = [
     ...scanExtensionDirs(),
-    ...(store.cfg.extensions || []).map(e => e?.path).filter(Boolean),
+    ...getExtList().map(e => e?.path).filter(Boolean),
   ];
-  const ses = session.fromPartition(mainPartition);
+  const ses = session.fromPartition(activePartition());
   for (const p of candidates) {
     if (seen.has(p)) continue;
     seen.add(p);
@@ -712,19 +769,18 @@ async function autoloadExtensions() {
       if (!fs.existsSync(path.join(p, "manifest.json"))) continue;
       const ext = await ses.loadExtension(p, { allowFileAccess: true });
       if (!isExtEnabled(ext.id)) { try { ses.removeExtension(ext.id); } catch {} continue; }
-      const list = store.cfg.extensions || [];
+      const list = getExtList();
       if (!list.find(e => e.id === ext.id)) list.push({ id: ext.id, name: ext.name, path: p });
-      store.cfg.extensions = list;
+      setExtList(list);
     } catch (e) { console.error(`[continua] extension autoload failed for ${p}: ${e?.message || e}`); }
   }
   try { store._saveCfg(); } catch {}
 }
 function removeExtension(id) {
   try {
-    const ses = session.fromPartition(mainPartition);
+    const ses = session.fromPartition(activePartition());
     try { ses.removeExtension(id); } catch {}
-    store.cfg.extensions = (store.cfg.extensions || []).filter(e => e.id !== id);
-    store._saveCfg();
+    setExtList(getExtList().filter(e => e.id !== id));
     return true;
   } catch { return false; }
 }
@@ -787,18 +843,68 @@ function wireDownloads(ses) {
   // audio badge forwarding: media started/stopped + mute state per view polled by chrome via tab_audio_state
 }
 
+// ---------- profiles (Chrome-style Work ↔ Personal separation) ----------
+function createStoreFor(profileId) {
+  try {
+    return require("./store-sqlite").createStore(userDataPath, profileId);
+  } catch {
+    return new Store(userDataPath, profileId);
+  }
+}
+
+function restoreTabsIntoMemory(saved) {
+  tabs.clear(); order = []; focused = null; pendingFocus = null;
+  if (saved?.length) {
+    saved.forEach((t, i) => {
+      const target = resolveUrl(t.url);
+      const startish = target === START_URL;
+      const lab = `tab-restore-${Date.now()}-${i}`;
+      tabs.set(lab, { label: lab, url: startish ? "continua://start" : target, title: startish ? "New Tab" : (t.title || target), history: [target], idx: 0, scrollY: 0, pinned: !!t.pinned, group: t.group || null, incognito: false, zoom: 100, discarded: true, lastActive: 0, view: null });
+      order.push(lab);
+    });
+    let activeId = null;
+    try { activeId = store.state?.active || store.cfg?.active; } catch {}
+    const activeIdx = Math.max(0, saved.findIndex(t => t.label === activeId));
+    activate(order[activeIdx] || order[0]);
+  } else openTab(START_URL);
+  layoutViews();
+}
+
+async function switchProfile(id) {
+  if (!id || !profileState.profiles.find(p => p.id === id)) return { error: "not-found" };
+  if (id === activeProfileId) {
+    return { activeId: activeProfileId, profiles: profileState.profiles, tabs: [...tabs.entries()].map(([lab, t]) => ({ label: lab, url: t.url, title: t.title, pinned: !!t.pinned, group: t.group || null, incognito: !!t.incognito })) };
+  }
+  try { persistNow(); } catch {}
+  // Tear down live views of the old profile before swapping partitions.
+  for (const [, m] of tabs) {
+    try { if (m.view) { chrome.contentView.removeChildView(m.view); m.view.webContents.close(); } } catch {}
+    m.view = null;
+  }
+  activeProfileId = id;
+  profileState.activeId = id;
+  profiles.saveProfiles(userDataPath, profileState);
+  store = createStoreFor(activeProfileId);
+  try { syncVersion = (store.cfg.last_version || 0) + 1; } catch {}
+  try { session.fromPartition(activePartition()).setSpellCheckerEnabled(true); } catch {}
+  wireDownloads(session.fromPartition(activePartition()));
+  try { await autoloadExtensions(); } catch (e) { console.error(`[continua] autoloadExtensions: ${e?.message || e}`); }
+  restoreTabsIntoMemory(store.loadSession());
+  try { chrome?.webContents.send("profiles-changed", { activeId: activeProfileId, profiles: profileState.profiles }); } catch {}
+  return { activeId: activeProfileId, profiles: profileState.profiles, tabs: [...tabs.entries()].map(([lab, t]) => ({ label: lab, url: t.url, title: t.title, pinned: !!t.pinned, group: t.group || null, incognito: !!t.incognito })) };
+}
+
 app.whenReady().then(async () => {  // No native File/Edit/View menu — the React chrome owns all controls.
   try { Menu.setApplicationMenu(null); } catch {}
-  // SQLite FTS5 store, JSON fallback when better-sqlite3 is not installed.
-  try {
-    store = require("./store-sqlite").createStore(app.getPath("userData"));
-  } catch {
-    store = new Store(app.getPath("userData"));
-  }
+  userDataPath = app.getPath("userData");
+  profileState = profiles.loadProfiles(userDataPath);
+  activeProfileId = profileState.activeId;
+  // SQLite FTS5 store per profile, JSON fallback when better-sqlite3 is not installed.
+  store = createStoreFor(activeProfileId);
   try { syncVersion = (store.cfg.last_version || 0) + 1; } catch {}
-  try { session.fromPartition(mainPartition).setSpellCheckerEnabled(true); } catch {}
-  try { session.fromPartition(mainPartition).setSpellCheckerLanguages(["en-US"]); } catch {}
-  wireDownloads(session.fromPartition(mainPartition));
+  try { session.fromPartition(activePartition()).setSpellCheckerEnabled(true); } catch {}
+  try { session.fromPartition(activePartition()).setSpellCheckerLanguages(["en-US"]); } catch {}
+  wireDownloads(session.fromPartition(activePartition()));
   wireDownloads(session.defaultSession);
   // restore persisted + drop-in extensions (Chromium loadExtension)
   try { await autoloadExtensions(); } catch (e) { console.error(`[continua] autoloadExtensions: ${e?.message || e}`); }
@@ -816,18 +922,7 @@ app.whenReady().then(async () => {  // No native File/Edit/View menu — the Rea
     });
   } catch (e) { console.error(`[continua] globalShortcut: ${e?.message || e}`); }
   // zero-loss restore: only active tab goes live, rest rehydrate on click (fast startup)
-  const saved = store.loadSession();
-  if (saved?.length) {
-    saved.forEach((t, i) => {
-      const target = resolveUrl(t.url);
-      const startish = target === START_URL;
-      const lab = `tab-restore-${Date.now()}-${i}`;
-      tabs.set(lab, { label: lab, url: startish ? "continua://start" : target, title: startish ? "New Tab" : (t.title || target), history: [target], idx: 0, scrollY: 0, pinned: !!t.pinned, group: t.group || null, incognito: false, zoom: 100, discarded: true, lastActive: 0, view: null });
-      order.push(lab);
-    });
-    const activeIdx = Math.max(0, saved.findIndex(t => t.label === store.state.active));
-    activate(order[activeIdx] || order[0]);
-  } else openTab(START_URL);
+  restoreTabsIntoMemory(store.loadSession());
   layoutViews();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createChrome(); });
 });

@@ -1,6 +1,7 @@
 # ADR-004: `apps/shell` is a frozen experiment + the cloud backend
 
-**Status:** Accepted (2026-09-15)
+**Status:** Accepted (2026-09-15), amended by ADR-009 (2026-09-18: web-OS UI
+deleted, backend-only remains).
 
 ## Context
 

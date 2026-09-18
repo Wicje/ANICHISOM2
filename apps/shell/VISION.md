@@ -2,12 +2,13 @@
 ## The Persistent Context Layer — Vision & Execution Document
 *July 2026 | Owner: Founder / Continua*
 
-> **⚠ SUPERSEDED (2026-09-15):** This file is the historical vision record
-> for the web shell, now **frozen as an experiment + cloud backend**
-> (ADR-004). Product truth lives in `docs/decisions/` and the Continua
-> Desktop browser (`apps/desktop`). Numbers below reflect aspiration, not
-> the shipping manifest (26 apps, not 47). The notice to AI tools that
-> follows is retained for the experiment's own files only.
+> **⚠ SUPERSEDED (2026-09-15, amended 2026-09-18):** This file is the
+> historical vision record for the web shell, frozen as an experiment + cloud
+> backend (ADR-004) and with its web-OS UI since deleted, leaving the headless
+> sync backend (ADR-009). Product truth lives in `docs/decisions/` and the
+> Continua Browser (`apps/desktop-electron`). Numbers below reflect
+> aspiration, not the shipping manifest (26 apps, not 47). The notice to AI
+> tools that follows is retained for the experiment's own files only.
 
 ---
 

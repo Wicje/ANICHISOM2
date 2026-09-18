@@ -1,5 +1,11 @@
 # ContinuaOS — Architecture
 
+> **⚠ HISTORICAL (2026-09-18, ADR-009):** the web-OS experiment this file
+> describes was deleted from the repo. `apps/shell` is now the headless sync
+> backend only (`app/api/*`, pairing pages, `/download`). Product truth lives
+> in `docs/decisions/` and the Continua Browser (`apps/desktop-electron`).
+> Retained as history — do not build from it.
+
 > **Single source of truth for what exists, what's missing, and what comes next.**
 
 ---

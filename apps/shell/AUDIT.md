@@ -1,5 +1,9 @@
 # ContinuaOS Full Codebase Audit & Architectural Assessment
 
+> **⚠ HISTORICAL (2026-09-18, ADR-009):** audits a web-OS experiment that has
+> since been deleted. `apps/shell` is now the headless sync backend only.
+> Retained as history — do not build from it.
+
 > [!IMPORTANT]
 > **Audit Status**: Completed & Next-Iteration Production Ready  
 > **Target OS Comparison**: macOS Sonoma, Windows 11, Linux (GNOME/KDE)  

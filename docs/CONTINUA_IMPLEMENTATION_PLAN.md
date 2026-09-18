@@ -1,5 +1,10 @@
 # Continua — Architectural Audit & Implementation Plan
 
+> **⚠ HISTORICAL (2026-09-18, ADR-009):** the web-desktop pivot this document
+> plans was deleted from the repo. Product truth: `docs/decisions/` and the
+> Continua Browser (`apps/desktop-electron`). Retained as history — do not
+> build from it.
+
 > **Product Redefinition:** Continua is not an imitation OS in a browser; it is a **universal continuity layer for your digital work**. Your phone is your identity and control key; your local daemon captures metadata-first context; the web client restores your working situation anywhere.
 
 ---

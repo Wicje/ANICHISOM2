@@ -30,6 +30,7 @@
       "studio-preload.js",
       "store.js",
       "store-sqlite.js",
+      "profiles.js",
       "pool.js",
       "sync.js",
       "start-page.html",

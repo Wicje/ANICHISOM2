@@ -1,5 +1,11 @@
 # Continua — The Complete Product & Technical Explainer
 
+> **⚠ HISTORICAL (2026-09-18, ADR-009):** the web-OS experiment this file
+> describes was deleted from the repo. `apps/shell` is now the headless sync
+> backend only (`app/api/*`, pairing pages, `/download`). Product truth lives
+> in `docs/decisions/` and the Continua Browser (`apps/desktop-electron`).
+> Retained as history — do not build from it.
+
 > **A straightforward breakdown of how Continua works, real-world user scenarios, authentication security, privacy controls, and why single-app cloud sync isn't enough.**
 
 ---

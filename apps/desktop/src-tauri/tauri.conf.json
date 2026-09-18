@@ -32,7 +32,7 @@
     "active": true,
     "targets": "all",
     "shortDescription": "Continua Browser — your workspace follows you",
-    "longDescription": "A privacy-first continuity browser: tab graph, vaulted tabs, and encrypted session sync across your own machines via the Continua cloud API.",
+      "longDescription": "Continua Lite (frozen fallback) — lightweight WebKitGTK browser: sessions and workspaces follow you via the Continua sync backend. For the full product, get Continua Browser (Chromium).",
     "icon": [
       "icons/icon.ico",
       "icons/icon.icns",

@@ -20,3 +20,4 @@ must never contradict the code or each other.
 | [006](ADR-006-security-hygiene.md) | Security & hygiene debt register (Phase 0) | Downgraded to best-effort by ADR-008 |
 | [007](ADR-007-engine-sealed.md) | WebKitGTK sealed | Superseded by ADR-008 (Tauri = legacy-lite) |
 | [008](ADR-008-chromium-dailydriver.md) | Chromium daily-driver + continuity, privacy tax removed | Accepted |
+| [009](ADR-009-shell-backend-only.md) | Shell becomes backend-only (web-OS UI deleted) | Accepted |

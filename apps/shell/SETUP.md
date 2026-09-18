@@ -1,4 +1,9 @@
-# ContinuaOS — Production Credential Setup Guide
+# Continua sync backend — Production Credential Setup Guide
+
+> **NOTE (2026-09-18, ADR-009):** OS desktop references below are historical —
+> the web-OS UI was deleted. Use this guide only for the sync backend
+> (`app/api/*` + Supabase + Vercel). The product is the Continua Browser
+> (`apps/desktop-electron`).
 
 This guide walks you through setting up real credentials for deployment.
 

@@ -1,10 +1,11 @@
 # Continua — Master Implementation Plan
 
-> **⚠ SUPERSEDED (2026-09-15):** The strategic decisions in this document
+> **⚠ SUPERSEDED (2026-09-15, amended 2026-09-18):** The strategic decisions in this document
 > are historical. Current direction lives in `docs/decisions/` (ADR-001
 > desktop-first supersedes §3.4 "Tauri ➔ Background Daemon"; ADR-002 makes
 > the browser the shell host; ADR-004 freezes the web shell as an
-> experiment). Kept as a record of the July 2026 repositioning.
+> experiment; ADR-008 makes Electron Chromium the product; ADR-009 deletes
+> the web-OS UI, leaving the sync backend). Kept as a record of the July 2026 repositioning.
 
 ## The Work Continuity Layer Blueprint
 

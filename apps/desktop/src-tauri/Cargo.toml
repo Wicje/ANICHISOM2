@@ -1,7 +1,7 @@
 [package]
 name = "continua-desktop"
 version = "0.1.0"
-description = "The continuity browser — sessions, logins, and context follow you across machines."
+description = "Continua Lite (frozen fallback) — lightweight WebKitGTK browser host for the shared Continua chrome."
 edition = "2021"
 
 [lib]

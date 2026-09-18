@@ -15,23 +15,11 @@ export async function middleware(request: NextRequest) {
   }
 
   // Public routes — no session check needed
-  // /os and /os/shell are public because the Desktop component handles its own
-  // auth (shows the lock screen: guest unlock, Touch ID simulation, SSO).
   // /connect is public because ephemeral guests pair WITHOUT a Supabase session.
   // /download is public so the installer pages are reachable without an account.
   // (/connect/approve stays protected — the approving phone must be signed in.)
-  const isPublicRoute = pathname === '/' || pathname === '/os' || pathname.startsWith('/os/shell') || pathname === '/waitlist' || pathname === '/connect' || pathname === '/download' || pathname.startsWith('/downloads') || pathname.startsWith('/auth') || pathname.startsWith('/login');
+  const isPublicRoute = pathname === '/' || pathname === '/waitlist' || pathname === '/connect' || pathname === '/download' || pathname.startsWith('/downloads') || pathname.startsWith('/auth') || pathname.startsWith('/login');
   if (isPublicRoute) {
-    // If user has Supabase session and is on landing page, redirect to /os
-    if (pathname === '/') {
-      const supabaseCookie = request.cookies.getAll().find(c => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
-      if (supabaseCookie) {
-        const url = request.nextUrl.clone();
-        url.pathname = '/os';
-        return NextResponse.redirect(url);
-      }
-    }
-
     const response = NextResponse.next();
     applyHeaders(response);
     return response;

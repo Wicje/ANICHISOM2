@@ -1,4 +1,9 @@
-# ContinuaOS App SDK
+# ContinuaOS App SDK — ARCHIVED
+
+> **⚠ ARCHIVED (2026-09-18, ADR-004/ADR-009):** no importers, never built,
+> target platform (web-OS) deleted. Retained as reference only — do not
+> build from it. Plugin work, if revived, targets the desktop browser
+> (Phase 3) under a new ADR.
 
 Build plugins for the ContinuaOS platform.
 

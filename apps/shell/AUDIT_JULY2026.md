@@ -1,5 +1,9 @@
 # ContinuaOS — Architectural & Codebase Audit Report (July 2026)
 
+> **⚠ HISTORICAL (2026-09-18, ADR-009):** audits a web-OS experiment that has
+> since been deleted. `apps/shell` is now the headless sync backend only.
+> Retained as history — do not build from it.
+
 ---
 
 ## 1. 🏗️ Architecture & Big-Picture Evaluation
