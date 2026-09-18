@@ -371,6 +371,26 @@ export function CommandPalette({
       icon: IconClock,
       run: () => void onPullRemote(),
     });
+    raw.push({
+      key: "monday",
+      group: "Rituals",
+      label: "Monday launch — restore the week",
+      hint: "reopen the last session and pull remote",
+      icon: IconSpark,
+      run: () => {
+        void onRestore().then(() => void onPullRemote());
+      },
+    });
+    raw.push({
+      key: "wind-down",
+      group: "Rituals",
+      label: "Friday wind-down — checkpoint & sync",
+      hint: "push this workspace to the cloud",
+      icon: IconCheck,
+      run: () => {
+        void onSync().then(() => setNotice("Week checkpointed — see you Monday."));
+      },
+    });
 
     // Score + filter, then order by group (stable) then score within group.
     const scored = raw

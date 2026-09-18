@@ -11,6 +11,8 @@ import type {
   SessionSummary,
 } from "../lib/tauri-bridge";
 import { attachCadence } from "../lib/cadence";
+import { fires } from "../lib/shortcuts";
+import { applyTheme, reapplyStoredTheme, resolveTheme, type Theme } from "../lib/themes";
 import { useChromeModal } from "../lib/chrome-modal";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { TabStrip } from "./TabStrip";
@@ -297,6 +299,26 @@ export function BrowserChrome({
     });
   }, [isNative, activeLabel, tabs]);
 
+  // Per-site prefs: remembered zoom + auto-mute apply when a tab lands.
+  const appliedSite = useRef<string | null>(null);
+  useEffect(() => {
+    const active = tabs.find((t) => t.label === activeLabel);
+    if (!isNative || !active || !activeLabel) return;
+    let origin = "";
+    try { origin = new URL(active.url).hostname.replace(/^www\./, ""); } catch { return; }
+    const pref = config?.site_prefs?.[origin];
+    if (!pref) { appliedSite.current = null; return; }
+    const key = `${activeLabel}@${origin}`;
+    if (appliedSite.current === key) return;
+    appliedSite.current = key;
+    if (typeof pref.zoom === "number") void api.zoomTab(activeLabel, 0, pref.zoom);
+    if (pref.muted) {
+      void api.setTabMuted(activeLabel, true).then(() => {
+        setAudio((prev) => ({ ...prev, [activeLabel]: { audible: prev[activeLabel]?.audible ?? false, muted: true } }));
+      });
+    }
+  }, [isNative, activeLabel, tabs, config?.site_prefs]);
+
   // Keep the omnibox's history suggestions fresh as the user browses.
   // Debounced: getHistory ships hundreds of rows over IPC; navigating
   // rapidly must not stall typing.
@@ -353,11 +375,14 @@ export function BrowserChrome({
 
   // Pick up the persisted search engine + preferences + workspaces.
   useEffect(() => {
+    reapplyStoredTheme();
     void api.getBrowserConfig().then((c) => {
       if (!c) return;
       setEngine(c.search_engine);
       setConfig(c);
       setActiveWorkspace(c.active_workspace ?? "default");
+      applyTheme(resolveTheme(c.theme_id ?? "midnight", (c.custom_themes ?? []) as Theme[]));
+      if (c.density) document.documentElement.dataset.density = c.density;
       if (c.vertical_tabs) void api.setTabRail(true);
     });
     void api.listWorkspaces().then((ws) => {
@@ -412,6 +437,28 @@ export function BrowserChrome({
     });
   };
 
+  // Cycle to the next profile (Ctrl+Shift+M): the host swaps partitions and
+  // returns that profile's tabs, which replace the strip wholesale.
+  const cycleProfile = async () => {
+    const s = await api.listProfiles();
+    if (!s.profiles.length) return;
+    const idx = s.profiles.findIndex((p) => p.id === s.activeId);
+    const next = s.profiles[(idx + 1) % s.profiles.length];
+    const r = await api.switchProfile(next.id);
+    if (r.error) {
+      toast(`Profile switch failed: ${r.error}`, "danger");
+      return;
+    }
+    if ("tabs" in r && r.tabs) onSwitchWorkspace?.(r.tabs);
+    const themeId = r.profiles.find((p) => p.id === r.activeId)?.themeId ?? "midnight";
+    const cfg = await api.getBrowserConfig();
+    applyTheme(resolveTheme(themeId, (cfg?.custom_themes ?? []) as Theme[]));
+    toast(`Switched to ${r.profiles.find((p) => p.id === r.activeId)?.name ?? r.activeId}`);
+  };
+
+  // Toolbar editor: hidden button ids live in config.toolbar_hidden.
+  const showTool = (id: string) => !(config?.toolbar_hidden ?? []).includes(id);
+
   const applyPatch = (patch: ConfigPatch) => {
     void api.updateConfig(patch).then((c) => {
       if (!c) return;
@@ -419,6 +466,8 @@ export function BrowserChrome({
       if (patch.search_engine) setEngine(c.search_engine);
       // Live theme switch needs the local state too (it drives <html>).
       if (patch.theme) setTheme(patch.theme as "dark" | "light");
+      if (patch.theme_id) applyTheme(resolveTheme(c.theme_id ?? "midnight", (c.custom_themes ?? []) as Theme[]));
+      if (patch.density) document.documentElement.dataset.density = patch.density;
       // Link previews need to gate on live pages immediately.
       if (patch.link_preview !== undefined) void api.setLinkPreview(Boolean(patch.link_preview));
       // Vertical rail pinning reflows native views immediately.
@@ -432,11 +481,13 @@ export function BrowserChrome({
     if (isNative) void api.setTabRail(next || railOn);
   };
 
-  // Keyboard shortcuts: Ctrl+T/W/L/R/H/F, Ctrl+Shift+T/N, Ctrl+=/-/0, F5.
+  // Keyboard shortcuts: remappable via Settings (shortcuts map), defaults
+  // match the classic set (Ctrl+T/W/L/R/H/F, Ctrl+Shift+T/N, F5, …).
   useEffect(() => {
     const reload = () => {
       if (activeLabel) void api.reloadTab(activeLabel);
     };
+    const map = config?.shortcuts ?? {};
     const onKey = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
       const mod = e.ctrlKey || e.metaKey;
@@ -459,7 +510,8 @@ export function BrowserChrome({
         void api.zoomTab(activeLabel, step);
         return;
       }
-      if (k === ",") {
+      const fire = (id: string) => fires(id, e, map);
+      if (fire("settings")) {
         e.preventDefault();
         setSettingsOpen((v) => !v);
         return;
@@ -471,27 +523,32 @@ export function BrowserChrome({
         reload();
         return;
       }
-      if (e.shiftKey && k === "t") {
+      if (fire("reopen-tab")) {
         e.preventDefault();
         void onReopen().then(() => toast("Reopened the last closed tab", "success"));
         return;
       }
-      if (e.shiftKey && k === "n") {
+      if (fire("incognito")) {
         e.preventDefault();
         void onOpenIncognito(START_TAB_URL);
         return;
       }
-      if (e.shiftKey && k === "s") {
+      if (fire("screenshot")) {
         e.preventDefault();
         void api.screenshotTab(activeLabel ?? undefined).then((r) => {
           toast(r?.path ? `Screenshot saved to ${r.path}` : "Screenshot failed", r?.path ? "success" : "danger");
         });
         return;
       }
-      if (e.shiftKey && k === "f") {
+      if (fire("studio")) {
         // Studio mode: hide the entire chrome for clean screen recording.
         e.preventDefault();
         toggleStudio();
+        return;
+      }
+      if (fire("cycle-profile")) {
+        e.preventDefault();
+        void cycleProfile();
         return;
       }
       if (e.shiftKey && k === "i") {
@@ -499,39 +556,44 @@ export function BrowserChrome({
         void api.toggleDevTools();
         return;
       }
-      switch (k) {
-        case "t":
-          e.preventDefault();
-          void onOpen(newTabUrl(config ?? undefined));
-          break;
-        case "w":
-          e.preventDefault();
-          if (activeLabel) void onClose(activeLabel);
-          break;
-        case "l":
-          e.preventDefault();
-          addressRef.current?.focus();
-          addressRef.current?.select();
-          break;
-        case "h":
-          e.preventDefault();
-          setHistoryOpen((v) => !v);
-          break;
-        case "j":
-          e.preventDefault();
-          setDownloadsOpen((v) => !v);
-          break;
-        case "f":
-          e.preventDefault();
-          setFindOpen((v) => !v);
-          break;
+      if (fire("new-tab")) {
+        e.preventDefault();
+        void onOpen(newTabUrl(config ?? undefined));
+        return;
+      }
+      if (fire("close-tab")) {
+        e.preventDefault();
+        if (activeLabel) void onClose(activeLabel);
+        return;
+      }
+      if (fire("address")) {
+        e.preventDefault();
+        addressRef.current?.focus();
+        addressRef.current?.select();
+        return;
+      }
+      if (fire("history")) {
+        e.preventDefault();
+        setHistoryOpen((v) => !v);
+        return;
+      }
+      if (fire("downloads")) {
+        e.preventDefault();
+        setDownloadsOpen((v) => !v);
+        return;
+      }
+      if (fire("find")) {
+        e.preventDefault();
+        setFindOpen((v) => !v);
+        return;
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [activeLabel, onClose, onOpen, onOpenIncognito, onReopen]);
+  }, [activeLabel, onClose, onOpen, onOpenIncognito, onReopen, config?.shortcuts]);
 
   // ── Omnibox suggestions (tabs + history + visit/search fallback) ─────
+  const customs = config?.custom_engines ?? [];
   const suggestions = useMemo<Suggestion[]>(() => {
     const q = address.trim();
     if (!q) return [];
@@ -579,11 +641,11 @@ export function BrowserChrome({
         rows.push({
           kind: "suggest",
           title: s,
-          sub: `Suggest · ${engineBadge(engine) || engine}`,
+          sub: `Suggest · ${engineBadge(engine, customs) || engine}`,
         });
       }
       if (rows.length < 7) {
-        rows.push({ kind: "search", title: `Search for “${q}”`, sub: engineBadge(engine) || engine });
+        rows.push({ kind: "search", title: `Search for “${q}”`, sub: engineBadge(engine, customs) || engine });
       }
     }
     return rows.slice(0, 7);
@@ -616,7 +678,7 @@ export function BrowserChrome({
     if (s.kind === "suggest") {
       setAddress("");
       startNav();
-      const url = searchUrlFor(engine, s.title);
+      const url = searchUrlFor(engine, s.title, customs);
       if (activeLabel) void api.navigateTab(activeLabel, url);
       else void onOpen(url);
       return;
@@ -627,7 +689,7 @@ export function BrowserChrome({
         ? /^https?:\/\//i.test(q)
           ? q
           : `https://${q}`
-        : searchUrlFor(engine, q);
+        : searchUrlFor(engine, q, customs);
     setAddress("");
     startNav();
     if (activeLabel) void api.navigateTab(activeLabel, url);
@@ -758,7 +820,12 @@ export function BrowserChrome({
         <span className="runtime-badge">{runtime === "browser" ? "preview" : "native"}</span>
         <div style={{ flex: 1, alignSelf: "stretch" }} data-tauri-drag-region />
         <ProfileMenu
-          onSwitchTabs={(session) => onSwitchWorkspace?.(session)}
+          onSwitchTabs={(session, themeId) => {
+            onSwitchWorkspace?.(session);
+            void api.getBrowserConfig().then((c) => {
+              applyTheme(resolveTheme(themeId ?? "midnight", (c?.custom_themes ?? []) as Theme[]));
+            });
+          }}
         />
         <WorkspaceMenu
           workspaces={workspaces}
@@ -768,6 +835,7 @@ export function BrowserChrome({
           onSwitch={switchWorkspace}
           onDelete={deleteWorkspace}
         />
+        {showTool("restore") && (
         <button
           className="chrome-btn"
           onClick={() => void onRestore().then(() => toast("Session restored"))}
@@ -775,6 +843,8 @@ export function BrowserChrome({
         >
           <IconRestore size={15} />
         </button>
+        )}
+        {showTool("save") && (
         <button
           className="chrome-btn"
           onClick={() => void onSave().then(() => toast("Session saved — autosave is on too", "success"))}
@@ -782,6 +852,8 @@ export function BrowserChrome({
         >
           <IconSave size={15} />
         </button>
+        )}
+        {showTool("history") && (
         <button
           className="chrome-btn"
           onClick={() => setHistoryOpen((v) => !v)}
@@ -789,6 +861,8 @@ export function BrowserChrome({
         >
           <IconClock size={15} />
         </button>
+        )}
+        {showTool("downloads") && (
         <button
           className="chrome-btn"
           onClick={() => setDownloadsOpen((v) => !v)}
@@ -796,6 +870,8 @@ export function BrowserChrome({
         >
           <IconDownload size={15} />
         </button>
+        )}
+        {showTool("rail") && (
         <button
           className={`chrome-btn${config?.vertical_tabs ? " is-active" : ""}`}
           onClick={toggleVerticalTabs}
@@ -803,6 +879,8 @@ export function BrowserChrome({
         >
           <IconStack size={15} />
         </button>
+        )}
+        {showTool("settings") && (
         <button
           className="chrome-btn"
           onClick={() => setSettingsOpen((v) => !v)}
@@ -810,6 +888,8 @@ export function BrowserChrome({
         >
           <IconSettings size={15} />
         </button>
+        )}
+        {showTool("studio") && (
         <button
           className="chrome-btn"
           onClick={toggleStudio}
@@ -817,6 +897,8 @@ export function BrowserChrome({
         >
           <IconFocus size={15} />
         </button>
+        )}
+        {showTool("theme") && (
         <button
           className="chrome-btn"
           title={theme === "dark" ? "Switch to light" : "Switch to dark"}
@@ -827,6 +909,7 @@ export function BrowserChrome({
         >
           {theme === "dark" ? <IconSun size={15} /> : <IconMoon size={15} />}
         </button>
+        )}
         {isNative && (
           <div className="window-controls">
             <button
@@ -995,8 +1078,8 @@ export function BrowserChrome({
               onClick={() => setEngineMenu((v) => !v)}
               title={`Search engine: ${engine} — click to change`}
             >
-              <span className="engine-badge">{engineBadge(engine) || "G"}</span>
-              <span className="engine-name">{engine}</span>
+              <span className="engine-badge">{engineBadge(engine, customs) || "G"}</span>
+              <span className="engine-name">{customs.find((e) => e.id === engine)?.name ?? engine}</span>
               <IconCaretDown size={12} />
             </button>
             {engineMenu && (
@@ -1012,8 +1095,23 @@ export function BrowserChrome({
                       void api.setSearchEngine(e);
                     }}
                   >
-                    <Favicon url={searchUrlFor(e, "")} />
+                    <Favicon url={searchUrlFor(e, "", customs)} />
                     {e}
+                  </button>
+                ))}
+                {customs.map((e) => (
+                  <button
+                    key={e.id}
+                    type="button"
+                    className={`engine-opt${e.id === engine ? " is-active" : ""}`}
+                    onClick={() => {
+                      setEngineMenu(false);
+                      setEngine(e.id);
+                      void api.setSearchEngine(e.id);
+                    }}
+                  >
+                    <Favicon url={searchUrlFor(e.id, "", customs)} />
+                    {e.name}
                   </button>
                 ))}
               </div>
@@ -1089,6 +1187,7 @@ export function BrowserChrome({
         open={settingsOpen}
         config={config}
         onPatch={applyPatch}
+        activeOrigin={hostOf(activeUrl) || undefined}
         onClearHistory={() => {
           void api.clearHistory();
           setRecent([]);

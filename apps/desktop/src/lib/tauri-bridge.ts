@@ -118,6 +118,7 @@ export interface BrowserProfile {
   id: string;
   name: string;
   color: string;
+  themeId?: string | null;
 }
 
 export interface ProfileState {
@@ -183,7 +184,39 @@ export interface BrowserConfigItem {
   vertical_tabs?: boolean;
   /** Named tab-group registry (synced). */
   tab_groups?: TabGroup[];
+  /** Active theme id (gallery builtin or custom). Synced per profile. */
+  theme_id?: string;
+  /** User theme packs. */
+  custom_themes?: Array<{ id: string; name: string; accent: string; accentHi: string; glowA: string; glowB: string; custom?: boolean }>;
+  /** User search engines (`{q}` placeholder). */
+  custom_engines?: CustomEngine[];
+  /** Toolbar button ids hidden by the user. */
+  toolbar_hidden?: string[];
+  /** Chrome density. */
+  density?: "comfortable" | "compact";
+  /** Remapped shortcuts. */
+  shortcuts?: ShortcutMap;
+  /** Per-origin preferences. */
+  site_prefs?: Record<string, SitePref>;
 }
+
+/** A user-defined search engine (`{q}` = query placeholder). */
+export interface CustomEngine {
+  id: string;
+  name: string;
+  url: string;
+  badge?: string;
+}
+
+/** Per-origin remembered preferences (zoom %, auto-mute, force-dark). */
+export interface SitePref {
+  zoom?: number;
+  muted?: boolean;
+  dark?: boolean;
+}
+
+/** Remapped keyboard shortcuts: action id -> "ctrl+shift+m" style combo. */
+export type ShortcutMap = Record<string, string>;
 
 /** A sparse settings patch for `updateConfig`; only present keys change. */
 export interface ConfigPatch {
@@ -198,11 +231,25 @@ export interface ConfigPatch {
   active_workspace?: string;
   vertical_tabs?: boolean;
   tab_groups?: TabGroup[];
+  theme_id?: string;
+  custom_themes?: BrowserConfigItem["custom_themes"];
+  custom_engines?: CustomEngine[];
+  toolbar_hidden?: string[];
+  density?: "comfortable" | "compact";
+  shortcuts?: ShortcutMap;
+  site_prefs?: Record<string, SitePref>;
 }
 
-/** Search URL for a query under the given engine id. */
-export function searchUrlFor(engine: string, query: string): string {
+/** Search URL for a query under the given engine id (customs supported). */
+export function searchUrlFor(engine: string, query: string, customs: CustomEngine[] = []): string {
   const q = encodeURIComponent(query.trim());
+  const custom = customs.find((e) => e.id === engine);
+  if (custom && custom.url.includes("{q}")) {
+    try {
+      const u = new URL(custom.url.replace("{q}", q));
+      if (u.protocol === "http:" || u.protocol === "https:") return u.toString();
+    } catch { /* fall through to default */ }
+  }
   switch (engine) {
     case "duckduckgo":
       return `https://duckduckgo.com/?q=${q}`;
@@ -215,8 +262,25 @@ export function searchUrlFor(engine: string, query: string): string {
   }
 }
 
-/** Short badge for an engine ("G", "DDG", "B", "Br") used by the selector. */
-export function engineBadge(engine: string): string {
+/** Validate a user engine template (http(s) URL containing {q}). */
+export function sanitizeEngine(e: unknown): CustomEngine | null {
+  if (!e || typeof e !== "object") return null;
+  const o = e as Record<string, unknown>;
+  if (typeof o.url !== "string" || !o.url.includes("{q}")) return null;
+  try {
+    const u = new URL((o.url as string).replace("{q}", "test"));
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+  } catch { return null; }
+  const name = typeof o.name === "string" ? o.name.trim().slice(0, 24) || "Custom" : "Custom";
+  const id = typeof o.id === "string" && /^[a-z0-9-]{1,32}$/.test(o.id) ? o.id : `custom-${Math.random().toString(36).slice(2, 8)}`;
+  const badge = typeof o.badge === "string" ? o.badge.trim().slice(0, 4).toUpperCase() || name.slice(0, 2).toUpperCase() : name.slice(0, 2).toUpperCase();
+  return { id, name, url: o.url as string, badge };
+}
+
+/** Short badge for an engine ("G", "DDG", "B", "Br", customs) used by the selector. */
+export function engineBadge(engine: string, customs: CustomEngine[] = []): string {
+  const custom = customs.find((e) => e.id === engine);
+  if (custom) return (custom.badge || custom.name.slice(0, 2)).toUpperCase();
   switch (engine) {
     case "duckduckgo":
       return "DDG";
@@ -278,8 +342,8 @@ export const api = {
       () => ({ count: 0, idx: -1 }),
     ),
 
-  zoomTab: (label: string, step: number) =>
-    invoke<number>("zoom_tab", { label, step }).catch(() => 100),
+  zoomTab: (label: string, step: number, value?: number) =>
+    invoke<number>("zoom_tab", { label, step, value: value ?? null }).catch(() => 100),
 
   readerToggle: (label: string) =>
     invoke<void>("reader_toggle", { label }).catch(() => undefined),
@@ -293,7 +357,7 @@ export const api = {
     ),
 
   getBrowserConfig: () =>
-    invoke<BrowserConfigItem>("get_browser_config").catch(() => ({
+    invoke<BrowserConfigItem>("get_browser_config").catch((): BrowserConfigItem => ({
       search_engine: "google",
       theme: "dark",
       homepage: "",
@@ -543,6 +607,9 @@ export const api = {
 
   switchProfile: (id: string) =>
     invoke<ProfileState & { tabs?: RestoredTab[] }>("switch_profile", { id }).catch(() => ({ activeId: "", profiles: [], error: "unavailable" })),
+
+  setProfileTheme: (id: string, themeId: string | null) =>
+    invoke<ProfileState>("set_profile_theme", { id, themeId: themeId ?? null }).catch(() => ({ activeId: "", profiles: [], error: "unavailable" })),
 };
 
 /** One download tracked by the native host. */

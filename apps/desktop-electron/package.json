@@ -7,7 +7,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "test": "node --test pool.test.js sync.test.js",
+    "test": "node --test pool.test.js sync.test.js profiles.test.js",
     "dist": "electron-builder --publish never",
     "dist:linux": "electron-builder --linux --publish never",
     "dist:win": "electron-builder --win --publish never",

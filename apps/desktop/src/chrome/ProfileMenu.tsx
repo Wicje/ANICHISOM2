@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type BrowserProfile } from "../lib/tauri-bridge";
+import { BUILTIN_THEMES, applyTheme, resolveTheme, type Theme } from "../lib/themes";
 import { useChromeModal } from "../lib/chrome-modal";
 import { IconCaretDown, IconCheck, IconClose } from "../components/icons";
 import { toast } from "../lib/toast";
 import type { OpenTab } from "./TabStrip";
 
 interface ProfileMenuProps {
-  onSwitchTabs: (session: OpenTab[]) => void;
+  onSwitchTabs: (session: OpenTab[], themeId?: string | null) => void;
   onProfilesChanged?: () => void;
 }
 
@@ -53,9 +54,9 @@ export function ProfileMenu({ onSwitchTabs, onProfilesChanged }: ProfileMenuProp
       }
       setProfiles(s.profiles);
       setActiveId(s.activeId);
-      if ("tabs" in s && s.tabs) onSwitchTabs(s.tabs as OpenTab[]);
-      onProfilesChanged?.();
       const next = s.profiles.find((p) => p.id === s.activeId);
+      if ("tabs" in s && s.tabs) onSwitchTabs(s.tabs as OpenTab[], next?.themeId ?? null);
+      onProfilesChanged?.();
       toast(`Switched to ${next?.name ?? s.activeId} — history, tabs & extensions are separate`, "success");
       refresh();
     });
@@ -147,6 +148,32 @@ export function ProfileMenu({ onSwitchTabs, onProfilesChanged }: ProfileMenuProp
               </button>
             );
           })}
+          <div className="workspace-sep" />
+          <div className="workspace-head">Theme for {active?.name ?? "profile"}</div>
+          <div className="theme-swatches">
+            {BUILTIN_THEMES.map((t) => (
+              <button
+                key={t.id}
+                className={`theme-swatch${(active?.themeId ?? "midnight") === t.id ? " is-active" : ""}`}
+                title={t.name}
+                onClick={() => {
+                  if (!active) return;
+                  void api.setProfileTheme(active.id, t.id).then((s) => {
+                    if (!s.error) {
+                      setProfiles(s.profiles);
+                      setActiveId(s.activeId);
+                      void api.getBrowserConfig().then((c) => {
+                        applyTheme(resolveTheme(t.id, (c?.custom_themes ?? []) as Theme[]));
+                      });
+                    }
+                  });
+                }}
+              >
+                <span className="theme-dot" style={{ background: t.accent }} />
+                <span className="theme-name">{t.name}</span>
+              </button>
+            ))}
+          </div>
           <div className="workspace-sep" />
           <div className="workspace-new">
             <input

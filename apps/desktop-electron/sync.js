@@ -4,13 +4,14 @@
  * server merges via vector clocks); pull merges remote tabs without
  * duplicating local URLs and never destructively replaces.
  */
-function buildSavePayload(tabs, focused, deviceId, version, workspaces, groups, profileId) {
+function buildSavePayload(tabs, focused, deviceId, version, workspaces, groups, profileId, themeId) {
   const live = [...tabs.entries()]
     .filter(([, m]) => !m.incognito)
     .map(([lab, m]) => ({ label: lab, url: m.url, title: m.title, pinned: !!m.pinned, group: m.group || null }));
   // Per-profile domain so Work and Personal merge independently server-side.
   const pid = profileId || "personal";
   const payload = { domain: `browser-profile-${pid}`, data: { tabs: live, active: focused, profileId: pid }, version, deviceId };
+  if (themeId) payload.data.themeId = themeId;
   if (Array.isArray(workspaces)) payload.data.workspaces = workspaces;
   if (Array.isArray(groups)) payload.data.groups = groups;
   return payload;

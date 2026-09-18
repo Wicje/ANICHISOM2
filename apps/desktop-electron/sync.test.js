@@ -40,6 +40,14 @@ test("save payload scopes to the active profile", () => {
   assert.equal(p.data.profileId, "work");
 });
 
+test("save payload carries the theme id when set", () => {
+  const tabs = new Map([["a", { url: "https://a.com", title: "A" }]]);
+  const withTheme = buildSavePayload(tabs, "a", "dev-1", 3, [], [], "work", "ocean");
+  assert.equal(withTheme.data.themeId, "ocean");
+  const withoutTheme = buildSavePayload(tabs, "a", "dev-1", 3);
+  assert.equal("themeId" in withoutTheme.data, false);
+});
+
 test("save payload carries groups + workspaces", () => {
   const tabs = new Map([["a", { url: "https://a.com", title: "A", group: "grp-1" }]]);
   const p = buildSavePayload(tabs, "a", "dev-1", 3,
