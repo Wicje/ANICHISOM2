@@ -2676,6 +2676,24 @@ body::after {
   }
 }
 
+/* Tiled / side-by-side narrow window: one row can't fit tabs + address +
+ * identity without squishing. Address keeps row one; tabs drop to a
+ * dedicated full-width row two. Nothing compresses into stubs. */
+@media (max-width: 800px) {
+  .chrome-row {
+    flex-wrap: wrap;
+    row-gap: 5px;
+  }
+  .tab-strip {
+    order: 10;
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+  .bar-form {
+    flex: 1 1 200px;
+  }
+}
+
 /* Huge desktop: don't let dozens of tabs stretch the whole window width. */
 @media (min-width: 1600px) {
   .tab-strip {
