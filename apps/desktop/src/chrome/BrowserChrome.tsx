@@ -873,7 +873,7 @@ export function BrowserChrome({
         background: "var(--chrome-bg)",
         flexDirection: "column",
         gap: 4,
-        padding: "8px 12px",
+        padding: "6px 12px",
         userSelect: "none",
         zIndex: 9999,
       }}
