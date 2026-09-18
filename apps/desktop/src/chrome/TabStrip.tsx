@@ -159,6 +159,7 @@ export const TabStrip = memo(function TabStrip({
   ) : null;
 
   return (
+    <>
     <div className={`tab-strip${rail ? " is-rail" : ""}${tabs.length >= 12 ? " tabs-favicons" : ""}`} ref={rootRef}>
       {tabs.map((tab) => {
         const active = tab.label === activeLabel;
@@ -276,6 +277,7 @@ export const TabStrip = memo(function TabStrip({
           </div>
         );
       })}
+      </div>
       <div className="tab-new-wrap">
         <button className="tab-new" onClick={onNew} title="New tab (Ctrl+T)">
           <IconPlus size={14} />
@@ -399,6 +401,6 @@ export const TabStrip = memo(function TabStrip({
           </div>
         </>
       )}
-    </div>
+    </>
   );
 });
