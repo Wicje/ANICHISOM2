@@ -1,37 +1,45 @@
 {
-  "product": "Continua Desktop Browser",
+  "product": "Continua Browser",
   "homepage": "https://continuaos.cc",
+  "repo": "https://github.com/Wicje/ANICHISOM2",
   "release": {
-    "version": "0.1.0",
-    "released": "2026-09-09",
-    "message": "Official release of the Continua desktop browser."
+    "version": "0.3.1",
+    "released": "2026-09-18",
+    "message": "Profiles (Work ↔ Personal), theme gallery, local Tidy-tabs intelligence, paint-aware tab switching, working back/forward."
   },
   "platforms": {
     "mac": {
       "name": "macOS",
-      "note": "Apple Silicon & Intel",
-      "artifact": "Continua_0.1.0_x64.dmg",
-      "url": "",
-      "size": 0
+      "note": "Apple Silicon & Intel — unsigned, right-click → Open on first launch",
+      "artifact": "Continua-0.3.1-arm64.dmg",
+      "url": "https://github.com/Wicje/ANICHISOM2/releases/download/v0.3.1/Continua-0.3.1-arm64.dmg",
+      "size": 0,
+      "packages": [
+        {
+          "name": "Continua-0.3.1.dmg (Intel)",
+          "url": "https://github.com/Wicje/ANICHISOM2/releases/download/v0.3.1/Continua-0.3.1.dmg",
+          "size": 0
+        }
+      ]
     },
     "win": {
       "name": "Windows",
-      "note": "Windows 10 & 11",
-      "artifact": "Continua_0.1.0_x64.msi",
-      "url": "",
+      "note": "Windows 10 & 11 — unsigned, SmartScreen: More info → Run anyway",
+      "artifact": "Continua-Setup-0.3.1.exe",
+      "url": "https://github.com/Wicje/ANICHISOM2/releases/download/v0.3.1/Continua-Setup-0.3.1.exe",
       "size": 0
     },
     "linux": {
       "name": "Linux",
-      "note": "Ubuntu, Debian & more",
-      "artifact": "Continua_0.1.0_amd64.AppImage",
-      "url": "https://uq3b2zplnpfrywlw.public.blob.vercel-storage.com/downloads/0.1.0/Continua_0.1.0_amd64.AppImage",
-      "size": 109144568,
+      "note": "Ubuntu, Debian & more — chmod +x, then run",
+      "artifact": "Continua-0.3.1.AppImage",
+      "url": "https://github.com/Wicje/ANICHISOM2/releases/download/v0.3.1/Continua-0.3.1.AppImage",
+      "size": 0,
       "packages": [
         {
-          "name": "Continua_0.1.0_amd64.deb",
-          "url": "https://uq3b2zplnpfrywlw.public.blob.vercel-storage.com/downloads/0.1.0/Continua_0.1.0_amd64.deb",
-          "size": 2522598
+          "name": "continua-browser_0.3.1_amd64.deb",
+          "url": "https://github.com/Wicje/ANICHISOM2/releases/download/v0.3.1/continua-browser_0.3.1_amd64.deb",
+          "size": 0
         }
       ]
     }

@@ -21,6 +21,6 @@
     "test:shell": "npm -w apps/shell run test"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   }
 }
