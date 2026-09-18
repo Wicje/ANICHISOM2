@@ -32,8 +32,8 @@ function defaultSet() {
   return {
     activeId: "personal",
     profiles: [
-      { id: "personal", name: "Personal", color: "#0071e3" },
-      { id: "work", name: "Work", color: "#188038" },
+      { id: "personal", name: "Personal", color: "#0071e3", themeId: "midnight" },
+      { id: "work", name: "Work", color: "#188038", themeId: "forest" },
     ],
   };
 }
@@ -50,6 +50,7 @@ function loadProfiles(userDataPath) {
             id: String(p.id).slice(0, 32),
             name: String(p.name || "Untitled").slice(0, 32),
             color: p.color || PROFILE_COLORS[i % PROFILE_COLORS.length],
+            themeId: typeof p.themeId === "string" ? p.themeId.slice(0, 48) : null,
           }));
         const activeId = profiles.find((p) => p.id === raw.activeId)?.id || profiles[0].id;
         return { activeId, profiles };
@@ -76,7 +77,7 @@ function createProfile(userDataPath, data, name) {
   let id = sanitizeId(clean);
   const have = new Set(data.profiles.map((p) => p.id));
   if (have.has(id)) id = `${id}-${crypto.randomBytes(2).toString("hex")}`;
-  const p = { id, name: clean, color: PROFILE_COLORS[data.profiles.length % PROFILE_COLORS.length] };
+  const p = { id, name: clean, color: PROFILE_COLORS[data.profiles.length % PROFILE_COLORS.length], themeId: null };
   data.profiles.push(p);
   saveProfiles(userDataPath, data);
   return p;
@@ -87,6 +88,14 @@ function renameProfile(userDataPath, data, id, name) {
   if (!p) return null;
   const clean = (name || "").trim().slice(0, 32);
   if (clean) p.name = clean;
+  saveProfiles(userDataPath, data);
+  return p;
+}
+
+function setProfileTheme(userDataPath, data, id, themeId) {
+  const p = data.profiles.find((x) => x.id === id);
+  if (!p) return null;
+  p.themeId = typeof themeId === "string" && themeId ? themeId.slice(0, 48) : null;
   saveProfiles(userDataPath, data);
   return p;
 }
@@ -121,6 +130,7 @@ module.exports = {
   saveProfiles,
   createProfile,
   renameProfile,
+  setProfileTheme,
   deleteProfile,
   partitionFor,
   profileDir,

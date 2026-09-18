@@ -158,22 +158,36 @@ function create(userDataPath, profileId) {
     getConfig() {
       const c = {};
       try {
-        const rows = db.prepare("SELECT k,v FROM meta WHERE k IN ('search_engine','theme','homepage','autosave_interval','tab_groups')").all();
+        const rows = db.prepare("SELECT k,v FROM meta WHERE k IN ('search_engine','theme','homepage','autosave_interval','tab_groups','theme_id','custom_engines','toolbar_hidden','density','shortcuts','site_prefs')").all();
         rows.forEach(r => { c[r.k] = r.v; });
       } catch {}
       let tabGroups = [];
       try { tabGroups = JSON.parse(c.tab_groups || "[]"); } catch {}
+      let customEngines = [];
+      try { customEngines = JSON.parse(c.custom_engines || "[]"); } catch {}
+      let toolbarHidden = [];
+      try { toolbarHidden = JSON.parse(c.toolbar_hidden || "[]"); } catch {}
+      let shortcuts = {};
+      try { shortcuts = JSON.parse(c.shortcuts || "{}"); } catch {}
+      let sitePrefs = {};
+      try { sitePrefs = JSON.parse(c.site_prefs || "{}"); } catch {}
       return {
         search_engine: c.search_engine || "google", theme: c.theme || "dark",
         homepage: c.homepage || "", autosave_interval: Number(c.autosave_interval || 2),
         vertical_tabs: c.vertical_tabs === "1" || c.vertical_tabs === true,
         tab_groups: Array.isArray(tabGroups) ? tabGroups : [],
+        theme_id: c.theme_id || "midnight",
+        custom_engines: Array.isArray(customEngines) ? customEngines : [],
+        toolbar_hidden: Array.isArray(toolbarHidden) ? toolbarHidden : [],
+        density: c.density === "compact" ? "compact" : "comfortable",
+        shortcuts: shortcuts && typeof shortcuts === "object" ? shortcuts : {},
+        site_prefs: sitePrefs && typeof sitePrefs === "object" ? sitePrefs : {},
         bookmarks: this.getBookmarks(), history: this.getHistory().slice(0, 300),
       };
     },
     patchConfig(patch) {
       Object.entries(patch || {}).forEach(([k, v]) => {
-        if (["search_engine", "theme", "homepage", "autosave_interval", "vertical_tabs", "tab_groups", "reader_font", "reader_width", "link_preview", "speed_dial", "active_workspace"].includes(k))
+        if (["search_engine", "theme", "homepage", "autosave_interval", "vertical_tabs", "tab_groups", "reader_font", "reader_width", "link_preview", "speed_dial", "active_workspace", "theme_id", "custom_engines", "toolbar_hidden", "density", "shortcuts", "site_prefs"].includes(k))
           set(k, typeof v === "object" ? JSON.stringify(v) : v);
       });
       return this.getConfig();
