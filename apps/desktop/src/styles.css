@@ -72,24 +72,55 @@
   box-sizing: border-box;
 }
 
-/* ─── Aesthetic scrollbars ────────────────────────────────
-   Slim translucent thumbs instead of the chunky native bars.
-   Same look is injected into tab webviews (see tab_engine.rs). */
+/* ─── Aesthetic scrollbars (Notion-style overlay) ──────
+    Thin hit-area, narrow visual thumb, transparent until the scroll
+    container is hovered / scrolled — same look is injected into tab
+    webviews. Layout never shifts (scrollbar-gutter). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+*:hover {
+  scrollbar-color: rgba(128, 128, 128, 0.45) transparent;
+}
+:root[data-theme="light"] *:hover {
+  scrollbar-color: rgba(0, 0, 0, 0.28) transparent;
+}
+* {
+  scrollbar-gutter: stable;
+}
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(128, 128, 128, 0.32);
+  background: transparent;
   border-radius: 999px;
-  border: 2px solid transparent;
+  border: 3px solid transparent;
   background-clip: content-box;
 }
+*:hover::-webkit-scrollbar-thumb,
+*:active::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-thumb:active {
+  background: rgba(128, 128, 128, 0.45);
+  background-clip: content-box;
+  border: 3px solid transparent;
+}
+:root[data-theme="light"] *:hover::-webkit-scrollbar-thumb,
+:root[data-theme="light"] *:active::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.28);
+  background-clip: content-box;
+  border: 3px solid transparent;
+}
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(128, 128, 128, 0.55);
+  background: rgba(128, 128, 128, 0.65);
+  background-clip: content-box;
+}
+:root[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.4);
   background-clip: content-box;
 }
 ::-webkit-scrollbar-corner {
@@ -937,6 +968,24 @@ body,
 /* ─── Workspace menu (named tab sets) ───────────────────── */
 .workspace-wrap {
   position: relative;
+}
+
+/* ─── Profiles (Chrome-style Work ↔ Personal) ─────────── */
+.profile-avatar {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
+.profile-btn {
+  max-width: 190px;
 }
 
 .workspace-btn {

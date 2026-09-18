@@ -22,8 +22,12 @@ function atomicWrite(file, data) {
 }
 
 class Store {
-  constructor(userDataPath) {
-    this.file = path.join(userDataPath, "continua-store.json");
+  constructor(userDataPath, profileId) {
+    // Per-profile sharding: `personal` reuses the legacy filename so existing
+    // sessions migrate untouched; every other profile gets its own file.
+    const legacy = !profileId || profileId === "personal" || profileId === "default";
+    this.profileId = profileId || "personal";
+    this.file = path.join(userDataPath, legacy ? "continua-store.json" : `continua-store-${this.profileId}.json`);
     this.cfgFile = path.join(userDataPath, "config.json");
     this.state = { tabs: [], active: null, bookmarks: [], history: [], workspaces: {}, snapshots: [], config: { search_engine: "google", theme: "dark", homepage: "", autosave_interval: 2 } };
     this.queue = [];

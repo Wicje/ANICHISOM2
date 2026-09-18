@@ -1,7 +1,7 @@
 {
   "name": "chrome-extension",
   "version": "1.0.0",
-  "description": "",
+  "description": "REDUNDANT (2026-09-18): no investment — the product is the Continua desktop browser. Kept only because apps/shell/app/api/extension/download zips this directory for download.",
   "main": "background.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

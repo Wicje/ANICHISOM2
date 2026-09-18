@@ -113,6 +113,20 @@ export interface TabGroup {
   color: string;
 }
 
+/** A Chrome-style browsing profile (Work ↔ Personal isolation). */
+export interface BrowserProfile {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface ProfileState {
+  activeId: string;
+  profiles: BrowserProfile[];
+  created?: BrowserProfile;
+  error?: string;
+}
+
 /** A tab as live in the chrome: same shape as a restored tab. */
 export type OpenTab = RestoredTab;
 
@@ -503,7 +517,6 @@ export const api = {
 
   listExtensions: () =>
     invoke<Array<{ id: string; name: string; path: string; enabled?: boolean }>>("list_extensions").catch(() => []),
-
   loadExtension: (path: string) =>
     invoke<{ id?: string; name?: string; error?: string }>("load_extension", { path }).catch(() => ({ error: "unavailable" })),
 
@@ -515,6 +528,21 @@ export const api = {
 
   extensionsDir: () =>
     invoke<string>("extensions_dir").catch(() => ""),
+
+  listProfiles: () =>
+    invoke<ProfileState>("list_profiles").catch(() => ({ activeId: "personal", profiles: [] })),
+
+  createProfile: (name: string) =>
+    invoke<ProfileState>("create_profile", { name }).catch(() => ({ activeId: "", profiles: [], error: "unavailable" })),
+
+  renameProfile: (id: string, name: string) =>
+    invoke<ProfileState>("rename_profile", { id, name }).catch(() => ({ activeId: "", profiles: [], error: "unavailable" })),
+
+  deleteProfile: (id: string) =>
+    invoke<ProfileState>("delete_profile", { id }).catch(() => ({ activeId: "", profiles: [], error: "unavailable" })),
+
+  switchProfile: (id: string) =>
+    invoke<ProfileState & { tabs?: RestoredTab[] }>("switch_profile", { id }).catch(() => ({ activeId: "", profiles: [], error: "unavailable" })),
 };
 
 /** One download tracked by the native host. */

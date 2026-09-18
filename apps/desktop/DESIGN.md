@@ -2,7 +2,9 @@
 title: "Continua — Apple (designmd.supply) reference design"
 source: "https://designmd.supply/guides/apple.com (generated from Apple brand identity via Context.dev)"
 tokens: primary #0071e3, secondary #0066cc, tertiary #f5f5f7, neutral 0 #fff / 50 #f5f5f7 / 100 #e5e7eb / 900 #1d1d1f, muted #6e6e73, error #d92d20
-scope: apps/desktop (browser chrome + start page)
+scope: apps/desktop/src (shared React chrome UI — rendered by the Electron
+  product host; the Tauri WebKitGTK host under src-tauri is a frozen lite
+  fallback, ADR-008)
 supersedes: the Geist (Vercel) reference previously in this file
 ---
 

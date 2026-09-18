@@ -19,6 +19,7 @@ import { DownloadsPanel } from "./DownloadsPanel";
 import { FindBar } from "./FindBar";
 import { SettingsPanel } from "./SettingsPanel";
 import { WorkspaceMenu } from "./WorkspaceMenu";
+import { ProfileMenu } from "./ProfileMenu";
 import { BookmarksBar } from "./BookmarksBar";
 import { TabRail } from "./TabRail";
 import { Favicon } from "../components/Favicon";
@@ -756,6 +757,9 @@ export function BrowserChrome({
         <span className="brand-name">Continua</span>
         <span className="runtime-badge">{runtime === "browser" ? "preview" : "native"}</span>
         <div style={{ flex: 1, alignSelf: "stretch" }} data-tauri-drag-region />
+        <ProfileMenu
+          onSwitchTabs={(session) => onSwitchWorkspace?.(session)}
+        />
         <WorkspaceMenu
           workspaces={workspaces}
           active={activeWorkspace}
