@@ -555,7 +555,7 @@ body,
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  z-index: 60;
+  z-index: 9600;
   min-width: 170px;
   padding: 5px;
   border-radius: var(--radius);
@@ -755,20 +755,24 @@ body,
   align-items: center;
   gap: 5px;
   flex: none;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text-dim);
   font: inherit;
   height: 28px;
   padding: 0 10px 0 7px;
   border-radius: var(--radius-pill);
   cursor: pointer;
   flex: none;
+  margin-left: 2px;
+  transition: border-color 0.15s, color 0.15s;
 }
 
 .engine-btn:hover,
 .engine-btn.is-open {
+  border-style: solid;
   border-color: var(--accent);
+  color: var(--text);
 }
 
 .engine-badge {
@@ -799,7 +803,7 @@ body,
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  z-index: 60;
+  z-index: 9600;
   min-width: 150px;
   padding: 5px;
   border-radius: var(--radius);
@@ -838,7 +842,7 @@ body,
   position: fixed;
   top: var(--chrome-h, 56px);
   right: 14px;
-  z-index: 4000;
+  z-index: 9600;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1041,7 +1045,7 @@ body,
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  z-index: 60;
+  z-index: 9600;
   width: 300px;
   padding: 8px;
   border-radius: var(--radius);
@@ -2020,7 +2024,7 @@ body::after {
   align-items: flex-start;
   justify-content: center;
   padding-top: 18vh;
-  z-index: 500;
+  z-index: 9600;
 }
 
 .palette {
@@ -2704,7 +2708,7 @@ body::after {
     position: absolute;
     top: calc(100% + 6px);
     right: 0;
-    z-index: 70;
+    z-index: 9600;
     background: var(--surface-card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -2775,7 +2779,7 @@ body::after {
   }
 }
 /* ─── Downloads panel (Ctrl+J) ─────────────────────────────── */
-.downloads-overlay { position: fixed; inset: 0; z-index: 60; display: flex; justify-content: flex-end; background: rgba(0,0,0,.35); }
+.downloads-overlay { position: fixed; inset: 0; z-index: 9600; display: flex; justify-content: flex-end; background: rgba(0,0,0,.35); }
 .downloads-panel { width: min(430px, 92vw); max-height: 100%; overflow: auto; display: flex; flex-direction: column; background: var(--surface-card); border-left: 1px solid var(--border); backdrop-filter: blur(14px); animation: panel-slide 140ms ease-out; }
 .downloads-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
 .downloads-title { font-weight: 700; font-size: 14px; color: var(--text); flex: 1; }

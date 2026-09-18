@@ -522,6 +522,11 @@ export const api = {
   setChromeModal: (open: boolean) =>
     invoke<void>("chrome_modal", { open }).catch(() => undefined),
 
+  /** Still frame of the active tab for the modal cover (menus over live page). */
+  snapshotTab: (label?: string) =>
+    invoke<{ dataUrl?: string; error?: string }>("snapshot_tab", { label: label ?? null })
+      .catch((): { dataUrl?: string; error?: string } => ({ error: "unavailable" })),
+
   listDownloads: () =>
     invoke<DownloadItem[]>("list_downloads").catch(() => []),
 

@@ -71,6 +71,8 @@ const TAB_RAIL_WIDTH_PX = 44;
 // content views: native WebContentsViews always paint above the window's own
 // HTML, so dropdowns would otherwise render underneath the website.
 let modalHidden = false;
+let modalTimer = null;
+const MODAL_HIDE_DELAY_MS = 120;
 
 let chrome = null;
 let store = null;
@@ -592,7 +594,25 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     }
     case "set_chrome_height": CHROME_H = args.height || args.chromeH || 96; layoutViews(); return;
     case "set_tab_rail": TAB_RAIL_W = args.enabled ? TAB_RAIL_WIDTH_PX : 0; layoutViews(); return;
-    case "chrome_modal": modalHidden = !!args.open; layoutViews(); return;
+    case "chrome_modal": {
+      // Snapshot cover support: delay the hide briefly so a cover snapshot
+      // requested alongside the open captures the VISIBLE page, not black.
+      clearTimeout(modalTimer);
+      if (args.open) {
+        modalTimer = setTimeout(() => { modalHidden = true; layoutViews(); }, MODAL_HIDE_DELAY_MS);
+      } else {
+        modalHidden = false; layoutViews();
+      }
+      return;
+    }
+    case "snapshot_tab": {
+      const t = args.label ? tabs.get(args.label) : focused ? tabs.get(focused) : null;
+      if (!t?.view) return { error: "no-tab" };
+      try {
+        const img = await t.view.webContents.capturePage();
+        return { dataUrl: img.toDataURL() };
+      } catch (e) { return { error: String(e?.message || e) }; }
+    }
     case "save_session": return store.saveSession(args.tabs || [...tabs.values()].map(t => ({ label: t.label, url: t.url, title: t.title, group: t.group || null })), args.active ?? focused);
     case "load_session": return store.loadSession();
     case "restore_session": { // merge, never destructive replace

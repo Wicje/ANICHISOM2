@@ -9,13 +9,23 @@ import { api } from "./tauri-bridge";
  */
 const active = new Set<string>();
 let pushed = false;
+const listeners = new Set<(open: boolean) => void>();
 
 function push() {
   const shouldHide = active.size > 0;
   if (shouldHide !== pushed) {
     pushed = shouldHide;
     void api.setChromeModal(shouldHide);
+    for (const fn of listeners) {
+      try { fn(shouldHide); } catch { /* ignore */ }
+    }
   }
+}
+
+/** Subscribe to any-overlay-open changes (drives the modal cover frame). */
+export function subscribeModal(fn: (open: boolean) => void): () => void {
+  listeners.add(fn);
+  return () => { listeners.delete(fn); };
 }
 
 export function setOverlay(id: string, open: boolean) {
