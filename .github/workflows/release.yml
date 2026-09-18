@@ -35,11 +35,19 @@ jobs:
           node-version: 22
           cache: npm
 
+      # --ignore-scripts: @tailwindcss/oxide's postinstall crashes npm ci
+      # (missing 'tar' at script time). Skipped scripts are either optional
+      # (better-sqlite3 → JSON fallback) or fetched explicitly below.
       - name: Install deps
-        run: npm ci --legacy-peer-deps
+        run: npm ci --legacy-peer-deps --ignore-scripts
 
       - name: Install Electron deps
-        run: npm install -w apps/desktop-electron --include=optional
+        run: npm install -w apps/desktop-electron --include=optional --ignore-scripts
+
+      # electron-builder needs the platform Electron dist, normally fetched
+      # by the electron postinstall script we just skipped.
+      - name: Fetch Electron dist
+        run: node node_modules/electron/install.js
 
       - name: Build chrome
         run: npm run build:browser-chrome
@@ -79,8 +87,10 @@ jobs:
           cache: npm
 
       # All workspaces install from the root lockfile (apps/desktop included).
+      # --ignore-scripts: same @tailwindcss/oxide postinstall crash as above;
+      # vite/esbuild run fine without postinstall scripts.
       - name: Install frontend deps
-        run: npm ci --legacy-peer-deps
+        run: npm ci --legacy-peer-deps --ignore-scripts
 
       # Ubuntu runners lack the WebKitGTK system libs Tauri compiles against.
       - name: Linux build deps
