@@ -39,7 +39,7 @@ jobs:
       # (missing 'tar' at script time). Skipped scripts are either optional
       # (better-sqlite3 → JSON fallback) or fetched explicitly below.
       - name: Install deps
-        run: npm ci --legacy-peer-deps --ignore-scripts
+        run: npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund
 
       - name: Install Electron deps
         run: npm install -w apps/desktop-electron --include=optional --ignore-scripts
@@ -90,7 +90,7 @@ jobs:
       # --ignore-scripts: same @tailwindcss/oxide postinstall crash as above;
       # vite/esbuild run fine without postinstall scripts.
       - name: Install frontend deps
-        run: npm ci --legacy-peer-deps --ignore-scripts
+        run: npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund
 
       # Ubuntu runners lack the WebKitGTK system libs Tauri compiles against.
       - name: Linux build deps

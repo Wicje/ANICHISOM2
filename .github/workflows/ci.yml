@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --legacy-peer-deps --ignore-scripts
+      - run: npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund
       - name: TypeScript
         working-directory: apps/shell
         run: npx tsc --noEmit
@@ -43,7 +43,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --legacy-peer-deps --ignore-scripts
+      - run: npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund
       - name: Vitest
         working-directory: apps/shell
         run: npx vitest run --reporter=verbose
@@ -64,7 +64,7 @@ jobs:
           node-version: 22
           cache: npm
       - name: Frontend deps
-        run: npm ci --legacy-peer-deps --ignore-scripts
+        run: npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund
       - name: TypeScript
         working-directory: apps/desktop
         run: npx tsc --noEmit
@@ -96,7 +96,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --legacy-peer-deps --ignore-scripts
+      - run: npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund
       - name: Next build
         working-directory: apps/shell
         run: npm run build
