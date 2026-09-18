@@ -2615,6 +2615,20 @@ body::after {
   }
 }
 
+/* Labels yield before controls: pills keep avatar/badge, names go first. */
+@media (max-width: 1180px) {
+  .engine-name,
+  .workspace-btn-name {
+    display: none;
+  }
+  .engine-btn {
+    padding: 0 7px;
+  }
+  .workspace-btn {
+    padding: 0 7px;
+  }
+}
+
 /* Small window: give tabs a smaller share; the row never wraps. */
 @media (max-width: 860px) {
   .bar-form {
@@ -2623,8 +2637,14 @@ body::after {
   .tab-strip {
     max-width: 40%;
   }
-  .workspace-btn-name,
-  .engine-name {
+  .tab {
+    min-width: 60px;
+  }
+  .workspace-btn-count {
+    display: none;
+  }
+  .engine-name,
+  .workspace-btn-name {
     display: none;
   }
 }

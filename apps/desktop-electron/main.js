@@ -378,13 +378,17 @@ function swapIfPending(lab) {
 
 // Content-area geometry shared by layoutViews (visible views) and makeView
 // (hidden loading views need bounds too, or they never paint).
+// CONTENT_GAP leaves a breathing strip of window background between the
+// chrome and the page, so content never feels glued to the navbar.
+const CONTENT_GAP = 6;
 function sizeView(view) {
   if (!chrome || !view) return;
   try {
     const { width, height } = chrome.getContentBounds();
     const ch = studio ? 0 : CHROME_H;
     const rw = studio ? 0 : TAB_RAIL_W;
-    view.setBounds({ x: rw, y: ch, width: Math.max(200, width - rw), height: Math.max(200, height - ch) });
+    const y = ch + (studio ? 0 : CONTENT_GAP);
+    view.setBounds({ x: rw, y, width: Math.max(200, width - rw), height: Math.max(200, height - y) });
   } catch {}
 }
 
