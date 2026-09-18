@@ -998,13 +998,13 @@ export function BrowserChrome({
           </div>
         </form>
           <div className="identity-stack"
-            onMouseEnter={() => setIdOpen(true)}
+            onMouseEnter={() => { if (window.matchMedia("(max-width: 800px)").matches) setIdOpen(true); }}
             onMouseLeave={() => setIdOpen(false)}
           >
             <button
               className={`chrome-btn id-anchor${idOpen ? " is-active" : ""}`}
               title="Search engine, bookmarks, profiles & workspaces"
-              onClick={() => setIdOpen((v) => !v)}
+              onClick={() => { if (window.matchMedia("(max-width: 800px)").matches) setIdOpen((v) => !v); }}
             >
               <IconStack size={15} />
             </button>
