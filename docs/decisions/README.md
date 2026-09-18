@@ -21,3 +21,4 @@ must never contradict the code or each other.
 | [007](ADR-007-engine-sealed.md) | WebKitGTK sealed | Superseded by ADR-008 (Tauri = legacy-lite) |
 | [008](ADR-008-chromium-dailydriver.md) | Chromium daily-driver + continuity, privacy tax removed | Accepted |
 | [009](ADR-009-shell-backend-only.md) | Shell becomes backend-only (web-OS UI deleted) | Accepted |
+| [010](ADR-010-local-tab-intelligence.md) | Local-only tab intelligence, no cloud AI | Accepted |

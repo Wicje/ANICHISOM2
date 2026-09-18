@@ -26,6 +26,8 @@ export interface OpenTab extends TabRecord {
   incognito?: boolean;
   /** Tab group id (resolved against the registry for color). */
   group?: string | null;
+  /** Sleeping (discarded to metadata) — faded, click to wake. */
+  discarded?: boolean;
 }
 
 interface TabStripProps {
@@ -48,6 +50,9 @@ interface TabStripProps {
   groups?: TabGroup[];
   onSetGroup?: (label: string, group: string | null) => void;
   onGroupsChanged?: () => void;
+  /** Sleeping (discarded) tabs render faded with a wake-on-click hint. */
+  sleeping?: Record<string, boolean>;
+  onSleepTab?: (label: string) => void;
   /** True when the vertical rail has taken over: hide the top tab pills
    * (visibility, not display, so scrollWidth stays stable and overflow
    * detection doesn't flutter). */
@@ -84,6 +89,8 @@ export const TabStrip = memo(function TabStrip({
   groups,
   onSetGroup,
   onGroupsChanged,
+  sleeping,
+  onSleepTab,
   rail,
 }: TabStripProps) {
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -205,9 +212,10 @@ export const TabStrip = memo(function TabStrip({
               setDrag(null);
             }}
             onDragEnd={() => setDrag(null)}
-            className={`tab ${active ? "tab-active" : ""}${vaulted ? " tab-vault" : ""}${pinned ? " tab-pinned" : ""}${incognito ? " tab-incognito" : ""}${drag?.label === tab.label ? " tab-dragging" : ""}${dropClass}`}
+            className={`tab ${active ? "tab-active" : ""}${vaulted ? " tab-vault" : ""}${pinned ? " tab-pinned" : ""}${incognito ? " tab-incognito" : ""}${(sleeping?.[tab.label] || tab.discarded) && !active ? " tab-sleeping" : ""}${drag?.label === tab.label ? " tab-dragging" : ""}${dropClass}`}
             title={
               (incognito ? "Private tab — no history or session saved · " : "") +
+              ((sleeping?.[tab.label] || tab.discarded) && !active ? "Sleeping — click to wake · " : "") +
               (pinned
                 ? `${displayTitle(tab.url)} (pinned — double-click to unpin) · `
                 : "") +
@@ -216,6 +224,11 @@ export const TabStrip = memo(function TabStrip({
             }
           >
             <Favicon url={tab.url} />
+            {(sleeping?.[tab.label] || tab.discarded) && !active && (
+              <span className="tab-sleep-badge" title="Sleeping tab — click to wake instantly">
+                💤
+              </span>
+            )}
             {tab.group && groupById.get(tab.group) && (
               <span
                 className="tab-group-dot"
@@ -304,6 +317,15 @@ export const TabStrip = memo(function TabStrip({
               >
                 <span className="ctx-ico"><IconDuplicate size={13} /></span>
                 Duplicate tab
+              </button>
+            )}
+            {onSleepTab && !target.discarded && !(sleeping?.[ctx.label]) && (
+              <button
+                className="ctx-item"
+                onClick={() => ctxAction(() => onSleepTab(ctx.label))}
+              >
+                <span className="ctx-ico">💤</span>
+                Sleep tab
               </button>
             )}
             {onOpenAppWindow && (

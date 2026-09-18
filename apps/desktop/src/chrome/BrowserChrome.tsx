@@ -158,8 +158,15 @@ export function BrowserChrome({
   // Palette (Ctrl+K) asks for Settings → Sync without window.prompt (ADR-008).
   useEffect(() => {
     const open = () => setSettingsOpen(true);
+    const groupsChanged = () => {
+      void api.getBrowserConfig().then((c) => { if (c) setConfig(c); });
+    };
     window.addEventListener("continua:open-settings", open);
-    return () => window.removeEventListener("continua:open-settings", open);
+    window.addEventListener("continua:groups-changed", groupsChanged);
+    return () => {
+      window.removeEventListener("continua:open-settings", open);
+      window.removeEventListener("continua:groups-changed", groupsChanged);
+    };
   }, []);
   /** True on any native host (Tauri legacy or Electron product). Tauri-only
    * window/event APIs keep `runtime === "tauri"` guards; shared IPC uses this. */
@@ -333,10 +340,17 @@ export function BrowserChrome({
   }, []);
 
   // Poll tab audio state (audible/muted badges, Electron host).
+  const [sleeping, setSleeping] = useState<Record<string, boolean>>({});
   useEffect(() => {
     if (tabs.length === 0) return;
     let stop = false;
-    const poll = () => void api.tabAudioState().then((s) => { if (!stop) setAudio(s); });
+    const poll = () => {
+      void api.tabAudioState().then((s) => { if (!stop) setAudio(s); });
+      void api.tabStates().then((s) => {
+        if (stop) return;
+        setSleeping(Object.fromEntries(Object.entries(s).map(([k, v]) => [k, !!v.discarded])));
+      });
+    };
     poll();
     const t = window.setInterval(poll, 3000);
     return () => { stop = true; window.clearInterval(t); };
@@ -787,6 +801,16 @@ export function BrowserChrome({
       toast(muted ? "Tab muted" : "Tab unmuted");
     });
   }, []);
+  const handleSleepTab = useCallback((label: string) => {
+    void api.sleepTab(label).then((r) => {
+      if (r?.ok) {
+        setSleeping((prev) => ({ ...prev, [label]: true }));
+        toast("Tab sleeping — click to wake", "success");
+      } else {
+        toast("Couldn't sleep that tab", "danger");
+      }
+    });
+  }, []);
   const handleOverflow = useCallback((over: boolean) => {
     setRailOn(over);
     if (isNative) void api.setTabRail(over || !!config?.vertical_tabs);
@@ -1013,6 +1037,8 @@ export function BrowserChrome({
           onToggleMute={handleToggleMute}
           groups={config?.tab_groups ?? []}
           onSetGroup={onSetGroup}
+          sleeping={sleeping}
+          onSleepTab={handleSleepTab}
           onGroupsChanged={() => void api.getBrowserConfig().then((c) => { if (c) setConfig(c); })}
           onOverflowChange={handleOverflow}
           rail={railVisible}

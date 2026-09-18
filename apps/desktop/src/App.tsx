@@ -379,6 +379,7 @@ export default function App() {
         onToggleVault={toggleVault}
         onPullRemote={pullRemote}
         onSync={() => api.syncSession()}
+        onCloseTab={(label) => void closeTab(label)}
       />
       <Toasts />
       {showOnboarding && (
