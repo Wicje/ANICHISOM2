@@ -62,7 +62,7 @@ const CRASH_URL = "file://" + CRASH_FILE;
 const isWeb = (u) => !!u && /^https?:\/\//i.test(u);
 const isStartUrl = (u) => u === "continua://start" || u === "continua://home" || !u;
 const resolveUrl = (u) => (isStartUrl(u) ? START_URL : u);
-let CHROME_H = 96;
+let CHROME_H = 56;
 // Matches .tab-rail width in styles.css exactly — any drift shows as a
 // black window-bg gap with the page shifted right (seen in screenshots).
 let TAB_RAIL_W = 0;

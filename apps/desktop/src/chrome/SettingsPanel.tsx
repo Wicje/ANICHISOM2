@@ -348,7 +348,7 @@ export function SettingsPanel({
 
           <Row label="Toolbar">
             <div className="settings-stack">
-              {(["restore", "save", "history", "downloads", "rail", "settings", "studio", "theme"] as const).map((id) => (
+              {(["restore", "save", "history", "downloads", "rail", "reader", "dark", "settings", "studio", "theme"] as const).map((id) => (
                 <label key={id} className="settings-toggle">
                   <input
                     type="checkbox"

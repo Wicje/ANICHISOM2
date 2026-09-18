@@ -24,6 +24,7 @@ import { WorkspaceMenu } from "./WorkspaceMenu";
 import { ProfileMenu } from "./ProfileMenu";
 import { BookmarksBar } from "./BookmarksBar";
 import { TabRail } from "./TabRail";
+import { parseBookmarkHtml } from "./BookmarksBar";
 import { Favicon } from "../components/Favicon";
 import { ENGINES } from "./engine-list";
 import type { OpenTab } from "./TabStrip";
@@ -32,6 +33,7 @@ import { toast } from "../lib/toast";
 import {
   IconBrand,
   IconCaretDown,
+  IconDots,
   IconDownload,
   IconStack,
   IconRestore,
@@ -91,8 +93,8 @@ const hostOf = (url: string): string => {
   }
 };
 
-/** Base chrome height (two rows + padding); the bookmarks row adds more. */
-const CHROME_BASE = 96;
+/** Base chrome height (single row + padding); the bookmarks row adds more. */
+const CHROME_BASE = 56;
 
 /** True when the query already looks like a URL worth visiting directly. */
 const looksLikeUrl = (q: string): boolean =>
@@ -175,6 +177,9 @@ export function BrowserChrome({
   // omnibox popover or menus are open (panels handle themselves).
   useChromeModal("suggestions", suggestOpen);
   useChromeModal("engine-menu", engineMenu);
+  const [moreOpen, setMoreOpen] = useState(false);
+  useChromeModal("more-menu", moreOpen);
+  const importBookmarksFile = useRef<HTMLInputElement | null>(null);
   const suggestSeq = useRef(0);
   const addressRef = useRef<HTMLInputElement | null>(null);
   const scheduleRelayout = useRef<((force: boolean) => void) | null>(null);
@@ -369,6 +374,10 @@ export function BrowserChrome({
         if (Math.abs(h - last) < 3) continue;
         last = h;
         setChromeH(h);
+        // Overlays (findbar, history, start page) pin below the chrome via
+        // this var instead of a hardcoded 96px, so the single row + optional
+        // bookmarks bar always line up with content.
+        document.documentElement.style.setProperty("--chrome-h", `${h}px`);
         if (isNative) void api.setChromeHeight(h);
       }
     });
@@ -472,6 +481,40 @@ export function BrowserChrome({
 
   // Toolbar editor: hidden button ids live in config.toolbar_hidden.
   const showTool = (id: string) => !(config?.toolbar_hidden ?? []).includes(id);
+
+  // Bookmark import moved here when the bookmarks bar auto-hides (empty).
+  const doImportBookmarks = async (file: File | undefined | null) => {
+    if (!file) return;
+    try {
+      const items = parseBookmarkHtml(await file.text());
+      for (const it of items.slice(0, 500)) await api.addBookmark(it.url, it.title);
+      const next = await api.getBookmarks();
+      if (Array.isArray(next)) setBookmarks(next);
+      toast(`Imported ${items.length} bookmarks`, "success");
+    } catch {
+      toast("Could not read that bookmarks file", "danger");
+    }
+  };
+
+  // Sleep every background tab at once (the focused one keeps playing).
+  const sleepAllBackground = async () => {
+    let n = 0;
+    for (const t of tabs) {
+      if (t.label === activeLabel || t.incognito) continue;
+      const r = await api.sleepTab(t.label);
+      if (r?.ok) n++;
+    }
+    if (n) {
+      setSleeping((prev) => {
+        const next = { ...prev };
+        for (const t of tabs) if (t.label !== activeLabel) next[t.label] = true;
+        return next;
+      });
+      toast(`Slept ${n} background tab${n === 1 ? "" : "s"}`, "success");
+    } else {
+      toast("Nothing to sleep");
+    }
+  };
 
   const applyPatch = (patch: ConfigPatch) => {
     void api.updateConfig(patch).then((c) => {
@@ -829,145 +872,18 @@ export function BrowserChrome({
         display: studioHide ? "none" : "flex",
         background: "var(--chrome-bg)",
         flexDirection: "column",
-        gap: 6,
-        padding: "10px 12px",
+        gap: 4,
+        padding: "8px 12px",
         userSelect: "none",
         zIndex: 9999,
       }}
     >
-      {/* Row 1: brand + actions (drag region on the empty stretch) */}
-      <div className="tool-row">
-        <div className="brand-mark">
+      {/* Single row: brand · nav · tabs · address · identity · more · window.
+          One row buys ~60px of viewport back vs the old two-row chrome. */}
+      <div className="chrome-row">
+        <div className="brand-mark" title="Continua">
           <IconBrand size={15} />
         </div>
-        <span className="brand-name">Continua</span>
-        <span className="runtime-badge">{runtime === "browser" ? "preview" : "native"}</span>
-        <div style={{ flex: 1, alignSelf: "stretch" }} data-tauri-drag-region />
-        <ProfileMenu
-          onSwitchTabs={(session, themeId) => {
-            onSwitchWorkspace?.(session);
-            void api.getBrowserConfig().then((c) => {
-              applyTheme(resolveTheme(themeId ?? "midnight", (c?.custom_themes ?? []) as Theme[]));
-            });
-          }}
-        />
-        <WorkspaceMenu
-          workspaces={workspaces}
-          active={activeWorkspace}
-          currentCount={tabs.length}
-          onCreate={createWorkspace}
-          onSwitch={switchWorkspace}
-          onDelete={deleteWorkspace}
-        />
-        {showTool("restore") && (
-        <button
-          className="chrome-btn"
-          onClick={() => void onRestore().then(() => toast("Session restored"))}
-          title="Restore last session"
-        >
-          <IconRestore size={15} />
-        </button>
-        )}
-        {showTool("save") && (
-        <button
-          className="chrome-btn"
-          onClick={() => void onSave().then(() => toast("Session saved — autosave is on too", "success"))}
-          title="Save session now"
-        >
-          <IconSave size={15} />
-        </button>
-        )}
-        {showTool("history") && (
-        <button
-          className="chrome-btn"
-          onClick={() => setHistoryOpen((v) => !v)}
-          title="History (Ctrl+H)"
-        >
-          <IconClock size={15} />
-        </button>
-        )}
-        {showTool("downloads") && (
-        <button
-          className="chrome-btn"
-          onClick={() => setDownloadsOpen((v) => !v)}
-          title="Downloads (Ctrl+J)"
-        >
-          <IconDownload size={15} />
-        </button>
-        )}
-        {showTool("rail") && (
-        <button
-          className={`chrome-btn${config?.vertical_tabs ? " is-active" : ""}`}
-          onClick={toggleVerticalTabs}
-          title="Vertical tabs (pin rail on/off)"
-        >
-          <IconStack size={15} />
-        </button>
-        )}
-        {showTool("settings") && (
-        <button
-          className="chrome-btn"
-          onClick={() => setSettingsOpen((v) => !v)}
-          title="Settings (Ctrl+,)"
-        >
-          <IconSettings size={15} />
-        </button>
-        )}
-        {showTool("studio") && (
-        <button
-          className="chrome-btn"
-          onClick={toggleStudio}
-          title="Studio mode — hide all chrome for recording (Ctrl+Shift+F)"
-        >
-          <IconFocus size={15} />
-        </button>
-        )}
-        {showTool("theme") && (
-        <button
-          className="chrome-btn"
-          title={theme === "dark" ? "Switch to light" : "Switch to dark"}
-          onClick={() => {
-            const next = theme === "dark" ? "light" : "dark";
-            applyPatch({ theme: next });
-          }}
-        >
-          {theme === "dark" ? <IconSun size={15} /> : <IconMoon size={15} />}
-        </button>
-        )}
-        {isNative && (
-          <div className="window-controls">
-            <button
-              className="wc-btn"
-              title="Minimize"
-              onClick={() => void windowControls.minimize()}
-            >
-              <IconMinimize size={12} />
-            </button>
-            <button
-              className="wc-btn"
-              title={maximized ? "Restore" : "Maximize"}
-              onClick={() => {
-                void (async () => {
-                  await windowControls.toggleMaximize();
-                  setMaximized(await windowControls.isMaximized());
-                })();
-              }}
-            >
-              {maximized ? <IconRestoreWin size={12} /> : <IconMaximize size={12} />}
-            </button>
-            <button
-              className="wc-btn wc-close"
-              title="Close"
-              onClick={() => void windowControls.close()}
-            >
-              <IconClose size={12} />
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Row 2: nav controls + tab strip + address bar */}
-      <div className="address-row">
         <div className="nav-controls">
           <button
             className="nav-btn"
@@ -1000,25 +916,6 @@ export function BrowserChrome({
             }}
           >
             <IconReload size={16} />
-          </button>
-          <button
-            className="nav-btn nav-reader"
-            title="Reader mode"
-            onClick={() => {
-              if (activeLabel) void api.readerToggle(activeLabel);
-              toast("Reader mode toggled");
-            }}
-          >
-            <IconReader size={16} />
-          </button>
-          <button
-            className="nav-btn nav-dark"
-            title="Flip page to dark (invert)"
-            onClick={() => {
-              if (activeLabel) void api.darkToggle(activeLabel);
-            }}
-          >
-            <IconDark size={16} />
           </button>
         </div>
         <TabStrip
@@ -1159,9 +1056,127 @@ export function BrowserChrome({
             </span>
           </button>
         </form>
+        <div style={{ flex: "0 1 16px", minWidth: 4, alignSelf: "stretch" }} data-tauri-drag-region />
+        <ProfileMenu
+          onSwitchTabs={(session, themeId) => {
+            onSwitchWorkspace?.(session);
+            void api.getBrowserConfig().then((c) => {
+              applyTheme(resolveTheme(themeId ?? "midnight", (c?.custom_themes ?? []) as Theme[]));
+            });
+          }}
+        />
+        <WorkspaceMenu
+          workspaces={workspaces}
+          active={activeWorkspace}
+          currentCount={tabs.length}
+          onCreate={createWorkspace}
+          onSwitch={switchWorkspace}
+          onDelete={deleteWorkspace}
+        />
+        <div className="more-wrap" style={{ position: "relative" }}>
+          <button
+            className={`chrome-btn${moreOpen ? " is-active" : ""}`}
+            onClick={() => setMoreOpen((v) => !v)}
+            title="More actions"
+          >
+            <IconDots size={15} />
+          </button>
+          {moreOpen && (
+            <div className="engine-pop more-pop" onMouseLeave={() => setMoreOpen(false)}>
+              {showTool("restore") && (
+                <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); void onRestore().then(() => toast("Session restored")); }}>
+                  <IconRestore size={13} /> Restore session
+                </button>
+              )}
+              {showTool("save") && (
+                <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); void onSave().then(() => toast("Session saved", "success")); }}>
+                  <IconSave size={13} /> Save session now
+                </button>
+              )}
+              {showTool("history") && (
+                <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); setHistoryOpen((v) => !v); }}>
+                  <IconClock size={13} /> History
+                </button>
+              )}
+              {showTool("downloads") && (
+                <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); setDownloadsOpen((v) => !v); }}>
+                  <IconDownload size={13} /> Downloads
+                </button>
+              )}
+              {showTool("rail") && (
+                <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); toggleVerticalTabs(); }}>
+                  <IconStack size={13} /> {config?.vertical_tabs ? "Hide tab rail" : "Show tab rail"}
+                </button>
+              )}
+              {showTool("reader") && (
+                <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); if (activeLabel) void api.readerToggle(activeLabel); }}>
+                  <IconReader size={13} /> Reader mode
+                </button>
+              )}
+              {showTool("dark") && (
+                <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); if (activeLabel) void api.darkToggle(activeLabel); }}>
+                  <IconDark size={13} /> Flip page to dark
+                </button>
+              )}
+              <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); void sleepAllBackground(); }}>
+                <span>💤</span> Sleep background tabs
+              </button>
+              <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); importBookmarksFile.current?.click(); }}>
+                <IconStar size={13} /> Import bookmarks…
+              </button>
+              {showTool("settings") && (
+                <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); setSettingsOpen((v) => !v); }}>
+                  <IconSettings size={13} /> Settings
+                </button>
+              )}
+              {showTool("studio") && (
+                <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); toggleStudio(); }}>
+                  <IconFocus size={13} /> Studio mode
+                </button>
+              )}
+              {showTool("theme") && (
+                <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); applyPatch({ theme: theme === "dark" ? "light" : "dark" }); }}>
+                  {theme === "dark" ? <IconSun size={13} /> : <IconMoon size={13} />} {theme === "dark" ? "Light mode" : "Dark mode"}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        <input ref={importBookmarksFile} type="file" accept=".html,text/html" hidden onChange={(e) => void doImportBookmarks(e.target.files?.[0])} />
+        {isNative && (
+          <div className="window-controls">
+            <button
+              className="wc-btn"
+              title="Minimize"
+              onClick={() => void windowControls.minimize()}
+            >
+              <IconMinimize size={12} />
+            </button>
+            <button
+              className="wc-btn"
+              title={maximized ? "Restore" : "Maximize"}
+              onClick={() => {
+                void (async () => {
+                  await windowControls.toggleMaximize();
+                  setMaximized(await windowControls.isMaximized());
+                })();
+              }}
+            >
+              {maximized ? <IconRestoreWin size={12} /> : <IconMaximize size={12} />}
+            </button>
+            <button
+              className="wc-btn wc-close"
+              title="Close"
+              onClick={() => void windowControls.close()}
+            >
+              <IconClose size={12} />
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Row 3: bookmarks quick bar (with HTML import when empty). */}
+      {/* Bookmarks bar appears only when there are bookmarks (import lives in ⋯). */}
+      {bookmarks.length > 0 && (
       <BookmarksBar
         bookmarks={bookmarks}
         activeUrl={activeUrl}
@@ -1173,6 +1188,7 @@ export function BrowserChrome({
         }}
         onChanged={setBookmarks}
       />
+      )}
 
       {/* Slim page-load progress along the chrome's bottom edge. */}
       <div

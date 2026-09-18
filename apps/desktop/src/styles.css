@@ -185,6 +185,7 @@ body,
 .brand-mark {
   width: 20px;
   height: 20px;
+  flex: none;
   border-radius: var(--radius-sm);
   background: var(--accent);
   color: #fff;
@@ -834,7 +835,7 @@ body,
 /* ─── Find in page (Ctrl+F) ─────────────────────────────── */
 .findbar {
   position: fixed;
-  top: 96px;
+  top: var(--chrome-h, 56px);
   right: 14px;
   z-index: 4000;
   display: flex;
@@ -1517,7 +1518,7 @@ body,
 /* ─── History panel (Ctrl+H) ────────────────────────────── */
 .history-overlay {
   position: fixed;
-  top: 96px;
+  top: var(--chrome-h, 56px);
   left: 0;
   right: 0;
   bottom: 0;
@@ -1693,7 +1694,7 @@ body,
 body::after {
   content: "";
   position: fixed;
-  top: 96px;
+  top: var(--chrome-h, 56px);
   left: 0;
   right: 0;
   height: 1px;
@@ -1708,7 +1709,7 @@ body::after {
 /* ─── New Tab / start page ──────────────────────────────── */
 .start-page {
   position: fixed;
-  top: 96px;
+  top: var(--chrome-h, 56px);
   left: 0;
   right: 0;
   bottom: 0;
@@ -2540,12 +2541,12 @@ body::after {
 
 /* ─── Responsive chrome: adapt to narrow windows & huge monitors ─── */
 
-/* Row 1 + row 2 containers (now class-driven so breakpoints can reflow). */
-.tool-row,
-.address-row {
+/* Single chrome row: brand · nav · tabs · address · identity · more · window.
+ * Tab strip and address bar share the row; pills shrink, never wrap. */
+.chrome-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 2px 0;
 }
 
@@ -2587,6 +2588,19 @@ body::after {
   max-width: 1180px;
 }
 
+/* Overflow menu in the single row: same popover, right-aligned, wider. */
+.more-pop {
+  left: auto;
+  right: 0;
+  min-width: 220px;
+}
+
+.more-pop .engine-opt {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
 /* Narrow-ish window: tighten the cluster so the address bar keeps room. */
 @media (max-width: 1000px) {
   .tab-strip {
@@ -2594,42 +2608,31 @@ body::after {
   }
 }
 
-/* Small window: drop redundant labels/controls, give tabs a smaller share. */
+/* Small window: give tabs a smaller share; the row never wraps. */
 @media (max-width: 860px) {
-  .brand-name,
-  .runtime-badge {
-    display: none;
-  }
   .bar-form {
     min-width: 40px;
   }
   .tab-strip {
     max-width: 40%;
   }
-  .nav-reader,
-  .nav-dark {
+  .workspace-btn-name,
+  .engine-name {
     display: none;
   }
 }
 
-/* Window floor (640px): compact padding; if the tabs still crowd the bar,
- * let the tab strip wrap onto its own line so nothing gets squashed. */
+/* Window floor (640px): compact padding; tabs shrink to favicons first. */
 @media (max-width: 680px) {
   .chrome {
     padding: 6px 6px;
     gap: 4px;
   }
-  .tool-row,
-  .address-row {
+  .chrome-row {
     gap: 6px;
   }
-  .address-row {
-    flex-wrap: wrap;
-  }
   .tab-strip {
-    order: 3;
-    flex: 1 1 100%;
-    max-width: 100%;
+    max-width: 34%;
   }
   .chrome-btn,
   .nav-btn,
