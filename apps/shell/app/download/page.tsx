@@ -53,9 +53,9 @@ function Steps() {
   return (
     <div className="grid sm:grid-cols-3 gap-4 mt-10 text-left">
       {[
-        { icon: Download, title: '1. Download & install', desc: 'Install like any desktop app. macOS dmgs may need right-click → Open (unsigned build).' },
-        { icon: Zap, title: '2. Sign in once', desc: 'Continua syncs across every machine under your identity. No per-device setup.' },
-        { icon: Shield, title: '3. Restore anywhere', desc: 'Sign into a fresh machine and your tabs, windows, and workspace state come back.' },
+        { icon: Download, title: '1. Download & install', desc: 'Windows: run the .exe (SmartScreen → More info → Run anyway, unsigned build). Linux: chmod +x the AppImage and run. macOS: right-click → Open.' },
+        { icon: Zap, title: '2. Browse — no account needed', desc: 'Profiles, themes, history and workspaces all work locally out of the box. Nothing phones home.' },
+        { icon: Shield, title: '3. Pair for continuity (optional)', desc: 'Point the browser at your Continua backend from Settings → Sync and your session follows you machine to machine.' },
       ].map(s => (
         <div key={s.title} className="p-6 rounded-2xl glass-panel">
           <div className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center text-primary mb-4"><s.icon className="w-5 h-5" /></div>
@@ -193,12 +193,12 @@ export default function DownloadPage() {
               </ul>
             </div>
             <div>
-              <h4 className="text-sm font-bold mb-3 flex items-center gap-2"><Shield className="w-4 h-4 text-primary" />Guest mode, no install</h4>
-              <p className="text-xs text-[var(--os-text-muted)] leading-relaxed mb-3">No desktop app handy? Continua&apos;s guest mode runs entirely in the browser — no installation, no trace left behind. Perfect for borrowed or public computers.</p>
+              <h4 className="text-sm font-bold mb-3 flex items-center gap-2"><Shield className="w-4 h-4 text-primary" />Local-first, private by construction</h4>
+              <p className="text-xs text-[var(--os-text-muted)] leading-relaxed mb-3">Profiles isolate cookies and history on your disk. Tab intelligence runs on-device — no cloud AI reads your tabs. Sync is TLS to your own backend, and only when you pair it.</p>
               <ul className="flex flex-wrap gap-2">
-                <li className="px-3 py-1 rounded-full bg-[var(--os-surface-elevated)] border border-[var(--os-border)] text-[10px] font-mono font-bold text-primary">Zero-Install</li>
-                <li className="px-3 py-1 rounded-full bg-[var(--os-surface-elevated)] border border-[var(--os-border)] text-[10px] font-mono font-bold text-primary">Origin-Isolated Sandbox</li>
-                <li className="px-3 py-1 rounded-full bg-[var(--os-surface-elevated)] border border-[var(--os-border)] text-[10px] font-mono font-bold text-primary">Encrypted Memory</li>
+                <li className="px-3 py-1 rounded-full bg-[var(--os-surface-elevated)] border border-[var(--os-border)] text-[10px] font-mono font-bold text-primary">No account needed</li>
+                <li className="px-3 py-1 rounded-full bg-[var(--os-surface-elevated)] border border-[var(--os-border)] text-[10px] font-mono font-bold text-primary">On-device intelligence</li>
+                <li className="px-3 py-1 rounded-full bg-[var(--os-surface-elevated)] border border-[var(--os-border)] text-[10px] font-mono font-bold text-primary">Optional sync</li>
               </ul>
             </div>
           </div>

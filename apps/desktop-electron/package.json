@@ -1,7 +1,7 @@
 {
   "name": "continua-browser",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Continua Browser — Electron Chromium product host (ADR-008). WebContentsView pool K=6, local-first continuity.",
   "main": "main.js",
   "scripts": {
