@@ -179,6 +179,8 @@ export function BrowserChrome({
   useChromeModal("engine-menu", engineMenu);
   const [moreOpen, setMoreOpen] = useState(false);
   useChromeModal("more-menu", moreOpen);
+  const [idOpen, setIdOpen] = useState(false);
+  useChromeModal("identity", idOpen);
   const importBookmarksFile = useRef<HTMLInputElement | null>(null);
   const suggestSeq = useRef(0);
   const addressRef = useRef<HTMLInputElement | null>(null);
@@ -990,10 +992,23 @@ export function BrowserChrome({
                     <span className="omni-main">{s.title}</span>
                     <span className="omni-sub">{s.kind === "tab" ? `Switch · ${s.sub}` : s.kind === "history" ? `History · ${s.sub}` : s.sub}</span>
                   </button>
-                ))}
+              ))}
               </div>
             )}
           </div>
+        </form>
+          <div className="identity-stack"
+            onMouseEnter={() => setIdOpen(true)}
+            onMouseLeave={() => setIdOpen(false)}
+          >
+            <button
+              className={`chrome-btn id-anchor${idOpen ? " is-active" : ""}`}
+              title="Search engine, bookmarks, profiles & workspaces"
+              onClick={() => setIdOpen((v) => !v)}
+            >
+              <IconStack size={15} />
+            </button>
+            <div className={`id-extra${idOpen ? " is-open" : ""}`}>
           <div className="engine-wrap" style={{ position: "relative" }}>
             <button
               type="button"
@@ -1055,24 +1070,25 @@ export function BrowserChrome({
               {isStarred ? <IconStarFilled size={14} /> : <IconStar size={14} />}
             </span>
           </button>
-        </form>
+          <ProfileMenu
+            onSwitchTabs={(session, themeId) => {
+              onSwitchWorkspace?.(session);
+              void api.getBrowserConfig().then((c) => {
+                applyTheme(resolveTheme(themeId ?? "midnight", (c?.custom_themes ?? []) as Theme[]));
+              });
+            }}
+          />
+          <WorkspaceMenu
+            workspaces={workspaces}
+            active={activeWorkspace}
+            currentCount={tabs.length}
+            onCreate={createWorkspace}
+            onSwitch={switchWorkspace}
+            onDelete={deleteWorkspace}
+          />
+            </div>
+          </div>
         <div style={{ flex: "0 1 16px", minWidth: 4, alignSelf: "stretch" }} data-tauri-drag-region />
-        <ProfileMenu
-          onSwitchTabs={(session, themeId) => {
-            onSwitchWorkspace?.(session);
-            void api.getBrowserConfig().then((c) => {
-              applyTheme(resolveTheme(themeId ?? "midnight", (c?.custom_themes ?? []) as Theme[]));
-            });
-          }}
-        />
-        <WorkspaceMenu
-          workspaces={workspaces}
-          active={activeWorkspace}
-          currentCount={tabs.length}
-          onCreate={createWorkspace}
-          onSwitch={switchWorkspace}
-          onDelete={deleteWorkspace}
-        />
         <div className="more-wrap" style={{ position: "relative" }}>
           <button
             className={`chrome-btn${moreOpen ? " is-active" : ""}`}

@@ -2676,6 +2676,76 @@ body::after {
   }
 }
 
+/* Identity stack: inline pills on wide rows, one hover pill when narrow. */
+.identity-stack {
+  display: contents;
+}
+
+.id-anchor {
+  display: none;
+}
+
+@media (max-width: 800px) {
+  .identity-stack {
+    display: flex;
+    align-items: center;
+    position: relative;
+    flex: none;
+  }
+  .id-anchor {
+    display: grid;
+  }
+  .id-extra {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 70;
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    padding: 8px;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 200px;
+  }
+  .identity-stack:hover .id-extra,
+  .identity-stack:focus-within .id-extra,
+  .id-extra.is-open {
+    display: flex;
+  }
+}
+
+/* Favicon-only tabs at 12+: titles/badges hide, hover shows the rest. */
+.tab-strip.tabs-favicons .tab {
+  position: relative;
+  width: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  padding: 4px;
+  justify-content: center;
+  gap: 0;
+}
+
+.tab-strip.tabs-favicons .tab-title,
+.tab-strip.tabs-favicons .tab-audio,
+.tab-strip.tabs-favicons .tab-incognito-badge,
+.tab-strip.tabs-favicons .tab-vault-badge {
+  display: none;
+}
+
+.tab-strip.tabs-favicons .tab-close {
+  display: none;
+}
+
+.tab-strip.tabs-favicons .tab:hover .tab-close {
+  display: grid;
+  position: absolute;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+}
+
 /* Tiled / side-by-side narrow window: one row can't fit tabs + address +
  * identity without squishing. Address keeps row one; tabs drop to a
  * dedicated full-width row two. Nothing compresses into stubs. */
