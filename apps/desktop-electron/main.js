@@ -26,6 +26,28 @@ if (process.env.CONTINUA_SOFTWARE_GL === "1") {
   } catch {}
 }
 
+// Single instance: links opened via drun/xdg-open (the .desktop Exec gets
+// %u) land here as argv URLs. A second launch forwards its URL into a tab
+// of the running window instead of spawning another browser.
+const argvUrl = (argv) => (argv || []).find((a) => /^https?:\/\//i.test(a || ""));
+const launchUrl = argvUrl(process.argv.slice(1));
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on("second-instance", (_e, argv) => {
+    try {
+      const u = argvUrl(argv);
+      if (u && chrome && !chrome.isDestroyed()) {
+        chrome.focus();
+        openTab(u);
+      } else if (chrome && !chrome.isDestroyed()) {
+        chrome.focus();
+      }
+    } catch {}
+  });
+}
+
 const POOL_K = parseInt(process.env.CONTINUA_POOL_K || (os.totalmem() < 5 * 1024 * 1024 * 1024 ? "3" : "6"), 10);
 const RSS_BUDGET = 1.0 * 1024 * 1024 * 1024;
 const DISCARD_AFTER_MS = 30 * 1000;
@@ -1003,6 +1025,10 @@ app.whenReady().then(async () => {  // No native File/Edit/View menu — the Rea
   } catch (e) { console.error(`[continua] globalShortcut: ${e?.message || e}`); }
   // zero-loss restore: only active tab goes live, rest rehydrate on click (fast startup)
   restoreTabsIntoMemory(store.loadSession());
+  // Launched with a URL (drun link, xdg-open, %u): open it in a tab too.
+  if (launchUrl && isWeb(launchUrl)) {
+    try { openTab(launchUrl); } catch (e) { console.error(`[continua] launch-url: ${e?.message || e}`); }
+  }
   layoutViews();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createChrome(); });
 });
