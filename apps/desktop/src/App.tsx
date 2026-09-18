@@ -84,6 +84,20 @@ export default function App() {
     return () => unlisten?.();
   }, [patch]);
 
+  // Electron host pushes navigation + title per webview event (link clicks,
+  // back/forward, SPA navs). Without this the strip, address bar and nav
+  // buttons go stale the moment a page is clicked instead of typed.
+  useEffect(() => {
+    if (!isElectron()) return;
+    return api.onTabUpdated((info) => {
+      if (!info?.label) return;
+      patch(info.label, {
+        ...(info.url ? { url: info.url } : {}),
+        ...(info.title ? { title: info.title } : {}),
+      });
+    });
+  }, [patch]);
+
   // Track real in-page navigations from Rust (tab:navigated), coalesced.
   useEffect(() => {
     if (!isTauriNative()) return;

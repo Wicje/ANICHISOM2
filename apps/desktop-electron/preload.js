@@ -50,6 +50,13 @@ contextBridge.exposeInMainWorld("continuaBridge", {
     ipcRenderer.on("studio", h);
     return () => ipcRenderer.removeListener("studio", h);
   },
+  // Navigation/title updates pushed per webview event (back/forward +
+  // address bar stay live as pages are clicked, not just typed).
+  onTabUpdated: (cb) => {
+    const h = (_evt, info) => { try { cb(info); } catch {} };
+    ipcRenderer.on("tab-updated", h);
+    return () => ipcRenderer.removeListener("tab-updated", h);
+  },
   // legacy per-method shape (old spike) — all routed through the same channel
   openTab: (url) => ipcRenderer.invoke("continua", "open_tab", { url }),
   openIncognitoTab: (url) => ipcRenderer.invoke("continua", "open_incognito_tab", { url }),

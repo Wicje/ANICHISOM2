@@ -302,8 +302,26 @@ function makeView(meta) {
     console.error(`[continua] content load failed ${code} ${desc} ${url}`);
     view.webContents.loadURL(`${OFFLINE_URL}?u=${encodeURIComponent(url)}`).catch(() => {});
   });
-  view.webContents.on("did-navigate", (_e, url) => { meta.url = url === START_URL ? "continua://start" : url; scheduleSave(); });
-  view.webContents.on("page-title-updated", (_e, title) => { meta.title = title; });
+  // In-page link clicks (and SPA pushState/hash navs) must grow the same
+  // history stack the back/forward buttons read — previously only the
+  // address bar grew it, so back stayed disabled after any click. Programmatic
+  // loads set meta.expectNav first and are consumed, not double-pushed.
+  const recordNav = (url, inPage) => {
+    if (!url || url === START_URL) return;
+    if (meta.expectNav) {
+      if (meta.expectNav === url || inPage) { meta.expectNav = null; meta.history[meta.idx] = url; }
+      else { meta.expectNav = null; }
+    } else if (meta.history[meta.idx] !== url) {
+      meta.history = meta.history.slice(0, meta.idx + 1).concat(url);
+      meta.idx++;
+    }
+    meta.url = url;
+    pushTabUpdated(meta.label);
+    scheduleSave();
+  };
+  view.webContents.on("did-navigate", (_e, url) => recordNav(url === START_URL ? "continua://start" : url, false));
+  view.webContents.on("did-navigate-in-page", (_e, url) => recordNav(url, true));
+  view.webContents.on("page-title-updated", (_e, title) => { meta.title = title; pushTabUpdated(meta.label); });
   chrome.contentView.addChildView(view);
   // Paint while loading: a view with no bounds may never composite a frame
   // until shown, which reads as "black canvas that takes forever" on heavy
@@ -316,6 +334,17 @@ function makeView(meta) {
 
 // First-frames signal for the paint-aware swap (see did-finish-load).
 const FRAME_WAIT_MS = 1200;
+// Push navigation/title updates to the React chrome (the Electron
+// equivalent of Tauri's tab:navigated / tab:title-changed events). Without
+// this the strip, address bar and back/forward buttons go stale the moment
+// a page is clicked instead of typed.
+function pushTabUpdated(lab) {
+  try {
+    const m = tabs.get(lab);
+    if (!m || !chrome || chrome.isDestroyed()) return;
+    chrome.webContents.send("tab-updated", { label: lab, url: m.url, title: m.title });
+  } catch {}
+}
 function swapIfPending(lab) {
   if (pendingFocus !== lab) return; // superseded click — stay on current page
   const m = tabs.get(lab);
@@ -480,12 +509,12 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     case "open_incognito_tab": return openTab(args.url || START_URL, true);
     case "close_tab": closeTab(args.label); return;
     case "activate_tab": activate(args.label); return;
-    case "navigate_tab": { const t = tabs.get(args.label); if (t) { const target = resolveUrl(args.url); t.url = target === START_URL ? "continua://start" : target; t.history = t.history.slice(0, t.idx + 1).concat(target); t.idx++; ensureLive(args.label).view.webContents.loadURL(target).catch(() => {}); } return; }
+    case "navigate_tab": { const t = tabs.get(args.label); if (t) { const target = resolveUrl(args.url); t.url = target === START_URL ? "continua://start" : target; t.history = t.history.slice(0, t.idx + 1).concat(target); t.idx++; t.expectNav = target; ensureLive(args.label).view.webContents.loadURL(target).catch(() => {}); pushTabUpdated(args.label); } return; }
     case "reload_tab": m?.view?.webContents.reload(); return;
     case "back_tab": case "forward_tab": { // history-aware within pooled view
       const t = tabs.get(args.label); if (!t) return;
       const ni = op === "back_tab" ? t.idx - 1 : t.idx + 1;
-      if (ni >= 0 && ni < t.history.length) { t.idx = ni; t.url = t.history[ni]; ensureLive(args.label).view.webContents.loadURL(t.url).catch(() => {}); }
+      if (ni >= 0 && ni < t.history.length) { t.idx = ni; t.url = t.history[ni]; t.expectNav = t.url; ensureLive(args.label).view.webContents.loadURL(t.url).catch(() => {}); pushTabUpdated(args.label); }
       else { const wc = t.view?.webContents; if (wc) op === "back_tab" ? wc.goBack() : wc.goForward(); }
       return; }
     case "nav_state": { const t = tabs.get(args.label); return { back: (t?.idx ?? 0) > 0, forward: (t ? t.idx < t.history.length - 1 : false) }; }
