@@ -12,6 +12,7 @@ import type {
 } from "../lib/tauri-bridge";
 import { attachCadence } from "../lib/cadence";
 import { fires } from "../lib/shortcuts";
+import { subscribeModal } from "../lib/chrome-modal";
 import { applyTheme, reapplyStoredTheme, resolveTheme, type Theme } from "../lib/themes";
 import { useChromeModal } from "../lib/chrome-modal";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -181,6 +182,19 @@ export function BrowserChrome({
   useChromeModal("more-menu", moreOpen);
   const [idOpen, setIdOpen] = useState(false);
   useChromeModal("identity", idOpen);
+  // Modal cover: while any overlay hides the native views, show the page's
+  // last frame underneath so menus float over content, never black.
+  const [cover, setCover] = useState<string | null>(null);
+  useEffect(() => subscribeModal((open) => {
+    if (!isNative) return;
+    if (open) {
+      void api.snapshotTab(activeLabel ?? undefined).then((r) => {
+        if (r?.dataUrl) setCover(r.dataUrl);
+      });
+    } else {
+      window.setTimeout(() => setCover(null), 180);
+    }
+  }), [isNative, activeLabel]);
   const importBookmarksFile = useRef<HTMLInputElement | null>(null);
   const suggestSeq = useRef(0);
   const addressRef = useRef<HTMLInputElement | null>(null);
@@ -1215,6 +1229,11 @@ export function BrowserChrome({
         }}
         aria-hidden="true"
       />
+
+      {/* Modal cover: last page frame while overlays hide native views. */}
+      {cover && (
+        <img className="modal-cover" src={cover} alt="" aria-hidden="true" />
+      )}
 
       {/* Vertical tab rail: pinned on in settings, or auto on overflow. */}
       {railVisible && (
