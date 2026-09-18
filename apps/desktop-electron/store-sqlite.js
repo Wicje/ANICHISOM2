@@ -158,7 +158,7 @@ function create(userDataPath, profileId) {
     getConfig() {
       const c = {};
       try {
-        const rows = db.prepare("SELECT k,v FROM meta WHERE k IN ('search_engine','theme','homepage','autosave_interval','tab_groups','theme_id','custom_themes','custom_engines','toolbar_hidden','density','shortcuts','site_prefs')").all();
+        const rows = db.prepare("SELECT k,v FROM meta WHERE k IN ('search_engine','theme','homepage','autosave_interval','tab_groups','theme_id','custom_themes','custom_engines','toolbar_hidden','density','shortcuts','site_prefs','sleep_after_min','auto_group_site')").all();
         rows.forEach(r => { c[r.k] = r.v; });
       } catch {}
       let tabGroups = [];
@@ -185,12 +185,14 @@ function create(userDataPath, profileId) {
         density: c.density === "compact" ? "compact" : "comfortable",
         shortcuts: shortcuts && typeof shortcuts === "object" ? shortcuts : {},
         site_prefs: sitePrefs && typeof sitePrefs === "object" ? sitePrefs : {},
+        sleep_after_min: c.sleep_after_min === undefined ? 30 : Number(c.sleep_after_min),
+        auto_group_site: c.auto_group_site === "1" || c.auto_group_site === true,
         bookmarks: this.getBookmarks(), history: this.getHistory().slice(0, 300),
       };
     },
     patchConfig(patch) {
       Object.entries(patch || {}).forEach(([k, v]) => {
-        if (["search_engine", "theme", "homepage", "autosave_interval", "vertical_tabs", "tab_groups", "reader_font", "reader_width", "link_preview", "speed_dial", "active_workspace", "theme_id", "custom_themes", "custom_engines", "toolbar_hidden", "density", "shortcuts", "site_prefs"].includes(k))
+        if (["search_engine", "theme", "homepage", "autosave_interval", "vertical_tabs", "tab_groups", "reader_font", "reader_width", "link_preview", "speed_dial", "active_workspace", "theme_id", "custom_themes", "custom_engines", "toolbar_hidden", "density", "shortcuts", "site_prefs", "sleep_after_min", "auto_group_site"].includes(k))
           set(k, typeof v === "object" ? JSON.stringify(v) : v);
       });
       return this.getConfig();

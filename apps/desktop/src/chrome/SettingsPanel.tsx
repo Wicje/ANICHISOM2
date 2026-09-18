@@ -416,6 +416,34 @@ export function SettingsPanel({
             </div>
           </Row>
 
+          <Row label="Sleeping tabs">
+            <div className="settings-stack">
+              <select
+                className="settings-select"
+                value={config?.sleep_after_min ?? 30}
+                onChange={(e) => onPatch({ sleep_after_min: Number(e.target.value) })}
+              >
+                {[[0, "Off"], [5, "After 5 minutes idle"], [15, "After 15 minutes idle"], [30, "After 30 minutes idle"], [60, "After 1 hour idle"]].map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <span className="settings-status">Sleeping tabs keep their place, drop memory to ~zero, and wake on click. Nothing leaves this machine.</span>
+            </div>
+          </Row>
+
+          <Row label="Auto-grouping">
+            <label className="settings-toggle">
+              <input
+                type="checkbox"
+                checked={Boolean(config?.auto_group_site)}
+                onChange={(e) => onPatch({ auto_group_site: e.target.checked })}
+              />
+              <span>Group same-site tabs on open (suggestions stay opt-in)</span>
+            </label>
+          </Row>
+
           <Row label="Browsing data">
             <button className="settings-danger" onClick={onClearHistory}>
               Clear history

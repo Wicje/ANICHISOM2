@@ -2893,6 +2893,21 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   height: 26px;
 }
 
+/* Sleeping tabs: faded pill, click wakes instantly (rehydrates on ready). */
+.tab-sleeping {
+  opacity: 0.55;
+}
+
+.tab-sleeping:hover {
+  opacity: 0.9;
+}
+
+.tab-sleep-badge {
+  font-size: 10px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 /* Living start page: the hero mark glows slowly with the active theme
    (disabled automatically by the prefers-reduced-motion rule above). */
 @keyframes glow-breathe {

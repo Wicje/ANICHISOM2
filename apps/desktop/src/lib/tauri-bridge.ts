@@ -101,6 +101,8 @@ export interface RestoredTab {
   vault_id?: string | null;
   /** Private (incognito) tab — badge in the strip, never persisted. */
   incognito?: boolean;
+  /** Sleeping (discarded to metadata) — faded in the strip, click to wake. */
+  discarded?: boolean;
   /** Chrome-side pin (favicon-only tab); restored pin-for-pin from the session. */
   pinned?: boolean;
   /** Tab group id; resolved against the group registry for name/color. */
@@ -199,6 +201,10 @@ export interface BrowserConfigItem {
   shortcuts?: ShortcutMap;
   /** Per-origin preferences. */
   site_prefs?: Record<string, SitePref>;
+  /** Auto-sleep idle tabs after N minutes (0 = off). */
+  sleep_after_min?: number;
+  /** Opt-in: auto-group same-site tabs on open (suggestions stay suggest-only). */
+  auto_group_site?: boolean;
 }
 
 /** A user-defined search engine (`{q}` = query placeholder). */
@@ -239,6 +245,8 @@ export interface ConfigPatch {
   density?: "comfortable" | "compact";
   shortcuts?: ShortcutMap;
   site_prefs?: Record<string, SitePref>;
+  sleep_after_min?: number;
+  auto_group_site?: boolean;
 }
 
 /** Search URL for a query under the given engine id (customs supported). */
@@ -542,6 +550,24 @@ export const api = {
   tabAudioState: () =>
     invoke<Record<string, { audible: boolean; muted: boolean }>>("tab_audio_state").catch(() => ({})),
 
+  /** Sleeping/discarded flags per tab (drives the 💤 strip state). */
+  tabStates: () =>
+    invoke<Record<string, { discarded?: boolean; audible?: boolean; muted?: boolean }>>("tab_audio_state").catch(() => ({})),
+
+  /** Local tab-intelligence: suggested groups + exact duplicates (on-device only). */
+  suggestGroups: () =>
+    invoke<{ groups: Array<{ key: string; name: string; labels: string[]; reason: string }>; duplicates: Array<{ url: string; keep: string; close: string }> }>("suggest_groups").catch(() => ({ groups: [], duplicates: [] })),
+
+  applyGroup: (labels: string[], opts?: { group?: string | null; name?: string }) =>
+    invoke<{ group?: string | null; applied?: number; error?: string }>("apply_group", { labels, group: opts?.group ?? null, name: opts?.name ?? null }).catch(() => ({ error: "unavailable" })),
+
+  /** Discard one tab's view to metadata (click wakes it). */
+  sleepTab: (label: string) =>
+    invoke<{ ok?: boolean; error?: string }>("sleep_tab", { label }).catch((): { ok?: boolean; error?: string } => ({ error: "unavailable" })),
+
+  /** Per-tab memory (MB) from Chromium process metrics. */
+  tabMetrics: () =>
+    invoke<Record<string, { mb?: number | null; discarded?: boolean }>>("tab_metrics").catch(() => ({})),
   /** Studio-mode pushes from the host (global shortcut while chrome hidden). */
   onStudio: (cb: (on: boolean) => void): (() => void) => {
     try {

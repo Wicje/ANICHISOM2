@@ -113,6 +113,24 @@ function persistNow() {
   live.forEach(t => store.enqueue({ op: "upsert_tab", profileId: activeProfileId, ...t }));
 }
 setInterval(() => { if (store && tabs.size) store.snapshot([...tabs.entries()].filter(([, m]) => !m.incognito).map(([lab, m]) => ({ label: lab, url: m.url, title: m.title })), focused); }, 5 * 60 * 1000);
+// Auto-sleep: discard tabs idle longer than the user's threshold (0 = off).
+// The pool already discards under pressure; this sleeps by time so quiet
+// tabs rest even when memory is fine. Wake = click (rehydrates on ready).
+setInterval(() => {
+  if (!store || !chrome) return;
+  let mins = 30;
+  try { mins = Number(store.getConfig?.().sleep_after_min ?? 30); } catch {}
+  if (!mins || mins <= 0) return;
+  const cutoff = Date.now() - mins * 60 * 1000;
+  let slept = 0;
+  for (const [lab, m] of tabs) {
+    if (!m.view || m.discarded || lab === focused || lab === pendingFocus) continue;
+    if ((m.lastActive || 0) > cutoff) continue;
+    try { chrome.contentView.removeChildView(m.view); m.view.webContents.close(); } catch {}
+    m.view = null; m.discarded = true; slept++;
+  }
+  if (slept) { scheduleSave(); layoutViews(); console.error(`[continua] auto-sleep ${slept} tabs (>${mins}m idle)`); }
+}, 60 * 1000);
 
 const apiBase = () => (store.cfg.continua_url || "").replace(/\/$/, "");
 const authHeaders = () => ({ "content-type": "application/json", authorization: `Bearer ${store.cfg.capability_token || ""}` });
@@ -396,6 +414,29 @@ function ensureLive(lab) {
   return m;
 }
 
+// Opt-in same-site auto-group (default off — suggestions stay suggest-only).
+function maybeAutoGroup(meta) {
+  if (!meta || meta.incognito || !/^https?:\/\//i.test(meta.url || "")) return;
+  let on = false;
+  try { on = !!store.getConfig?.().auto_group_site; } catch {}
+  if (!on) return;
+  let d = "";
+  try { d = new URL(meta.url).hostname.replace(/^www\./, ""); } catch { return; }
+  if (!d) return;
+  const same = (u) => { try { return new URL(u).hostname.replace(/^www\./, "") === d; } catch { return false; } };
+  const sibs = [...tabs.values()].filter((t) => !t.incognito && t.label !== meta.label && same(t.url));
+  if (!sibs.length) return;
+  let gid = sibs.find((t) => t.group)?.group || null;
+  if (!gid) {
+    try {
+      const known = getGroups().find((g) => g.name === d);
+      gid = known ? known.id : createGroup(d).id;
+    } catch { return; }
+  }
+  meta.group = gid;
+  scheduleSave();
+}
+
 function openTab(url, incognito = false) {
   const target = resolveUrl(url);
   const startish = target === START_URL;
@@ -405,6 +446,7 @@ function openTab(url, incognito = false) {
   if ([...tabs.values()].filter(m => !m.discarded).length >= POOL_K) prunePool();
   meta.view = makeView(meta);
   tabs.set(lab, meta); order.push(lab);
+  maybeAutoGroup(meta); // opt-in same-site grouping (default off)
   meta.view.webContents.loadURL(target).catch(() => {});
   activate(lab);
   if (!incognito) { store?.enqueue({ op: "upsert_tab", label: lab, url: meta.url, title: meta.title }); scheduleSave(); }
@@ -498,7 +540,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
   const m = args.label ? tabs.get(args.label) : focused ? tabs.get(focused) : null;
   switch (op) {
     case "open_tab": return openTab(args.url || START_URL, false);
-    case "list_tabs": return [...tabs.entries()].map(([lab, t]) => ({ label: lab, url: t.url, title: t.title, pinned: !!t.pinned, group: t.group || null, incognito: !!t.incognito }));
+    case "list_tabs": return [...tabs.entries()].map(([lab, t]) => ({ label: lab, url: t.url, title: t.title, pinned: !!t.pinned, group: t.group || null, incognito: !!t.incognito, discarded: !!t.discarded }));
     case "set_tab_group": {
       const t = tabs.get(args.label);
       if (t) { t.group = typeof args.group === "string" && args.group ? args.group : null; scheduleSave(); }
@@ -633,8 +675,54 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     case "tab_audio_state": {
       const out = {};
       for (const [lab, t] of tabs) {
-        try { out[lab] = { audible: !!t.view?.webContents?.isCurrentlyAudible(), muted: !!t.view?.webContents?.isAudioMuted() || !!t.muted }; }
-        catch { out[lab] = { audible: false, muted: !!t.muted }; }
+        try { out[lab] = { audible: !!t.view?.webContents?.isCurrentlyAudible(), muted: !!t.view?.webContents?.isAudioMuted() || !!t.muted, discarded: !!t.discarded }; }
+        catch { out[lab] = { audible: false, muted: !!t.muted, discarded: !!t.discarded }; }
+      }
+      return out;
+    }
+    // Local tab intelligence (ADR-010): on-device grouping + sleeping tabs.
+    case "suggest_groups": {
+      const { suggestGroups, findDuplicates } = require("./groups");
+      const live = [...tabs.entries()].map(([lab, t]) => ({ label: lab, url: t.url, title: t.title, incognito: !!t.incognito }));
+      return { groups: suggestGroups(live), duplicates: findDuplicates(live) };
+    }
+    case "apply_group": {
+      const labels = Array.isArray(args.labels) ? args.labels.filter((l) => tabs.has(l)) : [];
+      if (!labels.length) return { error: "no-tabs" };
+      let groupId = args.group || null;
+      if (args.name && !groupId) {
+        const g = createGroup(args.name);
+        groupId = g.id;
+      }
+      for (const lab of labels) { const t = tabs.get(lab); if (t) t.group = groupId; }
+      scheduleSave();
+      return { group: groupId, applied: labels.length };
+    }
+    case "sleep_tab": {
+      // Discard one view to metadata now (wake = click/activate rehydrates).
+      const t = tabs.get(args.label);
+      if (!t || !t.view || t.label === focused) return { error: "not-sleepable" };
+      try { t.view.webContents.executeJavaScript("window.scrollY").then((y) => { t.scrollY = y; }).catch(() => {}); } catch {}
+      try { chrome.contentView.removeChildView(t.view); t.view.webContents.close(); } catch {}
+      t.view = null; t.discarded = true;
+      scheduleSave(); layoutViews();
+      return { ok: true };
+    }
+    case "tab_metrics": {
+      // Per-tab memory via Chromium process metrics (powers the Tabs panel).
+      let metrics = [];
+      try { metrics = app.getAppMetrics() || []; } catch {}
+      const byPid = new Map(metrics.map((x) => [x.pid, x]));
+      const out = {};
+      for (const [lab, t] of tabs) {
+        let mb = null;
+        try {
+          const pid = t.view?.webContents?.getOSProcessId?.();
+          const mx = pid && byPid.get(pid);
+          const bytes = mx?.memory?.privateBytes ?? mx?.memory?.workingSetSize ?? null;
+          mb = typeof bytes === "number" ? Math.round(bytes / 1048576) : null;
+        } catch { /* gone */ }
+        out[lab] = { mb, discarded: !!t.discarded };
       }
       return out;
     }

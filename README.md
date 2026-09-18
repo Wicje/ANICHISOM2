@@ -48,7 +48,9 @@ docs/
   delta sync to your Continua cloud over TLS, merge-on-pull (never destructive),
   profiles (Work ↔ Personal: separate cookies, history, extensions), workspaces,
   memory timeline, recently-closed ring.
-- **Daily-driver kit** — command palette (Ctrl+K), omnibox suggestions,
+- **Daily-driver kit** — command palette (Ctrl+K) with local Tidy-tabs
+  intelligence (on-device group suggestions, duplicates, sleeping tabs with
+  wake-on-click, per-tab memory), omnibox suggestions,
   find-in-page, reader mode, per-tab zoom + mute badges, vertical tab rail,
   screenshot (Ctrl+Shift+S), print/PDF, downloads manager, history search,
   bookmark import (Chrome/Firefox HTML), extensions autoload, onboarding.

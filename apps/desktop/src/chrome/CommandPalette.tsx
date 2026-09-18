@@ -48,6 +48,7 @@ interface CommandPaletteProps {
   onToggleVault: (label: string) => Promise<void>;
   onPullRemote: () => Promise<unknown>;
   onSync: () => Promise<unknown>;
+  onCloseTab?: (label: string) => void;
 }
 
 interface RawItem {
@@ -113,12 +114,16 @@ export function CommandPalette({
   onToggleVault,
   onPullRemote,
   onSync,
+  onCloseTab,
 }: CommandPaletteProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  /** Local tab-intelligence (on-device): suggested groups + duplicates + memory. */
+  const [tidy, setTidy] = useState<{ groups: Array<{ key: string; name: string; labels: string[]; reason: string }>; duplicates: Array<{ url: string; keep: string; close: string }> } | null>(null);
+  const [memLine, setMemLine] = useState<string | null>(null);
   /** Configured homepage (ADR-006 #7): "New tab" honors it over the default. */
   const [newTab, setNewTab] = useState(START_TAB_URL);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -166,6 +171,16 @@ export function CommandPalette({
       setActive(0);
       void api.getBookmarks().then(setBookmarks);
       window.setTimeout(() => inputRef.current?.focus(), 0);
+      // Fresh tidy snapshot per opening (cheap, local, no network).
+      setTidy(null);
+      setMemLine(null);
+      void api.suggestGroups().then(setTidy);
+      void api.tabMetrics().then((m) => {
+        const rows = Object.values(m);
+        const live = rows.filter((r) => !r.discarded);
+        const mb = live.map((r) => r.mb ?? 0).reduce((a, b) => a + b, 0);
+        setMemLine(`${live.length} live · ${rows.length - live.length} sleeping · ~${mb} MB tab memory`);
+      });
     }
   }, [open]);
 
@@ -391,6 +406,49 @@ export function CommandPalette({
         void onSync().then(() => setNotice("Week checkpointed — see you Monday."));
       },
     });
+    // Local tab intelligence (ADR-010): suggestions computed on-device from
+    // URLs + titles. Nothing leaves the machine; applying is always explicit.
+    if (memLine) {
+      raw.push({
+        key: "tidy-memory",
+        group: "Tidy tabs",
+        label: memLine,
+        hint: "live tab memory right now",
+        icon: IconStack,
+        run: () => undefined,
+      });
+    }
+    for (const g of tidy?.groups ?? []) {
+      raw.push({
+        key: `tidy-group-${g.key}`,
+        group: "Tidy tabs",
+        label: `Group: ${g.name}`,
+        hint: `${g.labels.length} tabs · ${g.reason} · on-device suggestion`,
+        icon: IconStack,
+        run: () => {
+          void api.applyGroup(g.labels, { name: g.name.split(" · ")[0] }).then(() => {
+            window.dispatchEvent(new CustomEvent("continua:groups-changed"));
+            setNotice(`Grouped ${g.labels.length} tabs.`);
+            setTidy(null);
+          });
+        },
+      });
+    }
+    for (const d of tidy?.duplicates ?? []) {
+      raw.push({
+        key: `tidy-dup-${d.close}`,
+        group: "Tidy tabs",
+        label: `Close duplicate: ${hostOf(d.url)}`,
+        hint: "same page open twice — keep the first",
+        icon: IconClose,
+        run: () => {
+          if (onCloseTab) onCloseTab(d.close);
+          else void api.listTabs().then(() => undefined);
+          setNotice("Duplicate closed.");
+          setTidy(null);
+        },
+      });
+    }
 
     // Score + filter, then order by group (stable) then score within group.
     const scored = raw
@@ -407,7 +465,7 @@ export function CommandPalette({
       );
     }
     return result.slice(0, 14);
-  }, [q, tabs, activeLabel, bookmarks, newTab, onOpen, onOpenIncognito, onActivate, onRestore, onReopen, onToggleVault, onPullRemote, onSync]);
+  }, [q, tabs, activeLabel, bookmarks, newTab, tidy, memLine, onOpen, onOpenIncognito, onActivate, onRestore, onReopen, onToggleVault, onPullRemote, onSync, onCloseTab]);
 
   useEffect(() => {
     if (!open) return;
