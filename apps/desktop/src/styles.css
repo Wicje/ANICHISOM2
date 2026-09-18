@@ -183,8 +183,8 @@ body,
 
 /* ─── Brand ─────────────────────────────────────────────── */
 .brand-mark {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   flex: none;
   border-radius: var(--radius-sm);
   background: var(--accent);
@@ -218,8 +218,8 @@ body,
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-dim);
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-pill);
   cursor: pointer;
   font-size: 12px;
@@ -260,8 +260,8 @@ body,
   border: none;
   background: transparent;
   color: var(--text-dim);
-  width: 34px;
-  height: 28px;
+  width: 30px;
+  height: 26px;
   border-radius: var(--radius);
   font-size: 13px;
   cursor: pointer;
@@ -289,7 +289,7 @@ body,
   background: var(--hover-faint);
   border: 1px solid var(--border-faint);
   border-radius: var(--radius-pill);
-  padding: 3px 4px;
+  padding: 2px 3px;
 }
 
 .nav-btn {
@@ -297,8 +297,8 @@ body,
   border: none;
   background: transparent;
   color: var(--text);
-  width: 32px;
-  height: 30px;
+  width: 28px;
+  height: 26px;
   border-radius: var(--radius-pill);
   font-size: 16px;
   line-height: 1;
@@ -332,9 +332,9 @@ body,
 .tab {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 10px 4px 12px;
-  height: 32px;
+  gap: 7px;
+  padding: 3px 9px 3px 10px;
+  height: 28px;
   max-width: 180px;
   min-width: 80px;
   border-radius: var(--radius);
@@ -388,8 +388,8 @@ body,
 }
 
 .tab-favicon {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   border-radius: var(--radius-sm);
   font-size: 10px;
   display: grid;
@@ -432,11 +432,11 @@ body,
   border: 1px solid transparent;
   background: var(--accent-soft);
   color: var(--accent-hi);
-  font-size: 16px;
+  font-size: 14px;
   cursor: pointer;
   border-radius: var(--radius-pill);
-  width: 32px;
-  height: 28px;
+  width: 28px;
+  height: 25px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -606,13 +606,13 @@ body,
 /* ─── Address bar ───────────────────────────────────────── */
 .address-bar {
   flex: 1;
-  height: 32px;
+  height: 28px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  font-size: 13px;
-  padding: 0 14px;
+  font-size: 12px;
+  padding: 0 12px;
   outline: none;
   transition: border-color 0.15s;
 }
@@ -719,10 +719,10 @@ body,
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-dim);
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1;
-  width: 30px;
-  height: 30px;
+  width: 27px;
+  height: 27px;
   border-radius: var(--radius);
   cursor: pointer;
   display: grid;
@@ -753,13 +753,13 @@ body,
   appearance: none;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
   font: inherit;
-  height: 36px;
-  padding: 0 12px 0 8px;
+  height: 28px;
+  padding: 0 10px 0 7px;
   border-radius: var(--radius-pill);
   cursor: pointer;
   flex: none;
@@ -781,7 +781,7 @@ body,
 }
 
 .engine-name {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: capitalize;
 }
@@ -974,8 +974,8 @@ body,
 /* ─── Profiles (Chrome-style Work ↔ Personal) ─────────── */
 .profile-avatar {
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 999px;
   display: grid;
   place-items: center;
@@ -993,16 +993,16 @@ body,
   appearance: none;
   display: flex;
   align-items: center;
-  gap: 7px;
-  height: 30px;
+  gap: 6px;
+  height: 28px;
   min-width: 0;
-  max-width: 210px;
-  padding: 0 8px 0 11px;
+  max-width: 190px;
+  padding: 0 7px 0 9px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   transition: border-color 0.15s;
 }
@@ -2546,12 +2546,14 @@ body::after {
 .chrome-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 2px 0;
 }
 
 /* Tab strip: hug the nav controls, shrink on demand, rail takes over on
- * overflow; the measured width is also what feeds rail detection. */
+ * overflow; the measured width is also what feeds rail detection.
+ * The strip's own scrollbar is suppressed — it appearing/disappearing used
+ * to change the row height and shove the page (top-overflow shimmer). */
 .tab-strip {
   display: flex;
   align-items: center;
@@ -2559,7 +2561,12 @@ body::after {
   flex: 0 1 auto;
   min-width: 0;
   max-width: 55%;
-  overflow-x: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+.tab-strip::-webkit-scrollbar {
+  display: none;
 }
 
 /* When the vertical rail owns the tabs, the top pills collapse to a sliver so
@@ -2877,23 +2884,28 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 
 /* Compact density: tighter chrome rows for control freaks. */
 :root[data-density="compact"] .chrome-btn {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
 }
 
 :root[data-density="compact"] .tab {
-  height: 28px;
+  height: 25px;
   font-size: 11px;
 }
 
 :root[data-density="compact"] .address-bar {
-  height: 28px;
-  font-size: 12px;
+  height: 25px;
+  font-size: 11px;
 }
 
 :root[data-density="compact"] .nav-btn {
-  width: 28px;
-  height: 26px;
+  width: 24px;
+  height: 23px;
+}
+
+:root[data-density="compact"] .workspace-btn,
+:root[data-density="compact"] .engine-btn {
+  height: 25px;
 }
 
 /* Sleeping tabs: faded pill, click wakes instantly (rehydrates on ready). */
