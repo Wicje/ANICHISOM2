@@ -91,6 +91,7 @@ Linux build deps: `webkit2gtk` (+ `libayatana-appindicator` for tray).
 
 All decisions and their rationale: **`docs/decisions/`**. Plan documents
 marked SUPERSEDED are historical records, not direction.
+What's left and what's blocking: **`ROADMAP.md`**.
 
 ## Notes
 
