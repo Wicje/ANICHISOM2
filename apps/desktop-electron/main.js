@@ -26,6 +26,31 @@ if (process.env.CONTINUA_SOFTWARE_GL === "1") {
   } catch {}
 }
 
+// Widevine (Netflix/Spotify/Prime): stock Electron bundles the CDM on
+// Win/mac but NOT on Linux. There, borrow it from an installed Chrome if
+// present — without this DRM pages fail with no useful error.
+if (process.platform === "linux") {
+  try {
+    const cands = [
+      "/opt/google/chrome/WidevineCdm",
+      "/usr/lib/chromium/WidevineCdm",
+      path.join(os.homedir(), ".config", "google-chrome", "WidevineCdm"),
+    ];
+    for (const base of cands) {
+      try {
+        const manifest = JSON.parse(fs.readFileSync(path.join(base, "manifest.json"), "utf8"));
+        const lib = path.join(base, "_platform_specific", `linux_${os.arch()}`, "libwidevinecdm.so");
+        if (manifest?.version && fs.existsSync(lib)) {
+          app.commandLine.appendSwitch("widevine-cdm-path", lib);
+          app.commandLine.appendSwitch("widevine-cdm-version", manifest.version);
+          console.error(`[continua] widevine ${manifest.version} borrowed from ${base}`);
+          break;
+        }
+      } catch {}
+    }
+  } catch {}
+}
+
 // Single instance: links opened via drun/xdg-open (the .desktop Exec gets
 // %u) land here as argv URLs. A second launch forwards its URL into a tab
 // of the running window instead of spawning another browser.
@@ -349,6 +374,24 @@ function makeView(meta) {
   view.webContents.on("did-navigate", (_e, url) => recordNav(url === START_URL ? "continua://start" : url, false));
   view.webContents.on("did-navigate-in-page", (_e, url) => recordNav(url, true));
   view.webContents.on("page-title-updated", (_e, title) => { meta.title = title; pushTabUpdated(meta.label); });
+  // Links that want a new window (target=_blank, Ctrl+click, window.open):
+  // tabs for tab dispositions, app windows for real popups (OAuth, checkout
+  // flows). Incognito parents stay incognito — never leak into a normal
+  // session. Non-http(s) is denied (no file/js smuggling).
+  view.webContents.setWindowOpenHandler(({ url, disposition }) => {
+    if (!/^https?:\/\//i.test(url || "")) return { action: "deny" };
+    try {
+      if (disposition === "background-tab") { openTab(url, meta.incognito, false); return { action: "deny" }; }
+      if (disposition === "foreground-tab" || disposition === "default" || disposition === "other") {
+        openTab(url, meta.incognito);
+        return { action: "deny" };
+      }
+      if (meta.incognito) { openTab(url, true); return { action: "deny" }; }
+      const w = new BrowserWindow({ width: 1000, height: 700 });
+      w.loadURL(url);
+    } catch {}
+    return { action: "deny" };
+  });
   view.webContents.on("dom-ready", () => {
     if (meta.cssInjected) return;
     meta.cssInjected = true;
@@ -455,7 +498,7 @@ function maybeAutoGroup(meta) {
   scheduleSave();
 }
 
-function openTab(url, incognito = false) {
+function openTab(url, incognito = false, focus = true) {
   const target = resolveUrl(url);
   const startish = target === START_URL;
   const lab = label(incognito ? "tab-incog" : "tab");
@@ -466,7 +509,8 @@ function openTab(url, incognito = false) {
   tabs.set(lab, meta); order.push(lab);
   maybeAutoGroup(meta); // opt-in same-site grouping (default off)
   meta.view.webContents.loadURL(target).catch(() => {});
-  activate(lab);
+  if (focus) activate(lab);
+  else layoutViews();
   if (!incognito) { store?.enqueue({ op: "upsert_tab", label: lab, url: meta.url, title: meta.title }); scheduleSave(); }
   return lab;
 }
@@ -607,7 +651,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       return store.patchConfig({ search_engine: args.engine });
     }
     case "get_browser_config": case "getBrowserConfig": return store.getConfig();
-    case "update_config": return store.patchConfig(args.patch || {});
+    case "update_config": { const c = store.patchConfig(args.patch || {}); refreshShields(); return c; }
     case "set_link_preview": return store.patchConfig({ link_preview: !!args.enabled });
     case "set_immersive": setStudio(typeof args.enabled === "boolean" ? args.enabled : !studio, "ipc"); return;
     case "update_tab_layout": layoutViews(); return;
@@ -723,6 +767,8 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     case "open_download": { const d = downloads.get(args.id); if (d?.path) shell.openPath(d.path).catch(() => {}); return; }
     case "reveal_download": { const d = downloads.get(args.id); if (d?.path) shell.showItemInFolder(d.path); return; }
     case "cancel_download": { const d = downloads.get(args.id); try { d?.item?.cancel(); } catch {} return; }
+    case "pause_download": { const d = downloads.get(args.id); try { d?.item?.pause(); if (d) d.state = "paused"; } catch {} return; }
+    case "resume_download": { const d = downloads.get(args.id); try { d?.item?.resume(); if (d) d.state = "progressing"; } catch {} return; }
     case "clear_downloads": { for (const [id, d] of downloads) if (d.state === "completed" || d.state === "cancelled" || d.state === "failed") downloads.delete(id); return [...downloads.values()].reverse().map(dlPublic); }
     case "set_tab_muted": { const t = tabs.get(args.label); if (t?.view) t.view.webContents.setAudioMuted(!!args.muted); if (t) t.muted = !!args.muted; return !!args.muted; }
     case "tab_audio_state": {
@@ -832,6 +878,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     }
     case "list_extensions": return listExtensions();
     case "load_extension": return await loadExtension(args.path);
+    case "install_store_extension": return await installStoreExtension(args.url || args.id || "");
     case "remove_extension": return removeExtension(args.id);
     case "set_extension_enabled": {
       store.cfg.extension_state = store.cfg.extension_state || {};
@@ -1046,6 +1093,63 @@ function removeExtension(id) {
   } catch { return false; }
 }
 
+// One-click installs from the Chrome Web Store: paste the store URL (or the
+// 32-char extension id), the host fetches the CRX from Google's update
+// endpoint, extracts it into this profile's autoload dir and loads it.
+// No Google account, no store UI needed.
+async function installStoreExtension(input) {
+  const m = String(input || "").match(/([a-z]{32})/);
+  if (!m) return { error: "no-id" };
+  const id = m[1];
+  if (getExtList().find((e) => e.id === id)) return { error: "already-installed" };
+  const url = `https://clients2.google.com/service/update2/crx?response=redirect&acceptformat=crx2,crx3&prodversion=131.0&x=id%3D${id}%26installsource%3Dondemand%26uc`;
+  let buf;
+  try {
+    const res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131 Safari/537.36" } });
+    if (!res.ok) return { error: `store-${res.status}` };
+    buf = Buffer.from(await res.arrayBuffer());
+  } catch (e) { return { error: "download-failed" }; }
+  if (buf.length < 1024 || buf.subarray(0, 4).toString() !== "Cr24") return { error: "bad-crx" };
+  const dest = path.join(extDir(), id);
+  const tmpCrx = path.join(os.tmpdir(), `continua-ext-${id}.crx`);
+  try {
+    fs.mkdirSync(extDir(), { recursive: true });
+    try { fs.rmSync(dest, { recursive: true, force: true }); } catch {}
+    fs.mkdirSync(dest, { recursive: true });
+    // CRX3 = zip payload after the header: strip to the zip start ("PK").
+    const pk = buf.indexOf("PK\x03\x04");
+    if (pk < 0) return { error: "bad-crx" };
+    fs.writeFileSync(tmpCrx, buf.subarray(pk));
+    const { spawnSync } = require("child_process");
+    let ok = false;
+    const uz = spawnSync("unzip", ["-q", tmpCrx, "-d", dest], { timeout: 30000 });
+    if (uz.status === 0) ok = true;
+    else {
+      const tr = spawnSync("tar", ["-xf", tmpCrx, "-C", dest], { timeout: 30000 });
+      if (tr.status === 0) ok = true;
+    }
+    if (!ok) return { error: "no-extractor" };
+    if (!fs.existsSync(path.join(dest, "manifest.json"))) {
+      // Some zips nest one level deep — adopt the single subfolder.
+      try {
+        const sub = fs.readdirSync(dest, { withFileTypes: true }).filter((d) => d.isDirectory());
+        if (sub.length === 1 && fs.existsSync(path.join(dest, sub[0].name, "manifest.json"))) {
+          const inner = path.join(dest, sub[0].name);
+          fs.renameSync(inner, dest + "-inner");
+          fs.rmSync(dest, { recursive: true, force: true });
+          fs.renameSync(dest + "-inner", dest);
+        }
+      } catch {}
+    }
+    if (!fs.existsSync(path.join(dest, "manifest.json"))) return { error: "bad-package" };
+    return await loadExtension(dest);
+  } catch (e) {
+    return { error: String(e?.message || e) };
+  } finally {
+    try { fs.rmSync(tmpCrx, { force: true }); } catch {}
+  }
+}
+
 // ---------- tab groups (persisted registry + per-tab assignment) ----------
 const GROUP_COLORS = ["#0071e3", "#7c5cff", "#188038", "#e8710a", "#d92d20", "#0090a3"];
 function getGroups() {
@@ -1083,25 +1187,38 @@ function wireDownloads(ses) {
   ses.on("will-download", (_e, item) => {
     const id = `dl-${Date.now()}-${(dlSeq++).toString(36)}`;
     const filename = item.getFilename() || "download";
-    const savePath = uniqueDownloadPath(app.getPath("downloads"), filename);
-    item.savePath(savePath);
-    const rec = { id, filename, path: savePath, url: item.getURL(), state: "progressing", received: 0, total: item.getTotalBytes() || 0, startedAt: Date.now() };
-    rec.item = item;
-    downloads.set(id, rec);
-    try { chrome?.webContents.send("download-event", { id, filename, state: "started" }); } catch {}
-    item.on("updated", (_ev, state) => {
-      rec.received = item.getReceivedBytes();
-      if (item.getTotalBytes()) rec.total = item.getTotalBytes();
-      if (state === "interrupted") rec.state = "failed";
-      else if (state === "progressing" && chrome && !chrome.isDestroyed()) chrome.setProgressBar(rec.total ? rec.received / rec.total : 2);
-    });
-    item.once("done", (_ev, state) => {
-      rec.state = state === "completed" ? "completed" : state === "cancelled" ? "cancelled" : "failed";
-      rec.received = item.getReceivedBytes();
-      if (chrome && !chrome.isDestroyed()) chrome.setProgressBar(-1);
-      delete rec.item;
-      try { chrome?.webContents.send("download-event", { id, filename, state: rec.state, path: rec.path }); } catch {}
-    });
+    // Ask-mode: Save-As dialog first, auto-save on cancel/off.
+    const begin = (chosen) => {
+      const savePath = chosen || uniqueDownloadPath(app.getPath("downloads"), filename);
+      try { item.savePath(savePath); } catch {}
+      const rec = { id, filename: chosen ? path.basename(savePath) : filename, path: savePath, url: item.getURL(), state: "progressing", received: 0, total: item.getTotalBytes() || 0, startedAt: Date.now() };
+      rec.item = item;
+      downloads.set(id, rec);
+      try { chrome?.webContents.send("download-event", { id, filename: rec.filename, state: "started" }); } catch {}
+      item.on("updated", (_ev, state) => {
+        rec.received = item.getReceivedBytes();
+        if (item.getTotalBytes()) rec.total = item.getTotalBytes();
+        if (state === "interrupted") rec.state = "failed";
+        else if (state === "progressing" && chrome && !chrome.isDestroyed()) chrome.setProgressBar(rec.total ? rec.received / rec.total : 2);
+      });
+      item.once("done", (_ev, state) => {
+        rec.state = state === "completed" ? "completed" : state === "cancelled" ? "cancelled" : "failed";
+        rec.received = item.getReceivedBytes();
+        if (chrome && !chrome.isDestroyed()) chrome.setProgressBar(-1);
+        delete rec.item;
+        try { chrome?.webContents.send("download-event", { id, filename: rec.filename, state: rec.state, path: rec.path }); } catch {}
+      });
+    };
+    let ask = false;
+    try { ask = !!store.getConfig?.().download_ask; } catch {}
+    if (ask && chrome && !chrome.isDestroyed()) {
+      const { dialog } = require("electron");
+      dialog.showSaveDialog(chrome, { defaultPath: path.join(app.getPath("downloads"), filename) })
+        .then((r) => begin(r.canceled ? null : r.filePath))
+        .catch(() => begin(null));
+    } else {
+      begin(null);
+    }
   });
   // audio badge forwarding: media started/stopped + mute state per view polled by chrome via tab_audio_state
 }
@@ -1109,6 +1226,82 @@ function wireDownloads(ses) {
 // Download records carry a live native item while progressing — strip it
 // before IPC (structured clone chokes on it and the panel reads empty).
 const dlPublic = (d) => ({ id: d.id, filename: d.filename, path: d.path, url: d.url, state: d.state, received: d.received, total: d.total, startedAt: d.startedAt });
+
+// Screenshare picker (Meet/Zoom/Teams): grant the request with loopback
+// audio so "share tab + audio" works instead of dying silently. Per profile
+// partition, rewired on profile switch like downloads.
+function wireMedia(partition) {
+  try {
+    const ses = session.fromPartition(partition);
+    ses.setDisplayMediaRequestHandler((request, callback) => {
+      try {
+        callback({ video: request.video, audio: request.audio === "loopback" || request.audio === "loopbackWithMute" ? "loopback" : undefined });
+      } catch {
+        try { callback({}); } catch {}
+      }
+    });
+  } catch (e) { console.error(`[continua] display-media wire failed: ${e?.message || e}`); }
+}
+
+// ---------- shields (tracker/ad blocking, on-device lists) ----------
+// No filter-engine dependency: a curated host set covers the worst
+// offenders; per-site off lives in site_prefs. Default ON, one toggle.
+const SHIELD_HOSTS = new Set([
+  "doubleclick.net", "googlesyndication.com", "googleadservices.com", "adservice.google.com",
+  "amazon-adsystem.com", "criteo.com", "criteo.net", "rubiconproject.com", "pubmatic.com",
+  "openx.net", "openx.com", "appnexus.com", "adsrvr.org", "mathtag.com", "simpli.fi",
+  "tapad.com", "demdex.net", "omtrdc.net", "2o7.net", "everesttech.net",
+  "scorecardresearch.com", "quantserve.com", "quantcast.com", "hotjar.com", "fullstory.com",
+  "mouseflow.com", "crazyegg.com", "luckyorange.com", "inspectlet.com",
+  "facebook.net", "fbcdn.net", "fbsbx.com",
+  "tiktokv.com", "tiktokcdn.com",
+  "analytics.twitter.com", "static.ads-twitter.com",
+  "ads.linkedin.com", "px.ads.linkedin.com",
+  "ads.pinterest.com", "analytics.pinterest.com",
+  "bat.bing.com", "c.bing.com",
+  "google-analytics.com", "googletagmanager.com", "googletagservices.com",
+  "mixpanel.com", "segment.com", "segment.io", "amplitude.com", "heap.io",
+  "newrelic.com", "nr-data.net", "bugsnag.com", "sentry.io",
+  "intercom.io", "intercomcdn.com", "drift.com", "hubspot.com", "hsforms.com",
+  "marketo.net", "marketo.com", "pardot.com", "eloqua.com",
+  "taboola.com", "outbrain.com", "revcontent.com", "mgid.com", "adnxs.com",
+  "moatads.com", "iasds01.com", "doubleverify.com", "adsafeprotected.com",
+  "crashlytics.com", "appsflyer.com", "adjust.com", "branch.io",
+  "onesignal.com", "pushwoosh.com", "urbanairship.com",
+  "cookiebot.com", "onetrust.com", "trustarc.com", "quantcast.mgr.consensu.org",
+  "fundingchoicesmessages.google.com",
+]);
+let shieldsEnabled = true;
+function refreshShields() {
+  try { shieldsEnabled = store.getConfig ? store.getConfig().shields !== false : true; } catch {}
+}
+function shielded(host) {
+  if (!host) return false;
+  const h = host.toLowerCase();
+  if (SHIELD_HOSTS.has(h)) return true;
+  for (const d of SHIELD_HOSTS) { if (h.endsWith("." + d)) return true; }
+  return false;
+}
+function wireShields(ses) {
+  try {
+    ses.webRequest.onBeforeRequest({ urls: ["<all_urls>"] }, (details, cb) => {
+      try {
+        if (!shieldsEnabled || details.resourceType === "mainFrame") return cb({});
+        let host = "";
+        try { host = new URL(details.url).hostname; } catch { return cb({}); }
+        if (!shielded(host)) return cb({});
+        // Per-site off switch (Settings → Site prefs).
+        try {
+          const ref = details.referrer || details.documentUrl || "";
+          const origin = new URL(ref || details.url).hostname.replace(/^www\./, "");
+          const pref = store.getConfig?.().site_prefs?.[origin];
+          if (pref && pref.shields === false) return cb({});
+        } catch {}
+        cb({ cancel: true });
+      } catch { cb({}); }
+    });
+  } catch (e) { console.error(`[continua] shields wire failed: ${e?.message || e}`); }
+}
 
 // ---------- Chrome import (Google-comfortable switchers) ----------
 // Reads the local Chrome profile's History SQLite (copied first — Chrome
@@ -1231,6 +1424,9 @@ async function switchProfile(id) {
   try { syncVersion = (store.cfg.last_version || 0) + 1; } catch {}
   try { session.fromPartition(activePartition()).setSpellCheckerEnabled(true); } catch {}
   wireDownloads(session.fromPartition(activePartition()));
+  wireMedia(activePartition());
+  wireShields(session.fromPartition(activePartition()));
+  refreshShields();
   try { await autoloadExtensions(); } catch (e) { console.error(`[continua] autoloadExtensions: ${e?.message || e}`); }
   restoreTabsIntoMemory(store.loadSession());
   try { chrome?.webContents.send("profiles-changed", { activeId: activeProfileId, profiles: profileState.profiles }); } catch {}
@@ -1272,6 +1468,9 @@ app.whenReady().then(async () => {  // No native File/Edit/View menu — the Rea
   try { session.fromPartition(activePartition()).setSpellCheckerEnabled(true); } catch {}
   try { session.fromPartition(activePartition()).setSpellCheckerLanguages(["en-US"]); } catch {}
   wireDownloads(session.fromPartition(activePartition()));
+  wireMedia(activePartition());
+  wireShields(session.fromPartition(activePartition()));
+  refreshShields();
   wireDownloads(session.defaultSession);
   // restore persisted + drop-in extensions (Chromium loadExtension)
   try { await autoloadExtensions(); } catch (e) { console.error(`[continua] autoloadExtensions: ${e?.message || e}`); }

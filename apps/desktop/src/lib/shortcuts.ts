@@ -23,6 +23,8 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   { id: "cycle-profile", label: "Next profile", defaultCombo: "ctrl+shift+m" },
   { id: "screenshot", label: "Screenshot", defaultCombo: "ctrl+shift+s" },
   { id: "studio", label: "Studio mode", defaultCombo: "ctrl+shift+f" },
+  { id: "mru-next", label: "Next recent tab", defaultCombo: "ctrl+tab" },
+  { id: "mru-prev", label: "Previous recent tab", defaultCombo: "ctrl+shift+tab" },
 ];
 
 /** Normalize a key event to "ctrl+shift+t" style. Returns null for bare modifiers. */

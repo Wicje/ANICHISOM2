@@ -209,6 +209,10 @@ export interface BrowserConfigItem {
   auto_group_site?: boolean;
   /** Collapsed tab-group ids (persisted per profile). */
   collapsed_groups?: string[];
+  /** Tracker/ad shields (on-device list, default on). */
+  shields?: boolean;
+  /** Ask where to save each download (default: auto-save to Downloads). */
+  download_ask?: boolean;
 }
 
 /** A user-defined search engine (`{q}` = query placeholder). */
@@ -224,6 +228,8 @@ export interface SitePref {
   zoom?: number;
   muted?: boolean;
   dark?: boolean;
+  /** false = shields off for this origin (global shields stay on). */
+  shields?: boolean;
 }
 
 /** Remapped keyboard shortcuts: action id -> "ctrl+shift+m" style combo. */
@@ -252,6 +258,8 @@ export interface ConfigPatch {
   sleep_after_min?: number;
   auto_group_site?: boolean;
   collapsed_groups?: string[];
+  shields?: boolean;
+  download_ask?: boolean;
 }
 
 /** Search URL for a query under the given engine id (customs supported). */
@@ -298,7 +306,7 @@ export interface PasswordRow {
   password: string;
 }
 
-/** Parse Chrome's exported passwords CSV (quoted fields, header tolerated). */
+/** Parse Chrome or Firefox exported passwords CSV (quoted fields). */
 export function parsePasswordCsv(raw: string): PasswordRow[] {
   const out: PasswordRow[] = [];
   const lines = (raw || "").split(/\r?\n/);
@@ -317,10 +325,19 @@ export function parsePasswordCsv(raw: string): PasswordRow[] {
       else cur += ch;
     }
     fields.push(cur);
-    if (fields.length < 4) continue;
-    const [name, url, username, password] = fields.map((f) => f.trim());
+    const cells = fields.map((f) => f.trim());
+    if (cells.length < 3) continue;
+    // Header row (Chrome: name,url,username,password — Firefox: url,username,password,…)?
+    const lower = cells.map((c) => c.toLowerCase());
+    if (lower.includes("url") && lower.includes("password")) continue;
+    // Chrome order has a non-URL name first; Firefox starts with the URL.
+    let url = "", username = "", password = "";
+    if (cells.length >= 4 && !/^https?:\/\//i.test(cells[0])) {
+      [, url, username, password] = cells;
+    } else {
+      [url, username, password] = cells;
+    }
     if (!url || !password) continue;
-    if (/^name$/i.test(name) && /^url$/i.test(url)) continue; // header
     let origin = "";
     try {
       const u = new URL(url);
@@ -585,6 +602,12 @@ export const api = {
   cancelDownload: (id: string) =>
     invoke<void>("cancel_download", { id }).catch(() => undefined),
 
+  pauseDownload: (id: string) =>
+    invoke<void>("pause_download", { id }).catch(() => undefined),
+
+  resumeDownload: (id: string) =>
+    invoke<void>("resume_download", { id }).catch(() => undefined),
+
   clearDownloads: () =>
     invoke<DownloadItem[]>("clear_downloads").catch(() => []),
 
@@ -689,6 +712,9 @@ export const api = {
   loadExtension: (path: string) =>
     invoke<{ id?: string; name?: string; error?: string }>("load_extension", { path }).catch(() => ({ error: "unavailable" })),
 
+  installStoreExtension: (urlOrId: string) =>
+    invoke<{ id?: string; name?: string; error?: string }>("install_store_extension", { url: urlOrId }).catch(() => ({ error: "unavailable" })),
+
   removeExtension: (id: string) =>
     invoke<boolean>("remove_extension", { id }).catch(() => false),
 
@@ -735,7 +761,7 @@ export interface DownloadItem {
   filename: string;
   path: string;
   url: string;
-  state: "progressing" | "completed" | "cancelled" | "failed";
+  state: "progressing" | "paused" | "completed" | "cancelled" | "failed";
   received: number;
   total: number;
   startedAt: number;

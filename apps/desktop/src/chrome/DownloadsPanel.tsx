@@ -53,14 +53,16 @@ export function DownloadsPanel({ open, onClose }: DownloadsPanelProps) {
                   <span className="download-main">
                     <span className="download-name" title={d.path}>{d.filename}</span>
                     <span className="download-sub">
-                      {d.state === "progressing" ? (pct !== null ? `${pct}% · ${fmtBytes(d.received)} of ${fmtBytes(d.total)}` : `${fmtBytes(d.received)}…`) : d.state}
+                      {d.state === "progressing" || d.state === "paused" ? (pct !== null ? `${pct}% · ${fmtBytes(d.received)} of ${fmtBytes(d.total)}` : `${fmtBytes(d.received)}…`) : d.state}
                     </span>
-                    {d.state === "progressing" && (
+                    {(d.state === "progressing" || d.state === "paused") && (
                       <span className="download-bar"><span className="download-fill" style={{ width: `${pct ?? 10}%` }} /></span>
                     )}
                   </span>
                   <span className="download-actions">
-                    {d.state === "progressing" && <button onClick={() => void api.cancelDownload(d.id)}>Cancel</button>}
+                    {d.state === "progressing" && <button onClick={() => void api.pauseDownload(d.id)}>Pause</button>}
+                    {d.state === "paused" && <button onClick={() => void api.resumeDownload(d.id)}>Resume</button>}
+                    {(d.state === "progressing" || d.state === "paused") && <button onClick={() => void api.cancelDownload(d.id)}>Cancel</button>}
                     {d.state === "completed" && (
                       <>
                         <button onClick={() => void api.openDownload(d.id)}>Open</button>

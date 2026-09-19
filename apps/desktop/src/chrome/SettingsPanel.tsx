@@ -57,6 +57,7 @@ export function SettingsPanel({
   const [sync, setSync] = useState<{ paired: boolean; deviceId: string; lastVersion: number; pending?: number; lastSyncAt?: number; lastSyncError?: string | null } | null>(null);
   const [devices, setDevices] = useState<Array<{ id: string; device_name: string; trust_level: string; platform: string; last_seen_at: string }>>([]);
   const [extPath, setExtPath] = useState("");
+  const [storeUrl, setStoreUrl] = useState("");
   const [extensions, setExtensions] = useState<Array<{ id: string; name: string; path: string; enabled?: boolean }>>([]);
   const [extDir, setExtDir] = useState("");
   const [loginsAvail, setLoginsAvail] = useState(false);
@@ -405,8 +406,9 @@ export function SettingsPanel({
               {Object.entries(config?.site_prefs ?? {}).length > 0 && (
                 <ul className="settings-devices">
                   {Object.entries(config?.site_prefs ?? {}).map(([origin, p]) => (
-                    <li key={origin}>{origin} · {p.zoom ?? 100}%{p.muted ? " · muted" : ""}
+                    <li key={origin}>{origin} · {p.zoom ?? 100}%{p.muted ? " · muted" : ""}{p.shields === false ? " · shields off" : ""}
                       <button className="settings-link" onClick={() => onPatch({ site_prefs: { ...(config?.site_prefs ?? {}), [origin]: { ...p, muted: !p.muted } } })}>{p.muted ? "unmute" : "mute"}</button>
+                      <button className="settings-link" onClick={() => onPatch({ site_prefs: { ...(config?.site_prefs ?? {}), [origin]: { ...p, shields: p.shields === false ? undefined : false } } })}>{p.shields === false ? "shields on" : "shields off"}</button>
                       <button className="settings-link" onClick={() => {
                         const next = { ...(config?.site_prefs ?? {}) };
                         delete next[origin];
@@ -444,6 +446,31 @@ export function SettingsPanel({
                 onChange={(e) => onPatch({ auto_group_site: e.target.checked })}
               />
               <span>Group same-site tabs on open (suggestions stay opt-in)</span>
+            </label>
+          </Row>
+
+          <Row label="Shields">
+            <div className="settings-stack">
+              <label className="settings-toggle">
+                <input
+                  type="checkbox"
+                  checked={config?.shields !== false}
+                  onChange={(e) => onPatch({ shields: e.target.checked })}
+                />
+                <span>Block trackers & ads (on-device list)</span>
+              </label>
+              <span className="settings-status">If a site breaks, turn shields off just for it in Site prefs below.</span>
+            </div>
+          </Row>
+
+          <Row label="Downloads">
+            <label className="settings-toggle">
+              <input
+                type="checkbox"
+                checked={Boolean(config?.download_ask)}
+                onChange={(e) => onPatch({ download_ask: e.target.checked })}
+              />
+              <span>Ask where to save each file</span>
             </label>
           </Row>
 
@@ -518,6 +545,11 @@ export function SettingsPanel({
                   <input className="settings-input" value={lgUrl} placeholder="https://site.com" onChange={(e) => setLgUrl(e.target.value)} spellCheck={false} />
                   <input className="settings-input" value={lgUser} placeholder="Username" onChange={(e) => setLgUser(e.target.value)} spellCheck={false} autoComplete="off" />
                   <input className="settings-input" type="password" value={lgPass} placeholder="Password" onChange={(e) => setLgPass(e.target.value)} autoComplete="new-password" />
+                  <button className="settings-btn" title="Generate a strong password" onClick={() => {
+                    const bytes = new Uint8Array(20);
+                    crypto.getRandomValues(bytes);
+                    setLgPass(Array.from(bytes, (b) => "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%".charAt(b % 60)).join(""));
+                  }}>Generate</button>
                   <button className="settings-btn" onClick={() => {
                     if (!lgUrl.trim() || !lgUser.trim() || !lgPass) { setSyncMsg("Fill site, username and password."); return; }
                     void api.addLogin(lgUrl.trim(), lgUser.trim(), lgPass).then((r) => {
@@ -543,6 +575,38 @@ export function SettingsPanel({
 
           <Row label="Extensions">
             <div className="settings-stack">
+            <div className="settings-sync">
+              <input
+                className="settings-input"
+                value={storeUrl}
+                placeholder="Chrome Web Store URL (one-click install)"
+                onChange={(e) => setStoreUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter") return;
+                  const u = storeUrl.trim();
+                  if (!u) return;
+                  setSyncMsg("Fetching from the Web Store…");
+                  void api.installStoreExtension(u).then((r) => {
+                    const res = r as { error?: string; name?: string; id?: string };
+                    setSyncMsg(res?.error ? `Store install: ${res.error}` : `Installed ${res?.name || res?.id}`);
+                    setStoreUrl("");
+                    refreshSync();
+                  });
+                }}
+                spellCheck={false}
+              />
+              <button className="settings-btn" onClick={() => {
+                const u = storeUrl.trim();
+                if (!u) return;
+                setSyncMsg("Fetching from the Web Store…");
+                void api.installStoreExtension(u).then((r) => {
+                  const res = r as { error?: string; name?: string; id?: string };
+                  setSyncMsg(res?.error ? `Store install: ${res.error}` : `Installed ${res?.name || res?.id}`);
+                  setStoreUrl("");
+                  refreshSync();
+                });
+              }}>Install</button>
+            </div>
             <div className="settings-sync">
               <input
                 className="settings-input"
@@ -628,7 +692,7 @@ export function SettingsPanel({
                   e.target.value = "";
                 }} />
               </div>
-              <span className="settings-status">Passwords: Chrome → Password Manager → Settings → Export (.csv), then import here. Chrome sync itself stays off — Google sees nothing new.</span>
+              <span className="settings-status">Passwords: Chrome or Firefox → Password Manager → Settings → Export (.csv), then import here. Chrome sync itself stays off — Google sees nothing new.</span>
             </div>
           </Row>
         </div>
