@@ -20,9 +20,9 @@ jobs:
       matrix:
         include:
           - os: ubuntu-22.04
-            args: --linux AppImage deb
+            args: --linux AppImage deb --config.npmRebuild=false
           - os: macos-latest
-            args: --mac dmg
+            args: --mac dmg --config.npmRebuild=false
           - os: windows-latest
             args: --win nsis --config.npmRebuild=false
     runs-on: ${{ matrix.os }}
