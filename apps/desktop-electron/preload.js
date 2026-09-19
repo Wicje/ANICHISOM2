@@ -63,6 +63,12 @@ contextBridge.exposeInMainWorld("continuaBridge", {
     ipcRenderer.on("portal-detected", h);
     return () => ipcRenderer.removeListener("portal-detected", h);
   },
+  // Download start/finish pushes (panel only polls while open).
+  onDownload: (cb) => {
+    const h = (_evt, info) => { try { cb(info); } catch {} };
+    ipcRenderer.on("download-event", h);
+    return () => ipcRenderer.removeListener("download-event", h);
+  },
   // legacy per-method shape (old spike) — all routed through the same channel
   openTab: (url) => ipcRenderer.invoke("continua", "open_tab", { url }),
   openIncognitoTab: (url) => ipcRenderer.invoke("continua", "open_incognito_tab", { url }),
