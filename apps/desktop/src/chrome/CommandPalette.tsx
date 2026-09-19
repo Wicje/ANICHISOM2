@@ -426,7 +426,15 @@ export function CommandPalette({
         hint: `${g.labels.length} tabs · ${g.reason} · on-device suggestion`,
         icon: IconStack,
         run: () => {
-          void api.applyGroup(g.labels, { name: g.name.split(" · ")[0] }).then(() => {
+          void api.applyGroup(g.labels, { name: g.name.split(" · ")[0] }).then((r) => {
+            // Applying a suggestion always expands its group (creating into
+            // a collapsed group would look like nothing happened).
+            if (r?.group) {
+              void api.getBrowserConfig().then((c) => {
+                const cur = (c as { collapsed_groups?: string[] } | null)?.collapsed_groups ?? [];
+                if (cur.includes(r.group!)) void api.updateConfig({ collapsed_groups: cur.filter((x) => x !== r.group) });
+              });
+            }
             window.dispatchEvent(new CustomEvent("continua:groups-changed"));
             setNotice(`Grouped ${g.labels.length} tabs.`);
             setTidy(null);

@@ -205,6 +205,8 @@ export interface BrowserConfigItem {
   sleep_after_min?: number;
   /** Opt-in: auto-group same-site tabs on open (suggestions stay suggest-only). */
   auto_group_site?: boolean;
+  /** Collapsed tab-group ids (persisted per profile). */
+  collapsed_groups?: string[];
 }
 
 /** A user-defined search engine (`{q}` = query placeholder). */
@@ -247,6 +249,7 @@ export interface ConfigPatch {
   site_prefs?: Record<string, SitePref>;
   sleep_after_min?: number;
   auto_group_site?: boolean;
+  collapsed_groups?: string[];
 }
 
 /** Search URL for a query under the given engine id (customs supported). */
@@ -564,7 +567,7 @@ export const api = {
     invoke<{ groups: Array<{ key: string; name: string; labels: string[]; reason: string }>; duplicates: Array<{ url: string; keep: string; close: string }> }>("suggest_groups").catch(() => ({ groups: [], duplicates: [] })),
 
   applyGroup: (labels: string[], opts?: { group?: string | null; name?: string }) =>
-    invoke<{ group?: string | null; applied?: number; error?: string }>("apply_group", { labels, group: opts?.group ?? null, name: opts?.name ?? null }).catch(() => ({ error: "unavailable" })),
+    invoke<{ group?: string | null; applied?: number; error?: string }>("apply_group", { labels, group: opts?.group ?? null, name: opts?.name ?? null }).catch((): { group?: string | null; applied?: number; error?: string } => ({ error: "unavailable" })),
 
   /** Discard one tab's view to metadata (click wakes it). */
   sleepTab: (label: string) =>
@@ -633,6 +636,10 @@ export const api = {
 
   extensionsDir: () =>
     invoke<string>("extensions_dir").catch(() => ""),
+
+  /** Reveal a known folder (extensions…) in the system file manager. */
+  revealPath: (dir: string) =>
+    invoke<string | null>("reveal_path", { dir }).catch(() => null),
 
   listProfiles: () =>
     invoke<ProfileState>("list_profiles").catch(() => ({ activeId: "personal", profiles: [] })),

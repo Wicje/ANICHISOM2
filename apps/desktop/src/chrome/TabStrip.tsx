@@ -53,6 +53,9 @@ interface TabStripProps {
   /** Sleeping (discarded) tabs render faded with a wake-on-click hint. */
   sleeping?: Record<string, boolean>;
   onSleepTab?: (label: string) => void;
+  /** Collapsed group ids (persisted per profile) + toggle. */
+  collapsedGroups?: string[];
+  onToggleCollapse?: (groupId: string) => void;
   /** True when the vertical rail has taken over: hide the top tab pills
    * (visibility, not display, so scrollWidth stays stable and overflow
    * detection doesn't flutter). */
@@ -91,6 +94,8 @@ export const TabStrip = memo(function TabStrip({
   onGroupsChanged,
   sleeping,
   onSleepTab,
+  collapsedGroups,
+  onToggleCollapse,
   rail,
 }: TabStripProps) {
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -99,6 +104,13 @@ export const TabStrip = memo(function TabStrip({
   const [groupName, setGroupName] = useState("");
   useChromeModal("tab-menu", menuOpen || ctx !== null);
   const groupById = new Map((groups ?? []).map((g) => [g.id, g]));
+  // Collapse: a header chip renders at each group's first tab; collapsed
+  // members hide (the active tab always stays visible so focus never vanishes).
+  const collapsed = new Set(collapsedGroups ?? []);
+  const firstOf = new Map<string, string>();
+  for (const t of tabs) {
+    if (t.group && groupById.has(t.group) && !firstOf.has(t.group)) firstOf.set(t.group, t.label);
+  }
   const rootRef = useRef<HTMLDivElement | null>(null);
   const target = ctx ? tabs.find((t) => t.label === ctx.label) : undefined;
 
@@ -167,10 +179,34 @@ export const TabStrip = memo(function TabStrip({
         const pinned = Boolean(tab.pinned);
         const incognito = Boolean(tab.incognito);
         const dropping = drag?.over === tab.label;
+        const grp = tab.group ? groupById.get(tab.group) : undefined;
+        const isCollapsed = !!grp && collapsed.has(grp.id);
 
         const dropClass = dropping ? (drag?.after ? " tab-drop-after" : " tab-drop-before") : "";
 
+        // Collapsed members vanish (except the active tab); the header below
+        // stands in for them with a count.
+        if (isCollapsed && !active) {
+          if (firstOf.get(grp!.id) !== tab.label) return null;
+        }
+
         return (
+          <>
+          {grp && firstOf.get(grp.id) === tab.label && (
+            <button
+              key={`grp-${grp.id}`}
+              className={`tab-group-head${isCollapsed ? " is-collapsed" : ""}${tabs.some((t) => t.group === grp.id && t.label === activeLabel) ? " has-active" : ""}`}
+              style={{ ["--grp" as string]: grp.color }}
+              onClick={() => onToggleCollapse?.(grp.id)}
+              title={`${grp.name} — click to ${isCollapsed ? "expand" : "collapse"}`}
+            >
+              <span className="tab-group-dot" style={{ background: grp.color }} />
+              <span className="tab-group-name">{grp.name}</span>
+              <span className="tab-group-count">{tabs.filter((t) => t.group === grp.id).length}</span>
+              <span className="tab-group-caret">{isCollapsed ? "▸" : "▾"}</span>
+            </button>
+          )}
+          {(!isCollapsed || active) && (
           <div
             key={tab.label}
             draggable
@@ -275,6 +311,8 @@ export const TabStrip = memo(function TabStrip({
               <IconClose size={10} />
             </button>
           </div>
+          )}
+          </>
         );
       })}
       </div>

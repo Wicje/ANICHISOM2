@@ -2,9 +2,11 @@
 
 > **"Pick up exactly where you left off. On any machine, in any tool, at any time."**
 
-Continua is a **continuity browser** — a Tauri desktop app where your entire
-browsing context (tabs, history, scroll positions, workspaces) follows you
-across machines, encrypted, via your own cloud.
+Continua is a **continuity browser** — an Electron + Chromium desktop app
+where your entire browsing context (tabs, history, scroll positions,
+workspaces, profiles) follows you across machines, over TLS to your own
+Continua cloud. Local-first (no account needed to browse); no cloud AI
+reads your tabs. See `docs/decisions/` for what each phrase means.
 
 ```
 WHAT WE BUILD (product — all investment goes here):
@@ -47,7 +49,8 @@ docs/
 - **Continuity without the tax** — local-first session (autosave + snapshots),
   delta sync to your Continua cloud over TLS, merge-on-pull (never destructive),
   profiles (Work ↔ Personal: separate cookies, history, extensions), workspaces,
-  memory timeline, recently-closed ring.
+  memory timeline, durable recently-closed ring, per-tab back-history + scroll +
+  zoom resurrection across restarts.
 - **Daily-driver kit** — command palette (Ctrl+K) with local Tidy-tabs
   intelligence (on-device group suggestions, duplicates, sleeping tabs with
   wake-on-click, per-tab memory), omnibox suggestions,
@@ -83,8 +86,8 @@ Linux build deps: `webkit2gtk` (+ `libayatana-appindicator` for tray).
   frozen Linux-lite fallback. Privacy-first/vault/E2E were deliberately
   removed — continuity is TLS + Supabase RLS.
 - Design system: Apple (designmd.supply) — see `apps/desktop/DESIGN.md`.
-- Next: password-manager story (Bitwarden via extension autoload), tab-group
-  collapse in the strip, mobile companion, backend pairing polish.
+- Next: one-click extension installs, content blocking, mobile companion
+  (phone app — the backend already accepts its saves), ongoing pairing polish.
 
 All decisions and their rationale: **`docs/decisions/`**. Plan documents
 marked SUPERSEDED are historical records, not direction.

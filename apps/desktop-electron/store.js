@@ -67,6 +67,8 @@ class Store {
   // — session —
   saveSession(tabs, active) { this.state.tabs = tabs; this.state.active = active; this._save(); return "local"; }
   loadSession() { return this.state.tabs.length ? this.state.tabs : null; }
+  saveClosedRing(ring) { this.state.closed = (ring || []).slice(0, 25); this._saveSoon(); }
+  loadClosedRing() { return Array.isArray(this.state.closed) ? this.state.closed : []; }
   snapshot(tabs, active) {
     this.state.snapshots.push({ id: "snap-" + Date.now(), saved_at: Date.now(), tabs, active });
     if (this.state.snapshots.length > MAX_SNAPSHOTS) this.state.snapshots = this.state.snapshots.slice(-MAX_SNAPSHOTS);

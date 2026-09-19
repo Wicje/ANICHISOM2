@@ -110,7 +110,7 @@ export function SettingsPanel({
   }, [open, config]);
 
   const doPair = async () => {
-    const p = pin.trim();
+    const p = pin.trim().toUpperCase();
     if (!p) { setSyncMsg("Enter the 6-character PIN from your other device."); return; }
     setSyncMsg("Waiting for approval… (up to 20s)");
     const status = await api.pairDevice(p);
@@ -539,6 +539,7 @@ export function SettingsPanel({
           </Row>
 
           <Row label="Extensions">
+            <div className="settings-stack">
             <div className="settings-sync">
               <input
                 className="settings-input"
@@ -557,10 +558,17 @@ export function SettingsPanel({
                   refreshSync();
                 });
               }}>Load</button>
+              <button className="settings-btn" onClick={() => void api.revealPath("extensions")}>Open folder</button>
             </div>
             <p className="settings-status">
               Autoload folder{extDir ? `: ${extDir}` : ""} — drop an unpacked extension
-              (e.g. Bitwarden) in as its own subfolder and restart. Toggles apply instantly.
+              in as its own subfolder and restart. Toggles apply instantly.
+            </p>
+            <p className="settings-status">
+              Password-manager story: install Bitwarden from bitwarden.com/download,
+              unzip it into the folder above (or paste its path and Load) — it fills
+              logins per profile from then on. No Bitwarden? The built-in Logins row
+              above covers you instead.
             </p>
             {extensions.length > 0 && (
               <ul className="settings-devices">
@@ -579,6 +587,7 @@ export function SettingsPanel({
                 ))}
               </ul>
             )}
+            </div>
           </Row>
         </div>
 
