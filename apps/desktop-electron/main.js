@@ -63,7 +63,7 @@ const isWeb = (u) => !!u && /^https?:\/\//i.test(u);
 const isStartUrl = (u) => u === "continua://start" || u === "continua://home" || !u;
 // macOS overlay scrollbars injected into every web page (mirrors the chrome
 // styling in styles.css — thin floating thumbs, no layout shift).
-const SCROLLBAR_CSS = `::-webkit-scrollbar{width:8px!important;height:8px!important}::-webkit-scrollbar-track{background:transparent!important}::-webkit-scrollbar-thumb{background:rgba(134,134,139,.0)!important;border-radius:4px!important;border:2px solid transparent!important;background-clip:content-box!important}*:hover::-webkit-scrollbar-thumb{background:rgba(134,134,139,.55)!important;background-clip:content-box!important}::-webkit-scrollbar-thumb:hover{background:rgba(134,134,139,.8)!important;background-clip:content-box!important}::-webkit-scrollbar-corner{background:transparent!important}`;
+const SCROLLBAR_CSS = `::-webkit-scrollbar{width:8px!important;height:8px!important}::-webkit-scrollbar-track{background:transparent!important}::-webkit-scrollbar-thumb{background:rgba(134,134,139,.0)!important;border-radius:4px!important;border:2px solid transparent!important;background-clip:content-box!important}*:hover::-webkit-scrollbar-thumb{background:rgba(134,134,139,.55)!important;background-clip:content-box!important}::-webkit-scrollbar-thumb:hover{background:rgba(134,134,139,.8)!important;background-clip:content-box!important}::-webkit-scrollbar-corner{background:transparent!important}::-webkit-scrollbar-button{display:none!important;width:0!important;height:0!important}`;
 const resolveUrl = (u) => (isStartUrl(u) ? START_URL : u);
 let CHROME_H = 56;
 // Matches .tab-rail width in styles.css exactly — any drift shows as a
