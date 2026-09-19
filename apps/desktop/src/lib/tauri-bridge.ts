@@ -14,6 +14,7 @@ declare global {
       invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
       onStudio?: (cb: (on: boolean) => void) => () => void;
       onTabUpdated?: (cb: (info: { label: string; url: string; title: string }) => void) => () => void;
+      onPortal?: (cb: (info: { url: string }) => void) => () => void;
     };
   }
 }
@@ -630,6 +631,15 @@ export const api = {
   onTabUpdated: (cb: (info: { label: string; url: string; title: string }) => void): (() => void) => {
     try {
       const un = (window.continuaBridge as unknown as { onTabUpdated?: (cb: (info: { label: string; url: string; title: string }) => void) => () => void })?.onTabUpdated?.(cb);
+      if (typeof un === "function") return un;
+    } catch {}
+    return () => undefined;
+  },
+
+  /** Captive portal login pages pushed by the host's own detector. */
+  onPortal: (cb: (info: { url: string }) => void): (() => void) => {
+    try {
+      const un = window.continuaBridge?.onPortal?.(cb);
       if (typeof un === "function") return un;
     } catch {}
     return () => undefined;

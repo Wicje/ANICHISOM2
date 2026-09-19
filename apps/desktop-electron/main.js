@@ -1174,7 +1174,64 @@ async function importChromeHistory() {
   return { ok: true, imported, scanned: rows.length };
 }
 
-// ---------- profiles (Chrome-style Work ↔ Personal separation) ----------
+// ---------- captive portal detection (Firefox-style) ----------
+// Chromium on Linux leaves portal detection to the OS, which often does
+// nothing — Firefox pops the login page itself. We probe lightweight
+// canary URLs: offline (DNS/route failure) vs portal (redirect/wrong body).
+// On portal, open its login page once (deduped) and let the chrome toast.
+let lastPortalAt = 0;
+let portalCheckRunning = false;
+async function checkCaptivePortal() {
+  if (portalCheckRunning || !chrome || chrome.isDestroyed()) return;
+  portalCheckRunning = true;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    let res;
+    try {
+      res = await fetch("http://connectivitycheck.gstatic.com/generate_204", {
+        method: "GET", redirect: "manual", signal: ctrl.signal,
+        headers: { "user-agent": "Continua Portal Check" },
+      });
+    } finally { clearTimeout(timer); }
+    // 204 with no location = clear internet. Anything else over plain HTTP
+    // on this canary = middlebox/portal answering instead.
+    if (res && res.status === 204 && !res.headers.get("location")) return;
+    let portalUrl = res?.headers?.get?.("location") || null;
+    if (portalUrl && !/^https?:\/\//i.test(portalUrl)) portalUrl = null;
+    // Fallback canary with a known body when the first is inconclusive.
+    if (!portalUrl) {
+      try {
+        const c2 = new AbortController();
+        const t2 = setTimeout(() => c2.abort(), 8000);
+        const r2 = await fetch("http://detectportal.firefox.com/canonical.html", {
+          redirect: "follow", signal: c2.signal,
+          headers: { "user-agent": "Continua Portal Check" },
+        }).finally(() => clearTimeout(t2));
+        const body = ((await r2.text()) || "").trim();
+        if (r2.ok && body === "success") return; // clear
+        portalUrl = r2.url && /^https?:\/\//i.test(r2.url) ? r2.url : null;
+      } catch {}
+    }
+    if (!portalUrl) return;
+    // Dedupe: one portal tab per 10 minutes, never duplicate an open one.
+    if (Date.now() - lastPortalAt < 10 * 60 * 1000) return;
+    try {
+      const host = new URL(portalUrl).hostname;
+      for (const [, m] of tabs) {
+        try { if (new URL(m.url).hostname === host) return; } catch {}
+      }
+    } catch { return; }
+    lastPortalAt = Date.now();
+    try { chrome.webContents.send("portal-detected", { url: portalUrl }); } catch {}
+    console.error(`[continua] captive portal detected: ${portalUrl}`);
+  } catch {
+    // Offline (DNS/route failure) — not a portal, stay quiet.
+  } finally { portalCheckRunning = false; }
+}
+setInterval(checkCaptivePortal, 45000);
+// Also probe shortly after boot (hotel/airport joins happen then).
+setTimeout(checkCaptivePortal, 20000);
 function createStoreFor(profileId) {
   try {
     return require("./store-sqlite").createStore(userDataPath, profileId);

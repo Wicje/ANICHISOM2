@@ -145,6 +145,13 @@ export function BrowserChrome({
     });
   };
   useEffect(() => api.onStudio((on) => setStudioHide(on)), []);
+  // Captive portal (hotel/airport ethernet): the host detects the login
+  // redirect itself and we open it like Firefox does.
+  useEffect(() => api.onPortal((info) => {
+    if (!info?.url || !/^https?:\/\//i.test(info.url)) return;
+    toast("Network login required — opening the portal", "success");
+    void onOpen(info.url);
+  }), [onOpen]);
   // Address-bar bookmark star.
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   // Find bar (Ctrl+F) + page tools + search engine.

@@ -57,6 +57,12 @@ contextBridge.exposeInMainWorld("continuaBridge", {
     ipcRenderer.on("tab-updated", h);
     return () => ipcRenderer.removeListener("tab-updated", h);
   },
+  // Captive portal login pages pushed by the host's own detector.
+  onPortal: (cb) => {
+    const h = (_evt, info) => { try { cb(info); } catch {} };
+    ipcRenderer.on("portal-detected", h);
+    return () => ipcRenderer.removeListener("portal-detected", h);
+  },
   // legacy per-method shape (old spike) — all routed through the same channel
   openTab: (url) => ipcRenderer.invoke("continua", "open_tab", { url }),
   openIncognitoTab: (url) => ipcRenderer.invoke("continua", "open_incognito_tab", { url }),
