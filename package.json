@@ -2,6 +2,10 @@
   "name": "continua",
   "version": "1.0.0",
   "description": "Continua monorepo — the Continuity Browser (desktop) + ContinuaOS web shell",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Wicje/ANICHISOM2.git"
+  },
   "private": true,
   "workspaces": [
     "apps/*",
