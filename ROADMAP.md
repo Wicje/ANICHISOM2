@@ -31,24 +31,34 @@
   against a live backend. If `continuaos.cc` isn't deployed, cross-machine
   continuity is a local-only truth. Verify before promising it to friends.
 
+### 5. Widevine/DRM on Linux — OPEN, needs a Chrome-installed box to verify
+- Stock Electron bundles the CDM on Win/mac (friends likely fine); on Linux
+  the browser now borrows Chrome's CDM automatically when present.
+- Nobody here has Chrome installed, so playback is unverified everywhere.
+  First friend test on Netflix/Spotify decides if this escalates.
+
 ## Remaining features (none block friends testing)
 
-- One-click extension installs (unpacked autoload only today).
-- Content blocking (no ad/tracker shields yet).
-- Widevine/DRM verify (Netflix/Spotify — 5-minute check, escalates to
-  blocker #1 if broken).
-- SmartScreen/cert story (unsigned builds warn on first Windows run).
+- Autofill address/card manager UI (Chromium handles basics internally).
+- Split view (never promised; evaluate post-launch).
 - Mobile companion (backend accepts phone saves; no phone app — roadmap).
 - Theme share gallery / viral loop (deferred).
-- Split view (never promised; evaluate post-launch).
+- SmartScreen/cert story (unsigned builds warn on first Windows run).
 
 ## Done (27/27 host tests, chrome builds clean, both remotes in sync)
 
-Profiles + per-profile isolation, theme gallery + sharing, Tidy tabs
-(on-device), sleeping tabs + auto-sleep, single-row chrome, paint-aware
-switching, back/forward history tracking, full session resurrection
-(history/scroll/zoom/closed-ring), group collapse, Bitwarden story, Chrome
-history/password import, per-site prefs, custom engines, remappable
-shortcuts, toolbar editor, Notion→macOS scrollbars, drun/.desktop setup,
-single-instance URL forwarding, backend-only shell trim (ADR-009),
-direction docs sweep (ADR-010 and below).
+- P0 correctness: window.open/target=_blank routing, screenshare picker,
+  single-instance URL forwarding, reload wakes sleeping tabs.
+- Continuity: pool + paint-aware switching, back/forward tracking, full
+  session resurrection (history/scroll/zoom/closed-ring), per-profile stores,
+  additive-only sync, workspaces, memory timeline, closed ring.
+- Organization: Tidy tabs (on-device), sleeping tabs + auto-sleep, group
+  collapse, favicon-only strip at 12+, tab MRU cycling.
+- Identity: profiles + isolation, theme gallery + sharing, per-profile
+  worlds, custom engines, remappable shortcuts, toolbar editor, density,
+  per-site prefs (zoom/mute/shields), macOS overlay scrollbars.
+- Trust: shields (on-device list, default on), Bitwarden story, Chrome +
+  Firefox import (history + passwords CSV), password generator, captive
+  portal detection, drun/.desktop setup.
+- Docs & repo: backend-only shell trim (ADR-009), local tab intelligence
+  (ADR-010), shields/store-install policy (ADR-011), direction sweep.
