@@ -558,7 +558,24 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     case "close_tab": closeTab(args.label); return;
     case "activate_tab": activate(args.label); return;
     case "navigate_tab": { const t = tabs.get(args.label); if (t) { const target = resolveUrl(args.url); t.url = target === START_URL ? "continua://start" : target; t.history = t.history.slice(0, t.idx + 1).concat(target); t.idx++; t.expectNav = target; ensureLive(args.label).view.webContents.loadURL(target).catch(() => {}); pushTabUpdated(args.label); } return; }
-    case "reload_tab": m?.view?.webContents.reload(); return;
+    case "reload_tab": {
+      const t = args.label ? tabs.get(args.label) : focused ? tabs.get(focused) : null;
+      if (!t) return;
+      // Sleeping (discarded) tabs have no view to reload — wake them with a
+      // fresh load of the current entry instead of silently doing nothing.
+      if (t.view && !t.discarded) {
+        try { t.view.webContents.reload(); } catch {}
+      } else {
+        // Background wake: preload hidden (no focus steal — swap-on-ready
+        // only engages when reloading the focused tab).
+        try {
+          const live = ensureLive(t.label);
+          live.view.webContents.loadURL(resolveUrl(live.history[live.idx] || live.url)).catch(() => {});
+          if (t.label === focused) pendingFocus = t.label;
+        } catch {}
+      }
+      return;
+    }
     case "back_tab": case "forward_tab": { // history-aware within pooled view
       const t = tabs.get(args.label); if (!t) return;
       const ni = op === "back_tab" ? t.idx - 1 : t.idx + 1;
