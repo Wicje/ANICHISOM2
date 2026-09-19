@@ -11,17 +11,10 @@
   "platforms": {
     "mac": {
       "name": "macOS",
-      "note": "Apple Silicon & Intel — unsigned, right-click → Open on first launch",
+      "note": "Apple Silicon — unsigned, right-click → Open on first launch",
       "artifact": "Continua-0.4.0-arm64.dmg",
       "url": "https://github.com/Wicje/ANICHISOM2/releases/download/v0.4.0/Continua-0.4.0-arm64.dmg",
-      "size": 0,
-      "packages": [
-        {
-          "name": "Continua-0.4.0.dmg (Intel)",
-          "url": "https://github.com/Wicje/ANICHISOM2/releases/download/v0.4.0/Continua-0.4.0.dmg",
-          "size": 0
-        }
-      ]
+      "size": 0
     },
     "win": {
       "name": "Windows",
