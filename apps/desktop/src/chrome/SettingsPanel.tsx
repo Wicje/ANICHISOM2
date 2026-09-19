@@ -475,9 +475,22 @@ export function SettingsPanel({
           </Row>
 
           <Row label="Browsing data">
+            <div className="settings-stack">
+            <div className="settings-sync">
             <button className="settings-danger" onClick={onClearHistory}>
               Clear history
             </button>
+            <button className="settings-btn" onClick={() => {
+              void api.clearCache().then((r) => {
+                const res = r as { ok?: boolean; error?: string };
+                setSyncMsg(res?.ok ? "Cache cleared — cookies, logins and history kept." : `Cache clear: ${res?.error || "failed"}`);
+              });
+            }}>
+              Clear cache
+            </button>
+            </div>
+            <span className="settings-status">Cache regrows as you browse; clearing reclaims disk per profile.</span>
+            </div>
           </Row>
 
           <Row label="Sync server">

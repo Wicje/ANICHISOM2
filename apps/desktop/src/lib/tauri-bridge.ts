@@ -534,6 +534,10 @@ export const api = {
   clearHistory: () =>
     invoke<void>("clear_history").catch(() => undefined),
 
+  /** Drop cached blobs for this profile (cookies/logins/history untouched). */
+  clearCache: () =>
+    invoke<{ ok?: boolean; error?: string }>("clear_cache").catch(() => ({ error: "unavailable" })),
+
   getBookmarks: () =>
     invoke<Bookmark[]>("get_bookmarks").catch(() => []),
 

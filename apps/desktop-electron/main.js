@@ -542,6 +542,7 @@ function activate(lab) {
 function closeTab(lab) {
   const m = tabs.get(lab);
   if (!m) return;
+  try { readerCache.delete(lab); } catch {}
   if (m.view) { try { chrome.contentView.removeChildView(m.view); m.view.webContents.close(); } catch {} }
   if (m.incognito) { try { session.fromPartition(`incognito-${lab}`).clearStorageData(); } catch {} }
   else {
@@ -754,6 +755,14 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     case "sync_status": return { paired: !!store.cfg.capability_token, deviceId: store.cfg.device_id, serverDeviceId: "", trustLevel: store.cfg.capability_token ? "known" : "local", lastVersion: syncVersion, pending: store.queueDepth ? store.queueDepth() : store.pendingOps().length, lastSyncAt, lastSyncError };
     case "get_history": return store.getHistory();
     case "clear_history": store.clearHistory(); return;
+    case "clear_cache": {
+      // Drop cached blobs (CacheStorage, GPU/shader cache) for this profile.
+      // Cookies, logins, history and DOM storage are untouched.
+      try {
+        await session.fromPartition(activePartition()).clearCache();
+        return { ok: true };
+      } catch (e) { return { error: String(e?.message || e) }; }
+    }
     case "search_suggestions": return store.searchHistory(args.query || args.term || "").map(h => h.url);
     case "get_bookmarks": return store.getBookmarks();
     case "add_bookmark": return store.addBookmark(args.url, args.title);
@@ -1194,6 +1203,15 @@ function wireDownloads(ses) {
       const rec = { id, filename: chosen ? path.basename(savePath) : filename, path: savePath, url: item.getURL(), state: "progressing", received: 0, total: item.getTotalBytes() || 0, startedAt: Date.now() };
       rec.item = item;
       downloads.set(id, rec);
+      // Cap the ring: history beyond the newest 100 is disk records only.
+      if (downloads.size > 100) {
+        const keys = [...downloads.keys()];
+        for (const k of keys.slice(0, downloads.size - 100)) {
+          const old = downloads.get(k);
+          try { old?.item?.cancel?.(); } catch {}
+          downloads.delete(k);
+        }
+      }
       try { chrome?.webContents.send("download-event", { id, filename: rec.filename, state: "started" }); } catch {}
       item.on("updated", (_ev, state) => {
         rec.received = item.getReceivedBytes();
