@@ -15,9 +15,9 @@ const FEATURES = [
 ];
 
 const PLATFORMS = [
-  { os: 'Windows', file: 'Continua-Setup-0.3.1.exe', note: 'Windows 10 & 11' },
-  { os: 'Linux', file: 'Continua-0.3.1.AppImage', note: 'AppImage · deb available' },
-  { os: 'macOS', file: 'Continua-0.3.1-arm64.dmg', note: 'Apple Silicon & Intel' },
+  { os: 'Windows', file: 'Continua-Setup-0.4.0.exe', note: 'Windows 10 & 11' },
+  { os: 'Linux', file: 'Continua-0.4.0.AppImage', note: 'AppImage · deb available' },
+  { os: 'macOS', file: 'Continua-0.4.0-arm64.dmg', note: 'Apple Silicon & Intel' },
 ];
 
 export default function Home() {
@@ -42,7 +42,7 @@ export default function Home() {
         </nav>
 
         <section style={{ textAlign: 'center', padding: '72px 0 40px' }}>
-          <p style={{ color: '#2997ff', fontSize: 13, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase' }}>v0.3.1 · Windows · Linux · macOS</p>
+          <p style={{ color: '#2997ff', fontSize: 13, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase' }}>v0.4.0 · Windows · Linux · macOS</p>
           <h1 style={{ fontSize: 56, lineHeight: 1.05, letterSpacing: -1.5, margin: '16px 0' }}>
             Pick up exactly<br />where you left off.
           </h1>
