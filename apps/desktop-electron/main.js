@@ -19,6 +19,13 @@ const { buildSavePayload, mergeRemoteTabs, mergeRemoteWorkspaces } = require("./
 // dying GPU process and black canvases in fresh renderers. Opt out of
 // hardware acceleration there via CONTINUA_SOFTWARE_GL=1 (set by the
 // launcher on such boxes). Untouched everywhere else.
+// Software WebGL (SwiftShader) is gated behind --enable-unsafe-swiftshader
+// in modern Chromium — without it, disabling HW acceleration turns every
+// WebGL page into "Error creating WebGL context". Always allow the fallback;
+// it only activates when no real GPU is available.
+try {
+  app.commandLine.appendSwitch("enable-unsafe-swiftshader");
+} catch {}
 if (process.env.CONTINUA_SOFTWARE_GL === "1") {
   try {
     app.disableHardwareAcceleration();
