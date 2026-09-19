@@ -948,6 +948,11 @@ export function BrowserChrome({
           onSetGroup={onSetGroup}
           sleeping={sleeping}
           onSleepTab={handleSleepTab}
+          collapsedGroups={config?.collapsed_groups ?? []}
+          onToggleCollapse={(gid) => {
+            const cur = config?.collapsed_groups ?? [];
+            applyPatch({ collapsed_groups: cur.includes(gid) ? cur.filter((x) => x !== gid) : [...cur, gid] });
+          }}
           onGroupsChanged={() => void api.getBrowserConfig().then((c) => { if (c) setConfig(c); })}
           onOverflowChange={handleOverflow}
           rail={railVisible}

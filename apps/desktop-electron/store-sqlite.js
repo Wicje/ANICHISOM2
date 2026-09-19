@@ -48,6 +48,9 @@ function create(userDataPath, profileId) {
     CREATE TABLE IF NOT EXISTS sync_queue(id INTEGER PRIMARY KEY AUTOINCREMENT, op_json TEXT, at INTEGER);
   `);
   try { db.exec("ALTER TABLE tabs ADD COLUMN grp TEXT"); } catch { /* exists on rerun */ }
+  try { db.exec("ALTER TABLE tabs ADD COLUMN hist TEXT"); } catch { /* exists on rerun */ }
+  try { db.exec("ALTER TABLE tabs ADD COLUMN scrolly REAL DEFAULT 0"); } catch { /* exists on rerun */ }
+  try { db.exec("ALTER TABLE tabs ADD COLUMN zoom INTEGER DEFAULT 100"); } catch { /* exists on rerun */ }
   try { db.exec("CREATE INDEX IF NOT EXISTS idx_history_at ON history(at DESC)"); } catch {}
 
   const get = (k, d = null) => {
@@ -99,7 +102,7 @@ function create(userDataPath, profileId) {
     saveSession(tabs, active) {
       const tx = db.transaction(() => {
         db.exec("DELETE FROM tabs");
-        tabs.forEach((t, i) => db.prepare("INSERT INTO tabs(label,url,title,pinned,idx,grp) VALUES(?,?,?,?,?,?)").run(t.label || `tab-${i}`, t.url, t.title || t.url, t.pinned ? 1 : 0, i, t.group || null));
+        tabs.forEach((t, i) => db.prepare("INSERT INTO tabs(label,url,title,pinned,idx,grp,hist,scrolly,zoom) VALUES(?,?,?,?,?,?,?,?,?)").run(t.label || `tab-${i}`, t.url, t.title || t.url, t.pinned ? 1 : 0, i, t.group || null, JSON.stringify((t.history || [t.url]).slice(-30)), t.scrollY || 0, t.zoom || 100));
         if (active !== undefined) set("active", active || "");
       });
       tx();
@@ -107,9 +110,30 @@ function create(userDataPath, profileId) {
       return "local-sqlite";
     },
     loadSession() {
-      const rows = db.prepare("SELECT label,url,title,pinned,grp FROM tabs ORDER BY idx").all();
+      let rows = [];
+      try {
+        rows = db.prepare("SELECT label,url,title,pinned,grp,hist,scrolly,zoom FROM tabs ORDER BY idx").all();
+      } catch {
+        rows = db.prepare("SELECT label,url,title,pinned,grp FROM tabs ORDER BY idx").all();
+      }
       this._syncActive();
-      return rows.length ? rows.map(r => ({ label: r.label, url: r.url, title: r.title, pinned: !!r.pinned, group: r.grp || null })) : null;
+      return rows.length ? rows.map(r => {
+        let hist = null;
+        try { hist = r.hist ? JSON.parse(r.hist) : null; } catch {}
+        return { label: r.label, url: r.url, title: r.title, pinned: !!r.pinned, group: r.grp || null,
+          history: Array.isArray(hist) && hist.length ? hist : undefined,
+          scrollY: r.scrolly || 0, zoom: r.zoom || 100 };
+      }) : null;
+    },
+    saveClosedRing(ring) {
+      try { set("closed_ring", JSON.stringify((ring || []).slice(0, 25))); } catch {}
+    },
+    loadClosedRing() {
+      try {
+        const raw = get("closed_ring");
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch { return []; }
     },
     snapshot(tabs, active) {
       const id = "snap-" + Date.now();
@@ -158,7 +182,7 @@ function create(userDataPath, profileId) {
     getConfig() {
       const c = {};
       try {
-        const rows = db.prepare("SELECT k,v FROM meta WHERE k IN ('search_engine','theme','homepage','autosave_interval','tab_groups','theme_id','custom_themes','custom_engines','toolbar_hidden','density','shortcuts','site_prefs','sleep_after_min','auto_group_site')").all();
+        const rows = db.prepare("SELECT k,v FROM meta WHERE k IN ('search_engine','theme','homepage','autosave_interval','tab_groups','theme_id','custom_themes','custom_engines','toolbar_hidden','density','shortcuts','site_prefs','sleep_after_min','auto_group_site','collapsed_groups')").all();
         rows.forEach(r => { c[r.k] = r.v; });
       } catch {}
       let tabGroups = [];
@@ -173,6 +197,8 @@ function create(userDataPath, profileId) {
       try { shortcuts = JSON.parse(c.shortcuts || "{}"); } catch {}
       let sitePrefs = {};
       try { sitePrefs = JSON.parse(c.site_prefs || "{}"); } catch {}
+      let collapsedGroups = [];
+      try { collapsedGroups = JSON.parse(c.collapsed_groups || "[]"); } catch {}
       return {
         search_engine: c.search_engine || "google", theme: c.theme || "dark",
         homepage: c.homepage || "", autosave_interval: Number(c.autosave_interval || 2),
@@ -187,12 +213,13 @@ function create(userDataPath, profileId) {
         site_prefs: sitePrefs && typeof sitePrefs === "object" ? sitePrefs : {},
         sleep_after_min: c.sleep_after_min === undefined ? 30 : Number(c.sleep_after_min),
         auto_group_site: c.auto_group_site === "1" || c.auto_group_site === true,
+        collapsed_groups: Array.isArray(collapsedGroups) ? collapsedGroups : [],
         bookmarks: this.getBookmarks(), history: this.getHistory().slice(0, 300),
       };
     },
     patchConfig(patch) {
       Object.entries(patch || {}).forEach(([k, v]) => {
-        if (["search_engine", "theme", "homepage", "autosave_interval", "vertical_tabs", "tab_groups", "reader_font", "reader_width", "link_preview", "speed_dial", "active_workspace", "theme_id", "custom_themes", "custom_engines", "toolbar_hidden", "density", "shortcuts", "site_prefs", "sleep_after_min", "auto_group_site"].includes(k))
+        if (["search_engine", "theme", "homepage", "autosave_interval", "vertical_tabs", "tab_groups", "reader_font", "reader_width", "link_preview", "speed_dial", "active_workspace", "theme_id", "custom_themes", "custom_engines", "toolbar_hidden", "density", "shortcuts", "site_prefs", "sleep_after_min", "auto_group_site", "collapsed_groups"].includes(k))
           set(k, typeof v === "object" ? JSON.stringify(v) : v);
       });
       return this.getConfig();

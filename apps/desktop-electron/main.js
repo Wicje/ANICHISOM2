@@ -112,12 +112,16 @@ function scheduleSave() {
 }
 function persistNow() {
   if (!store) return;
-  const live = [...tabs.entries()].filter(([, m]) => !m.incognito).map(([lab, m]) => ({ label: lab, url: m.url, title: m.title, pinned: !!m.pinned, group: m.group || null }));
+  const live = [...tabs.entries()].filter(([, m]) => !m.incognito).map(([lab, m]) => ({
+    label: lab, url: m.url, title: m.title, pinned: !!m.pinned, group: m.group || null,
+    history: (m.history || [m.url]).slice(-30), histIdx: Math.min(m.idx || 0, 29),
+    scrollY: m.scrollY || 0, zoom: m.zoom || 100,
+  }));
   store.saveSession(live, focused);
-  // Live tabs carry their profile so Work and Personal never merge server-side.
-  live.forEach(t => store.enqueue({ op: "upsert_tab", profileId: activeProfileId, ...t }));
+  try { store.saveClosedRing?.(closedRing().slice(0, 25)); } catch {}
+  live.forEach(t => store.enqueue({ op: "upsert_tab", ...t }));
 }
-setInterval(() => { if (store && tabs.size) store.snapshot([...tabs.entries()].filter(([, m]) => !m.incognito).map(([lab, m]) => ({ label: lab, url: m.url, title: m.title })), focused); }, 5 * 60 * 1000);
+setInterval(() => { if (store && tabs.size) store.snapshot([...tabs.entries()].filter(([, m]) => !m.incognito).map(([lab, m]) => ({ label: lab, url: m.url, title: m.title, history: (m.history || [m.url]).slice(-30), histIdx: Math.min(m.idx || 0, 29), scrollY: m.scrollY || 0, zoom: m.zoom || 100 })), focused); }, 5 * 60 * 1000);
 // Auto-sleep: discard tabs idle longer than the user's threshold (0 = off).
 // The pool already discards under pressure; this sleeps by time so quiet
 // tabs rest even when memory is fine. Wake = click (rehydrates on ready).
@@ -843,6 +847,16 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       return true;
     }
     case "extensions_dir": return extDir();
+    case "reveal_path": {
+      // Open a folder in the system file manager (extensions autoload dir…).
+      const dir = args.dir === "extensions" ? extDir() : null;
+      if (dir) {
+        try { fs.mkdirSync(dir, { recursive: true }); } catch {}
+        try { shell.showItemInFolder(dir); }
+        catch { void shell.openPath(dir).catch(() => {}); }
+      }
+      return dir;
+    }
     case "list_profiles": return { activeId: activeProfileId, profiles: profileState.profiles };
     case "create_profile": {
       const p = profiles.createProfile(userDataPath, profileState, args.name || "Untitled");
@@ -1104,7 +1118,12 @@ function restoreTabsIntoMemory(saved) {
       const target = resolveUrl(t.url);
       const startish = target === START_URL;
       const lab = `tab-restore-${Date.now()}-${i}`;
-      tabs.set(lab, { label: lab, url: startish ? "continua://start" : target, title: startish ? "New Tab" : (t.title || target), history: [target], idx: 0, scrollY: 0, pinned: !!t.pinned, group: t.group || null, incognito: false, zoom: 100, discarded: true, lastActive: 0, view: null });
+      // Full resurrection: back-history, scroll offset and zoom survive
+      // restarts (saved by persistNow); fall back to single-entry for legacy.
+      const hist = Array.isArray(t.history) && t.history.length ? t.history.slice(-30) : [target];
+      const idx = Math.min(Math.max(0, t.histIdx || 0), hist.length - 1);
+      const atIdx = hist[idx] || target;
+      tabs.set(lab, { label: lab, url: startish ? "continua://start" : atIdx, title: startish ? "New Tab" : (t.title || atIdx), history: startish ? [target] : hist, idx: startish ? 0 : idx, scrollY: t.scrollY || 0, pendingScroll: t.scrollY || null, pinned: !!t.pinned, group: t.group || null, incognito: false, zoom: t.zoom || 100, discarded: true, lastActive: 0, view: null });
       order.push(lab);
     });
     let activeId = null;
@@ -1130,6 +1149,7 @@ async function switchProfile(id) {
   profileState.activeId = id;
   profiles.saveProfiles(userDataPath, profileState);
   store = createStoreFor(activeProfileId);
+  try { closedRings.set(activeProfileId, store.loadClosedRing ? store.loadClosedRing() : []); } catch {}
   try { syncVersion = (store.cfg.last_version || 0) + 1; } catch {}
   try { session.fromPartition(activePartition()).setSpellCheckerEnabled(true); } catch {}
   wireDownloads(session.fromPartition(activePartition()));
@@ -1169,6 +1189,7 @@ app.whenReady().then(async () => {  // No native File/Edit/View menu — the Rea
   activeProfileId = profileState.activeId;
   // SQLite FTS5 store per profile, JSON fallback when better-sqlite3 is not installed.
   store = createStoreFor(activeProfileId);
+  try { closedRings.set(activeProfileId, store.loadClosedRing ? store.loadClosedRing() : []); } catch {}
   try { syncVersion = (store.cfg.last_version || 0) + 1; } catch {}
   try { session.fromPartition(activePartition()).setSpellCheckerEnabled(true); } catch {}
   try { session.fromPartition(activePartition()).setSpellCheckerLanguages(["en-US"]); } catch {}

@@ -3030,6 +3030,55 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   height: 25px;
 }
 
+/* Group collapse header: stands in for hidden members with a count. */
+.tab-group-head {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 9px 0 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--grp, var(--accent)) 55%, transparent);
+  background: color-mix(in srgb, var(--grp, var(--accent)) 16%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex: none;
+  max-width: 170px;
+}
+
+.tab-group-head:hover {
+  background: color-mix(in srgb, var(--grp, var(--accent)) 28%, transparent);
+}
+
+.tab-group-head.has-active {
+  border-color: var(--grp, var(--accent));
+}
+
+.tab-group-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-group-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--grp, var(--accent-hi));
+  background: var(--hover-faint);
+  border-radius: var(--radius-pill);
+  padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tab-group-caret {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
 /* Sleeping tabs: faded pill, click wakes instantly (rehydrates on ready). */
 .tab-sleeping {
   opacity: 0.55;

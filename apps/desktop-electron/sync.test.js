@@ -33,6 +33,33 @@ test("merge dedupes within the remote batch", () => {
   assert.equal(out.length, 1);
 });
 
+test("session persists history, scroll, zoom per tab", () => {
+  const { Store } = require("./store");
+  const s = new Store(require("os").tmpdir() + "/ct-persist-" + Date.now());
+  const tabs = [{ label: "t0", url: "https://a.com/2", title: "A2", pinned: true, group: null,
+    history: ["https://a.com/1", "https://a.com/2"], histIdx: 1, scrollY: 420, zoom: 110 }];
+  s.saveSession(tabs, "t0");
+  const loaded = s.loadSession();
+  assert.equal(loaded.length, 1);
+  assert.deepEqual(loaded[0].history, ["https://a.com/1", "https://a.com/2"]);
+  assert.equal(loaded[0].histIdx, 1);
+  assert.equal(loaded[0].scrollY, 420);
+  assert.equal(loaded[0].zoom, 110);
+});
+
+test("closed ring persists across restarts", () => {
+  const fs = require("fs");
+  const { Store } = require("./store");
+  const dir = require("os").tmpdir() + "/ct-ring-" + Date.now();
+  fs.mkdirSync(dir, { recursive: true });
+  const s = new Store(dir);
+  s.saveSession([], null);
+  s.saveClosedRing([{ label: "x", url: "https://gone.com", title: "Gone" }]);
+  s.flush();
+  const s2 = new Store(dir);
+  assert.deepEqual(s2.loadClosedRing(), [{ label: "x", url: "https://gone.com", title: "Gone" }]);
+});
+
 test("save payload scopes to the active profile", () => {
   const tabs = new Map([["a", { url: "https://a.com", title: "A" }]]);
   const p = buildSavePayload(tabs, "a", "dev-1", 3, [], [], "work");
