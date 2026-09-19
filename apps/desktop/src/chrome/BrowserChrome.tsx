@@ -33,7 +33,6 @@ import { quickAnswer } from "../lib/quick-answer";
 import { toast } from "../lib/toast";
 import {
   IconBrand,
-  IconCaretDown,
   IconDots,
   IconDownload,
   IconStack,
@@ -151,8 +150,6 @@ export function BrowserChrome({
   // Find bar (Ctrl+F) + page tools + search engine.
   const [findOpen, setFindOpen] = useState(false);
   const [engine, setEngine] = useState<string>("google");
-  const [engineMenu, setEngineMenu] = useState(false);
-  // Live search-engine suggestions for the omnibox.
   const [suggestRows, setSuggestRows] = useState<string[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [config, setConfig] = useState<BrowserConfigItem | null>(null);
@@ -177,7 +174,6 @@ export function BrowserChrome({
   // Native content views paint above HTML overlays: hide them while the
   // omnibox popover or menus are open (panels handle themselves).
   useChromeModal("suggestions", suggestOpen);
-  useChromeModal("engine-menu", engineMenu);
   const [moreOpen, setMoreOpen] = useState(false);
   useChromeModal("more-menu", moreOpen);
   const [idOpen, setIdOpen] = useState(false);
@@ -1023,52 +1019,6 @@ export function BrowserChrome({
               <IconStack size={15} />
             </button>
             <div className={`id-extra${idOpen ? " is-open" : ""}`}>
-          <div className="engine-wrap" style={{ position: "relative" }}>
-            <button
-              type="button"
-              className={`engine-btn${engineMenu ? " is-open" : ""}`}
-              onClick={() => setEngineMenu((v) => !v)}
-              title={`Search engine: ${engine} — click to change`}
-            >
-              <span className="engine-badge">{engineBadge(engine, customs) || "G"}</span>
-              <span className="engine-name">{customs.find((e) => e.id === engine)?.name ?? engine}</span>
-              <IconCaretDown size={12} />
-            </button>
-            {engineMenu && (
-              <div className="engine-pop" onMouseLeave={() => setEngineMenu(false)}>
-                {ENGINES.map((e) => (
-                  <button
-                    key={e}
-                    type="button"
-                    className={`engine-opt${e === engine ? " is-active" : ""}`}
-                    onClick={() => {
-                      setEngineMenu(false);
-                      setEngine(e);
-                      void api.setSearchEngine(e);
-                    }}
-                  >
-                    <Favicon url={searchUrlFor(e, "", customs)} />
-                    {e}
-                  </button>
-                ))}
-                {customs.map((e) => (
-                  <button
-                    key={e.id}
-                    type="button"
-                    className={`engine-opt${e.id === engine ? " is-active" : ""}`}
-                    onClick={() => {
-                      setEngineMenu(false);
-                      setEngine(e.id);
-                      void api.setSearchEngine(e.id);
-                    }}
-                  >
-                    <Favicon url={searchUrlFor(e.id, "", customs)} />
-                    {e.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
           <button
             type="button"
             className={`star-btn${isStarred ? " is-starred" : ""}`}
@@ -1080,7 +1030,7 @@ export function BrowserChrome({
                 : "Bookmark this page (add to your saved list)"
             }
           >
-<span className="star-icon">
+            <span className="star-icon">
               {isStarred ? <IconStarFilled size={14} /> : <IconStar size={14} />}
             </span>
           </button>
@@ -1159,6 +1109,38 @@ export function BrowserChrome({
                   <IconSettings size={13} /> Settings
                 </button>
               )}
+              <div className="ctx-sep" />
+              <div className="ctx-label">Search engine · {customs.find((e) => e.id === engine)?.name ?? engine}</div>
+              {ENGINES.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  className={`engine-opt${e === engine ? " is-active" : ""}`}
+                  onClick={() => {
+                    setMoreOpen(false);
+                    setEngine(e);
+                    void api.setSearchEngine(e);
+                  }}
+                >
+                  <Favicon url={searchUrlFor(e, "", customs)} />
+                  {e}{e === engine ? " ✓" : ""}
+                </button>
+              ))}
+              {customs.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  className={`engine-opt${e.id === engine ? " is-active" : ""}`}
+                  onClick={() => {
+                    setMoreOpen(false);
+                    setEngine(e.id);
+                    void api.setSearchEngine(e.id);
+                  }}
+                >
+                  <Favicon url={searchUrlFor(e.id, "", customs)} />
+                  {e.name}{e.id === engine ? " ✓" : ""}
+                </button>
+              ))}
               {showTool("studio") && (
                 <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); toggleStudio(); }}>
                   <IconFocus size={13} /> Studio mode
