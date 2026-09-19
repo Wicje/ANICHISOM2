@@ -6,14 +6,11 @@
 
 ## Blockers
 
-### 1. No current installer for friends (Windows) — OPEN
-- `v0.3.1` release still holds only stale `0.1.0` assets. Release runs kept
-  dying before upload: Node 20→22, oxide postinstall, missing native
-  optionals, publish repo (root + app package.json), win native rebuild skip.
-- Desktop CI job (chrome build + rust) is GREEN; the Windows browser job has
-  never had a clean run on a tag with all fixes.
-- Next: retag v0.3.1 on current main, confirm `Continua-Setup-0.3.x.exe`
-  lands in Releases. Until then friends have nothing to install.
+### 1. No current installer for friends (Windows) — DONE 2026-09-19
+- `v0.4.0` ships `Continua-Setup-0.4.0.exe` (+ mac arm64 dmg, AppImage, deb).
+- Took six CI fixes: Node 22, oxide postinstall, native optionals, publish
+  repo (root + app), all-OS rebuild skip, author email. History in `release.yml`.
+- Caveats: Intel Macs have no dmg (arm64 only); unsigned everywhere.
 
 ### 2. Shell CI red — OPEN, non-blocking for the browser
 - `Shell (typecheck)`: ~75 pre-existing errors in frozen OS code.
@@ -21,11 +18,9 @@
 - Recommendation: scope shell checks to backend paths or mark non-blocking.
   Do NOT spend a day fixing dead code to green a frozen host.
 
-### 3. Tauri release jobs red — OPEN, remove instead of fix
-- mac/win `desktop` matrix jobs still fail, and `cargo clean` reclaimed
-  16.8 GiB — the fallback isn't even launchable without a long rebuild.
-- Recommendation: delete the `desktop` matrix from `release.yml`; ship the
-  Chromium browser only.
+### 3. Tauri release jobs — DONE (matrix removed)
+- `release.yml` is browser-only now. The frozen host no longer blocks
+  releases or spams duplicate drafts (8 mislabeled releases cleaned up).
 
 ### 4. Sync unproven end-to-end — OPEN
 - Pairing + delta sync are complete and unit-tested, but never observed
