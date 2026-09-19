@@ -858,6 +858,8 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       return dir;
     }
     case "list_profiles": return { activeId: activeProfileId, profiles: profileState.profiles };
+    case "chrome_profile_status": return chromeProfileStatus();
+    case "import_chrome_history": return await importChromeHistory();
     case "create_profile": {
       const p = profiles.createProfile(userDataPath, profileState, args.name || "Untitled");
       return { activeId: activeProfileId, profiles: profileState.profiles, created: p };
@@ -1100,6 +1102,76 @@ function wireDownloads(ses) {
     });
   });
   // audio badge forwarding: media started/stopped + mute state per view polled by chrome via tab_audio_state
+}
+
+// ---------- Chrome import (Google-comfortable switchers) ----------
+// Reads the local Chrome profile's History SQLite (copied first — Chrome
+// locks it while running). better-sqlite3 when present, node:sqlite
+// otherwise, unavailable if neither loads. Passwords travel via Chrome's own
+// CSV export (Login Data is OS-encrypted); the chrome parses and re-seals
+// each row through add_login.
+function chromeHistoryPaths() {
+  const home = os.homedir();
+  const cands = [
+    path.join(home, ".config", "google-chrome", "Default", "History"),
+    path.join(home, ".config", "chromium", "Default", "History"),
+  ];
+  if (process.platform === "win32" && process.env.LOCALAPPDATA) {
+    cands.unshift(path.join(process.env.LOCALAPPDATA, "Google", "Chrome", "User Data", "Default", "History"));
+  }
+  if (process.platform === "darwin") {
+    cands.unshift(path.join(home, "Library", "Application Support", "Google", "Chrome", "Default", "History"));
+  }
+  return cands;
+}
+
+function chromeProfileStatus() {
+  for (const p of chromeHistoryPaths()) {
+    try {
+      if (p && fs.existsSync(p)) return { found: true, path: p };
+    } catch {}
+  }
+  return { found: false };
+}
+
+function openReadonlyDb(file) {
+  try {
+    const Better = require("better-sqlite3");
+    return { db: new Better(file, { readonly: true }), close: (h) => { try { h.db.close(); } catch {} } };
+  } catch {}
+  try {
+    const { DatabaseSync } = require("node:sqlite");
+    const db = new DatabaseSync(file, { readOnly: true });
+    return { db, close: (h) => { try { h.db.close(); } catch {} }, sync: true };
+  } catch {}
+  return null;
+}
+
+async function importChromeHistory() {
+  const status = chromeProfileStatus();
+  if (!status.found) return { error: "no-chrome-profile" };
+  const tmp = path.join(os.tmpdir(), `continua-chrome-hist-${Date.now()}`);
+  try { fs.copyFileSync(status.path, tmp); } catch (e) { return { error: "locked" }; }
+  const handle = openReadonlyDb(tmp);
+  if (!handle) { try { fs.rmSync(tmp, { force: true }); } catch {} return { error: "no-sqlite" }; }
+  let rows = [];
+  try {
+    if (handle.sync) rows = handle.db.prepare("SELECT url, title, last_visit_time FROM urls ORDER BY last_visit_time DESC LIMIT 2000").all();
+    else rows = handle.db.prepare("SELECT url, title, last_visit_time FROM urls ORDER BY last_visit_time DESC LIMIT 2000").all();
+  } catch (e) { try { handle.close(handle); } catch {} try { fs.rmSync(tmp, { force: true }); } catch {} return { error: "read-failed" }; }
+  try { handle.close(handle); } catch {}
+  try { fs.rmSync(tmp, { force: true }); } catch {}
+  let imported = 0;
+  const seen = new Set((store.getHistory ? store.getHistory() : []).map((h) => h.url));
+  // Rows arrive newest-first but appendHistory unshifts — walk backwards so
+  // the merged ring stays newest-first.
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const r = rows[i];
+    if (!r?.url || !/^https?:\/\//i.test(r.url) || seen.has(r.url)) continue;
+    seen.add(r.url);
+    try { store.appendHistory(r.url, r.title || r.url); imported++; } catch {}
+  }
+  return { ok: true, imported, scanned: rows.length };
 }
 
 // ---------- profiles (Chrome-style Work ↔ Personal separation) ----------
