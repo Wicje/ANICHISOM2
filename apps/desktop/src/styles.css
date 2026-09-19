@@ -2606,7 +2606,9 @@ body::after {
 .more-pop {
   left: auto;
   right: 0;
-  min-width: 220px;
+  min-width: 230px;
+  max-height: min(64vh, 480px);
+  overflow-y: auto;
 }
 
 .more-pop .engine-opt {

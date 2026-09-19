@@ -8,49 +8,91 @@
   :root {
     color-scheme: light dark;
     --blue: #0071e3; --blue-link: #0066cc;
-    --bg: #f5f5f7; --card: #ffffff; --text: #1d1d1f; --muted: #6e6e73;
-    --border: #e5e7eb;
+    --bg: #f5f5f7; --card: rgba(255, 255, 255, 0.72); --text: #1d1d1f; --muted: #6e6e73;
+    --border: rgba(0, 0, 0, 0.08);
+    --glow-a: rgba(0, 113, 227, 0.16); --glow-b: rgba(121, 40, 202, 0.10);
     --sf: -apple-system, "SF Pro Display", "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #000000; --card: #161617; --text: #f5f5f7; --muted: #86868b;
-      --border: #2c2c2e; --blue-link: #2997ff;
+      --bg: #000000; --card: rgba(22, 22, 23, 0.72); --text: #f5f5f7; --muted: #86868b;
+      --border: rgba(255, 255, 255, 0.10); --blue-link: #2997ff;
+      --glow-a: rgba(0, 113, 227, 0.20); --glow-b: rgba(121, 40, 202, 0.14);
     }
   }
   * { box-sizing: border-box; }
   body {
     margin: 0; min-height: 100vh; color: var(--text); background: var(--bg);
     font-family: var(--sf);
-    display: flex; align-items: center; justify-content: center; padding: 44px 20px;
+    display: flex; align-items: center; justify-content: center; padding: 44px 20px 64px;
+    overflow-x: hidden;
   }
-  .wrap { width: min(560px, 94vw); text-align: center; }
-  h1 { font-size: clamp(32px, 6vw, 48px); font-weight: 700; letter-spacing: -0.01em;
-    margin: 0 0 12px; }
-  #clock { color: var(--muted); font-size: 17px; margin-bottom: 20px; font-variant-numeric: tabular-nums; }
+  .ambient { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .ambient i { position: absolute; border-radius: 50%; filter: blur(90px); }
+  .ambient i:first-child {
+    width: 560px; height: 560px; left: 50%; top: -220px; transform: translateX(-50%);
+    background: var(--glow-a); animation: drift 14s ease-in-out infinite alternate;
+  }
+  .ambient i:last-child {
+    width: 480px; height: 480px; right: -160px; bottom: -180px;
+    background: var(--glow-b); animation: drift 18s ease-in-out infinite alternate-reverse;
+  }
+  @keyframes drift {
+    from { transform: translate(0, 0) scale(1); }
+    to { transform: translate(-40px, 30px) scale(1.08); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ambient i { animation: none; }
+    .grid a { animation: none !important; opacity: 1 !important; transform: none !important; }
+  }
+  .wrap { width: min(600px, 94vw); text-align: center; position: relative; z-index: 1; }
+  .eyebrow {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--blue-link);
+    border: 1px solid var(--border); border-radius: 980px; padding: 5px 14px; margin-bottom: 18px;
+    background: var(--card); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  }
+  h1 { font-size: clamp(36px, 6.5vw, 54px); font-weight: 700; letter-spacing: -0.02em;
+    margin: 0 0 10px; }
+  #clock { color: var(--muted); font-size: 15px; margin-bottom: 24px; font-variant-numeric: tabular-nums; }
   form { display: flex; gap: 8px; background: var(--card);
-    border: 1px solid var(--border); border-radius: 980px; padding: 5px 5px 5px 20px; }
-  form:focus-within { border-color: var(--blue); }
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border); border-radius: 980px; padding: 5px 5px 5px 22px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12); transition: border-color 0.15s, box-shadow 0.2s; }
+  form:focus-within { border-color: var(--blue); box-shadow: 0 12px 44px rgba(0, 113, 227, 0.22); }
   input { flex: 1; background: transparent; border: none; outline: none; color: inherit;
     font: inherit; font-size: 17px; min-width: 0; }
+  input::placeholder { color: var(--muted); }
   button.go { border: 1px solid transparent; cursor: pointer; border-radius: 980px;
-    padding: 11px 24px; min-height: 44px; color: #fff; background: var(--blue);
-    font: inherit; font-size: 17px; }
+    padding: 11px 26px; min-height: 44px; color: #fff; background: var(--blue);
+    font: inherit; font-size: 16px; font-weight: 600; transition: filter 0.15s; }
+  button.go:hover { filter: brightness(1.1); }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-    gap: 12px; margin-top: 28px; }
+    gap: 12px; margin-top: 30px; }
   .grid a { text-decoration: none; color: inherit; background: var(--card);
-    border: 1px solid var(--border); border-radius: 8px; padding: 16px 6px 12px;
-    display: flex; flex-direction: column; gap: 8px; align-items: center; font-size: 13px; }
-  .grid a:hover { border-color: var(--muted); }
-  .glyph { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center;
-    justify-content: center; font-weight: 600; color: #fff; background: var(--muted); }
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border); border-radius: 12px; padding: 18px 6px 14px;
+    display: flex; flex-direction: column; gap: 9px; align-items: center; font-size: 13px;
+    opacity: 0; transform: translateY(10px); animation: rise 0.45s ease-out forwards;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.2s; }
+  .grid a:hover { transform: translateY(-3px); border-color: var(--blue);
+    box-shadow: 0 10px 28px rgba(0, 113, 227, 0.18); }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+  .glyph { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center;
+    justify-content: center; font-weight: 700; font-size: 17px; color: #fff;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2); }
+  .foot { margin-top: 30px; font-size: 12px; color: var(--muted); }
+  .foot kbd { font-family: inherit; font-size: 11px; border: 1px solid var(--border);
+    border-bottom-width: 2px; border-radius: 6px; padding: 1px 7px; background: var(--card); }
   #offline { display: none; margin-top: 14px; font-size: 13px; color: var(--muted); }
   #offline a { color: var(--blue-link); text-decoration: none; }
 </style>
 </head>
 <body>
+<div class="ambient" aria-hidden="true"><i></i><i></i></div>
 <div class="wrap">
-  <h1>Where to next?</h1>
+  <span class="eyebrow">Continua</span>
+  <h1 id="hello">Where to next?</h1>
   <div id="clock"></div>
   <form id="s">
     <input id="q" placeholder="Search or type a URL" autocomplete="off" spellcheck="false">
@@ -58,8 +100,12 @@
   </form>
   <div id="offline">You're offline. Tabs and history are safe — search needs a connection.</div>
   <div class="grid" id="links"></div>
+  <p class="foot"><kbd>Ctrl+K</kbd> commands &nbsp;·&nbsp; <kbd>Ctrl+T</kbd> new tab &nbsp;·&nbsp; <kbd>Ctrl+Shift+T</kbd> reopen</p>
 </div>
 <script>
+  const hour = new Date().getHours();
+  const greet = hour < 5 ? "Up late?" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  document.getElementById("hello").textContent = greet + " — where to next?";
   const clock = () => {
     const d = new Date();
     document.getElementById("clock").textContent =
@@ -78,12 +124,13 @@
     ["News", "https://news.ycombinator.com", "H", "#ff6600"],
   ];
   const grid = document.getElementById("links");
-  for (const [name, url, g, c] of sites) {
+  sites.forEach(([name, url, g, c], i) => {
     const a = document.createElement("a");
     a.href = url;
+    a.style.animationDelay = `${Math.min(i * 45, 360)}ms`;
     a.innerHTML = `<span class="glyph" style="background:${c}">${g}</span><span>${name}</span>`;
     grid.appendChild(a);
-  }
+  });
   const showOffline = () => {
     document.getElementById("offline").style.display = navigator.onLine ? "none" : "block";
   };
