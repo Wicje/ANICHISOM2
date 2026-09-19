@@ -719,11 +719,11 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     case "new_tab_url": return store.getConfig().homepage || START_URL;
     case "get_active_url": return m?.url || START_URL;
     case "pool_state": return { live: [...tabs.values()].filter(t => !t.discarded).length, discarded: [...tabs.values()].filter(t => t.discarded).length, rssMb: (rss() / 1048576).toFixed(1), budgetMb: (RSS_BUDGET / 1048576).toFixed(0), active: focused, k: POOL_K, gpu: gpuStatus(), pendingFocus };
-    case "list_downloads": return [...downloads.values()].reverse().slice(0, 50);
+    case "list_downloads": return [...downloads.values()].reverse().slice(0, 50).map(dlPublic);
     case "open_download": { const d = downloads.get(args.id); if (d?.path) shell.openPath(d.path).catch(() => {}); return; }
     case "reveal_download": { const d = downloads.get(args.id); if (d?.path) shell.showItemInFolder(d.path); return; }
     case "cancel_download": { const d = downloads.get(args.id); try { d?.item?.cancel(); } catch {} return; }
-    case "clear_downloads": { for (const [id, d] of downloads) if (d.state === "completed" || d.state === "cancelled" || d.state === "failed") downloads.delete(id); return [...downloads.values()].reverse(); }
+    case "clear_downloads": { for (const [id, d] of downloads) if (d.state === "completed" || d.state === "cancelled" || d.state === "failed") downloads.delete(id); return [...downloads.values()].reverse().map(dlPublic); }
     case "set_tab_muted": { const t = tabs.get(args.label); if (t?.view) t.view.webContents.setAudioMuted(!!args.muted); if (t) t.muted = !!args.muted; return !!args.muted; }
     case "tab_audio_state": {
       const out = {};
@@ -1088,6 +1088,7 @@ function wireDownloads(ses) {
     const rec = { id, filename, path: savePath, url: item.getURL(), state: "progressing", received: 0, total: item.getTotalBytes() || 0, startedAt: Date.now() };
     rec.item = item;
     downloads.set(id, rec);
+    try { chrome?.webContents.send("download-event", { id, filename, state: "started" }); } catch {}
     item.on("updated", (_ev, state) => {
       rec.received = item.getReceivedBytes();
       if (item.getTotalBytes()) rec.total = item.getTotalBytes();
@@ -1099,10 +1100,15 @@ function wireDownloads(ses) {
       rec.received = item.getReceivedBytes();
       if (chrome && !chrome.isDestroyed()) chrome.setProgressBar(-1);
       delete rec.item;
+      try { chrome?.webContents.send("download-event", { id, filename, state: rec.state, path: rec.path }); } catch {}
     });
   });
   // audio badge forwarding: media started/stopped + mute state per view polled by chrome via tab_audio_state
 }
+
+// Download records carry a live native item while progressing — strip it
+// before IPC (structured clone chokes on it and the panel reads empty).
+const dlPublic = (d) => ({ id: d.id, filename: d.filename, path: d.path, url: d.url, state: d.state, received: d.received, total: d.total, startedAt: d.startedAt });
 
 // ---------- Chrome import (Google-comfortable switchers) ----------
 // Reads the local Chrome profile's History SQLite (copied first — Chrome
