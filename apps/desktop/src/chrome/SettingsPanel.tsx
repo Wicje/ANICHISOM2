@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { api } from "../lib/tauri-bridge";
+import { useEffect, useRef, useState } from "react";
+import { api, parsePasswordCsv } from "../lib/tauri-bridge";
 import { useChromeModal } from "../lib/chrome-modal";
 import type { BrowserConfigItem, ConfigPatch } from "../lib/tauri-bridge";
 import { BUILTIN_THEMES, applyTheme, decodeShare, encodeShare, resolveTheme, type Theme } from "../lib/themes";
@@ -70,6 +70,8 @@ export function SettingsPanel({
   const [capturing, setCapturing] = useState<string | null>(null);
   const [siteOrigin, setSiteOrigin] = useState("");
   const [siteZoom, setSiteZoom] = useState("100");
+  const [chromeFound, setChromeFound] = useState<string | null>(null);
+  const csvRef = useRef<HTMLInputElement | null>(null);
   useChromeModal("settings", open);
 
   // Shortcut capture: press any combo while an action is armed.
@@ -101,6 +103,7 @@ export function SettingsPanel({
       setDraft(config?.homepage ?? "");
       setSyncMsg(null);
       void api.getContinuaUrl().then(setServerUrl);
+      void api.chromeProfileStatus().then((s) => setChromeFound(s?.found ? ((s as { path?: string }).path ?? "found") : null));
       refreshSync();
       // Live pairing state: approval may arrive from another device.
       const t = window.setInterval(refreshSync, 10000);
@@ -587,6 +590,45 @@ export function SettingsPanel({
                 ))}
               </ul>
             )}
+            </div>
+          </Row>
+
+          <Row label="Import from Chrome">
+            <div className="settings-stack">
+              <span className="settings-status">
+                Google stays put — sign into Gmail/Drive per site as usual, keep Google
+                search. This copies your Chrome history {chromeFound ? `(found: ${chromeFound})` : "(no local Chrome profile detected)"} and
+                your exported passwords CSV into this profile only.
+              </span>
+              <div className="settings-sync">
+                <button
+                  className="settings-btn"
+                  disabled={!chromeFound}
+                  onClick={() => {
+                    void api.importChromeHistory().then((r) => {
+                      const res = r as { ok?: boolean; imported?: number; scanned?: number; error?: string };
+                      setSyncMsg(res?.ok ? `Imported ${res.imported} history entries (${res.scanned} scanned).` : `History import: ${res?.error || "failed"}`);
+                    });
+                  }}
+                >Import history</button>
+                <button className="settings-btn" onClick={() => csvRef.current?.click()}>Import passwords CSV…</button>
+                <input ref={csvRef} type="file" accept=".csv,text/csv" hidden onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  void f.text().then(async (raw) => {
+                    const rows = parsePasswordCsv(raw);
+                    let saved = 0;
+                    for (const r of rows) {
+                      const res = await api.addLogin(r.origin, r.username, r.password) as { id?: string; error?: string };
+                      if (res?.id) saved++;
+                    }
+                    setSyncMsg(saved ? `Imported ${saved} logins (OS-keyring sealed).` : "No usable rows — export from Chrome via Password Manager → Settings → Export.");
+                    refreshSync();
+                  });
+                  e.target.value = "";
+                }} />
+              </div>
+              <span className="settings-status">Passwords: Chrome → Password Manager → Settings → Export (.csv), then import here. Chrome sync itself stays off — Google sees nothing new.</span>
             </div>
           </Row>
         </div>

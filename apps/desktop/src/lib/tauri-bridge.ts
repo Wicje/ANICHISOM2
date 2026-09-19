@@ -289,6 +289,47 @@ export function sanitizeEngine(e: unknown): CustomEngine | null {
   return { id, name, url: o.url as string, badge };
 }
 
+/** One row of Chrome's password CSV export (name,url,username,password). */
+export interface PasswordRow {
+  origin: string;
+  username: string;
+  password: string;
+}
+
+/** Parse Chrome's exported passwords CSV (quoted fields, header tolerated). */
+export function parsePasswordCsv(raw: string): PasswordRow[] {
+  const out: PasswordRow[] = [];
+  const lines = (raw || "").split(/\r?\n/);
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    const fields: string[] = [];
+    let cur = "", inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQ) {
+        if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (ch === '"') inQ = false;
+        else cur += ch;
+      } else if (ch === '"') inQ = true;
+      else if (ch === ",") { fields.push(cur); cur = ""; }
+      else cur += ch;
+    }
+    fields.push(cur);
+    if (fields.length < 4) continue;
+    const [name, url, username, password] = fields.map((f) => f.trim());
+    if (!url || !password) continue;
+    if (/^name$/i.test(name) && /^url$/i.test(url)) continue; // header
+    let origin = "";
+    try {
+      const u = new URL(url);
+      if (u.protocol !== "http:" && u.protocol !== "https:") continue;
+      origin = u.origin;
+    } catch { continue; }
+    out.push({ origin, username, password });
+  }
+  return out.slice(0, 500);
+}
+
 /** Short badge for an engine ("G", "DDG", "B", "Br", customs) used by the selector. */
 export function engineBadge(engine: string, customs: CustomEngine[] = []): string {
   const custom = customs.find((e) => e.id === engine);
@@ -640,6 +681,14 @@ export const api = {
   /** Reveal a known folder (extensions…) in the system file manager. */
   revealPath: (dir: string) =>
     invoke<string | null>("reveal_path", { dir }).catch(() => null),
+
+  /** Detect a local Chrome profile (history import source). */
+  chromeProfileStatus: () =>
+    invoke<{ found?: boolean; path?: string }>("chrome_profile_status").catch(() => ({ found: false })),
+
+  /** Copy Chrome history into this profile's ring (deduped, newest-first). */
+  importChromeHistory: () =>
+    invoke<{ ok?: boolean; imported?: number; scanned?: number; error?: string }>("import_chrome_history").catch(() => ({ error: "unavailable" })),
 
   listProfiles: () =>
     invoke<ProfileState>("list_profiles").catch(() => ({ activeId: "personal", profiles: [] })),
