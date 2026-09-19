@@ -24,7 +24,7 @@ jobs:
           - os: macos-latest
             args: --mac dmg
           - os: windows-latest
-            args: --win nsis
+            args: --win nsis --config.npmRebuild=false
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
