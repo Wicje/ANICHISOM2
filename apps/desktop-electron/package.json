@@ -3,6 +3,10 @@
   "private": true,
   "version": "0.4.0",
   "description": "Continua Browser — Electron Chromium product host (ADR-008). WebContentsView pool K=6, local-first continuity.",
+  "author": {
+    "name": "Continua",
+    "email": "hello@continuaos.cc"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Wicje/ANICHISOM2.git"
