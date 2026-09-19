@@ -53,10 +53,12 @@ docs/
   zoom resurrection across restarts.
 - **Daily-driver kit** — command palette (Ctrl+K) with local Tidy-tabs
   intelligence (on-device group suggestions, duplicates, sleeping tabs with
-  wake-on-click, per-tab memory), omnibox suggestions,
+  wake-on-click, per-tab memory), shields (on-device blocklist, default on),
+  one-click Web Store installs, omnibox suggestions,
   find-in-page, reader mode, per-tab zoom + mute badges, vertical tab rail,
-  screenshot (Ctrl+Shift+S), print/PDF, downloads manager, history search,
-  bookmark import (Chrome/Firefox HTML), extensions autoload, onboarding.
+  screenshot (Ctrl+Shift+S), print/PDF, downloads manager (pause/resume,
+  Save-As), history search, Chrome/Firefox import (bookmarks, history,
+  passwords), password generator, extensions autoload, onboarding.
 
 ## Quick start
 
@@ -86,7 +88,7 @@ Linux build deps: `webkit2gtk` (+ `libayatana-appindicator` for tray).
   frozen Linux-lite fallback. Privacy-first/vault/E2E were deliberately
   removed — continuity is TLS + Supabase RLS.
 - Design system: Apple (designmd.supply) — see `apps/desktop/DESIGN.md`.
-- Next: one-click extension installs, content blocking, mobile companion
+- Next: autofill manager UI, split view, mobile companion
   (phone app — the backend already accepts its saves), ongoing pairing polish.
 
 All decisions and their rationale: **`docs/decisions/`**. Plan documents
