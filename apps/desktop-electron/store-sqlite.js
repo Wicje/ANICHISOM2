@@ -57,6 +57,9 @@ function create(userDataPath, profileId) {
     const r = db.prepare("SELECT v FROM meta WHERE k=?").get(k);
     return r ? r.v : d;
   };
+  // Config booleans persist as "true"/"false"/"1"/"0" strings — accept all.
+  const isTrue = (v, def = false) => v === undefined || v === null ? def
+    : v === true || v === "1" || v === "true" || v === 1;
   const set = (k, v) => db.prepare("INSERT INTO meta(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").run(k, String(v));
 
   // migrate JSON store once
@@ -182,7 +185,7 @@ function create(userDataPath, profileId) {
     getConfig() {
       const c = {};
       try {
-        const rows = db.prepare("SELECT k,v FROM meta WHERE k IN ('search_engine','theme','homepage','autosave_interval','tab_groups','theme_id','custom_themes','custom_engines','toolbar_hidden','density','shortcuts','site_prefs','sleep_after_min','auto_group_site','collapsed_groups')").all();
+        const rows = db.prepare("SELECT k,v FROM meta WHERE k IN ('search_engine','theme','homepage','autosave_interval','tab_groups','theme_id','custom_themes','custom_engines','toolbar_hidden','density','shortcuts','site_prefs','sleep_after_min','auto_group_site','collapsed_groups','shields','download_ask')").all();
         rows.forEach(r => { c[r.k] = r.v; });
       } catch {}
       let tabGroups = [];
@@ -202,7 +205,7 @@ function create(userDataPath, profileId) {
       return {
         search_engine: c.search_engine || "google", theme: c.theme || "dark",
         homepage: c.homepage || "", autosave_interval: Number(c.autosave_interval || 2),
-        vertical_tabs: c.vertical_tabs === "1" || c.vertical_tabs === true,
+        vertical_tabs: isTrue(c.vertical_tabs, false),
         tab_groups: Array.isArray(tabGroups) ? tabGroups : [],
         theme_id: c.theme_id || "midnight",
         custom_themes: Array.isArray(customThemes) ? customThemes : [],
@@ -212,14 +215,16 @@ function create(userDataPath, profileId) {
         shortcuts: shortcuts && typeof shortcuts === "object" ? shortcuts : {},
         site_prefs: sitePrefs && typeof sitePrefs === "object" ? sitePrefs : {},
         sleep_after_min: c.sleep_after_min === undefined ? 30 : Number(c.sleep_after_min),
-        auto_group_site: c.auto_group_site === "1" || c.auto_group_site === true,
+        auto_group_site: isTrue(c.auto_group_site, false),
         collapsed_groups: Array.isArray(collapsedGroups) ? collapsedGroups : [],
+        shields: isTrue(c.shields, true),
+        download_ask: isTrue(c.download_ask, false),
         bookmarks: this.getBookmarks(), history: this.getHistory().slice(0, 300),
       };
     },
     patchConfig(patch) {
       Object.entries(patch || {}).forEach(([k, v]) => {
-        if (["search_engine", "theme", "homepage", "autosave_interval", "vertical_tabs", "tab_groups", "reader_font", "reader_width", "link_preview", "speed_dial", "active_workspace", "theme_id", "custom_themes", "custom_engines", "toolbar_hidden", "density", "shortcuts", "site_prefs", "sleep_after_min", "auto_group_site", "collapsed_groups"].includes(k))
+        if (["search_engine", "theme", "homepage", "autosave_interval", "vertical_tabs", "tab_groups", "reader_font", "reader_width", "link_preview", "speed_dial", "active_workspace", "theme_id", "custom_themes", "custom_engines", "toolbar_hidden", "density", "shortcuts", "site_prefs", "sleep_after_min", "auto_group_site", "collapsed_groups", "shields", "download_ask"].includes(k))
           set(k, typeof v === "object" ? JSON.stringify(v) : v);
       });
       return this.getConfig();

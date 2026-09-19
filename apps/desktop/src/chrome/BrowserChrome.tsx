@@ -564,6 +564,20 @@ export function BrowserChrome({
     if (isNative) void api.setTabRail(next || railOn);
   };
 
+  // MRU tab order (most-recently-active first) for Ctrl+Tab cycling.
+  const mruRef = useRef<string[]>([]);
+  useEffect(() => {
+    if (!activeLabel) return;
+    mruRef.current = [activeLabel, ...mruRef.current.filter((l) => l !== activeLabel)].slice(0, 30);
+  }, [activeLabel]);
+  const stepMru = (dir: 1 | -1) => {
+    const order = mruRef.current.filter((l) => tabs.some((t) => t.label === l));
+    if (order.length < 2) return;
+    const cur = activeLabel ? order.indexOf(activeLabel) : -1;
+    const next = order[(cur + dir + order.length) % order.length];
+    if (next) void onActivate(next);
+  };
+
   // Keyboard shortcuts: remappable via Settings (shortcuts map), defaults
   // match the classic set (Ctrl+T/W/L/R/H/F, Ctrl+Shift+T/N, F5, …).
   useEffect(() => {
@@ -634,6 +648,16 @@ export function BrowserChrome({
         void cycleProfile();
         return;
       }
+      if (fire("mru-next")) {
+        e.preventDefault();
+        stepMru(1);
+        return;
+      }
+      if (fire("mru-prev")) {
+        e.preventDefault();
+        stepMru(-1);
+        return;
+      }
       if (e.shiftKey && k === "i") {
         e.preventDefault();
         void api.toggleDevTools();
@@ -673,7 +697,7 @@ export function BrowserChrome({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [activeLabel, onClose, onOpen, onOpenIncognito, onReopen, config?.shortcuts]);
+  }, [activeLabel, tabs, onClose, onOpen, onOpenIncognito, onReopen, config?.shortcuts]);
 
   // ── Omnibox suggestions (tabs + history + visit/search fallback) ─────
   const customs = config?.custom_engines ?? [];
