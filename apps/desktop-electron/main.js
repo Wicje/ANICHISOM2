@@ -61,6 +61,9 @@ const OFFLINE_URL = "file://" + OFFLINE_FILE;
 const CRASH_URL = "file://" + CRASH_FILE;
 const isWeb = (u) => !!u && /^https?:\/\//i.test(u);
 const isStartUrl = (u) => u === "continua://start" || u === "continua://home" || !u;
+// macOS overlay scrollbars injected into every web page (mirrors the chrome
+// styling in styles.css — thin floating thumbs, no layout shift).
+const SCROLLBAR_CSS = `::-webkit-scrollbar{width:8px!important;height:8px!important}::-webkit-scrollbar-track{background:transparent!important}::-webkit-scrollbar-thumb{background:rgba(134,134,139,.0)!important;border-radius:4px!important;border:2px solid transparent!important;background-clip:content-box!important}*:hover::-webkit-scrollbar-thumb{background:rgba(134,134,139,.55)!important;background-clip:content-box!important}::-webkit-scrollbar-thumb:hover{background:rgba(134,134,139,.8)!important;background-clip:content-box!important}::-webkit-scrollbar-corner{background:transparent!important}`;
 const resolveUrl = (u) => (isStartUrl(u) ? START_URL : u);
 let CHROME_H = 56;
 // Matches .tab-rail width in styles.css exactly — any drift shows as a
@@ -342,6 +345,11 @@ function makeView(meta) {
   view.webContents.on("did-navigate", (_e, url) => recordNav(url === START_URL ? "continua://start" : url, false));
   view.webContents.on("did-navigate-in-page", (_e, url) => recordNav(url, true));
   view.webContents.on("page-title-updated", (_e, title) => { meta.title = title; pushTabUpdated(meta.label); });
+  view.webContents.on("dom-ready", () => {
+    if (meta.cssInjected) return;
+    meta.cssInjected = true;
+    try { view.webContents.insertCSS(SCROLLBAR_CSS); } catch {}
+  });
   chrome.contentView.addChildView(view);
   // Paint while loading: a view with no bounds may never composite a frame
   // until shown, which reads as "black canvas that takes forever" on heavy
