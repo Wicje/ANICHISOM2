@@ -15,7 +15,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "test": "node --test pool.test.js sync.test.js profiles.test.js groups.test.js",
+    "test": "node --test pool.test.js sync.test.js profiles.test.js groups.test.js logins.test.js shields.test.js containers.test.js vault-sync.test.js translate.test.js keywords.test.js webapps.test.js speech.test.js closed.test.js bookmarks.test.js cookies.test.js snapshots.test.js ax-tree.test.js agent-act.test.js debrief.test.js",
     "dist": "electron-builder --publish never",
     "dist:linux": "electron-builder --linux --publish never",
     "dist:win": "electron-builder --win --publish never",
@@ -32,15 +32,37 @@
   "build": {
     "appId": "app.continua.browser",
     "productName": "Continua",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Wicje",
+        "repo": "ANICHISOM2"
+      }
+    ],
     "files": [
       "main.js",
       "preload.js",
+      "content-preload.js",
       "studio-preload.js",
       "store.js",
       "store-sqlite.js",
       "profiles.js",
       "pool.js",
       "sync.js",
+      "containers.js",
+      "vault-sync.js",
+      "translate.js",
+      "keywords.js",
+      "webapps.js",
+      "speech.js",
+      "closed.js",
+      "bookmarks.js",
+      "cookies.js",
+      "snapshots.js",
+      "ax-tree.js",
+      "agent-act.js",
+      "debrief.js",
+      "mcp-browser.mjs",
       "start-page.html",
       "offline.html",
       "crash.html",

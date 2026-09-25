@@ -30,6 +30,7 @@ export function FindBar({ open, activeLabel, onClose }: FindBarProps) {
     else {
       setCount(0);
       setIdx(-1);
+      if (!query && activeLabel) void api.stopFind(activeLabel);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeLabel, query]);
@@ -61,6 +62,11 @@ export function FindBar({ open, activeLabel, onClose }: FindBarProps) {
         ? "No matches"
         : "";
 
+  const close = () => {
+    if (activeLabel) void api.stopFind(activeLabel);
+    onClose();
+  };
+
   const onKey = (e: ReactKeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -68,7 +74,7 @@ export function FindBar({ open, activeLabel, onClose }: FindBarProps) {
       else void run(1);
     } else if (e.key === "Escape") {
       e.preventDefault();
-      onClose();
+      close();
     }
   };
 
@@ -103,7 +109,7 @@ export function FindBar({ open, activeLabel, onClose }: FindBarProps) {
         >
           <IconForward size={14} />
         </button>
-        <button className="findbar-btn findbar-close" title="Close (Esc)" onClick={onClose}>
+        <button className="findbar-btn findbar-close" title="Close (Esc)" onClick={close}>
           <IconClose size={13} />
         </button>
       </div>

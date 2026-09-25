@@ -98,6 +98,41 @@ export default function App() {
     });
   }, [patch]);
 
+  // Host-forked tabs (link click → new tab, window.open popup): the host
+  // opened these outside any chrome call, so adopt them into the strip and
+  // follow focus. Deduped by label — our own openTab responses race this.
+  useEffect(() => {
+    if (!isElectron()) return;
+    const offCreated = api.onTabCreated((info) => {
+      if (!info?.label) return;
+      setTabs((prev) => {
+        if (prev.some((t) => t.label === info.label)) return prev;
+        return [...prev, {
+          label: info.label,
+          url: info.url,
+          title: info.title || displayTitle(info.url),
+          incognito: info.incognito,
+          pinned: info.pinned,
+          group: info.group ?? undefined,
+          container: info.container ?? undefined,
+        }];
+      });
+      if (info.active) setActiveLabel(info.label);
+    });
+    const offClosed = api.onTabClosed((info) => {
+      if (!info?.label) return;
+      // Always drop the dead label (host-driven closes like download-stub
+      // auto-close have no chrome-side removal). Only follow the host's
+      // successor when it was OUR active tab that died — a background close
+      // must never steal focus.
+      setTabs((prev) => prev.filter((t) => t.label !== info.label));
+      setActiveLabel((cur) => (cur === info.label ? (info.active ?? null) : cur));
+    });
+    return () => {
+      offCreated();
+      offClosed();
+    };
+  }, [setTabs]);
   // Track real in-page navigations from Rust (tab:navigated), coalesced.
   useEffect(() => {
     if (!isTauriNative()) return;
@@ -143,16 +178,17 @@ export default function App() {
 
   const openTab = async (url: string, focus = true) => {
     const label = await api.openTab(url);
-    setTabs((prev) => [...prev, { label, url, title: displayTitle(url) }]);
+    // Dedupe: the host also pushes tab-created for this birth, which may
+    // arrive before this invoke resolves (link-fork race).
+    setTabs((prev) => (prev.some((t) => t.label === label) ? prev : [...prev, { label, url, title: displayTitle(url) }]));
     if (focus) setActiveLabel(label);
   };
 
   const openIncognito = async (url: string, focus = true) => {
     const label = await api.openIncognitoTab(url);
-    setTabs((prev) => [
-      ...prev,
-      { label, url, title: displayTitle(url), incognito: true },
-    ]);
+    setTabs((prev) => (prev.some((t) => t.label === label)
+      ? prev
+      : [...prev, { label, url, title: displayTitle(url), incognito: true }]));
     if (focus) setActiveLabel(label);
   };
 
@@ -185,7 +221,7 @@ export default function App() {
   const reopenLastClosed = async () => {
     const restarted = await api.reopenLastClosed();
     if (restarted) {
-      setTabs((prev) => [...prev, restarted]);
+      setTabs((prev) => (prev.some((t) => t.label === restarted.label) ? prev : [...prev, restarted]));
       setActiveLabel(restarted.label);
     }
   };
@@ -233,6 +269,13 @@ export default function App() {
   const setGroup = (label: string, group: string | null) => {
     setTabs((prev) => prev.map((t) => (t.label === label ? { ...t, group: group ?? undefined } : t)));
     void api.setTabGroup(label, group);
+  };
+
+  // Container identity (H6): switching partitions rehydrates host-side, so we
+  // just mirror the id (or drop it) in chrome state for the tab-strip dot.
+  const setContainer = (label: string, container: string | null) => {
+    setTabs((prev) => prev.map((t) => (t.label === label ? { ...t, container: container ?? undefined } : t)));
+    void api.setTabContainer(label, container);
   };
 
   // Encrypt (or release) the active tab: the keyring manifest is mirrored
@@ -343,6 +386,7 @@ export default function App() {
         onReorder={reorderTabs}
         onTogglePin={togglePin}
         onSetGroup={setGroup}
+        onSetContainer={setContainer}
         onCloseOthers={closeOthers}
         onRestore={restoreLastSession}
         onSave={saveNow}

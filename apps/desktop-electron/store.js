@@ -81,6 +81,24 @@ class Store {
     const s = this.state.snapshots.find(x => x.id === id);
     return s ? s.tabs : null;
   }
+  // — named snapshots (medium: snapshot manager). Records keep the store's
+  // snapshot shape plus `name`; auto-snapshots stay nameless (null name).
+  saveNamedSnapshot(rec) {
+    if (!rec || typeof rec.id !== "string") return;
+    const list = this.state.snapshots.filter(s => s && s.id !== rec.id);
+    list.push(rec);
+    if (list.length > MAX_SNAPSHOTS) list.splice(0, list.length - MAX_SNAPSHOTS);
+    this.state.snapshots = list;
+    this._saveSoon();
+  }
+  listNamedSnapshots() {
+    return this.state.snapshots.slice();
+  }
+  deleteNamedSnapshot(id) {
+    const before = this.state.snapshots.length;
+    this.state.snapshots = this.state.snapshots.filter(s => s && s.id !== id);
+    if (this.state.snapshots.length !== before) this._saveSoon();
+  }
 
   // — history (FTS via substring, SQLite FTS later) —
   appendHistory(url, title) {
@@ -96,6 +114,28 @@ class Store {
     return this.state.history.filter(h => h.url.toLowerCase().includes(t) || (h.title || "").toLowerCase().includes(t)).slice(0, 50);
   }
   clearHistory() { this.state.history = []; this._saveSoon(); }
+  // — reading list (read-later) —
+  getReading() { return Array.isArray(this.state.reading) ? this.state.reading : []; }
+  addReading(url, title) {
+    if (!url || !/^https?:/i.test(url)) return this.getReading();
+    const list = this.getReading().filter(r => r.url !== url);
+    list.unshift({ url, title: title || url, addedAt: Date.now(), read: false });
+    if (list.length > 500) list.length = 500;
+    this.state.reading = list; this._saveSoon(); return list;
+  }
+  removeReading(url) { this.state.reading = this.getReading().filter(r => r.url !== url); this._saveSoon(); return this.getReading(); }
+  markReading(url, read) { const it = this.getReading().find(r => r.url === url); if (it) it.read = !!read; this._saveSoon(); return this.getReading(); }
+  // Drop every visit whose origin exactly matches (used by Forget-this-site).
+  removeOriginHistory(origin) {
+    if (!origin) return 0;
+    const before = this.state.history.length;
+    this.state.history = this.state.history.filter(h => {
+      try { return new URL(h.url).origin !== origin; } catch { return true; }
+    });
+    const n = before - this.state.history.length;
+    if (n) this._saveSoon();
+    return n;
+  }
 
   // — bookmarks —
   getBookmarks() { return this.state.bookmarks; }
@@ -104,6 +144,18 @@ class Store {
     this._saveSoon(); return this.state.bookmarks;
   }
   removeBookmark(url) { this.state.bookmarks = this.state.bookmarks.filter(b => b.url !== url); this._saveSoon(); return this.state.bookmarks; }
+  updateBookmark(url, label) {
+    const b = this.state.bookmarks.find(x => x.url === url);
+    if (b) { b.label = label; this._saveSoon(); }
+    return b || null;
+  }
+  deleteHistoryUrl(url) {
+    const before = this.state.history.length;
+    this.state.history = this.state.history.filter(h => h.url !== url);
+    const n = before - this.state.history.length;
+    if (n) this._saveSoon();
+    return n;
+  }
 
   // — config —
   getConfig() { return { ...this.state.config, bookmarks: this.state.bookmarks, history: this.state.history.slice(0, 300) }; }

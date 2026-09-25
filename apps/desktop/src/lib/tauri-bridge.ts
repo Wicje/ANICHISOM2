@@ -14,8 +14,19 @@ declare global {
       invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
       onStudio?: (cb: (on: boolean) => void) => () => void;
       onTabUpdated?: (cb: (info: { label: string; url: string; title: string }) => void) => () => void;
+      onTabCreated?: (cb: (info: { label: string; url: string; title: string; incognito?: boolean; pinned?: boolean; group?: string | null; active?: boolean }) => void) => () => void;
+      onTabClosed?: (cb: (info: { label: string; active?: string | null }) => void) => () => void;
+      onLoginPrompt?: (cb: (info: { label: string; origin: string; username: string; update?: boolean }) => void) => () => void;
+      onLoginAvailable?: (cb: (info: { label: string; origin: string; count: number }) => void) => () => void;
+      onAddressPrompt?: (cb: (info: { label: string; origin: string; name?: string; email?: string }) => void) => () => void;
+      onTabdropReceived?: (cb: (info: { label: string; url: string; title: string; from?: string | null }) => void) => () => void;
       onPortal?: (cb: (info: { url: string }) => void) => () => void;
       onDownload?: (cb: (info: { id: string; filename: string; state: string; path?: string }) => void) => () => void;
+      onChromeCommand?: (cb: (cmd: string) => void) => () => void;
+      onUpdate?: (cb: (info: { state: string; version?: string }) => void) => () => void;
+      onLoadFinished?: (cb: (info: { label: string }) => void) => () => void;
+      onLoadStarted?: (cb: (info: { label: string }) => void) => () => void;
+      onLoadStopped?: (cb: (info: { label: string }) => void) => () => void;
     };
   }
 }
@@ -109,6 +120,8 @@ export interface RestoredTab {
   pinned?: boolean;
   /** Tab group id; resolved against the group registry for name/color. */
   group?: string | null;
+  /** Container identity id (H6); null/absent = the default (profile) identity. */
+  container?: string | null;
 }
 
 /** A named tab group with its Apple-safe color. */
@@ -151,12 +164,119 @@ export interface DeviceInfo {
   capabilities: Record<string, boolean>;
 }
 
+// ---------- H6 + mediums: containers, closed ring, keywords, cookies, apps,
+// task manager, named snapshots, managers (typed IPC surface) ----------
+
+/** Firefox-style contextual identity (owns one persistent partition). */
+export interface Container {
+  id: string;
+  name: string;
+  color: string;
+}
+
+/** One recently-closed ring entry (index = reopen target). */
+export interface ClosedRow {
+  index: number;
+  url: string;
+  title: string;
+  container?: string | null;
+  at: number;
+}
+
+/** A search keyword (`d cats`, `w Electron`) routing to an engine or URL. */
+export interface KeywordRow {
+  key: string;
+  name: string;
+  url?: string;
+  engine?: string;
+}
+
+/** One cookie of the active profile's session (per-site viewer). */
+export interface CookieRow {
+  name: string;
+  value: string;
+  domain: string;
+  path: string;
+  secure: boolean;
+  httpOnly: boolean;
+  session: boolean;
+  expirationDate: number | null;
+}
+
+/** A site installed as a standalone app window. */
+export interface InstalledApp {
+  id: string;
+  url: string;
+  name: string;
+  /** Site-declared icon (apple-touch-icon / manifest pick, else favicon.ico). */
+  icon?: string | null;
+  addedAt: number;
+}
+
+/** One task-manager tab row. */
+export interface TaskRow {
+  label: string;
+  url: string;
+  title: string;
+  discarded: boolean;
+  audible: boolean;
+  pid: number | null;
+  mb: number | null;
+  cpu: number | null;
+}
+
+/** Task-manager reply (tab rows + process aggregate). */
+export interface TaskManagerInfo {
+  tabs: TaskRow[];
+  rssMb: number;
+  gpu: Record<string, unknown>;
+}
+
+/** A named session snapshot (name null = auto-snapshot). */
+export interface SnapshotRow {
+  id: string;
+  name: string | null;
+  saved_at: number;
+  tabs: TabRecord[];
+}
+
+/** H7 E2E sync-key status. */
+export interface SyncKeyStatus {
+  configured: boolean;
+  available: boolean;
+}
+
 /** One entry in the recent-visits history ring (newest first). */
 export interface HistoryItem {
   url: string;
   title: string;
   /** Unix seconds since epoch. */
   at: number;
+}
+
+/** One read-later entry (newest first). */
+export interface ReadingItem {
+  url: string;
+  title: string;
+  /** Epoch millis. */
+  addedAt: number;
+  read: boolean;
+}
+
+/** One decrypted address profile (settings display + fill only). */
+export interface AddressProfile {
+  id: string;
+  name?: string;
+  email?: string;
+  tel?: string;
+  street?: string;
+  city?: string;
+  region?: string;
+  zip?: string;
+  country?: string;
+  org?: string;
+  addedAt?: number;
+  usedAt?: number;
 }
 
 /** A saved bookmark from the config store. */
@@ -187,8 +307,14 @@ export interface BrowserConfigItem {
   active_workspace?: string;
   /** Vertical tab rail pinned on (otherwise auto on overflow). */
   vertical_tabs?: boolean;
+  /** User search keywords (`d cats`) — config.search_keywords. */
+  search_keywords?: KeywordRow[];
+  /** Optional translate endpoint (H8) — only hit on explicit requests. */
+  translate_endpoint?: string;
   /** Named tab-group registry (synced). */
   tab_groups?: TabGroup[];
+  /** Container identities (H6) — each owns a persistent partition. */
+  containers?: Container[];
   /** Active theme id (gallery builtin or custom). Synced per profile. */
   theme_id?: string;
   /** User theme packs. */
@@ -211,8 +337,14 @@ export interface BrowserConfigItem {
   collapsed_groups?: string[];
   /** Tracker/ad shields (on-device list, default on). */
   shields?: boolean;
+  /** HTTPS-Only: upgrade http navigations to https (default off). */
+  https_only?: boolean;
   /** Ask where to save each download (default: auto-save to Downloads). */
   download_ask?: boolean;
+  /** Reveal finished downloads in the file manager. */
+  download_reveal?: boolean;
+  /** Remembered per-site permission decisions (origin -> permission -> allow). */
+  site_permissions?: Record<string, Record<string, boolean>>;
 }
 
 /** A user-defined search engine (`{q}` = query placeholder). */
@@ -259,7 +391,14 @@ export interface ConfigPatch {
   auto_group_site?: boolean;
   collapsed_groups?: string[];
   shields?: boolean;
+  https_only?: boolean;
   download_ask?: boolean;
+  download_reveal?: boolean;
+  site_permissions?: Record<string, Record<string, boolean>>;
+  /** User search keywords (`d cats`) configured in Settings. */
+  search_keywords?: KeywordRow[];
+  /** Optional HTTP endpoint used only when the user asks to translate. */
+  translate_endpoint?: string;
 }
 
 /** Search URL for a query under the given engine id (customs supported). */
@@ -384,8 +523,8 @@ export const api = {
   activateTab: (label: string) =>
     invoke<void>("activate_tab", { label }).catch(() => undefined),
 
-  reloadTab: (label: string) =>
-    invoke<void>("reload_tab", { label }).catch(() => undefined),
+  reloadTab: (label: string, force?: boolean) =>
+    invoke<void>("reload_tab", { label, force: !!force }).catch(() => undefined),
 
   backTab: (label: string) =>
     invoke<void>("back_tab", { label }).catch(() => undefined),
@@ -531,6 +670,19 @@ export const api = {
   getHistory: () =>
     invoke<HistoryItem[]>("get_history").catch(() => []),
 
+  /** Read-later list (Pocket-style, per profile). */
+  listReading: () =>
+    invoke<ReadingItem[]>("list_reading").catch(() => []),
+
+  addReading: (url: string, title?: string) =>
+    invoke<ReadingItem[]>("add_reading", { url, title: title ?? null }).catch(() => []),
+
+  removeReading: (url: string) =>
+    invoke<ReadingItem[]>("remove_reading", { url }).catch(() => []),
+
+  markReading: (url: string, read: boolean) =>
+    invoke<ReadingItem[]>("mark_reading", { url, read }).catch(() => []),
+
   clearHistory: () =>
     invoke<void>("clear_history").catch(() => undefined),
 
@@ -664,6 +816,80 @@ export const api = {
     return () => undefined;
   },
 
+  /** Host-initiated tab births (link fork, window.open popup) — the chrome
+   * never called openTab for these, so adopt them into the strip here. */
+  onTabCreated: (cb: (info: { label: string; url: string; title: string; incognito?: boolean; pinned?: boolean; group?: string | null; container?: string | null; active?: boolean }) => void): (() => void) => {
+    try {
+      const un = window.continuaBridge?.onTabCreated?.(cb);
+      if (typeof un === "function") return un;
+    } catch {}
+    return () => undefined;
+  },
+
+  /** Host-initiated tab deaths (download-stub auto-close). */
+  onTabClosed: (cb: (info: { label: string; active?: string | null }) => void): (() => void) => {
+    try {
+      const un = window.continuaBridge?.onTabClosed?.(cb);
+      if (typeof un === "function") return un;
+    } catch {}
+    return () => undefined;
+  },
+
+  /** Save-password prompt for a submitted login form (origin+username only). */
+  onLoginPrompt: (cb: (info: { label: string; origin: string; username: string; update?: boolean }) => void): (() => void) => {
+    try {
+      const un = window.continuaBridge?.onLoginPrompt?.(cb);
+      if (typeof un === "function") return un;
+    } catch {}
+    return () => undefined;
+  },
+
+  /** Sealed-login availability per tab (drives the fill key icon). */
+  onLoginAvailable: (cb: (info: { label: string; origin: string; count: number }) => void): (() => void) => {
+    try {
+      const un = window.continuaBridge?.onLoginAvailable?.(cb);
+      if (typeof un === "function") return un;
+    } catch {}
+    return () => undefined;
+  },
+
+  /** Queue the active tab for paired devices (sync outbox). */
+  sendTab: (label?: string) =>
+    invoke<{ ok?: boolean; id?: string; error?: string }>("send_tab", { label: label ?? null }).catch(() => ({ error: "unavailable" })),
+
+  /** Tabs pushed by a paired device ("send to device"). */
+  onTabdropReceived: (cb: (info: { label: string; url: string; title: string; from?: string | null }) => void): (() => void) => {
+    try {
+      const un = window.continuaBridge?.onTabdropReceived?.(cb);
+      if (typeof un === "function") return un;
+    } catch {}
+    return () => undefined;
+  },
+
+  /** Address save-prompt (origin + name/email preview only). */
+  onAddressPrompt: (cb: (info: { label: string; origin: string; name?: string; email?: string }) => void): (() => void) => {
+    try {
+      const un = window.continuaBridge?.onAddressPrompt?.(cb);
+      if (typeof un === "function") return un;
+    } catch {}
+    return () => undefined;
+  },
+
+  /** Answer the address save-prompt (save = seal into the OS keyring). */
+  saveAddressDecision: (label: string, decision: "save" | "dismiss" | "never") =>
+    invoke<{ ok?: boolean; saved?: boolean; error?: string }>("save_address_decision", { label, decision }).catch(() => ({ error: "unavailable" })),
+
+  listAddresses: () =>
+    invoke<AddressProfile[] | { error: string }>("list_addresses").catch(() => ({ error: "unavailable" })),
+
+  addAddress: (fields: Record<string, string>) =>
+    invoke<{ id?: string; error?: string }>("add_address", { fields }).catch(() => ({ error: "unavailable" })),
+
+  removeAddress: (id: string) =>
+    invoke<boolean>("remove_address", { id }).catch(() => false),
+
+  fillAddress: (label?: string, id?: string) =>
+    invoke<{ ok?: boolean; filled?: number; error?: string }>("fill_address", { label: label ?? null, id: id ?? null }).catch(() => ({ error: "unavailable" })),
   /** Captive portal login pages pushed by the host's own detector. */
   onPortal: (cb: (info: { url: string }) => void): (() => void) => {
     try {
@@ -682,6 +908,66 @@ export const api = {
     return () => undefined;
   },
 
+  /** Browser-accelerator commands from in-page keystrokes (Electron host). */
+  onChromeCommand: (cb: (cmd: string) => void): (() => void) => {
+    try {
+      const un = window.continuaBridge?.onChromeCommand?.(cb);
+      if (typeof un === "function") return un;
+    } catch {}
+    return () => undefined;
+  },
+
+  stopFind: (label: string) =>
+    invoke<void>("stop_find", { label }).catch(() => undefined),
+
+  /** App-update lifecycle pushes (Electron host, when published releases exist). */
+  onUpdate: (cb: (info: { state: string; version?: string }) => void): (() => void) => {
+    try {
+      const un = window.continuaBridge?.onUpdate?.(cb);
+      if (typeof un === "function") return un;
+    } catch {}
+    return () => undefined;
+  },
+
+  quitAndInstall: () =>
+    invoke<void>("quit_and_install").catch(() => undefined),
+
+  /** Main-frame load completion per tab (completes the progress line). */
+  onLoadFinished: (cb: (info: { label: string }) => void): (() => void) => {
+    try {
+      const un = window.continuaBridge?.onLoadFinished?.(cb);
+      if (typeof un === "function") return un;
+    } catch {}
+    return () => undefined;
+  },
+
+  /** Loading state per tab (starts/stops the progress line for every load). */
+  onLoadStarted: (cb: (info: { label: string }) => void): (() => void) => {
+    try {
+      const un = window.continuaBridge?.onLoadStarted?.(cb);
+      if (typeof un === "function") return un;
+    } catch {}
+    return () => undefined;
+  },
+
+  onLoadStopped: (cb: (info: { label: string }) => void): (() => void) => {
+    try {
+      const un = window.continuaBridge?.onLoadStopped?.(cb);
+      if (typeof un === "function") return un;
+    } catch {}
+    return () => undefined;
+  },
+
+  checkUpdates: () =>
+    invoke<{ ok?: boolean }>("check_updates").catch(() => ({ ok: false })),
+
+  clearBrowsingData: (which: { history?: boolean; cache?: boolean; cookies?: boolean; storage?: boolean }) =>
+    invoke<Record<string, boolean>>("clear_browsing_data", { which }).catch(() => ({})),
+
+  /** Firefox-style wipe for one origin (tabs, cookies, storage, history). */
+  forgetSite: (label?: string) =>
+    invoke<{ origin?: string; closed?: number; history?: number; cookies?: number; error?: string; dismissed?: boolean }>("forget_site", { label: label ?? null }).catch(() => ({ error: "unavailable" })),
+
   toggleDevTools: () =>
     invoke<void>("toggle_devtools").catch(() => undefined),
 
@@ -699,6 +985,21 @@ export const api = {
 
   fillLogin: (id?: string, label?: string) =>
     invoke<{ ok?: boolean; error?: string; detail?: string }>("fill_login", { id: id ?? null, label: label ?? null }).catch(() => ({ error: "unavailable" })),
+
+  /** Answer the save-password prompt (save = seal into the OS keyring). */
+  saveLoginDecision: (label: string, decision: "save" | "dismiss" | "never") =>
+    invoke<{ ok?: boolean; saved?: boolean; error?: string }>("save_login_decision", { label, decision }).catch(() => ({ error: "unavailable" })),
+
+  /** Saved-login count for one tab's origin (drives the fill key icon). */
+  loginCount: (label: string) =>
+    invoke<{ origin: string | null; count: number }>("login_count", { label }).catch(() => ({ origin: null, count: 0 })),
+
+  /** Origins muted with "never for this site". */
+  loginNeverList: () =>
+    invoke<string[]>("login_never_list").catch(() => []),
+
+  loginNeverRemove: (origin: string) =>
+    invoke<string[]>("login_never_remove", { origin }).catch(() => []),
 
   setTabGroup: (label: string, group: string | null) =>
     invoke<string | null>("set_tab_group", { label, group }).catch(() => null),
@@ -757,6 +1058,116 @@ export const api = {
 
   setProfileTheme: (id: string, themeId: string | null) =>
     invoke<ProfileState>("set_profile_theme", { id, themeId: themeId ?? null }).catch(() => ({ activeId: "", profiles: [], error: "unavailable" })),
+
+  // ---------- H6: containers ----------
+  listContainers: () =>
+    invoke<Container[]>("list_containers").catch(() => []),
+  createContainer: (name: string) =>
+    invoke<Container | { error: string }>("create_container", { name }).catch(() => ({ error: "unavailable" })),
+  renameContainer: (id: string, name: string) =>
+    invoke<Container | { error: string }>("rename_container", { id, name }).catch(() => ({ error: "unavailable" })),
+  deleteContainer: (id: string) =>
+    invoke<Container[]>("delete_container", { id }).catch(() => []),
+  openContainerTab: (container: string, url?: string) =>
+    invoke<string | { error: string }>("open_container_tab", { container, url: url ?? null }).catch(() => ({ error: "unavailable" })),
+  setTabContainer: (label: string, container: string | null) =>
+    invoke<{ container?: string | null; error?: string }>("set_tab_container", { label, container }).catch(() => ({ error: "unavailable" })),
+
+  // ---------- medium: tab search / closed ring ----------
+  searchTabs: (query: string) =>
+    invoke<OpenTab[]>("search_tabs", { query }).catch(() => []),
+  listClosed: () =>
+    invoke<ClosedRow[]>("list_closed").catch(() => []),
+  reopenClosed: (index: number) =>
+    invoke<RestoredTab | null>("reopen_closed", { index }).catch(() => null),
+  clearClosed: () =>
+    invoke<ClosedRow[]>("clear_closed").catch(() => []),
+
+  // ---------- medium: search keywords ----------
+  listKeywords: () =>
+    invoke<KeywordRow[]>("list_keywords").catch(() => []),
+  addKeyword: (key: string, name: string | null, target: { url?: string; engine?: string }) =>
+    invoke<KeywordRow[] | { error?: string }>("add_keyword", { key, name, url: target.url ?? null, engine: target.engine ?? null }).catch(() => ({ error: "unavailable" })),
+  removeKeyword: (key: string) =>
+    invoke<KeywordRow[]>("remove_keyword", { key }).catch(() => []),
+
+  // ---------- medium: per-site cookies ----------
+  listCookies: (origin: string) =>
+    invoke<{ origin?: string; cookies: CookieRow[] } | { error: string }>("list_cookies", { origin }).catch(() => ({ cookies: [] } as { cookies: CookieRow[] })),
+  removeCookie: (origin: string, name: string) =>
+    invoke<{ removed?: number; error?: string }>("remove_cookie", { origin, name }).catch(() => ({ error: "unavailable" })),
+  clearCookies: (origin: string) =>
+    invoke<{ origin?: string; removed?: number; error?: string }>("clear_cookies", { origin }).catch(() => ({ error: "unavailable" })),
+
+  // ---------- medium: installed web apps ----------
+  listApps: () =>
+    invoke<InstalledApp[]>("list_apps").catch(() => []),
+  installApp: (url: string, name?: string, icon?: string) =>
+    invoke<InstalledApp | { error: string }>("install_app", { url, name: name ?? null, icon: icon ?? null }).catch(() => ({ error: "unavailable" })),
+  openApp: (id: string) =>
+    invoke<{ ok?: boolean; error?: string }>("open_app", { id }).catch(() => ({ error: "unavailable" })),
+  removeApp: (id: string) =>
+    invoke<{ removed?: boolean; error?: string }>("remove_app", { id }).catch(() => ({ error: "unavailable" })),
+
+  // ---------- agent track: see / work / live ----------
+  observeTab: (label?: string) =>
+    invoke<{ tab?: { label?: string; url?: string; title?: string }; summary?: Record<string, unknown>; index?: Array<Record<string, unknown>>; truncated?: boolean; error?: string }>("observe_tab", { label: label ?? null }).catch(() => ({ error: "unavailable" })),
+  agentAct: (opts: { verb: string; id?: string; value?: string; approved?: boolean; auto?: boolean; label?: string }) =>
+    invoke<{ ok?: boolean; needsApproval?: boolean; approved?: boolean; result?: unknown; tier?: string; reason?: string; error?: string }>("agent_act", { ...opts }).catch(() => ({ error: "unavailable" })),
+  debriefSession: (mode?: string) =>
+    invoke<{ headline?: string; summary?: Record<string, unknown>; actionItems?: Array<Record<string, unknown>>; since?: string | null; error?: string }>("debrief_session", { mode: mode ?? null }).catch(() => ({ error: "unavailable" })),
+  agentTimelineClear: () =>
+    invoke<{ ok?: boolean }>("agent_timeline_clear").catch(() => ({ ok: true })),
+
+  // ---------- medium: full-page screenshot + read-aloud ----------
+  screenshotFull: (label?: string) =>
+    invoke<{ path?: string; error?: string }>("screenshot_full", { label: label ?? null }).catch(() => ({ error: "unavailable" })),
+  readAloud: (label?: string, action?: string, rate?: number | null) =>
+    invoke<{ state?: string; chunks?: number; truncated?: boolean; error?: string }>("read_aloud", { label: label ?? null, action: action ?? "speak", rate: rate ?? null }).catch(() => ({ error: "unavailable" })),
+  readAloudStop: () =>
+    invoke<{ state?: string }>("read_aloud_stop").catch(() => ({ state: "stopped" })),
+  readPageText: (label?: string, max?: number) =>
+    invoke<{ text?: string; url?: string; lang?: string; error?: string }>("read_page_text", { label: label ?? null, max: max ?? 20000 }).catch(() => ({ error: "unavailable" })),
+
+  // ---------- H8: detect + translate (endpoint-gated, never automatic) ----------
+  detectLanguage: (label?: string, uiLocale?: string) =>
+    invoke<{ lang?: string; offer?: boolean; error?: string }>("detect_language", { label: label ?? null, uiLocale: uiLocale ?? null }).catch(() => ({ error: "unavailable" })),
+  translateText: (text: string, source?: string, target?: string) =>
+    invoke<{ text?: string; error?: string; hint?: string }>("translate_text", { text, source: source ?? null, target: target ?? null }).catch(() => ({ error: "unavailable" })),
+
+  // ---------- medium: task manager ----------
+  taskManager: () =>
+    invoke<TaskManagerInfo>("task_manager").catch(() => ({ tabs: [], rssMb: 0, gpu: {} })),
+
+  // ---------- medium: named snapshots ----------
+  saveSnapshot: (name?: string) =>
+    invoke<{ id?: string; name?: string; error?: string }>("save_snapshot", { name: name ?? null }).catch(() => ({ error: "unavailable" })),
+  listSnapshots: () =>
+    invoke<SnapshotRow[]>("list_snapshots").catch(() => []),
+  restoreSnapshot: (id: string, replace?: boolean) =>
+    invoke<RestoredTab[] | { error: string }>("restore_snapshot", { id, replace: replace ?? false }).catch(() => ({ error: "unavailable" })),
+  deleteSnapshot: (id: string) =>
+    invoke<SnapshotRow[] | { error: string }>("delete_snapshot", { id }).catch(() => []),
+
+  // ---------- medium: bookmark / history managers ----------
+  searchBookmarks: (query?: string, limit?: number) =>
+    invoke<Bookmark[]>("search_bookmarks", { query: query ?? "", limit: limit ?? 50 }).catch(() => []),
+  renameBookmark: (url: string, title: string) =>
+    invoke<Bookmark[] | { error: string }>("rename_bookmark", { url, title }).catch(() => ({ error: "unavailable" })),
+  searchHistory: (query?: string, limit?: number) =>
+    invoke<HistoryItem[]>("search_history", { query: query ?? "", limit: limit ?? 50 }).catch(() => []),
+  deleteHistoryUrl: (url: string) =>
+    invoke<{ removed?: number; error?: string }>("delete_history_url", { url }).catch(() => ({ error: "unavailable" })),
+
+  // ---------- H7: E2E-encrypted password sync (sync key lifecycle) ----------
+  syncKeyStatus: () =>
+    invoke<SyncKeyStatus>("sync_key_status").catch(() => ({ configured: false, available: false })),
+  syncKeyCreate: () =>
+    invoke<{ ok?: boolean; key?: string; error?: string }>("sync_key_create").catch(() => ({ error: "unavailable" })),
+  syncKeyShow: () =>
+    invoke<{ key?: string; error?: string }>("sync_key_show").catch(() => ({ error: "unavailable" })),
+  syncKeyImport: (key: string) =>
+    invoke<{ ok?: boolean; error?: string }>("sync_key_import", { key }).catch(() => ({ error: "unavailable" })),
 };
 
 /** One download tracked by the native host. */

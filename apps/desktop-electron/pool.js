@@ -25,4 +25,46 @@ function pickVictims(entries, focused, opts = {}) {
   return live.slice(0, want).map(([lab]) => lab);
 }
 
-module.exports = { pickVictims };
+/**
+ * Back/forward stack update for one committed navigation — pure logic,
+ * unit-tested (no Electron imports).
+ *
+ * did-navigate / did-navigate-in-page is ground truth for what the view is
+ * showing: host metadata must follow it. In particular a committed URL that
+ * matches neither the pending programmatic target nor a redirect chain
+ * (client-side redirect, or a stale pending flag whose load died) must be
+ * recorded as a NEW entry — dropping it desyncs meta.url from the history
+ * stack, and a later discard+rehydrate resurrects the stale entry (the
+ * "leave a tab, come back, it's back to search" report).
+ *
+ * @param history current stack, idx current position
+ * @param url committed URL (already filtered: no interstitials/internals)
+ * @param flags {expectNav, inPage, redirected} — pending programmatic target,
+ *   whether this is a same-document nav, whether will-redirect fired recently
+ * @returns {history, idx, mode} — new stack/position (inputs never mutated);
+ *   mode is "match" | "redirect" | "inpage" | "append" | "same"
+ */
+function applyNavEntry(history, idx, url, flags = {}) {
+  const { expectNav = null, inPage = false, redirected = false } = flags;
+  const hist = Array.isArray(history) ? history.slice() : [];
+  let i = Math.max(0, Math.min(idx || 0, Math.max(0, hist.length - 1)));
+  if (expectNav) {
+    if (expectNav === url || inPage) {
+      hist[i] = url;
+      return { history: hist, idx: i, mode: inPage && expectNav !== url ? "inpage" : "match" };
+    }
+    if (!inPage && redirected) {
+      hist[i] = url;
+      return { history: hist, idx: i, mode: "redirect" };
+    }
+    // Unexpected top-level commit: record it, don't drop it (see above).
+    const next = hist.slice(0, i + 1).concat(url);
+    return { history: next, idx: i + 1, mode: "append" };
+  }
+  if (hist[i] !== url) {
+    return { history: hist.slice(0, i + 1).concat(url), idx: i + 1, mode: "append" };
+  }
+  return { history: hist, idx: i, mode: "same" };
+}
+
+module.exports = { pickVictims, applyNavEntry };

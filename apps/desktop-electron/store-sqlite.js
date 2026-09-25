@@ -51,6 +51,7 @@ function create(userDataPath, profileId) {
   try { db.exec("ALTER TABLE tabs ADD COLUMN hist TEXT"); } catch { /* exists on rerun */ }
   try { db.exec("ALTER TABLE tabs ADD COLUMN scrolly REAL DEFAULT 0"); } catch { /* exists on rerun */ }
   try { db.exec("ALTER TABLE tabs ADD COLUMN zoom INTEGER DEFAULT 100"); } catch { /* exists on rerun */ }
+  try { db.exec("ALTER TABLE snapshots ADD COLUMN name TEXT"); } catch { /* exists on rerun */ }
   try { db.exec("CREATE INDEX IF NOT EXISTS idx_history_at ON history(at DESC)"); } catch {}
 
   const get = (k, d = null) => {
@@ -77,6 +78,7 @@ function create(userDataPath, profileId) {
           j.state.bookmarks?.forEach(b => db.prepare("INSERT OR IGNORE INTO bookmarks(url,label,added_at) VALUES(?,?,?)").run(b.url, b.label || b.url, b.added_at || Date.now()));
           Object.entries(j.state.workspaces || {}).forEach(([n, t]) => db.prepare("INSERT OR REPLACE INTO workspaces(name,tabs_json) VALUES(?,?)").run(n, JSON.stringify(t)));
           j.state.snapshots?.slice(-100).forEach(s => db.prepare("INSERT OR REPLACE INTO snapshots(id,saved_at,tabs_json,active) VALUES(?,?,?,?)").run(s.id, s.saved_at, JSON.stringify(s.tabs), s.active || null));
+          if (Array.isArray(j.state.reading) && j.state.reading.length) set("reading_list", JSON.stringify(j.state.reading.slice(0, 500)));
         });
         tx();
       }
@@ -153,6 +155,19 @@ function create(userDataPath, profileId) {
       const r = db.prepare("SELECT tabs_json FROM snapshots WHERE id=?").get(id);
       return r ? JSON.parse(r.tabs_json) : null;
     },
+    saveNamedSnapshot(rec) {
+      if (!rec || typeof rec.id !== "string") return;
+      db.prepare("INSERT INTO snapshots(id,saved_at,tabs_json,active,name) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET saved_at=excluded.saved_at, tabs_json=excluded.tabs_json, active=excluded.active, name=excluded.name")
+        .run(rec.id, rec.saved_at || Date.now(), JSON.stringify(Array.isArray(rec.tabs) ? rec.tabs : []), rec.active || null, typeof rec.name === "string" ? rec.name : null);
+      db.exec("DELETE FROM snapshots WHERE id NOT IN (SELECT id FROM snapshots ORDER BY saved_at DESC LIMIT 100)");
+    },
+    listNamedSnapshots() {
+      return db.prepare("SELECT id,saved_at,tabs_json,active,name FROM snapshots ORDER BY saved_at DESC").all()
+        .map(r => ({ id: r.id, saved_at: r.saved_at, tabs: JSON.parse(r.tabs_json), active: r.active || null, name: r.name || null }));
+    },
+    deleteNamedSnapshot(id) {
+      db.prepare("DELETE FROM snapshots WHERE id=?").run(id);
+    },
     appendHistory(url, title) {
       if (!url || !url.startsWith("http")) return;
       const at = Math.floor(Date.now() / 1000);
@@ -173,6 +188,37 @@ function create(userDataPath, profileId) {
       }
     },
     clearHistory() { db.exec("DELETE FROM history"); try { db.exec("DELETE FROM history_fts"); } catch {} },
+    getReading() { try { const v = JSON.parse(get("reading_list") || "[]"); return Array.isArray(v) ? v : []; } catch { return []; } },
+    addReading(url, title) {
+      if (!url || !/^https?:/i.test(url)) return this.getReading();
+      const list = this.getReading().filter(r => r.url !== url);
+      list.unshift({ url, title: title || url, addedAt: Date.now(), read: false });
+      if (list.length > 500) list.length = 500;
+      try { set("reading_list", JSON.stringify(list)); } catch {}
+      return list;
+    },
+    removeReading(url) {
+      const list = this.getReading().filter(r => r.url !== url);
+      try { set("reading_list", JSON.stringify(list)); } catch {}
+      return list;
+    },
+    markReading(url, read) {
+      const list = this.getReading();
+      const it = list.find(r => r.url === url);
+      if (it) { it.read = !!read; try { set("reading_list", JSON.stringify(list)); } catch {} }
+      return list;
+    },
+    removeOriginHistory(origin) {
+      if (!origin) return 0;
+      try {
+        const cond = "(url = ? OR url LIKE ? ESCAPE '\\' OR url LIKE ? ESCAPE '\\' OR url LIKE ? ESCAPE '\\')";
+        const like = (s) => origin.replace(/[\\%_]/g, (c) => "\\" + c) + s;
+        const params = [origin, like("/%"), like("?%"), like("#%")];
+        const a = db.prepare(`DELETE FROM history WHERE ${cond}`).run(...params);
+        try { db.prepare(`DELETE FROM history_fts WHERE ${cond}`).run(...params); } catch {}
+        return (a && a.changes) || 0;
+      } catch { return 0; }
+    },
     getBookmarks() {
       return db.prepare("SELECT url,label,added_at FROM bookmarks ORDER BY added_at DESC").all()
         .map(r => ({ url: r.url, label: r.label, added_at: r.added_at }));
@@ -182,10 +228,20 @@ function create(userDataPath, profileId) {
       return this.getBookmarks();
     },
     removeBookmark(url) { db.prepare("DELETE FROM bookmarks WHERE url=?").run(url); return this.getBookmarks(); },
+    updateBookmark(url, label) {
+      db.prepare("UPDATE bookmarks SET label=? WHERE url=?").run(String(label || "").slice(0, 200), url);
+      return db.prepare("SELECT url,label,added_at FROM bookmarks WHERE url=?").get(url);
+    },
+    deleteHistoryUrl(url) {
+      const a = db.prepare("DELETE FROM history WHERE url=?").run(url);
+      let f = 0;
+      try { f = db.prepare("DELETE FROM history_fts WHERE url=?").run(url).changes || 0; } catch {}
+      return (a?.changes || 0) + f;
+    },
     getConfig() {
       const c = {};
       try {
-        const rows = db.prepare("SELECT k,v FROM meta WHERE k IN ('search_engine','theme','homepage','autosave_interval','tab_groups','theme_id','custom_themes','custom_engines','toolbar_hidden','density','shortcuts','site_prefs','sleep_after_min','auto_group_site','collapsed_groups','shields','download_ask')").all();
+        const rows = db.prepare("SELECT k,v FROM meta WHERE k IN ('search_engine','theme','homepage','autosave_interval','tab_groups','theme_id','custom_themes','custom_engines','toolbar_hidden','density','shortcuts','site_prefs','sleep_after_min','auto_group_site','collapsed_groups','shields','download_ask','https_only','containers','installed_apps','search_keywords','translate_endpoint')").all();
         rows.forEach(r => { c[r.k] = r.v; });
       } catch {}
       let tabGroups = [];
@@ -202,6 +258,12 @@ function create(userDataPath, profileId) {
       try { sitePrefs = JSON.parse(c.site_prefs || "{}"); } catch {}
       let collapsedGroups = [];
       try { collapsedGroups = JSON.parse(c.collapsed_groups || "[]"); } catch {}
+      let containers = [];
+      try { containers = JSON.parse(c.containers || "[]"); } catch {}
+      let installedApps = [];
+      try { installedApps = JSON.parse(c.installed_apps || "[]"); } catch {}
+      let searchKeywords = [];
+      try { searchKeywords = JSON.parse(c.search_keywords || "[]"); } catch {}
       return {
         search_engine: c.search_engine || "google", theme: c.theme || "dark",
         homepage: c.homepage || "", autosave_interval: Number(c.autosave_interval || 2),
@@ -218,13 +280,18 @@ function create(userDataPath, profileId) {
         auto_group_site: isTrue(c.auto_group_site, false),
         collapsed_groups: Array.isArray(collapsedGroups) ? collapsedGroups : [],
         shields: isTrue(c.shields, true),
+        https_only: isTrue(c.https_only, false),
         download_ask: isTrue(c.download_ask, false),
+        containers: Array.isArray(containers) ? containers : [],
+        installed_apps: Array.isArray(installedApps) ? installedApps : [],
+        search_keywords: Array.isArray(searchKeywords) ? searchKeywords : [],
+        translate_endpoint: typeof c.translate_endpoint === "string" ? c.translate_endpoint : "",
         bookmarks: this.getBookmarks(), history: this.getHistory().slice(0, 300),
       };
     },
     patchConfig(patch) {
       Object.entries(patch || {}).forEach(([k, v]) => {
-        if (["search_engine", "theme", "homepage", "autosave_interval", "vertical_tabs", "tab_groups", "reader_font", "reader_width", "link_preview", "speed_dial", "active_workspace", "theme_id", "custom_themes", "custom_engines", "toolbar_hidden", "density", "shortcuts", "site_prefs", "sleep_after_min", "auto_group_site", "collapsed_groups", "shields", "download_ask"].includes(k))
+        if (["search_engine", "theme", "homepage", "autosave_interval", "vertical_tabs", "tab_groups", "reader_font", "reader_width", "link_preview", "speed_dial", "active_workspace", "theme_id", "custom_themes", "custom_engines", "toolbar_hidden", "density", "shortcuts", "site_prefs", "sleep_after_min", "auto_group_site", "collapsed_groups", "shields", "download_ask", "https_only", "containers", "installed_apps", "search_keywords", "translate_endpoint"].includes(k))
           set(k, typeof v === "object" ? JSON.stringify(v) : v);
       });
       return this.getConfig();
