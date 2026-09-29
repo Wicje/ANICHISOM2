@@ -18,9 +18,9 @@ apps/
                 workspaces, downloads manager, reader, extensions autoload,
                 onboarding. Run it: npm run dev:browser
   desktop/src/  — Shared React chrome UI (used by the product above).
-  shell/        — Sync backend ONLY (Next.js + Supabase): /api/context,
+  shell/        — Sync backend (Next.js + Supabase): /api/context,
                 /api/devices, /api/connect, pairing pages, /download.
-                Web-OS UI deleted (ADR-009). No product UI investment.
+                No product UI investment (ADR-009; see ADR-004 history).
 
 FROZEN (no investment — do not build on these):
   desktop/src-tauri/ — Legacy Tauri WebKitGTK host (Linux-lite fallback).

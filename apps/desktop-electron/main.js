@@ -1456,6 +1456,7 @@ async function checkCaptivePortal() {
 setInterval(checkCaptivePortal, 45000);
 // Also probe shortly after boot (hotel/airport joins happen then).
 setTimeout(checkCaptivePortal, 20000);
+// ---------- profiles (Chrome-style Work ↔ Personal separation) ----------
 function createStoreFor(profileId) {
   try {
     return require("./store-sqlite").createStore(userDataPath, profileId);
