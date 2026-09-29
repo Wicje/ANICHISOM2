@@ -253,6 +253,25 @@ body,
   border-color: var(--accent-soft-2);
 }
 
+/* Download toolbar button: badge counts active downloads. */
+.dl-btn { position: relative; }
+.dl-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  pointer-events: none;
+}
+
 [data-tauri-drag-region] {
   cursor: grab;
 }
@@ -1342,7 +1361,28 @@ body,
 }
 
 .settings-input:focus {
-  border-color: var(--accent-deep);
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* Secondary caption text inside rows (managers panel). */
+.settings-sub {
+  color: var(--text-dim);
+  font-size: 12px;
+  flex: none;
+}
+
+/* Manager panel helper copy (empty states / inline notes). */
+.settings-hint {
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Active tab highlight in the Tab manager rows. */
+.settings-row.is-active {
+  background: var(--accent-soft);
+  border-radius: var(--radius);
 }
 
 .settings-seg {

@@ -62,6 +62,14 @@ export function SettingsPanel({
   const [extDir, setExtDir] = useState("");
   const [loginsAvail, setLoginsAvail] = useState(false);
   const [logins, setLogins] = useState<Array<{ id: string; origin: string; username: string; addedAt: number }>>([]);
+  const [neverList, setNeverList] = useState<string[]>([]);
+  const [addresses, setAddresses] = useState<Array<{ id: string; name?: string; email?: string; tel?: string; street?: string; city?: string; zip?: string }>>([]);
+  const [adName, setAdName] = useState("");
+  const [adEmail, setAdEmail] = useState("");
+  const [adTel, setAdTel] = useState("");
+  const [adStreet, setAdStreet] = useState("");
+  const [adCity, setAdCity] = useState("");
+  const [adZip, setAdZip] = useState("");
   const [lgUrl, setLgUrl] = useState("");
   const [lgUser, setLgUser] = useState("");
   const [lgPass, setLgPass] = useState("");
@@ -72,6 +80,16 @@ export function SettingsPanel({
   const [siteOrigin, setSiteOrigin] = useState("");
   const [siteZoom, setSiteZoom] = useState("100");
   const [chromeFound, setChromeFound] = useState<string | null>(null);
+  // H8: optional translate endpoint (used only on explicit requests).
+  const [trUrl, setTrUrl] = useState("");
+  // Search keywords (`d cats` → custom engine / URL template).
+  const [kwKey, setKwKey] = useState("");
+  const [kwName, setKwName] = useState("");
+  const [kwTarget, setKwTarget] = useState("");
+  // H7: E2E password-sync key lifecycle.
+  const [keyStatus, setKeyStatus] = useState<{ configured: boolean; available: boolean } | null>(null);
+  const [keyReveal, setKeyReveal] = useState<string | null>(null);
+  const [keyImport, setKeyImport] = useState("");
   const csvRef = useRef<HTMLInputElement | null>(null);
   useChromeModal("settings", open);
 
@@ -97,11 +115,18 @@ export function SettingsPanel({
     void api.extensionsDir().then(setExtDir);
     void api.loginStatus().then((s) => setLoginsAvail(!!s.available));
     void api.listLogins().then(setLogins);
+    void api.loginNeverList().then(setNeverList);
+    void api.listAddresses().then((r) => {
+      if (Array.isArray(r)) setAddresses(r);
+    });
+    void api.syncKeyStatus().then(setKeyStatus);
   };
 
   useEffect(() => {
     if (open) {
       setDraft(config?.homepage ?? "");
+      setTrUrl(config?.translate_endpoint ?? "");
+      setKeyReveal(null);
       setSyncMsg(null);
       void api.getContinuaUrl().then(setServerUrl);
       void api.chromeProfileStatus().then((s) => setChromeFound(s?.found ? ((s as { path?: string }).path ?? "found") : null));
@@ -350,6 +375,44 @@ export function SettingsPanel({
             </div>
           </Row>
 
+          <Row label="Search keywords">
+            <div className="settings-stack">
+              <div className="settings-sync">
+                <input className="settings-input" value={kwKey} placeholder="Key (e.g. gh)" style={{ maxWidth: 90 }} onChange={(e) => setKwKey(e.target.value.toLowerCase())} spellCheck={false} />
+                <input className="settings-input" value={kwName} placeholder="Name (optional)" style={{ maxWidth: 130 }} onChange={(e) => setKwName(e.target.value)} spellCheck={false} />
+                <input className="settings-input" value={kwTarget} placeholder="https://…?q={q} or engine id" onChange={(e) => setKwTarget(e.target.value)} spellCheck={false} />
+                <button className="settings-btn" onClick={() => {
+                  const k = kwKey.trim();
+                  const t = kwTarget.trim();
+                  if (!k || !t) { setSyncMsg("Keyword needs a key plus a URL with {q} or an engine id."); return; }
+                  void api.addKeyword(k, kwName.trim() || null, t.includes("{q}") ? { url: t } : { engine: t }).then((r) => {
+                    if (r && !("error" in r)) {
+                      setKwKey(""); setKwName(""); setKwTarget("");
+                      window.dispatchEvent(new CustomEvent("continua:groups-changed"));
+                      setSyncMsg(`Keyword “${k}” added — try “${k} cats” in the bar.`);
+                    } else {
+                      setSyncMsg("Bad keyword: URL must be https with {q}, or a known engine id.");
+                    }
+                  });
+                }}>Add</button>
+              </div>
+              {(config?.search_keywords ?? []).length > 0 && (
+                <ul className="settings-devices">
+                  {(config?.search_keywords ?? []).map((k) => (
+                    <li key={k.key}>{k.key} · {k.name}{k.url ? ` · url` : ` · engine: ${k.engine}`}
+                      <button className="settings-link" onClick={() => {
+                        void api.removeKeyword(k.key).then(() => {
+                          window.dispatchEvent(new CustomEvent("continua:groups-changed"));
+                        });
+                      }}>remove</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <span className="settings-status">Type the key + query in the address bar: “d cats” searches DuckDuckGo. Built-ins are locked: g, d, ddg, b, br, brave.</span>
+            </div>
+          </Row>
+
           <Row label="Toolbar">
             <div className="settings-stack">
               {(["restore", "save", "history", "downloads", "rail", "reader", "dark", "settings", "studio", "theme"] as const).map((id) => (
@@ -459,11 +522,20 @@ export function SettingsPanel({
                 />
                 <span>Block trackers & ads (on-device list)</span>
               </label>
+              <label className="settings-toggle">
+                <input
+                  type="checkbox"
+                  checked={Boolean(config?.https_only)}
+                  onChange={(e) => onPatch({ https_only: e.target.checked })}
+                />
+                <span>Always use HTTPS + strip tracking tags from links</span>
+              </label>
               <span className="settings-status">If a site breaks, turn shields off just for it in Site prefs below.</span>
             </div>
           </Row>
 
           <Row label="Downloads">
+            <div className="settings-stack">
             <label className="settings-toggle">
               <input
                 type="checkbox"
@@ -472,6 +544,15 @@ export function SettingsPanel({
               />
               <span>Ask where to save each file</span>
             </label>
+            <label className="settings-toggle">
+              <input
+                type="checkbox"
+                checked={Boolean(config?.download_reveal)}
+                onChange={(e) => onPatch({ download_reveal: e.target.checked })}
+              />
+              <span>Reveal finished downloads in the file manager</span>
+            </label>
+            </div>
           </Row>
 
           <Row label="Browsing data">
@@ -488,8 +569,107 @@ export function SettingsPanel({
             }}>
               Clear cache
             </button>
+            <button className="settings-btn" onClick={() => {
+              void api.clearBrowsingData({ cookies: true }).then(() => {
+                setSyncMsg("Cookies cleared for this profile — sites will sign you out.");
+              });
+            }}>
+              Clear cookies
+            </button>
+            <button className="settings-btn" onClick={() => {
+              void api.clearBrowsingData({ storage: true }).then(() => {
+                setSyncMsg("Site data cleared for this profile (local storage, databases, workers).");
+              });
+            }}>
+              Clear site data
+            </button>
             </div>
-            <span className="settings-status">Cache regrows as you browse; clearing reclaims disk per profile.</span>
+            <span className="settings-status">Applies to the active profile only. Cache regrows as you browse.</span>
+            </div>
+          </Row>
+
+          <Row label="Translate">
+            <div className="settings-stack">
+              <div className="settings-sync">
+                <input
+                  className="settings-input"
+                  value={trUrl}
+                  placeholder="https://your-translate-endpoint (optional)"
+                  onChange={(e) => setTrUrl(e.target.value)}
+                  onBlur={() => {
+                    const u = trUrl.trim();
+                    if (u && u !== (config?.translate_endpoint ?? "")) onPatch({ translate_endpoint: u });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.currentTarget.blur();
+                      const u = trUrl.trim();
+                      if (u && u !== (config?.translate_endpoint ?? "")) onPatch({ translate_endpoint: u });
+                    }
+                  }}
+                  spellCheck={false}
+                />
+                <button className="settings-btn" onClick={() => {
+                  // H8 feasibility check on the live page (no on-device engine yet).
+                  void api.readPageText(undefined, 4000).then((r) => {
+                    const page = r as { text?: string; lang?: string; error?: string };
+                    if (page?.error || !page?.text) { setSyncMsg("No readable text on the active page."); return; }
+                    void api.translateText(page.text!.slice(0, 3000), page.lang || undefined).then((t) => {
+                      const res = t as { text?: string; error?: string; hint?: string };
+                      if (res?.error) setSyncMsg(`Translate: ${res.error} — ${res.hint || "set an endpoint above."}`);
+                      else setSyncMsg(`Translated (${page.lang}): ${res?.text ? res.text.slice(0, 120) + (res.text.length > 120 ? "…" : "") : ""}`);
+                    });
+                  });
+                }}>Test on this page</button>
+                {(config?.translate_endpoint ?? "").length > 0 && (
+                  <button
+                    className="settings-btn"
+                    title="Remove the translate endpoint"
+                    onClick={() => {
+                      onPatch({ translate_endpoint: "" });
+                      setTrUrl("");
+                    }}
+                  >Remove</button>
+                )}
+              </div>
+              <span className="settings-status">
+                No on-device engine ships yet (see docs/TRANSLATE_FEASIBILITY.md). With an
+                endpoint set, “Translate this page” sends one explicit request to it — nothing
+                is sent without you asking, and never automatically on every page load.
+              </span>
+            </div>
+          </Row>
+
+          <Row label="Site permissions">
+            <div className="settings-stack">
+              {Object.entries(config?.site_permissions ?? {}).length === 0 && (
+                <span className="settings-status">No remembered decisions yet — sites ask on first use.</span>
+              )}
+              {Object.entries(config?.site_permissions ?? {}).length > 0 && (
+                <ul className="settings-devices">
+                  {Object.entries(config?.site_permissions ?? {}).map(([origin, perms]) => (
+                    <li key={origin}>{origin} · {Object.entries(perms).map(([p, v]) => `${p}: ${v ? "allow" : "block"}`).join(", ")}
+                      <button className="settings-link" onClick={() => {
+                        const next = { ...(config?.site_permissions ?? {}) };
+                        delete next[origin];
+                        onPatch({ site_permissions: next });
+                      }}>forget</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </Row>
+
+          <Row label="Updates">
+            <div className="settings-sync">
+              <button className="settings-btn" onClick={() => {
+                void api.checkUpdates().then((r) => {
+                  setSyncMsg(r?.ok ? "Checked for updates — a banner appears if one downloads." : "Update check unavailable in this build.");
+                });
+              }}>
+                Check for updates
+              </button>
             </div>
           </Row>
 
@@ -549,6 +729,91 @@ export function SettingsPanel({
             {syncMsg && <p className="settings-notice">{syncMsg}</p>}
           </Row>
 
+          <Row label="Password sync key">
+            <div className="settings-stack">
+              <div className="settings-sync">
+                <span className="settings-status">
+                  {keyStatus
+                    ? keyStatus.available
+                      ? keyStatus.configured
+                        ? "Configured — sealed in the OS keyring."
+                        : "Not configured yet."
+                      : "Logins disabled (OS keyring unavailable)."
+                    : "…"}
+                </span>
+                {keyStatus?.available && keyStatus.configured && (
+                  <>
+                    <button className="settings-btn" onClick={() => {
+                      void api.syncKeyShow().then((r) => {
+                        const res = r as { key?: string; error?: string };
+                        setKeyReveal(res?.error ? null : res?.key ?? null);
+                        if (res?.error) setSyncMsg(`Show key: ${res.error}`);
+                      });
+                    }}>Show key</button>
+                    <button className="settings-btn" onClick={() => {
+                      const reveal = (keyReveal ?? null);
+                      const doCopy = (k: string | null) => {
+                        if (!k) return;
+                        void navigator.clipboard?.writeText(k).catch(() => undefined);
+                        setSyncMsg("Sync key copied — keep it secret, save it offline.");
+                      };
+                      if (reveal) doCopy(reveal);
+                      else void api.syncKeyShow().then((r) => doCopy((r as { key?: string }).key ?? null));
+                    }}>Copy</button>
+                  </>
+                )}
+                {keyStatus?.available && !keyStatus.configured && (
+                  <button className="settings-btn is-primary" onClick={() => {
+                    void api.syncKeyCreate().then((r) => {
+                      const res = r as { ok?: boolean; key?: string; error?: string };
+                      if (res?.ok && res.key) {
+                        setKeyReveal(res.key);
+                        setSyncMsg("Sync key created — copy it now; it is shown once.");
+                        refreshSync();
+                      } else setSyncMsg(`Create failed: ${res?.error || "unknown"}`);
+                    });
+                  }}>Create key</button>
+                )}
+              </div>
+              {keyReveal && (
+                <p className="settings-notice" style={{ wordBreak: "break-all" }}>
+                  E2E sync key: <code>{keyReveal}</code>
+                </p>
+              )}
+              <div className="settings-sync">
+                <input
+                  className="settings-input"
+                  value={keyImport}
+                  placeholder="Paste a sync key to import…"
+                  onChange={(e) => setKeyImport(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    void api.syncKeyImport(keyImport.trim()).then((r) => {
+                      const res = r as { ok?: boolean; error?: string };
+                      setSyncMsg(res?.ok ? "Sync key imported — encrypted logins will adopt it on the next sync." : `Import: ${res?.error || "failed"}`);
+                      setKeyImport("");
+                      refreshSync();
+                    });
+                  }}
+                  spellCheck={false}
+                />
+                <button className="settings-btn" onClick={() => {
+                  void api.syncKeyImport(keyImport.trim()).then((r) => {
+                    const res = r as { ok?: boolean; error?: string };
+                    setSyncMsg(res?.ok ? "Sync key imported — encrypted logins will adopt it on the next sync." : `Import: ${res?.error || "failed"}`);
+                    setKeyImport("");
+                    refreshSync();
+                  });
+                }}>Import</button>
+              </div>
+              <span className="settings-status">
+                H7: logins are encrypted with this key before they ever leave the machine; the
+                server only ever sees ciphertext. Import the same key on another device or
+                profile to share logins E2E. Deleting the key orphans encrypted logins forever.
+              </span>
+            </div>
+          </Row>
+
           <Row label="Logins">
             {!loginsAvail ? (
               <span className="settings-status">OS keyring unavailable — logins disabled on this machine.</span>
@@ -572,12 +837,61 @@ export function SettingsPanel({
                     });
                   }}>Save</button>
                 </div>
-                <span className="settings-status">Encrypted with the OS keyring — never stored in plain text. Fill from the palette: “Fill login”.</span>
+                <span className="settings-status">Encrypted with the OS keyring — never stored in plain text. Saving is offered automatically after you log in; fill from the key icon or the palette: “Fill login”.</span>
                 {logins.length > 0 && (
                   <ul className="settings-devices">
                     {logins.map((l) => (
                       <li key={l.id}>{l.username} · {l.origin}
                         <button className="settings-link" onClick={() => void api.removeLogin(l.id).then(() => refreshSync())}>remove</button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {neverList.length > 0 && (
+                  <ul className="settings-devices">
+                    {neverList.map((o) => (
+                      <li key={o}>Never ask · {o}
+                        <button className="settings-link" onClick={() => void api.loginNeverRemove(o).then(() => refreshSync())}>allow</button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </Row>
+
+          <Row label="Addresses">
+            {!loginsAvail ? (
+              <span className="settings-status">OS keyring unavailable — addresses disabled on this machine.</span>
+            ) : (
+              <div className="settings-stack">
+                <div className="settings-sync">
+                  <input className="settings-input" value={adName} placeholder="Full name" onChange={(e) => setAdName(e.target.value)} spellCheck={false} autoComplete="off" />
+                  <input className="settings-input" value={adEmail} placeholder="Email" onChange={(e) => setAdEmail(e.target.value)} spellCheck={false} autoComplete="off" />
+                  <input className="settings-input" value={adTel} placeholder="Phone" onChange={(e) => setAdTel(e.target.value)} spellCheck={false} autoComplete="off" />
+                  <input className="settings-input" value={adStreet} placeholder="Street" onChange={(e) => setAdStreet(e.target.value)} spellCheck={false} autoComplete="off" />
+                  <input className="settings-input" value={adCity} placeholder="City" onChange={(e) => setAdCity(e.target.value)} spellCheck={false} autoComplete="off" />
+                  <input className="settings-input" value={adZip} placeholder="ZIP" onChange={(e) => setAdZip(e.target.value)} spellCheck={false} autoComplete="off" />
+                  <button className="settings-btn" onClick={() => {
+                    const fields = { name: adName.trim(), email: adEmail.trim(), tel: adTel.trim(), street: adStreet.trim(), city: adCity.trim(), region: "", zip: adZip.trim(), country: "" } as Record<string, string>;
+                    for (const k of Object.keys(fields)) if (!fields[k]) delete fields[k];
+                    if (Object.keys(fields).length === 0) { setSyncMsg("Fill at least one address field."); return; }
+                    void api.addAddress(fields).then((r) => {
+                      const res = r as { id?: string; error?: string };
+                      if (res?.id) {
+                        setAdName(""); setAdEmail(""); setAdTel(""); setAdStreet(""); setAdCity(""); setAdZip("");
+                        setSyncMsg("Address saved (OS-keyring encrypted).");
+                        refreshSync();
+                      } else setSyncMsg(`Save failed: ${res?.error || "unknown"}`);
+                    });
+                  }}>Save</button>
+                </div>
+                <span className="settings-status">Sealed with the OS keyring. Saving is also offered automatically after you submit a contact form. Fill from the palette or the page menu.</span>
+                {addresses.length > 0 && (
+                  <ul className="settings-devices">
+                    {addresses.map((a) => (
+                      <li key={a.id}>{[a.name, a.email, a.tel, [a.street, a.city, a.zip].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}
+                        <button className="settings-link" onClick={() => void api.removeAddress(a.id).then(() => refreshSync())}>remove</button>
                       </li>
                     ))}
                   </ul>

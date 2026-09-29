@@ -26,6 +26,8 @@ export interface OpenTab extends TabRecord {
   incognito?: boolean;
   /** Tab group id (resolved against the registry for color). */
   group?: string | null;
+  /** Container identity id (H6) — color dot + separate partition. */
+  container?: string | null;
   /** Sleeping (discarded to metadata) — faded, click to wake. */
   discarded?: boolean;
 }
@@ -49,6 +51,8 @@ interface TabStripProps {
   /** Group registry + assignment (persisted + synced). */
   groups?: TabGroup[];
   onSetGroup?: (label: string, group: string | null) => void;
+  /** Container identities (H6) — a color dot marks identity-owned tabs. */
+  containers?: { id: string; color: string; name: string }[];
   onGroupsChanged?: () => void;
   /** Sleeping (discarded) tabs render faded with a wake-on-click hint. */
   sleeping?: Record<string, boolean>;
@@ -91,6 +95,7 @@ export const TabStrip = memo(function TabStrip({
   onToggleMute,
   groups,
   onSetGroup,
+  containers,
   onGroupsChanged,
   sleeping,
   onSleepTab,
@@ -104,6 +109,7 @@ export const TabStrip = memo(function TabStrip({
   const [groupName, setGroupName] = useState("");
   useChromeModal("tab-menu", menuOpen || ctx !== null);
   const groupById = new Map((groups ?? []).map((g) => [g.id, g]));
+  const containerById = new Map((containers ?? []).map((c) => [c.id, c]));
   // Collapse: a header chip renders at each group's first tab; collapsed
   // members hide (the active tab always stays visible so focus never vanishes).
   const collapsed = new Set(collapsedGroups ?? []);
@@ -271,6 +277,13 @@ export const TabStrip = memo(function TabStrip({
                 className="tab-group-dot"
                 style={{ background: groupById.get(tab.group)!.color }}
                 title={`Group: ${groupById.get(tab.group)!.name}`}
+              />
+            )}
+            {tab.container && containerById.get(tab.container) && (
+              <span
+                className="tab-group-dot"
+                style={{ background: containerById.get(tab.container)!.color }}
+                title={`Container: ${containerById.get(tab.container)!.name} (separate cookies & storage)`}
               />
             )}
             <span className="tab-title">{tab.title || displayTitle(tab.url)}</span>

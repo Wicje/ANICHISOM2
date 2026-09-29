@@ -81,6 +81,10 @@
   .glyph { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center;
     justify-content: center; font-weight: 700; font-size: 17px; color: #fff;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2); }
+  .appicon { width: 36px; height: 36px; border-radius: 10px; object-fit: cover;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2); background: var(--card); }
+  .sect { margin: 26px 0 -18px; font-size: 12px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--muted); }
   .foot { margin-top: 30px; font-size: 12px; color: var(--muted); }
   .foot kbd { font-family: inherit; font-size: 11px; border: 1px solid var(--border);
     border-bottom-width: 2px; border-radius: 6px; padding: 1px 7px; background: var(--card); }
@@ -99,9 +103,15 @@
     <button class="go" type="submit">Go</button>
   </form>
   <div id="offline">You're offline. Tabs and history are safe — search needs a connection.</div>
+  <div id="apps"></div>
   <div class="grid" id="links"></div>
   <p class="foot"><kbd>Ctrl+K</kbd> commands &nbsp;·&nbsp; <kbd>Ctrl+T</kbd> new tab &nbsp;·&nbsp; <kbd>Ctrl+Shift+T</kbd> reopen</p>
 </div>
+<script>
+  // Baked by the host per profile (installed web apps + icons). The page is
+  // file:// with no IPC by design — images load straight from the sites.
+  window.__CONTINUA_APPS__ = /*__CONTINUA_APPS__*/[];
+</script>
 <script>
   const hour = new Date().getHours();
   const greet = hour < 5 ? "Up late?" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -124,6 +134,50 @@
     ["News", "https://news.ycombinator.com", "H", "#ff6600"],
   ];
   const grid = document.getElementById("links");
+  // Installed web apps first (host-baked, with site icons + letter fallback).
+  try {
+    const installed = Array.isArray(window.__CONTINUA_APPS__) ? window.__CONTINUA_APPS__.slice(0, 12) : [];
+    if (installed.length) {
+      const host = document.getElementById("apps");
+      const label = document.createElement("div");
+      label.className = "sect";
+      label.textContent = "Your apps";
+      host.appendChild(label);
+      const g = document.createElement("div");
+      g.className = "grid";
+      installed.forEach((app, i) => {
+        if (!app || typeof app.url !== "string" || !/^https?:\/\//i.test(app.url)) return;
+        const name = String(app.name || "App").slice(0, 24);
+        const a = document.createElement("a");
+        a.href = app.url;
+        a.title = name;
+        a.style.animationDelay = `${Math.min(i * 45, 360)}ms`;
+        const label2 = document.createElement("span");
+        label2.textContent = name;
+        const makeGlyph = () => {
+          const glyph = document.createElement("span");
+          glyph.className = "glyph";
+          glyph.style.background = "#515154";
+          glyph.textContent = (name[0] || "A").toUpperCase();
+          return glyph;
+        };
+        if (typeof app.icon === "string" && /^https?:\/\//i.test(app.icon)) {
+          const img = document.createElement("img");
+          img.className = "appicon";
+          img.src = app.icon;
+          img.alt = "";
+          img.referrerPolicy = "no-referrer";
+          img.onerror = () => { img.replaceWith(makeGlyph()); };
+          a.appendChild(img);
+        } else {
+          a.appendChild(makeGlyph());
+        }
+        a.appendChild(label2);
+        g.appendChild(a);
+      });
+      host.appendChild(g);
+    }
+  } catch { /* icons are decoration — never break the page */ }
   sites.forEach(([name, url, g, c], i) => {
     const a = document.createElement("a");
     a.href = url;

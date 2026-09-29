@@ -21,6 +21,7 @@ import {
   IconFocus,
   IconIncognito,
   IconPrinter,
+  IconReader,
   IconSettings,
   IconSpark,
   IconStack,
@@ -152,18 +153,24 @@ export function CommandPalette({
   };
 
   useEffect(() => {
-    if (!isTauriNative()) return;
-    let un: (() => void) | undefined;
-    listen("palette:toggle", () => {
+    const toggle = () => {
       setOpen((v) => {
         setQuery("");
         setNotice(null);
         return !v;
       });
-    }).then((fn) => {
+    };
+    // Electron host: Ctrl+K while the page has focus (bridged from main).
+    window.addEventListener("continua:open-palette", toggle);
+    if (!isTauriNative()) return () => window.removeEventListener("continua:open-palette", toggle);
+    let un: (() => void) | undefined;
+    listen("palette:toggle", toggle).then((fn) => {
       un = fn;
     });
-    return () => un?.();
+    return () => {
+      window.removeEventListener("continua:open-palette", toggle);
+      un?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -285,6 +292,169 @@ export function CommandPalette({
       run: () => void api.printTab(activeLabel ?? undefined),
     });
     raw.push({
+      key: "read-aloud",
+      group: "Actions",
+      label: "Read this page aloud",
+      hint: "offline OS voices",
+      icon: IconReader,
+      run: () => {
+        void api.readAloud(activeLabel ?? undefined).then((r) => {
+          const res = r as { state?: string; chunks?: number; error?: string };
+          setNotice(res?.error ? `Read-aloud failed: ${res.error}` : `Reading aloud (${res.chunks ?? 0} chunks) — Ctrl+. to stop`);
+        });
+      },
+    });
+    raw.push({
+      key: "read-stop",
+      group: "Actions",
+      label: "Stop reading aloud",
+      hint: "cancel active speech",
+      icon: IconReader,
+      run: () => void api.readAloudStop().then(() => setNotice("Stopped.")),
+    });
+    raw.push({
+      key: "shot-full",
+      group: "Actions",
+      label: "Full-page screenshot",
+      hint: "entire scrollable page → Pictures",
+      icon: IconCamera,
+      run: () => {
+        void api.screenshotFull(activeLabel ?? undefined).then((r) => {
+          const res = r as { path?: string; error?: string };
+          setNotice(res?.path ? `Saved to ${res.path}` : `Screenshot failed: ${res?.error || "unknown"}`);
+        });
+      },
+    });
+    raw.push({
+      key: "translate-page",
+      group: "Actions",
+      label: "Translate this page",
+      hint: "H8 feasibility — needs Settings → Translate endpoint",
+      icon: IconSpark,
+      run: () => {
+        void (async () => {
+          const page = await api.readPageText(activeLabel ?? undefined);
+          const p = page as { text?: string; lang?: string; error?: string };
+          if (p?.error || !p?.text) return setNotice("No readable text on the active page.");
+          const tr = await api.translateText(p.text!.slice(0, 6000), p.lang || undefined);
+          const t = tr as { text?: string; error?: string; hint?: string };
+          if (t?.error) return setNotice(`${t.error} — ${t.hint || "configure a translate endpoint in Settings."}`);
+          setNotice(`Translated (${p.lang}) : ${t.text!.slice(0, 140)}${t.text!.length > 140 ? "…" : ""}`);
+        })();
+      },
+    });
+    raw.push({
+      key: "detect-lang",
+      group: "Actions",
+      label: "Detect page language",
+      hint: "on-device heuristic (H6/H8)",
+      icon: IconSpark,
+      run: () => {
+        void api.detectLanguage(activeLabel ?? undefined).then((r) => {
+          const res = r as { lang?: string; offer?: boolean; error?: string };
+          setNotice(res?.error ? `No page: ${res.error}` : `Language: ${res?.lang || "unknown"}${res?.offer ? " — translate offered." : ""}`);
+        });
+      },
+    });
+    raw.push({
+      key: "managers",
+      group: "Managers",
+      label: "Open Managers",
+      hint: "containers · apps · cookies · snapshots · tab manager · bookmarks · history",
+      icon: IconStack,
+      run: () => window.dispatchEvent(new CustomEvent("continua:open-managers")),
+    });
+    raw.push({
+      key: "mgr-task",
+      group: "Managers",
+      label: "Tab manager",
+      hint: "per-tab memory & CPU",
+      icon: IconStack,
+      run: () => window.dispatchEvent(new CustomEvent("continua:open-managers", { detail: { section: "task" } })),
+    });
+    raw.push({
+      key: "mgr-snapshots",
+      group: "Managers",
+      label: "Session snapshots",
+      hint: "save / restore named workspaces",
+      icon: IconClock,
+      run: () => window.dispatchEvent(new CustomEvent("continua:open-managers", { detail: { section: "snapshots" } })),
+    });
+    raw.push({
+      key: "mgr-apps",
+      group: "Managers",
+      label: "Installed apps",
+      hint: "standalone site windows",
+      icon: IconStack,
+      run: () => window.dispatchEvent(new CustomEvent("continua:open-managers", { detail: { section: "apps" } })),
+    });
+    raw.push({
+      key: "mgr-cookies",
+      group: "Managers",
+      label: "Site cookies",
+      hint: "inspect / clear per-site",
+      icon: IconStack,
+      run: () => window.dispatchEvent(new CustomEvent("continua:open-managers", { detail: { section: "cookies" } })),
+    });
+    raw.push({
+      key: "forget-site",
+      group: "Actions",
+      label: "Forget this site…",
+      hint: "close its tabs, wipe cookies, storage & history",
+      icon: IconClose,
+      run: () => {
+        void (async () => {
+          const r = await api.forgetSite(activeLabel ?? undefined) as { origin?: string; closed?: number; history?: number; cookies?: number; error?: string; dismissed?: boolean };
+          if (r?.dismissed) return;
+          setNotice(r?.origin ? `Forgot ${r.origin} — ${r.closed ?? 0} tabs, ${r.history ?? 0} history, ${r.cookies ?? 0} cookies.` : `Forget failed: ${r?.error || "unknown"}`);
+        })();
+      },
+    });
+    raw.push({
+      key: "reading-save",
+      group: "Actions",
+      label: "Save to reading list",
+      hint: "read this page later",
+      icon: IconReader,
+      run: () => {
+        void (async () => {
+          const t = tabs.find((x) => x.label === activeLabel);
+          if (!t || !/^https?:\/\//i.test(t.url)) { setNotice("No web page active."); return; }
+          await api.addReading(t.url, t.title);
+          setNotice("Saved to reading list.");
+        })();
+      },
+    });
+    raw.push({
+      key: "reading-open",
+      group: "Actions",
+      label: "Open reading list",
+      hint: "unread pages you saved",
+      icon: IconReader,
+      run: () => window.dispatchEvent(new CustomEvent("continua:open-reading")),
+    });
+    raw.push({
+      key: "send-tab",
+      group: "Actions",
+      label: "Send tab to paired devices",
+      hint: "opens as a background tab on your other devices",
+      icon: IconStack,
+      run: () => {
+        void (async () => {
+          const r = await api.sendTab(activeLabel ?? undefined) as { ok?: boolean; error?: string };
+          setNotice(r?.ok ? "Tab sent to paired devices." : r?.error === "unpaired" ? "No paired device — pair one in Settings → Sync." : `Send failed: ${r?.error || "unknown"}`);
+        })();
+      },
+    });
+    raw.push({
+      key: "qr-page",
+      group: "Actions",
+      label: "Show QR code for this page",
+      hint: "scan with your phone camera",
+      icon: IconStack,
+      run: () => window.dispatchEvent(new CustomEvent("continua:open-qr")),
+    });
+    raw.push({
       key: "fill-login",
       group: "Actions",
       label: "Fill login for this site",
@@ -296,6 +466,21 @@ export function CommandPalette({
           const res = r as { ok?: boolean; error?: string; detail?: string };
           if (res?.ok) setNotice("Login filled.");
           else setNotice(res?.error === "no-login" ? "No saved login for this site — add one in Settings → Logins." : `Fill failed: ${res?.error || res?.detail || "unknown"}`);
+        })();
+      },
+    });
+    raw.push({
+      key: "fill-address",
+      group: "Actions",
+      label: "Fill address for this page",
+      hint: "last-used address profile",
+      icon: IconCheck,
+      run: () => {
+        void (async () => {
+          const r = await api.fillAddress(activeLabel ?? undefined);
+          const res = r as { ok?: boolean; filled?: number; error?: string };
+          if (res?.ok) setNotice(`Address filled (${res.filled} fields) — review and submit.`);
+          else setNotice(res?.error === "no-address" ? "No saved address — add one in Settings → Addresses." : "No empty address fields on this page.");
         })();
       },
     });

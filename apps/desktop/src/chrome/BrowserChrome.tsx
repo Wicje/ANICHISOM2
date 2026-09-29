@@ -19,12 +19,15 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { TabStrip } from "./TabStrip";
 import { HistoryPanel } from "./HistoryPanel";
 import { DownloadsPanel } from "./DownloadsPanel";
+import { ReadingPanel } from "./ReadingPanel";
+import { QrPanel } from "./QrPanel";
 import { FindBar } from "./FindBar";
 import { SettingsPanel } from "./SettingsPanel";
 import { WorkspaceMenu } from "./WorkspaceMenu";
 import { ProfileMenu } from "./ProfileMenu";
 import { BookmarksBar } from "./BookmarksBar";
 import { TabRail } from "./TabRail";
+import { ManagersPanel } from "./ManagersPanel";
 import { parseBookmarkHtml } from "./BookmarksBar";
 import { Favicon } from "../components/Favicon";
 import { ENGINES } from "./engine-list";
@@ -54,6 +57,7 @@ import {
   IconDark,
   IconStar,
   IconStarFilled,
+  IconVault,
   IconEquals,
   IconSpark,
 } from "../components/icons";
@@ -68,6 +72,7 @@ interface BrowserChromeProps {
   onReorder?: (from: string, to: string, after?: boolean) => void;
   onTogglePin?: (label: string) => void;
   onSetGroup?: (label: string, group: string | null) => void;
+  onSetContainer?: (label: string, container: string | null) => void;
   onCloseOthers?: (label: string) => Promise<void>;
   onRestore: () => Promise<void>;
   onSave: () => Promise<void>;
@@ -110,6 +115,7 @@ export function BrowserChrome({
   onReorder,
   onTogglePin,
   onSetGroup,
+  onSetContainer,
   onCloseOthers,
   onRestore,
   onSave,
@@ -128,6 +134,13 @@ export function BrowserChrome({
   // Omnibox popover state.
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [suggestIdx, setSuggestIdx] = useState(-1);
+  // Save-password prompt (host captured a form submit) + per-tab sealed
+  // login counts (drives the fill key). Secrets never reach the chrome:
+  // prompts carry origin+username only.
+  const [loginPrompt, setLoginPrompt] = useState<{ label: string; origin: string; username: string; update?: boolean } | null>(null);
+  const [addrPrompt, setAddrPrompt] = useState<{ label: string; origin: string; name?: string; email?: string } | null>(null);
+  const [loginCounts, setLoginCounts] = useState<Record<string, number>>({});
+  useChromeModal("login-prompt", !!(loginPrompt || addrPrompt));
   // History panel (Ctrl+H) and the ring that feeds omnibox suggestions.
   const [historyOpen, setHistoryOpen] = useState(false);
   const [recent, setRecent] = useState<HistoryItem[]>([]);
@@ -153,11 +166,60 @@ export function BrowserChrome({
     void onOpen(info.url);
   }), [onOpen]);
   // Downloads surface even with the panel closed (it only polls while open).
-  useEffect(() => api.onDownload((info) => {
-    if (!info?.filename) return;
-    if (info.state === "started") toast(`Downloading ${info.filename}… — Ctrl+J to watch`);
-    else if (info.state === "completed") toast(`Saved ${info.filename} → Downloads`, "success");
-    else if (info.state === "failed" || info.state === "cancelled") toast(`Download ${info.state}: ${info.filename}`, "danger");
+  // dlActive drives the toolbar badge so a start is always visible.
+  const [dlActive, setDlActive] = useState(0);
+  const dlIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    void api.listDownloads().then((d) => {
+      dlIds.current = new Set(
+        d.filter((x) => x.state === "progressing" || x.state === "paused").map((x) => x.id),
+      );
+      setDlActive(dlIds.current.size);
+    });
+    return api.onDownload((info) => {
+      if (!info?.filename && !info?.id) return;
+      if (info.state === "started") {
+        if (info.id) dlIds.current.add(info.id);
+        setDlActive(dlIds.current.size);
+        if (info.filename) toast(`Downloading ${info.filename}… — Ctrl+J to watch`);
+      } else if (info.state === "completed") {
+        if (info.id) dlIds.current.delete(info.id);
+        setDlActive(dlIds.current.size);
+        if (info.filename) toast(`Saved ${info.filename} → Downloads`, "success");
+      } else if (info.state === "failed" || info.state === "cancelled") {
+        if (info.id) dlIds.current.delete(info.id);
+        setDlActive(dlIds.current.size);
+        if (info.filename) toast(`Download ${info.state}: ${info.filename}`, "danger");
+      }
+    });
+  }, []);
+  // App-update lifecycle (Electron host): toast while downloading, restart
+  // button once the update is ready to apply.
+  const [updateReady, setUpdateReady] = useState("");
+  useEffect(() => api.onUpdate((info) => {
+    if (info?.state === "available") {
+      setUpdateReady("");
+      toast(`Update ${info.version || ""} downloading…`);
+    } else if (info?.state === "ready") {
+      setUpdateReady(info.version || "new version");
+      toast("Update ready — restart to apply", "success");
+    }
+  }), []);
+  // In-page accelerator commands from the host (Ctrl+L/F/J/K/H while the
+  // page has focus — the chrome window never sees those keystrokes).
+  useEffect(() => api.onChromeCommand((cmd) => {
+    if (cmd === "focus-address") {
+      addressRef.current?.focus();
+      addressRef.current?.select();
+      setSuggestOpen(true);
+    }
+    else if (cmd === "open-find") setFindOpen(true);
+    else if (cmd === "toggle-history") setHistoryOpen((v) => !v);
+    else if (cmd === "toggle-downloads") setDownloadsOpen((v) => !v);
+    else if (cmd === "open-palette") window.dispatchEvent(new CustomEvent("continua:open-palette"));
+    else if (cmd === "mru-next") stepMru(1);
+    else if (cmd === "mru-prev") stepMru(-1);
+    else if (cmd === "open-qr") setQrOpen(true);
   }), []);
   // Address-bar bookmark star.
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
@@ -167,6 +229,18 @@ export function BrowserChrome({
   const [suggestRows, setSuggestRows] = useState<string[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [config, setConfig] = useState<BrowserConfigItem | null>(null);
+  // Managers drawer (containers, apps, cookies, snapshots, tab manager…).
+  const [managersOpen, setManagersOpen] = useState(false);
+  const [managersFocus, setManagersFocus] = useState<string | null>(null);
+  useEffect(() => {
+    const open = (e: Event) => {
+      const detail = (e as CustomEvent<{ section?: string }>).detail?.section;
+      if (detail) setManagersFocus(detail);
+      setManagersOpen(true);
+    };
+    window.addEventListener("continua:open-managers", open);
+    return () => window.removeEventListener("continua:open-managers", open);
+  }, []);
   const [workspaces, setWorkspaces] = useState<SessionSummary[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState("default");
   // Palette (Ctrl+K) asks for Settings → Sync without window.prompt (ADR-008).
@@ -182,13 +256,81 @@ export function BrowserChrome({
       window.removeEventListener("continua:groups-changed", groupsChanged);
     };
   }, []);
+  // Palette asks for the reading list the same way (no prop drilling).
+  const [readingOpen, setReadingOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [readingCount, setReadingCount] = useState(0);
+  useEffect(() => {
+    const open = () => setReadingOpen(true);
+    window.addEventListener("continua:open-reading", open);
+    return () => window.removeEventListener("continua:open-reading", open);
+  }, []);
+  useEffect(() => {
+    const open = () => setQrOpen(true);
+    window.addEventListener("continua:open-qr", open);
+    return () => window.removeEventListener("continua:open-qr", open);
+  }, []);
+  useEffect(() => {
+    if (!readingOpen) {
+      void api.listReading().then((r) => setReadingCount(r.filter((x) => !x.read).length));
+    }
+  }, [readingOpen, tabs]);
   /** True on any native host (Tauri legacy or Electron product). Tauri-only
    * window/event APIs keep `runtime === "tauri"` guards; shared IPC uses this. */
   const isNative = runtime === "tauri" || runtime === "electron";
   // Native content views paint above HTML overlays: hide them while the
   // omnibox popover or menus are open (panels handle themselves).
   useChromeModal("suggestions", suggestOpen);
-  const [moreOpen, setMoreOpen] = useState(false);
+  // Save-password flow (Electron host): submit-time captures arrive as
+  // login-prompt; sealed-login availability arrives as login-available.
+  useEffect(() => {
+    if (!isNative) return;
+    const offP = api.onLoginPrompt((info) => {
+      if (!info?.label || !info?.origin) return;
+      setLoginPrompt({ label: info.label, origin: info.origin, username: info.username, update: info.update });
+    });
+    const offA = api.onLoginAvailable((info) => {
+      if (!info?.label) return;
+      setLoginCounts((prev) => ({ ...prev, [info.label]: info.count || 0 }));
+    });
+    const offAddr = api.onAddressPrompt((info) => {
+      if (!info?.label || !info?.origin) return;
+      setAddrPrompt({ label: info.label, origin: info.origin, name: info.name, email: info.email });
+    });
+    return () => {
+      offP();
+      offA();
+      offAddr();
+    };
+  }, [isNative]);
+  // Drop prompts/counts for closed tabs so dead labels never linger.
+  useEffect(() => {
+    const alive = new Set(tabs.map((t) => t.label));
+    setLoginCounts((prev) => {
+      const next: Record<string, number> = {};
+      for (const [k, v] of Object.entries(prev)) if (alive.has(k) && v > 0) next[k] = v;
+      return next;
+    });
+    setLoginPrompt((p) => (p && alive.has(p.label) ? p : null));
+    setAddrPrompt((p) => (p && alive.has(p.label) ? p : null));
+  }, [tabs]);
+  // Seed the fill key when switching to a tab whose commits predate this
+  // session's events (e.g. restored tabs that haven't navigated yet).
+  useEffect(() => {
+    if (!isNative || !activeLabel) return;
+    if (loginCounts[activeLabel] !== undefined) return;
+    void api.loginCount(activeLabel).then((r) => {
+      if (r && r.count > 0) setLoginCounts((prev) => ({ ...prev, [activeLabel]: r.count }));
+    });
+  }, [isNative, activeLabel, loginCounts]);
+  // Tabs pushed by a paired device land as background tabs — toast them.
+  useEffect(() => {
+    if (!isNative) return;
+    return api.onTabdropReceived((info) => {
+      if (!info?.url) return;
+      toast(`Tab received${info.from ? ` from ${info.from}` : ""} — ${info.title || info.url}`, "success");
+    });
+  }, [isNative]);  const [moreOpen, setMoreOpen] = useState(false);
   useChromeModal("more-menu", moreOpen);
   const [idOpen, setIdOpen] = useState(false);
   useChromeModal("identity", idOpen);
@@ -218,6 +360,11 @@ export function BrowserChrome({
   const loadRef = useRef<{ label: string | null; pct: number } | null>(null);
   const loadT = useRef<number | null>(null);
   const loadResetT = useRef<number | null>(null);
+  // Tabs the host reports as loading (did-start without did-stop yet).
+  // The bar follows the ACTIVE tab; background tabs load silently.
+  const loadingRef = useRef<Set<string>>(new Set());
+  const activeRef = useRef<string | null>(null);
+  activeRef.current = activeLabel;
 
   const finishNav = () => {
     if (loadT.current !== null) {
@@ -236,13 +383,26 @@ export function BrowserChrome({
     }, 280);
   };
 
-  const startNav = () => {
+  const stopLoadBar = () => {
+    if (loadT.current !== null) {
+      window.clearInterval(loadT.current);
+      loadT.current = null;
+    }
+    if (loadResetT.current !== null) {
+      window.clearTimeout(loadResetT.current);
+      loadResetT.current = null;
+    }
+    setLoad(null);
+    loadRef.current = null;
+  };
+
+  const startNavFor = (label: string | null) => {
     if (loadT.current !== null) window.clearInterval(loadT.current);
     if (loadResetT.current !== null) {
       window.clearTimeout(loadResetT.current);
       loadResetT.current = null;
     }
-    const st = { label: activeLabel, pct: 6 };
+    const st = { label, pct: 6 };
     setLoad(st);
     loadRef.current = st;
     loadT.current = window.setInterval(() => {
@@ -254,6 +414,8 @@ export function BrowserChrome({
     // Hard stop: never leave a stale bar crawling.
     window.setTimeout(finishNav, 9000);
   };
+
+  const startNav = () => startNavFor(activeLabel);
 
   // Dim the titlebar border when the native window loses focus.
   useEffect(() => {
@@ -421,6 +583,39 @@ export function BrowserChrome({
     }).then((f) => (un = f));
     return () => un?.();
   }, [runtime]);
+
+  // Same, for the Electron host (loading state per tab — every load, not
+  // just address-bar ones: link forks, sleeping-tab rehydrates, reloads).
+  useEffect(() => {
+    if (!isNative) return;
+    const offStart = api.onLoadStarted((info) => {
+      if (!info?.label) return;
+      loadingRef.current.add(info.label);
+      if (info.label === activeRef.current) startNavFor(info.label);
+    });
+    const offStop = api.onLoadStopped((info) => {
+      if (!info?.label) return;
+      loadingRef.current.delete(info.label);
+      if (loadRef.current && info.label === loadRef.current.label) finishNav();
+    });
+    const offFin = api.onLoadFinished((info) => {
+      if (loadRef.current && info?.label === loadRef.current.label) finishNav();
+    });
+    return () => {
+      offStart();
+      offStop();
+      offFin();
+    };
+  }, [isNative]);
+
+  // Tab switch mid-load: follow the newly active tab if IT is loading,
+  // otherwise park the bar (its tab keeps loading silently behind).
+  useEffect(() => {
+    if (!isNative) return;
+    if (loadRef.current?.label === activeLabel) return;
+    if (activeLabel && loadingRef.current.has(activeLabel)) startNavFor(activeLabel);
+    else stopLoadBar();
+  }, [isNative, activeLabel]);
 
   // Pick up the persisted search engine + preferences + workspaces.
   useEffect(() => {
@@ -617,7 +812,8 @@ export function BrowserChrome({
       if (k === "f5" || (k === "r" && mod)) {
         e.preventDefault();
         startNav();
-        reload();
+        if (e.shiftKey && activeLabel) void api.reloadTab(activeLabel, true);
+        else reload();
         return;
       }
       if (fire("reopen-tab")) {
@@ -761,6 +957,53 @@ export function BrowserChrome({
   const closeSuggestions = () => {
     setSuggestOpen(false);
     setSuggestIdx(-1);
+  };
+
+  // Answer the save-password prompt. The secret never left the host; the
+  // decision just seals it into (or keeps it out of) the OS keyring.
+  const answerLogin = (decision: "save" | "dismiss" | "never") => {
+    const p = loginPrompt;
+    setLoginPrompt(null);
+    if (!p) return;
+    if (decision !== "save") {
+      void api.saveLoginDecision(p.label, decision);
+      if (decision === "never") toast(`Won't ask for passwords on ${hostOf(p.origin)}`);
+      return;
+    }
+    void api.saveLoginDecision(p.label, "save").then((r: { saved?: boolean; error?: string }) => {
+      if (r?.saved) {
+        setLoginCounts((prev) => ({ ...prev, [p.label]: (prev[p.label] || 0) + 1 }));
+        toast(`Password ${p.update ? "updated" : "saved"} for ${hostOf(p.origin)}`, "success");
+      } else {
+        toast(`Couldn't save: ${r?.error || "unknown"}`, "danger");
+      }
+    });
+  };
+
+  // One-click fill for the active tab (same sealed store the palette uses).
+  const fillActiveLogin = () => {
+    if (!activeLabel) return;
+    void api.fillLogin(undefined, activeLabel).then((r: { ok?: boolean; error?: string; detail?: string }) => {
+      if (r?.ok) toast("Login filled — review and submit", "success");
+      else if (r?.error === "no-login") toast("No saved login for this site");
+      else toast(`Fill failed: ${r?.error || r?.detail || "unknown"}`, "danger");
+    });
+  };
+
+  // Answer the address save-prompt (same keyring envelope as passwords).
+  const answerAddress = (decision: "save" | "dismiss" | "never") => {
+    const p = addrPrompt;
+    setAddrPrompt(null);
+    if (!p) return;
+    if (decision !== "save") {
+      void api.saveAddressDecision(p.label, decision);
+      if (decision === "never") toast(`Won't ask for address details on ${hostOf(p.origin)}`);
+      return;
+    }
+    void api.saveAddressDecision(p.label, "save").then((r: { saved?: boolean; error?: string }) => {
+      if (r?.saved) toast(`Address saved for ${hostOf(p.origin)}`, "success");
+      else toast(`Couldn't save: ${r?.error || "unknown"}`, "danger");
+    });
   };
 
   const runSuggestion = (s: Suggestion) => {
@@ -983,6 +1226,7 @@ export function BrowserChrome({
           audio={audio}
           onToggleMute={handleToggleMute}
           groups={config?.tab_groups ?? []}
+          containers={config?.containers ?? []}
           onSetGroup={onSetGroup}
           sleeping={sleeping}
           onSleepTab={handleSleepTab}
@@ -995,8 +1239,103 @@ export function BrowserChrome({
           onOverflowChange={handleOverflow}
           rail={railVisible}
         />
+        {(loginCounts[activeLabel ?? ""] || 0) > 0 && (
+          <button
+            type="button"
+            className="chrome-btn"
+            title="Fill saved login for this site"
+            onClick={fillActiveLogin}
+          >
+            <IconVault size={15} />
+          </button>
+        )}
         <form className="bar-form" onSubmit={navigate}>
           <div className="omni-wrap" style={{ flex: 1, position: "relative" }}>
+            {loginPrompt && (
+              <div className="omni-pop" role="dialog" aria-label="Save password">                <div className="omni-row is-active" style={{ cursor: "default" }}>
+                  <span className="omni-ico omni-ico-tab">
+                    <IconVault size={13} />
+                  </span>
+                  <span className="omni-main">{loginPrompt.update ? `Update password for ${hostOf(loginPrompt.origin)}?` : `Save password for ${hostOf(loginPrompt.origin)}?`}</span>
+                  <span className="omni-sub">{loginPrompt.username}</span>
+                </div>
+                <div className="omni-row" style={{ gap: 8 }}>
+                  <button
+                    type="button"
+                    className="engine-opt"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      answerLogin("save");
+                    }}
+                  >
+                    {loginPrompt.update ? "Update" : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    className="engine-opt"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      answerLogin("dismiss");
+                    }}
+                  >
+                    Not now
+                  </button>
+                  <button
+                    type="button"
+                    className="engine-opt"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      answerLogin("never");
+                    }}
+                  >
+                    Never for this site
+                  </button>
+                </div>
+              </div>
+            )}
+            {addrPrompt && (
+              <div className="omni-pop" role="dialog" aria-label="Save address">
+                <div className="omni-row is-active" style={{ cursor: "default" }}>
+                  <span className="omni-ico omni-ico-tab">
+                    <IconVault size={13} />
+                  </span>
+                  <span className="omni-main">{`Save address details for ${hostOf(addrPrompt.origin)}?`}</span>
+                  <span className="omni-sub">{[addrPrompt.name, addrPrompt.email].filter(Boolean).join(" · ") || "contact form"}</span>
+                </div>
+                <div className="omni-row" style={{ gap: 8 }}>
+                  <button
+                    type="button"
+                    className="engine-opt"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      answerAddress("save");
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    className="engine-opt"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      answerAddress("dismiss");
+                    }}
+                  >
+                    Not now
+                  </button>
+                  <button
+                    type="button"
+                    className="engine-opt"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      answerAddress("never");
+                    }}
+                  >
+                    Never for this site
+                  </button>
+                </div>
+              </div>
+            )}
             <input
               className="address-bar"
               ref={(el) => {
@@ -1095,7 +1434,32 @@ export function BrowserChrome({
           />
             </div>
           </div>
+        <button
+          className="chrome-btn"
+          title="Managers — containers, apps, cookies, snapshots, tab manager, bookmarks, history"
+          onClick={() => setManagersOpen((v) => !v)}
+        >
+          <IconStack size={15} />
+        </button>
         <div style={{ flex: "0 1 16px", minWidth: 4, alignSelf: "stretch" }} data-tauri-drag-region />
+        <button
+          className={`chrome-btn dl-btn${dlActive > 0 ? " is-active" : ""}`}
+          title={dlActive > 0 ? `${dlActive} active download${dlActive === 1 ? "" : "s"} — open Downloads (Ctrl+J)` : "Downloads (Ctrl+J)"}
+          onClick={() => setDownloadsOpen((v) => !v)}
+        >
+          <IconDownload size={15} />
+          {dlActive > 0 && <span className="dl-badge">{dlActive > 9 ? "9+" : dlActive}</span>}
+        </button>
+        {updateReady && (
+          <button
+            className="chrome-btn dl-btn is-active"
+            title={`Restart to apply update ${updateReady}`}
+            onClick={() => void api.quitAndInstall()}
+          >
+            <IconReload size={15} />
+            <span className="dl-badge">!</span>
+          </button>
+        )}
         <div className="more-wrap" style={{ position: "relative" }}>
           <button
             className={`chrome-btn${moreOpen ? " is-active" : ""}`}
@@ -1121,11 +1485,20 @@ export function BrowserChrome({
                   <IconClock size={13} /> History
                 </button>
               )}
+              <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); setManagersOpen(true); }}>
+                <IconStack size={13} /> Managers
+              </button>
               {showTool("downloads") && (
                 <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); setDownloadsOpen((v) => !v); }}>
                   <IconDownload size={13} /> Downloads
                 </button>
               )}
+              <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); setReadingOpen(true); }}>
+                <IconReader size={13} /> Reading list{readingCount > 0 ? ` (${readingCount})` : ""}
+              </button>
+              <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); setQrOpen(true); }}>
+                <IconStack size={13} /> Show QR for this page
+              </button>
               {showTool("rail") && (
                 <button type="button" className="engine-opt" onClick={() => { setMoreOpen(false); toggleVerticalTabs(); }}>
                   <IconStack size={13} /> {config?.vertical_tabs ? "Hide tab rail" : "Show tab rail"}
@@ -1285,6 +1658,16 @@ export function BrowserChrome({
         onClose={() => setFindOpen(false)}
       />
       <DownloadsPanel open={downloadsOpen} onClose={() => setDownloadsOpen(false)} />
+      <QrPanel open={qrOpen} url={activeUrl} onClose={() => setQrOpen(false)} />
+      <ReadingPanel
+        open={readingOpen}
+        onClose={() => setReadingOpen(false)}
+        onOpen={(url) => {
+          startNav();
+          if (activeLabel) void api.navigateTab(activeLabel, url);
+          else void onOpen(url);
+        }}
+      />
       <SettingsPanel
         open={settingsOpen}
         config={config}
@@ -1296,6 +1679,16 @@ export function BrowserChrome({
           toast("History cleared");
         }}
         onClose={() => setSettingsOpen(false)}
+      />
+      <ManagersPanel
+        open={managersOpen}
+        onClose={() => setManagersOpen(false)}
+        tabs={tabs}
+        activeLabel={activeLabel}
+        onOpen={(url) => void onOpen(url)}
+        onActivate={(label) => void onActivate(label)}
+        onSetContainer={(label, container) => onSetContainer?.(label, container)}
+        focusSection={managersFocus}
       />
     </div>
   );
