@@ -1,9 +1,15 @@
 # H6 · H7 · Mediums — Feature Notes
 
-Status: shipped (code) · tests: unit suite 118 passing across 19 files
+Status: shipped (code) · tests: unit suite 165 passing across 23 files
 (`npm -w apps/desktop-electron run test`), covering the H6/H7/translate/medium
-pure modules plus the agent-track modules (ax-tree, agent-act, debrief).
+pure modules, the agent-track modules (ax-tree, agent-act, debrief), and the
+trust boundary (agent-policy, audit-log, metrics, store-sqlite round trip).
 React chrome stays typechecked (`tsc --noEmit`) + vite-built; no DOM tests.
+
+> **These mediums are parity maintenance.** They shipped and they stay, but per
+> `docs/STRATEGY.md` they get no new development time — a funded competitor
+> ships each in a sprint and nobody switches a browser for a task manager. New
+> effort goes to the agent trust boundary (ADR-012) and continuity.
 
 ## H6 — Container tabs (contextual identities)
 
@@ -22,6 +28,11 @@ cookies/storage/service workers never cross identities in one window.
   color dot, palette "Containers" opens the drawer at that section.
 - Reopening a closed tab restores its container; synced sessions carry
   `container` so a restored tab lands in the right partition.
+- **Restart-safe (fixed 2026-10-04):** the SQLite `tabs` table now has a
+  `container` column (migration + `saveSession`/`loadSession`). It previously
+  persisted nothing, so every container tab silently reopened in the profile
+  default partition after a restart — the cookie mixing this feature exists to
+  prevent. Guarded by `store-sqlite.test.js`.
 
 ## H7 — E2E-encrypted password sync (sync key)
 
@@ -71,10 +82,12 @@ has no IPC by design; tiles render `<img>` with a letter-glyph `onerror`
 fallback, and baked strings are `<`-escaped so app names can never break out
 of the `<script>` block.
 
-Build wiring: `apps/desktop-electron/package.json` test script lists all 16
-test files; `build.files` now includes the new runtime modules (plus the
-agent-track modules `ax-tree.js`, `agent-act.js`, `debrief.js`,
-`mcp-browser.mjs` created next).
+Build wiring: `apps/desktop-electron/package.json` test script lists all 23
+test files; `build.files` includes every runtime module, and
+`scripts/check-build-files.cjs` (run by `npm run check:package` and by the
+`browser-host` CI job) fails the build if a module `main.js` requires is
+missing from it — that omission once shipped three modules that would have
+crashed every installer on startup.
 
 ## Not taken
 

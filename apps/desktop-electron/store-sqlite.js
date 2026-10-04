@@ -35,7 +35,17 @@ function create(userDataPath, profileId) {
   // other profiles get continua-<id>.db with their own FTS history.
   const legacy = !profileId || profileId === "personal" || profileId === "default";
   const dbFile = legacy ? "continua.db" : `continua-${profileId || "personal"}.db`;
-  const db = new Database(path.join(userDataPath, dbFile));
+  let db;
+  try {
+    db = new Database(path.join(userDataPath, dbFile));
+  } catch (e) {
+    // `better-sqlite3` is an optionalDependency and its native binding can be
+    // present-but-unloadable (postinstall skipped, ABI mismatch, blocked
+    // prebuild download). Resolving the module is not the same as being able
+    // to open a database — fall back rather than taking the browser down.
+    try { fs.appendFileSync(path.join(userDataPath, "sqlite-unavailable.log"), `${new Date().toISOString()} better-sqlite3 unusable: ${e?.message || e}\n`); } catch {}
+    return createJsonFallback(userDataPath, profileId);
+  }
   db.pragma("journal_mode = WAL");
   db.exec(`
     CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT);
@@ -51,6 +61,7 @@ function create(userDataPath, profileId) {
   try { db.exec("ALTER TABLE tabs ADD COLUMN hist TEXT"); } catch { /* exists on rerun */ }
   try { db.exec("ALTER TABLE tabs ADD COLUMN scrolly REAL DEFAULT 0"); } catch { /* exists on rerun */ }
   try { db.exec("ALTER TABLE tabs ADD COLUMN zoom INTEGER DEFAULT 100"); } catch { /* exists on rerun */ }
+  try { db.exec("ALTER TABLE tabs ADD COLUMN container TEXT"); } catch { /* exists on rerun */ }
   try { db.exec("ALTER TABLE snapshots ADD COLUMN name TEXT"); } catch { /* exists on rerun */ }
   try { db.exec("CREATE INDEX IF NOT EXISTS idx_history_at ON history(at DESC)"); } catch {}
 
@@ -107,7 +118,7 @@ function create(userDataPath, profileId) {
     saveSession(tabs, active) {
       const tx = db.transaction(() => {
         db.exec("DELETE FROM tabs");
-        tabs.forEach((t, i) => db.prepare("INSERT INTO tabs(label,url,title,pinned,idx,grp,hist,scrolly,zoom) VALUES(?,?,?,?,?,?,?,?,?)").run(t.label || `tab-${i}`, t.url, t.title || t.url, t.pinned ? 1 : 0, i, t.group || null, JSON.stringify((t.history || [t.url]).slice(-30)), t.scrollY || 0, t.zoom || 100));
+        tabs.forEach((t, i) => db.prepare("INSERT INTO tabs(label,url,title,pinned,idx,grp,hist,scrolly,zoom,container) VALUES(?,?,?,?,?,?,?,?,?,?)").run(t.label || `tab-${i}`, t.url, t.title || t.url, t.pinned ? 1 : 0, i, t.group || null, JSON.stringify((t.history || [t.url]).slice(-30)), t.scrollY || 0, t.zoom || 100, t.container || null));
         if (active !== undefined) set("active", active || "");
       });
       tx();
@@ -117,7 +128,7 @@ function create(userDataPath, profileId) {
     loadSession() {
       let rows = [];
       try {
-        rows = db.prepare("SELECT label,url,title,pinned,grp,hist,scrolly,zoom FROM tabs ORDER BY idx").all();
+        rows = db.prepare("SELECT label,url,title,pinned,grp,hist,scrolly,zoom,container FROM tabs ORDER BY idx").all();
       } catch {
         rows = db.prepare("SELECT label,url,title,pinned,grp FROM tabs ORDER BY idx").all();
       }
@@ -126,6 +137,7 @@ function create(userDataPath, profileId) {
         let hist = null;
         try { hist = r.hist ? JSON.parse(r.hist) : null; } catch {}
         return { label: r.label, url: r.url, title: r.title, pinned: !!r.pinned, group: r.grp || null,
+          container: r.container || null,
           history: Array.isArray(hist) && hist.length ? hist : undefined,
           scrollY: r.scrolly || 0, zoom: r.zoom || 100 };
       }) : null;

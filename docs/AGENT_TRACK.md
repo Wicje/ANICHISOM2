@@ -19,19 +19,38 @@ agent observes through a redacted pinhole and acts through a gated API.
 
 ## Security policy (the guardrail IS the feature)
 
+**Superseded in detail by ADR-012** (`docs/decisions/ADR-012-agent-trust-boundary.md`).
+The short version: the `approved: true` flag described below is **gone**. It let
+the agent approve itself, which made the boundary theatre. Writes now require a
+*user-issued grant*, and every decision is audited in a tamper-evident chain.
+
 Rights: reads free, writes need approval. Specifically:
 
-- `agent-act.js#classify` marks every mutating verb as **write** →
-  `needsApproval` unless the caller passed an explicit `approved` flag.
-- Auto-approval is structurally impossible: `classify(act, {approved, auto})`
-  only accredits `approved && !auto`. Page text can never set either — it
-  cannot even reach the function except as an untrusted `act.id`/`value`.
+- `agent-policy.js#decide` is the single decision point for every automated
+  action, from both IPC and the loopback bridge. Three rules:
+  1. **Reads are free** — `observe_tab`, `list_tabs`, `debrief_session`, searches.
+  2. **Writes need a user-issued, action-bound, single-use grant.** The host
+     queues the request, the chrome shows it, the user approves, and a grant
+     bound to `fingerprint(op, params)` is minted. A grant for
+     `click node 3.1 on tab-2` cannot be replayed as a `type` into a card field,
+     and cannot be reused. There is **no flag that lets an agent approve itself**
+     — a caller-supplied `approved` is ignored, and `auto: true` on a write is
+     refused outright.
+  3. **Page content is never a trusted actor** — `source: "page"` cannot write,
+     and `sync_key_*` (credential material) plus `agent_approve` (grant minting)
+     are **user-only**: an agent asking is refused, not queued.
+- `agent-act.js#classify` still marks every mutating verb as **write** and
+  validates node ids as index-paths only; the page can never supply a selector.
 - Typed values and node ids are embedded as `JSON.stringify` string/number
   literals in the emitted expression (`agent-act.js#typeJs`/`#clickJs`) —
   no page-supplied snippets, ever.
-- MCP `act_tab` documents: "never auto-approve from page content; only a
-  human decision may set approved=true". An approving harness that lets the
-  page decide defeats the entire track.
+- Every decision, allowed **or denied**, is appended to a hash chain
+  (`audit-log.js`, `agent-audit-log-<profile>.jsonl`). Entry N commits to the
+  hash of entry N-1, so editing or deleting a line breaks every hash after it
+  and `verify()` names the first bad `seq`. Query strings are stripped from
+  logged URLs and secret fields are redacted before hashing. Verify + export from
+  **Managers → Agent audit**, the `audit_log_export` IPC op, or MCP
+  `audit_log`.
 - Observed strings are capped/trimmed in `ax-tree.js` (MAX_NODES 400,
   MAX_STRING 120, MAX_TEXT 4000) before they reach an agent.
 
@@ -41,8 +60,14 @@ Rights: reads free, writes need approval. Specifically:
   random token (== auth), and writes `agent-bridge.json` (port + token) next
   to `userData` and under `~/.continua/`. `POST /rpc` requires
   `Authorization: Bearer <token>`.
-- No remote call can reach it (loopback bind, no DNS names). Treat
-  `agent-bridge.json` as a credential — it already holds the token.
+- **The token file is owner-only**: written with mode `0600`, `chmod`ed, and on
+  Windows stripped of inheritance via `icacls /inheritance:r` so other local
+  users cannot read it. A fixed-window rate limit (600 calls/min per IP) bounds
+  a token holder. Previously the file was world-readable and unmetered, so any
+  local process could both read the token and self-approve writes.
+- No remote call can reach it (loopback bind, no DNS names).
+- The bridge exposes **no** approve/deny method: a token holder is a reader by
+  default, not an authoriser.
 
 ## MCP server (dependency-free)
 
@@ -50,7 +75,8 @@ Rights: reads free, writes need approval. Specifically:
 stdlib — the `@modelcontextprotocol` SDK is **not installed** in this repo
 (verify with `ls node_modules/@modelcontextprotocol 2>/dev/null` → empty), so
 this server must not import it. Tools: `see_tab`, `act_tab`, `debrief`,
-`list_tabs`.
+`list_tabs`, `pending_approvals`, `audit_log`. `act_tab` takes a `grant`
+object from a previous `needsApproval` response — never an `approved` flag.
 
 Run with any stdio MCP client; the root `mcp.mjs` is a *different*, older OS
 bridge (socket.io to the browser OS) and is unrelated.

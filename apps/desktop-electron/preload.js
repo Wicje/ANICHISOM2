@@ -81,6 +81,19 @@ contextBridge.exposeInMainWorld("continuaBridge", {
     ipcRenderer.on("login-available", h);
     return () => ipcRenderer.removeListener("login-available", h);
   },
+  // Agent trust boundary (ADR-012): a write is waiting for a human decision,
+  // or a decision was made. Payload is op + description + fingerprint only —
+  // never the typed value, so no page content crosses this seam.
+  onAgentApproval: (cb) => {
+    const h = (_evt, info) => { try { cb(info); } catch {} };
+    ipcRenderer.on("agent-approval-requested", h);
+    return () => ipcRenderer.removeListener("agent-approval-requested", h);
+  },
+  onAgentApprovalResolved: (cb) => {
+    const h = (_evt, info) => { try { cb(info); } catch {} };
+    ipcRenderer.on("agent-approval-resolved", h);
+    return () => ipcRenderer.removeListener("agent-approval-resolved", h);
+  },
   // Tabs pushed by paired devices ("send to device").
   onTabdropReceived: (cb) => {
     const h = (_evt, info) => { try { cb(info); } catch {} };

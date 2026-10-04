@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api, displayTitle, newTabUrl, START_TAB_URL, windowControls } from "../lib/tauri-bridge";
+import type { AgentApproval } from "../lib/tauri-bridge";
 import { engineBadge, searchUrlFor } from "../lib/tauri-bridge";
 import type {
   Bookmark,
@@ -28,6 +29,7 @@ import { ProfileMenu } from "./ProfileMenu";
 import { BookmarksBar } from "./BookmarksBar";
 import { TabRail } from "./TabRail";
 import { ManagersPanel } from "./ManagersPanel";
+import { AgentApprovalPrompt } from "./AgentApprovalPrompt";
 import { parseBookmarkHtml } from "./BookmarksBar";
 import { Favicon } from "../components/Favicon";
 import { ENGINES } from "./engine-list";
@@ -141,6 +143,11 @@ export function BrowserChrome({
   const [addrPrompt, setAddrPrompt] = useState<{ label: string; origin: string; name?: string; email?: string } | null>(null);
   const [loginCounts, setLoginCounts] = useState<Record<string, number>>({});
   useChromeModal("login-prompt", !!(loginPrompt || addrPrompt));
+  // Agent trust boundary (ADR-012): an agent asked to write and is waiting on
+  // a human. Surfaces globally — the agent's tab may not be the active one.
+  // The listener effect lives below, next to the other host-push subscriptions.
+  const [agentApproval, setAgentApproval] = useState<AgentApproval | null>(null);
+  useChromeModal("agent-approval", !!agentApproval);
   // History panel (Ctrl+H) and the ring that feeds omnibox suggestions.
   const [historyOpen, setHistoryOpen] = useState(false);
   const [recent, setRecent] = useState<HistoryItem[]>([]);
@@ -281,6 +288,30 @@ export function BrowserChrome({
   // Native content views paint above HTML overlays: hide them while the
   // omnibox popover or menus are open (panels handle themselves).
   useChromeModal("suggestions", suggestOpen);
+  // Agent trust boundary (ADR-012): a queued write needs a human decision.
+  // Push-driven so it appears the moment the host queues it, plus a slow
+  // sweep so a prompt raised before a chrome reload is never stranded.
+  useEffect(() => {
+    if (!isNative) return;
+    const offReq = api.onAgentApproval((req) => {
+      if (!req?.id) return;
+      setAgentApproval((cur) => (cur && cur.id === req.id ? cur : req));
+    });
+    const offRes = api.onAgentApprovalResolved((info) => {
+      if (!info?.id) return;
+      setAgentApproval((cur) => (cur && cur.id === info.id ? null : cur));
+    });
+    const sweep = () => void api.agentPendingApprovals().then((rows) => {
+      if (rows.length) setAgentApproval((cur) => cur ?? rows[0]);
+    });
+    sweep();
+    const t = window.setInterval(sweep, 4000);
+    return () => {
+      offReq();
+      offRes();
+      window.clearInterval(t);
+    };
+  }, [isNative]);
   // Save-password flow (Electron host): submit-time captures arrive as
   // login-prompt; sealed-login availability arrives as login-available.
   useEffect(() => {
@@ -1658,6 +1689,11 @@ export function BrowserChrome({
         onClose={() => setFindOpen(false)}
       />
       <DownloadsPanel open={downloadsOpen} onClose={() => setDownloadsOpen(false)} />
+      <AgentApprovalPrompt
+        open={!!agentApproval}
+        request={agentApproval}
+        onClose={() => setAgentApproval(null)}
+      />
       <QrPanel open={qrOpen} url={activeUrl} onClose={() => setQrOpen(false)} />
       <ReadingPanel
         open={readingOpen}

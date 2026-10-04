@@ -26,6 +26,7 @@ import {
   IconSpark,
   IconStack,
   IconStar,
+  IconVault,
 } from "../components/icons";
 import type { IconProps } from "../components/icons";
 
@@ -363,6 +364,14 @@ export function CommandPalette({
       hint: "containers · apps · cookies · snapshots · tab manager · bookmarks · history",
       icon: IconStack,
       run: () => window.dispatchEvent(new CustomEvent("continua:open-managers")),
+    });
+    raw.push({
+      key: "mgr-audit",
+      group: "Managers",
+      label: "Agent audit log",
+      hint: "every automated action, hash-chained",
+      icon: IconVault,
+      run: () => window.dispatchEvent(new CustomEvent("continua:open-managers", { detail: { section: "audit" } })),
     });
     raw.push({
       key: "mgr-task",

@@ -1,5 +1,10 @@
 # Phase 1: Device Trust & Schema Consolidation — Implementation Checklist
 
+> **SUPERSEDED (2026-10-04):** Device trust and schema consolidation were
+> planned against the frozen Tauri Rust host. Direction now lives in
+> `docs/STRATEGY.md` and `docs/decisions/`; execution state lives in
+> `ROADMAP.md`. Kept only as a historical record.
+
 ## Overview
 Every machine gets an identity. The schema has a single source of truth.
 Estimated: ~1 week of focused work.

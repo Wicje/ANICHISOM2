@@ -29,6 +29,9 @@ const { buildSavePayload, mergeRemoteTabs, mergeRemoteWorkspaces, mergeTabdrops 
 const AxTree = require("./ax-tree");
 const AgentAct = require("./agent-act");
 const Debrief = require("./debrief");
+const AgentPolicy = require("./agent-policy");
+const { createAuditLog, summarize: summarizeAudit } = require("./audit-log");
+const Metrics = require("./metrics");
 
 // Boxes without a usable GPU (broken libva/iHD, headless Wayland) get a
 // dying GPU process and black canvases in fresh renderers. Opt out of
@@ -177,6 +180,112 @@ let dlSeq = 0;
 let agentTimeline = []; // [{type, url, ts, ...}]
 const agentNow = () => new Date().toISOString();
 function agentLog(e) { agentTimeline.push({ ts: agentNow(), ...e }); if (agentTimeline.length > 4000) agentTimeline = agentTimeline.slice(-3000); }
+
+// ---------- agent trust boundary (ADR-012) ----------
+// Every automated action is decided by AgentPolicy.decide() and written to a
+// hash-chained audit log, whether it was allowed or denied. Writes need a
+// user-issued, action-bound, single-use grant — a caller-supplied
+// `approved: true` is deliberately ignored, otherwise the agent approves
+// itself and the boundary is theatre.
+const auditLogs = new Map();   // profileId -> audit log
+const pendingApprovals = new Map(); // requestId -> {op, params, ts, tab, url, fingerprint, describe}
+const spentGrants = new Set(); // grant ids already consumed
+let approvalSeq = 0;
+
+function auditLog() {
+  const id = activeProfileId || "personal";
+  if (!auditLogs.has(id)) {
+    // Per-profile, inside the profile's own store dir: never crosses profiles.
+    const file = path.join(userDataPath, `agent-audit-${id}.jsonl`);
+    auditLogs.set(id, createAuditLog(file));
+  }
+  return auditLogs.get(id);
+}
+
+/** Record one decision. Returns the stored chain entry. */
+function audit(entry) {
+  try { return auditLog().append({ ts: Date.now(), ...entry }); } catch { return null; }
+}
+
+/** Bump a daily counter and persist it on the profile store. */
+function countMetric(key, by = 1) {
+  try {
+    if (!store) return;
+    store.cfg.metrics = Metrics.bump(store.cfg.metrics || {}, key, Date.now(), by);
+    store.cfg.metrics = Metrics.prune(store.cfg.metrics, Metrics.DEFAULT_DAYS, Date.now());
+  } catch { /* metrics must never break a page */ }
+}
+
+/**
+ * The one gate. Callers pass {op, params, source, grant} and get the policy
+ * decision plus the audit line already written.
+ */
+function gate({ op, params = {}, source = "agent", grant = null, tab = null, url = null, summaryText = null }) {
+  const d = AgentPolicy.decide({
+    op,
+    source,
+    params,
+    grant,
+    spent: grant ? spentGrants.has(grant.id) : false,
+    auto: !!params.auto,
+  });
+  audit({
+    actor: source === "user" ? "user" : source === "page" ? "page" : "agent",
+    op,
+    tier: d.tier,
+    allowed: d.allowed,
+    source,
+    reason: d.reason,
+    tab,
+    target: url,
+    fp: d.fingerprint || null,
+    grantId: grant?.id || null,
+    summary: summaryText,
+  });
+  if (d.allowed) countMetric(d.tier === "write" ? "agent_writes" : "agent_reads");
+  else countMetric("agent_denied");
+  return d;
+}
+
+/** Queue a write for human approval and hand back the prompt payload. */
+function requestApproval({ op, params, tab, url }) {
+  const requestId = `apr-${Date.now().toString(36)}-${(approvalSeq++).toString(36)}`;
+  pendingApprovals.set(requestId, {
+    id: requestId,
+    op,
+    params,
+    tab: tab || null,
+    url: url || null,
+    fingerprint: AgentPolicy.fingerprint(op, params),
+    describe: AgentPolicy.describe(op, params),
+    ts: Date.now(),
+  });
+  try { chrome?.webContents.send("agent-approval-requested", { id: requestId, op, describe: AgentPolicy.describe(op, params), tab: tab || null, url: url || null, ts: Date.now() }); } catch {}
+  return requestId;
+}
+
+/** User approves a queued write → mint a single-use grant bound to that action. */
+function approveRequest(requestId) {
+  const req = pendingApprovals.get(requestId);
+  if (!req) return { error: "no-such-request" };
+  pendingApprovals.delete(requestId);
+  const grant = AgentPolicy.mintGrant(req.op, req.params, { nonce: requestId });
+  // The approval itself is part of the audit trail.
+  audit({ actor: "user", op: req.op, tier: AgentPolicy.tierOf(req.op), allowed: true, source: "user", reason: "user-approved", tab: req.tab, target: req.url, fp: req.fp || req.fingerprint, grantId: grant.id, summary: req.describe });
+  countMetric("agent_writes");
+  try { chrome?.webContents.send("agent-approval-resolved", { id: requestId, approved: true }); } catch {}
+  return { ok: true, grant: { id: grant.id, op: grant.op, fp: grant.fp } };
+}
+
+/** User denies a queued write. */
+function denyRequest(requestId, why) {
+  const req = pendingApprovals.get(requestId);
+  if (!req) return { error: "no-such-request" };
+  pendingApprovals.delete(requestId);
+  audit({ actor: "user", op: req.op, tier: AgentPolicy.tierOf(req.op), allowed: false, source: "user", reason: why || "user-denied", tab: req.tab, target: req.url, fp: req.fingerprint, summary: req.describe });
+  try { chrome?.webContents.send("agent-approval-resolved", { id: requestId, approved: false }); } catch {}
+  return { ok: true };
+}
 let seq = 0;
 const label = (p) => `${p}-${Date.now()}-${(seq++).toString(36)}`;
 
@@ -1969,6 +2078,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       // host (not the page) resolves targets for act_tab.
       const t = args.label ? tabs.get(args.label) : focused ? tabs.get(focused) : null;
       if (!t?.view || t.discarded) return { error: "no-tab" };
+      gate({ op: "observe_tab", params: { label: t.label }, tab: t.label, url: t.url });
       try {
         const raw = await t.view.webContents.executeJavaScript(COLLECT_AGENT_TREE, true).catch(() => null);
         const snap = AxTree.buildSnapshot(Array.isArray(raw) ? raw : []);
@@ -1982,24 +2092,36 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       } catch (e) { return { error: String(e?.message || e) }; }
     }
     case "agent_act": {
-      // Agent "work": classify the action, gate writes behind a user approval
-      // flag that only the UI can set (page content can never auto-approve).
+      // Agent "work". Two gates, in order:
+      //   1. AgentAct.classify — is this a known verb with a valid node id?
+      //   2. AgentPolicy.decide  — is this exact action covered by a user grant?
+      // A caller-supplied `approved` flag is NOT an approval (ADR-012): the
+      // agent cannot approve itself. Without a matching single-use grant the
+      // action is queued for the user and nothing is executed.
       const t = args.label ? tabs.get(args.label) : focused ? tabs.get(focused) : null;
       if (!t?.view || t.discarded) return { error: "no-tab" };
-      const c = AgentAct.classify({ verb: args.verb, id: args.id, value: args.value }, { approved: !!args.approved, auto: !!args.auto });
+      const act = { verb: args.verb, id: args.id, value: args.value };
+      const c = AgentAct.classify(act, { approved: false, auto: false });
       if (!c.ok) return { error: c.reason || "invalid-action" };
+      const params = { verb: String(args.verb || "").toLowerCase(), id: args.id === undefined ? null : String(args.id), label: t.label };
+      const d = gate({ op: "agent_act", params, source: args.source === "page" ? "page" : "agent", grant: args.grant || null, tab: t.label, url: t.url, summaryText: `${params.verb} ${params.id === null ? "" : params.id}`.trim() });
+      if (!d.allowed) {
+        if (d.needsApproval) {
+          const requestId = requestApproval({ op: "agent_act", params, tab: t.label, url: t.url });
+          return { needsApproval: true, reason: d.reason, requestId, describe: AgentPolicy.describe("agent_act", params), verb: args.verb, id: args.id };
+        }
+        return { error: d.reason };
+      }
+      if (args.grant?.id) spentGrants.add(args.grant.id); // single use
       const path = String(args.id || "0").split(".").map(Number);
       let js = null;
       if (args.verb === "click") js = AgentAct.clickJs(path);
       if (args.verb === "type") js = AgentAct.typeJs(path, args.value);
-      if (c.tier === "write" && c.needsApproval) {
-        return { needsApproval: true, reason: c.reason, verb: args.verb, id: args.id };
-      }
       if (!js) { agentLog({ type: "interact", url: t.url, verb: args.verb, id: args.id }); return { ok: true, verb: args.verb, id: args.id, tier: c.tier }; }
       try {
         const res = await t.view.webContents.executeJavaScript(js, true).catch(() => null);
-        if (args.verb === "type" || args.verb === "click") agentLog({ type: "write", url: t.url, id: args.id, verb: args.verb, approved: c.approved });
-        return { ok: true, verb: args.verb, id: args.id, approved: c.approved, result: res };
+        if (args.verb === "type" || args.verb === "click") agentLog({ type: "write", url: t.url, id: args.id, verb: args.verb, approved: true });
+        return { ok: true, verb: args.verb, id: args.id, approved: true, result: res };
       } catch (e) { return { error: String(e?.message || e) }; }
     }
     case "debrief_session": {
@@ -2010,6 +2132,45 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       return { headline: Debrief.headline(sum), summary: sum, actionItems: items, since: agentTimeline[0]?.ts || null };
     }
     case "agent_timeline_clear": { agentTimeline = []; return { ok: true }; }
+    // ---------- agent trust boundary: approvals, audit log, metrics ----------
+    case "agent_pending_approvals": {
+      return [...pendingApprovals.values()].map(({ id, op, describe, tab, url, ts, fingerprint }) => ({ id, op, describe, tab, url, ts, fingerprint }));
+    }
+    // UI-only: this is the only path that can mint a write grant. It is
+    // reached from the chrome (preload), never from page content.
+    case "agent_approve": {
+      const d = gate({ op: "agent_approve", params: { requestId: args.id || args.requestId || null }, source: "user", tab: pendingApprovals.get(args.id || args.requestId)?.tab || null });
+      if (!d.allowed) return { error: d.reason };
+      return approveRequest(args.id || args.requestId);
+    }
+    case "agent_deny": {
+      const rid = args.id || args.requestId || null;
+      const req = pendingApprovals.get(rid);
+      audit({ actor: "user", op: req?.op || "unknown", tier: AgentPolicy.tierOf(req?.op), allowed: false, source: "user", reason: "user-denied", tab: req?.tab || null, target: req?.url || null, fp: req?.fingerprint || null });
+      return denyRequest(rid, "user-denied");
+    }
+    case "audit_log_query": {
+      const log = auditLog();
+      const rows = args.limit ? log.tail(Number(args.limit)) : log.all();
+      return { entries: rows, chain: log.verify(), summary: summarizeAudit(rows) };
+    }
+    case "audit_log_verify": { const log = auditLog(); return { chain: log.verify(), size: log.size, head: log.head }; }
+    case "audit_log_export": {
+      const log = auditLog();
+      const payload = JSON.stringify({ manifest: log.manifest(), lines: log.exportJsonl() }, null, 2);
+      try { clipboard.writeText(payload); } catch {}
+      return { ok: true, manifest: log.manifest(), bytes: payload.length, copied: true };
+    }
+    case "agent_stats": {
+      let counters = null;
+      try { counters = store?.cfg?.metrics || null; } catch {}
+      return {
+        metrics: Metrics.summary(counters || {}, { nowTs: Date.now(), days: Number(args.days) || 30 }),
+        audit: summarizeAudit(auditLog().all()),
+        chain: auditLog().verify(),
+        pending: pendingApprovals.size,
+      };
+    }
     // ---------- medium: task manager (Chromium process metrics) ----------
     case "task_manager": {
       let metrics = [];
@@ -2108,11 +2269,18 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       } catch (e) { return { error: String(e?.message || e) }; }
     }
     // ---------- H7: E2E-encrypted password sync ----------
+    // These four are user-gated in AgentPolicy (ADR-012): the raw key is
+    // decrypted from safeStorage only here, only in memory, only for a call
+    // that came from the chrome UI. No agent or page path can reach them.
     case "sync_key_status": {
+      const d = gate({ op: "sync_key_status", params: {}, source: "user" });
+      if (!d.allowed) return { error: d.reason };
       const has = !!store?.cfg?.sync_key_enc;
       return { configured: has, available: loginsAvailable() };
     }
     case "sync_key_create": {
+      const d = gate({ op: "sync_key_create", params: {}, source: "user" });
+      if (!d.allowed) return { error: d.reason };
       if (!loginsAvailable()) return { error: "unavailable" };
       const raw = VaultSync.generateSyncKey();
       try {
@@ -2122,6 +2290,8 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       return { ok: true, key: raw };
     }
     case "sync_key_show": {
+      const d = gate({ op: "sync_key_show", params: {}, source: "user" });
+      if (!d.allowed) return { error: d.reason };
       if (!store?.cfg?.sync_key_enc) return { error: "not-configured" };
       if (!loginsAvailable()) return { error: "unavailable" };
       try {
@@ -2130,6 +2300,8 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       } catch { return { error: "decrypt" }; }
     }
     case "sync_key_import": {
+      const d = gate({ op: "sync_key_import", params: {}, source: "user" });
+      if (!d.allowed) return { error: d.reason };
       if (!loginsAvailable()) return { error: "unavailable" };
       const raw = String(args.key || "").trim();
       if (!VaultSync.validSyncKey(raw)) return { error: "bad-key" };
@@ -3194,6 +3366,9 @@ function createStoreFor(profileId) {
 
 function restoreTabsIntoMemory(saved) {
   tabs.clear(); order = []; focused = null; pendingFocus = null;
+  // The headline product metric: a session came back to life. Counted here so
+  // it survives a restart, profile switch and sync-driven restore alike.
+  if (saved?.length) { try { countMetric("sessions_restored", 1); } catch {} }
   if (saved?.length) {
     saved.forEach((t, i) => {
       const target = resolveUrl(t.url);
@@ -3276,22 +3451,45 @@ async function dispatchAgentRpc(payload, res) {
         if (!t?.view || t.discarded) return send(null, "no-tab");
         const raw = await t.view.webContents.executeJavaScript(COLLECT_AGENT_TREE, true).catch(() => null);
         const snap = AxTree.buildSnapshot(Array.isArray(raw) ? raw : []);
+        gate({ op: "observe_tab", params: { label: t.label }, tab: t.label, url: t.url });
         agentLog({ type: "visit", url: t.url, label: t.label });
         return send({ tab: { label: t.label, url: t.url, title: t.title }, summary: AxTree.summarize(snap.tree), index: AxTree.index(snap.tree), truncated: snap.truncated });
       }
       case "act_tab": {
         if (!t?.view || t.discarded) return send(null, "no-tab");
-        const c = AgentAct.classify({ verb: params.verb, id: params.id, value: params.value }, { approved: !!params.approved, auto: !!params.auto });
+        const act = { verb: params.verb, id: params.id, value: params.value };
+        const c = AgentAct.classify(act, { approved: false, auto: false });
         if (!c.ok) return send(null, c.reason || "invalid-action");
-        if (c.tier === "write" && c.needsApproval) return send({ needsApproval: true, reason: c.reason, verb: params.verb, id: params.id });
+        // ADR-012: `params.approved` from the agent is IGNORED. A write needs a
+        // user-issued grant for this exact action; otherwise it is queued and
+        // the agent gets a request id to poll. The bridge can never self-approve.
+        const p2 = { verb: String(params.verb || "").toLowerCase(), id: params.id === undefined ? null : String(params.id), label: t.label };
+        const d = gate({ op: "act_tab", params: p2, source: "agent", grant: params.grant || null, tab: t.label, url: t.url, summaryText: `${p2.verb} ${p2.id === null ? "" : p2.id}`.trim() });
+        if (!d.allowed) {
+          if (d.needsApproval) {
+            const requestId = requestApproval({ op: "act_tab", params: p2, tab: t.label, url: t.url });
+            return send({ needsApproval: true, reason: d.reason, requestId, describe: AgentPolicy.describe("act_tab", p2) });
+          }
+          return send(null, d.reason);
+        }
+        if (params.grant?.id) spentGrants.add(params.grant.id);
         const path = String(params.id || "0").split(".").map(Number);
         let js = null;
         if (params.verb === "click") js = AgentAct.clickJs(path);
         if (params.verb === "type") js = AgentAct.typeJs(path, params.value);
         if (!js) { agentLog({ type: "interact", url: t.url, verb: params.verb, id: params.id }); return send({ ok: true, verb: params.verb, tier: c.tier }); }
         const done = await t.view.webContents.executeJavaScript(js, true).catch(() => null);
-        if (params.verb === "type" || params.verb === "click") agentLog({ type: "write", url: t.url, id: params.id, verb: params.verb, approved: c.approved });
-        return send({ ok: true, verb: params.verb, id: params.id, approved: c.approved, result: done });
+        if (params.verb === "type" || params.verb === "click") agentLog({ type: "write", url: t.url, id: params.id, verb: params.verb, approved: true });
+        return send({ ok: true, verb: params.verb, id: params.id, approved: true, result: done });
+      }
+      case "pending_approvals": {
+        return send([...pendingApprovals.values()].map(({ id, op, describe, tab, url, ts, fingerprint }) => ({ id, op, describe, tab, url, ts, fingerprint })));
+      }
+      // Grants are issued by the UI only; the bridge deliberately has no
+      // approve/deny method, so a token holder cannot open its own gate.
+      case "audit_log": {
+        const log = auditLog();
+        return send({ entries: log.tail(Number(params.limit) || 100), chain: log.verify(), summary: summarizeAudit(log.all()) });
       }
       case "debrief_session": {
         const sum = Debrief.summarize(agentTimeline);
@@ -3307,9 +3505,22 @@ function startAgentBridge() {
     const http = require("http");
     const crypto = require("crypto");
     const token = crypto.randomBytes(24).toString("hex");
+    // Fixed-window rate limit: the token is a loopback credential, and any
+    // local process holding it must not be able to hammer the surface.
+    const WINDOW_MS = 60000, MAX_CALLS = 600;
+    const hits = new Map(); // ip -> {n, resetAt}
+    const overLimit = (ip) => {
+      const now = Date.now();
+      const rec = hits.get(ip);
+      if (!rec || now > rec.resetAt) { hits.set(ip, { n: 1, resetAt: now + WINDOW_MS }); return false; }
+      rec.n += 1;
+      return rec.n > MAX_CALLS;
+    };
     const server = http.createServer((req, res) => {
       res.setHeader("content-type", "application/json");
       if (req.method !== "POST" || req.url !== "/rpc") { res.writeHead(405); res.end(JSON.stringify({ error: "method-not-allowed" })); return; }
+      const ip = req.socket.remoteAddress || "unknown";
+      if (overLimit(ip)) { res.writeHead(429); res.end(JSON.stringify({ error: "rate-limited" })); return; }
       let body = "";
       req.on("data", (ch) => { if (body.length < 2e6) body += ch; });
       req.on("end", () => {
@@ -3323,9 +3534,22 @@ function startAgentBridge() {
     server.listen(0, "127.0.0.1", () => {
       const info = { port: server.address().port, token, pid: process.pid, wrote: new Date().toISOString() };
       for (const p of [path.join(userDataPath, "agent-bridge.json"), path.join(os.homedir(), ".continua", "agent-bridge.json")]) {
-        try { fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, JSON.stringify(info)); } catch { /* non-fatal */ }
+        try {
+          fs.mkdirSync(path.dirname(p), { recursive: true });
+          // The token IS the credential: owner-only on every platform.
+          fs.writeFileSync(p, JSON.stringify(info), { mode: 0o600 });
+          try { fs.chmodSync(p, 0o600); } catch { /* best effort on Windows */ }
+          // Windows: strip inheritance so other local users cannot read it.
+          if (process.platform === "win32") {
+            try {
+              const { execFileSync } = require("child_process");
+              const owner = process.env.USERDOMAIN ? `${process.env.USERDOMAIN}\\${process.env.USERNAME}` : process.env.USERNAME;
+              if (owner) execFileSync("icacls", [p, "/inheritance:r", "/grant:r", `${owner}:(R,W)`], { stdio: "ignore" });
+            } catch { /* non-fatal: mode bit above still applies */ }
+          }
+        } catch { /* non-fatal */ }
       }
-      console.error(`[continua] agent bridge on 127.0.0.1:${info.port} (token in agent-bridge.json)`);
+      console.error(`[continua] agent bridge on 127.0.0.1:${info.port} (token in agent-bridge.json, owner-only)`);
     });
     agentBridge = server;
     app.on("will-quit", () => { try { agentBridge?.close(); } catch {} });

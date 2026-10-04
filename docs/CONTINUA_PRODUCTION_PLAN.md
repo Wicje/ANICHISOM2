@@ -1,5 +1,10 @@
 # Continua — Production Execution Plan
 
+> **SUPERSEDED (2026-10-04):** Written against the continuity-layer pivot and the
+> Tauri Rust host that ADR-008/ADR-009 took off the table. Direction now lives
+> in `docs/STRATEGY.md` and `docs/decisions/`; execution state lives in
+> `ROADMAP.md`. Kept only as a historical record.
+>
 > **Where we are:** The continuity-layer pivot (Phases 1–4 of `CONTINUA_IMPLEMENTATION_PLAN.md`) is structurally complete: mobile control center, `/connect` pairing flow, context graph engine, 30s checkpoint sensor, chrome detectors, and repositioned landing/waitlist.
 >
 > **What remains:** Everything is demo-grade underneath. This plan hardens the prototype into a product, in dependency order. Each phase ends with a shippable increment.

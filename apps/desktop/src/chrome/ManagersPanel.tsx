@@ -2,8 +2,12 @@ import { useEffect, useState } from "react";
 import {
   api,
   displayTitle,
+  type AgentAuditEntry,
+  type AgentAuditSummary,
+  type AuditChainState,
   type Bookmark,
   type Container,
+  type ContinuaMetrics,
   type CookieRow,
   type HistoryItem,
   type InstalledApp,
@@ -31,7 +35,8 @@ type Section =
   | "snapshots"
   | "task"
   | "bookmarks"
-  | "history";
+  | "history"
+  | "audit";
 
 interface ManagersPanelProps {
   open: boolean;
@@ -53,6 +58,7 @@ const SECTIONS: { id: Section; label: string }[] = [
   { id: "task", label: "Tab manager" },
   { id: "bookmarks", label: "Bookmarks" },
   { id: "history", label: "History" },
+  { id: "audit", label: "Agent audit" },
 ];
 
 function hostOf(url: string): string {
@@ -627,6 +633,148 @@ function HistorySection({ onOpen }: { onOpen: (url: string) => void }) {
   );
 }
 
+/**
+ * Agent audit log + trust-boundary health (ADR-012). Every automated action
+ * the host considered — allowed or denied — is one link in an append-only
+ * hash chain, so "what did the agent do, and who approved it" has an answer
+ * that cannot be quietly rewritten afterwards.
+ */
+function AuditSection() {
+  const [entries, setEntries] = useState<AgentAuditEntry[]>([]);
+  const [chain, setChain] = useState<AuditChainState | null>(null);
+  const [sum, setSum] = useState<AgentAuditSummary | null>(null);
+  const [metrics, setMetrics] = useState<ContinuaMetrics | null>(null);
+  const [pending, setPending] = useState(0);
+  const [booted, setBooted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = () =>
+    void api
+      .auditLogQuery(200)
+      .then((res) => {
+        // The bridge never rejects — it falls back to `{error}`, so narrow here.
+        const r = res as { entries?: AgentAuditEntry[]; chain?: AuditChainState; summary?: AgentAuditSummary; error?: string };
+        if (r.error) { setError(r.error); return; }
+        setEntries(r.entries ?? []);
+        setChain(r.chain ?? null);
+        setSum(r.summary ?? null);
+        setError(null);
+      })
+      .then(() => api.agentStats(30))
+      .then((res) => {
+        const s = res as { metrics?: ContinuaMetrics; pending?: number; error?: string };
+        if (s.error) return;
+        setMetrics(s.metrics ?? null);
+        setPending(s.pending ?? 0);
+      })
+      .then(() => setBooted(true));
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  return (
+    <div className="settings-body">
+      <div className="settings-row">
+        <span className="settings-label" style={{ flex: 1 }}>
+          {chain
+            ? chain.ok
+              ? `${chain.checked} entries · chain verified`
+              : `CHAIN BROKEN at #${chain.brokenAt}`
+            : "…"}
+        </span>
+        <button className="settings-btn is-primary" onClick={() => void load()}>Refresh</button>
+        <button
+          className="settings-btn"
+          onClick={() =>
+            void api.auditLogExport().then((r) => {
+              if ("error" in r && r.error) { setError(r.error); return; }
+              toast("Audit log copied to clipboard");
+              void load();
+            })
+          }
+        >
+          Export
+        </button>
+      </div>
+      {chain && !chain.ok && (
+        <p className="settings-hint" style={{ padding: 8, color: "var(--danger)" }}>
+          The hash chain does not verify from entry #{chain.brokenAt}. Entries were edited
+          or removed after they were written — treat this log as evidence of tampering.
+        </p>
+      )}
+      {error && (
+        <p className="settings-hint" style={{ padding: 8, color: "var(--danger)" }}>
+          {error}
+        </p>
+      )}
+      <div className="settings-row">
+        <span className="settings-label" style={{ flex: 1 }}>
+          Sessions restored
+        </span>
+        <span className="settings-sub">
+          {metrics ? `${metrics.sessionsRestored} in ${metrics.windowDays}d · ${metrics.sessionsRestoredToday} today` : "—"}
+        </span>
+      </div>
+      <div className="settings-row">
+        <span className="settings-label" style={{ flex: 1 }}>
+          Agent actions
+        </span>
+        <span className="settings-sub">
+          {sum ? `${sum.writes} writes · ${sum.denied} denied · ${sum.approvalRate == null ? "—" : `${sum.approvalRate}%`} approved` : "—"}
+        </span>
+      </div>
+      <div className="settings-row">
+        <span className="settings-label" style={{ flex: 1 }}>
+          Awaiting you
+        </span>
+        <span className="settings-sub" style={{ color: pending ? "var(--accent)" : undefined }}>
+          {pending} pending
+        </span>
+      </div>
+      {!booted ? (
+        <p className="settings-hint" style={{ padding: 8 }}>Reading the chain…</p>
+      ) : entries.length === 0 ? (
+        <p className="settings-hint" style={{ padding: 8 }}>
+          Nothing yet. Reads by an agent appear here immediately; writes appear only
+          after you approve them.
+        </p>
+      ) : (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+          {[...entries].reverse().slice(0, 200).map((e) => (
+            <li className="settings-row" key={e.seq}>
+              <span className="settings-sub" style={{ width: 34, textAlign: "right" }}>
+                {e.seq}
+              </span>
+              <span className="settings-label" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}
+                title={e.summary || e.op}>
+                {e.summary || e.op}
+              </span>
+              <span
+                className="settings-sub"
+                style={{ color: e.allowed ? "var(--text-dim)" : "var(--danger)" }}
+                title={e.reason || ""}
+              >
+                {e.allowed ? (e.tier === "write" ? "approved" : "read") : e.reason || "denied"}
+              </span>
+              <span className="settings-sub" style={{ width: 74, textAlign: "right" }}>
+                {formatWhen(Math.floor(e.ts / 1000))}
+              </span>
+              <span
+                className="settings-sub"
+                style={{ width: 54, textAlign: "right", fontFamily: "ui-monospace, Menlo, monospace" }}
+                title={`hash ${e.hash}`}
+              >
+                {e.hash.slice(0, 8)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function ManagersPanel({
   open,
   onClose,
@@ -691,6 +839,7 @@ export function ManagersPanel({
         )}
         {section === "bookmarks" && <BookmarksSection onOpen={openAny} />}
         {section === "history" && <HistorySection onOpen={openAny} />}
+        {section === "audit" && <AuditSection />}
       </div>
     </div>
   );

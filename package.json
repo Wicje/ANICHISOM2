@@ -20,6 +20,8 @@
     "typecheck:desktop": "npm -w apps/desktop exec tsc -- --noEmit",
     "test:desktop": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml",
     "test:browser": "npm -w apps/desktop-electron run test",
+    "check:package": "node scripts/check-build-files.cjs",
+    "check:host": "npm run check:package && node --check apps/desktop-electron/main.js && node --check apps/desktop-electron/preload.js && node --check apps/desktop-electron/mcp-browser.mjs && npm run test:browser",
     "dev:shell": "npm -w apps/shell run dev",
     "build:shell": "npm -w apps/shell run build",
     "test:shell": "npm -w apps/shell run test"

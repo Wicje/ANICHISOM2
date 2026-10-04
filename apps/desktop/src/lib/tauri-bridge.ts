@@ -23,6 +23,8 @@ declare global {
       onPortal?: (cb: (info: { url: string }) => void) => () => void;
       onDownload?: (cb: (info: { id: string; filename: string; state: string; path?: string }) => void) => () => void;
       onChromeCommand?: (cb: (cmd: string) => void) => () => void;
+      onAgentApproval?: (cb: (req: AgentApproval) => void) => () => void;
+      onAgentApprovalResolved?: (cb: (info: { id: string; approved: boolean }) => void) => () => void;
       onUpdate?: (cb: (info: { state: string; version?: string }) => void) => () => void;
       onLoadFinished?: (cb: (info: { label: string }) => void) => () => void;
       onLoadStarted?: (cb: (info: { label: string }) => void) => () => void;
@@ -148,6 +150,94 @@ export interface ProfileState {
 
 /** A tab as live in the chrome: same shape as a restored tab. */
 export type OpenTab = RestoredTab;
+
+// ---------- agent trust boundary (ADR-012) ----------
+
+/** A write waiting for a human decision. */
+export interface AgentApproval {
+  id: string;
+  op: string;
+  /** Human-readable prompt line, e.g. "agent_act click node 3.1 (write)". */
+  describe: string;
+  tab: string | null;
+  url: string | null;
+  ts: number;
+  /** Action fingerprint the eventual grant will be bound to. */
+  fingerprint: string;
+}
+
+/** A user-issued, action-bound, single-use grant for one write. */
+export interface AgentGrant {
+  id: string;
+  op: string;
+  fp: string;
+}
+
+/** One link in the append-only hash chain. */
+export interface AgentAuditEntry {
+  seq: number;
+  ts: number;
+  prev: string;
+  hash: string;
+  actor: "agent" | "user" | "page";
+  op: string;
+  tier: string;
+  allowed: boolean;
+  source: string;
+  reason: string | null;
+  /** Origin + path; query strings are scrubbed before logging. */
+  target: string | null;
+  tab: string | null;
+  fp: string | null;
+  grantId: string | null;
+  summary: string | null;
+}
+
+/** Result of walking the chain: `brokenAt` is the first tampered seq. */
+export interface AuditChainState {
+  ok: boolean;
+  checked: number;
+  brokenAt: number | null;
+  head: string;
+}
+
+export interface AgentAuditSummary {
+  total: number;
+  reads: number;
+  writes: number;
+  denied: number;
+  forbidden: number;
+  granted: number;
+  approvalRate: number | null;
+  byOp: Record<string, number>;
+  byTab: Record<string, number>;
+}
+
+/** Header written alongside an exported chain. */
+export interface AuditManifest {
+  product: string;
+  artifact: string;
+  version: number;
+  exportedAt: string;
+  entryCount: number;
+  chainOk: boolean;
+  head: string;
+  hash: string;
+  note: string;
+}
+
+/** The two numbers that decide whether Continua is a real product. */
+export interface ContinuaMetrics {
+  windowDays: number;
+  sessionsRestored: number;
+  sessionsRestoredToday: number;
+  tabsOpened: number;
+  agentReads: number;
+  agentWrites: number;
+  agentDenied: number;
+  agentApprovalRate: number | null;
+  series: Array<{ day: string; sessionsRestored: number; agentReads: number; agentWrites: number; agentDenied: number }>;
+}
 
 /** A saved workspace checkpoint for the memory timeline. */
 export interface SessionSummary {
@@ -917,6 +1007,24 @@ export const api = {
     return () => undefined;
   },
 
+  /** An agent write is waiting for a human decision (ADR-012). */
+  onAgentApproval: (cb: (req: AgentApproval) => void): (() => void) => {
+    try {
+      const un = window.continuaBridge?.onAgentApproval?.(cb);
+      if (typeof un === "function") return un;
+    } catch {}
+    return () => undefined;
+  },
+
+  /** A pending agent write was approved or denied. */
+  onAgentApprovalResolved: (cb: (info: { id: string; approved: boolean }) => void): (() => void) => {
+    try {
+      const un = window.continuaBridge?.onAgentApprovalResolved?.(cb);
+      if (typeof un === "function") return un;
+    } catch {}
+    return () => undefined;
+  },
+
   stopFind: (label: string) =>
     invoke<void>("stop_find", { label }).catch(() => undefined),
 
@@ -1112,12 +1220,29 @@ export const api = {
   // ---------- agent track: see / work / live ----------
   observeTab: (label?: string) =>
     invoke<{ tab?: { label?: string; url?: string; title?: string }; summary?: Record<string, unknown>; index?: Array<Record<string, unknown>>; truncated?: boolean; error?: string }>("observe_tab", { label: label ?? null }).catch(() => ({ error: "unavailable" })),
-  agentAct: (opts: { verb: string; id?: string; value?: string; approved?: boolean; auto?: boolean; label?: string }) =>
-    invoke<{ ok?: boolean; needsApproval?: boolean; approved?: boolean; result?: unknown; tier?: string; reason?: string; error?: string }>("agent_act", { ...opts }).catch(() => ({ error: "unavailable" })),
+  agentAct: (opts: { verb: string; id?: string; value?: string; label?: string; grant?: AgentGrant }) =>
+    invoke<{ ok?: boolean; needsApproval?: boolean; approved?: boolean; result?: unknown; tier?: string; reason?: string; requestId?: string; describe?: string; error?: string }>("agent_act", { ...opts }).catch(() => ({ error: "unavailable" })),
   debriefSession: (mode?: string) =>
     invoke<{ headline?: string; summary?: Record<string, unknown>; actionItems?: Array<Record<string, unknown>>; since?: string | null; error?: string }>("debrief_session", { mode: mode ?? null }).catch(() => ({ error: "unavailable" })),
   agentTimelineClear: () =>
     invoke<{ ok?: boolean }>("agent_timeline_clear").catch(() => ({ ok: true })),
+
+  // ---------- agent trust boundary (ADR-012) ----------
+  /** A user-issued, action-bound, single-use write grant. Never agent-minted. */
+  agentPendingApprovals: () =>
+    invoke<AgentApproval[]>("agent_pending_approvals").catch(() => []),
+  agentApprove: (id: string) =>
+    invoke<{ ok?: boolean; grant?: AgentGrant; error?: string }>("agent_approve", { id }).catch(() => ({ error: "unavailable" })),
+  agentDeny: (id: string) =>
+    invoke<{ ok?: boolean; error?: string }>("agent_deny", { id }).catch(() => ({ error: "unavailable" })),
+  auditLogQuery: (limit?: number) =>
+    invoke<{ entries?: AgentAuditEntry[]; chain?: AuditChainState; summary?: AgentAuditSummary; error?: string }>("audit_log_query", { limit: limit ?? null }).catch(() => ({ error: "unavailable" })),
+  auditLogVerify: () =>
+    invoke<{ chain?: AuditChainState; size?: number; head?: string; error?: string }>("audit_log_verify").catch(() => ({ error: "unavailable" })),
+  auditLogExport: () =>
+    invoke<{ ok?: boolean; bytes?: number; copied?: boolean; manifest?: AuditManifest; error?: string }>("audit_log_export").catch(() => ({ error: "unavailable" })),
+  agentStats: (days?: number) =>
+    invoke<{ metrics?: ContinuaMetrics; audit?: AgentAuditSummary; chain?: AuditChainState; pending?: number; error?: string }>("agent_stats", { days: days ?? null }).catch(() => ({ error: "unavailable" })),
 
   // ---------- medium: full-page screenshot + read-aloud ----------
   screenshotFull: (label?: string) =>

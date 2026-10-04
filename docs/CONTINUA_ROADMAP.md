@@ -1,5 +1,11 @@
 # Continua Desktop — Roadmap (post command-palette)
 
+> **SUPERSEDED (2026-10-04):** This plan predates ADR-008/ADR-009 and still
+> schedules work in the frozen Tauri Rust host (`src-tauri/sync.rs`,
+> `trust.rs`, `tauri.conf.json`) that is no longer on the table. Direction now
+> lives in `docs/STRATEGY.md` and `docs/decisions/`; execution state lives in
+> `ROADMAP.md`. Kept only as a historical record.
+
 Status snapshot after: immersive mode, workspace resurrection, context-memory
 new tab, command palette, shareable sessions (local export/import), and vault
 tabs (encrypted pinned tabs) shipped. This file plans the remaining batches.
