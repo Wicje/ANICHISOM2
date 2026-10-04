@@ -326,7 +326,7 @@ function CookiesSection({ activeUrl }: { activeUrl: string }) {
           Load
         </button>
       </div>
-      {status && <p className="settings-hint" style={{ padding: 8, color: "var(--danger)" }}>{status}</p>}
+      {status && <p className="settings-hint" style={{ padding: 8, color: "var(--danger, #e5534b)" }}>{status}</p>}
       {rows.length === 0 ? (
         <p className="settings-hint" style={{ padding: 8 }}>
           {status ? "Enter a site origin to inspect its cookies." : `No cookies stored for “${origin}”.`}
@@ -698,13 +698,13 @@ function AuditSection() {
         </button>
       </div>
       {chain && !chain.ok && (
-        <p className="settings-hint" style={{ padding: 8, color: "var(--danger)" }}>
+        <p className="settings-hint" style={{ padding: 8, color: "var(--danger, #e5534b)" }}>
           The hash chain does not verify from entry #{chain.brokenAt}. Entries were edited
           or removed after they were written — treat this log as evidence of tampering.
         </p>
       )}
       {error && (
-        <p className="settings-hint" style={{ padding: 8, color: "var(--danger)" }}>
+        <p className="settings-hint" style={{ padding: 8, color: "var(--danger, #e5534b)" }}>
           {error}
         </p>
       )}
@@ -752,7 +752,7 @@ function AuditSection() {
               </span>
               <span
                 className="settings-sub"
-                style={{ color: e.allowed ? "var(--text-dim)" : "var(--danger)" }}
+                style={{ color: e.allowed ? "var(--text-dim)" : "var(--danger, #e5534b)" }}
                 title={e.reason || ""}
               >
                 {e.allowed ? (e.tier === "write" ? "approved" : "read") : e.reason || "denied"}

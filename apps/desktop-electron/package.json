@@ -66,6 +66,7 @@
       "agent-act.js",
       "debrief.js",
       "agent-policy.js",
+      "grant-registry.js",
       "audit-log.js",
       "metrics.js",
       "mcp-browser.mjs",
@@ -95,3 +96,4 @@
     }
   }
 }
+

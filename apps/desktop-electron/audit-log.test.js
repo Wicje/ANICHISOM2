@@ -113,6 +113,50 @@ test("export produces a manifest plus verifiable JSONL", () => {
   assert.equal(first.hash.length, 64);
 });
 
+test("entries reach disk without an explicit flush (debounced)", async () => {
+  const dir = tmp();
+  const file = path.join(dir, "audit.jsonl");
+  const log = createAuditLog(file, { flushMs: 5 });
+  log.append({ ts: 1, op: "observe_tab", tier: "read", allowed: true });
+  assert.equal(fs.existsSync(file), false, "not written synchronously");
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(fs.existsSync(file), true, "written by the debounce timer");
+  assert.equal(createAuditLog(file).verify().ok, true);
+});
+
+test("flush() forces the write and is idempotent", () => {
+  const dir = tmp();
+  const file = path.join(dir, "audit.jsonl");
+  const log = createAuditLog(file, { flushMs: 10000 });
+  log.append({ ts: 1, op: "observe_tab", tier: "read", allowed: true });
+  log.flush();
+  const first = fs.readFileSync(file, "utf8");
+  log.flush();
+  assert.equal(fs.readFileSync(file, "utf8"), first, "a second flush changes nothing");
+  assert.equal(log.dirty, false);
+});
+
+test("a burst of decisions collapses into one disk write", () => {
+  const dir = tmp();
+  const file = path.join(dir, "audit.jsonl");
+  const log = createAuditLog(file, { flushMs: 10000 });
+  for (let i = 0; i < 500; i++) log.append({ ts: i, op: "observe_tab", tier: "read", allowed: true });
+  assert.equal(fs.existsSync(file), false, "no synchronous I/O during the burst");
+  log.flush();
+  assert.equal(createAuditLog(file).size, 500);
+  assert.equal(log.verify().ok, true);
+});
+
+test("no temp file is left behind after a write", () => {
+  const dir = tmp();
+  const file = path.join(dir, "audit.jsonl");
+  const log = createAuditLog(file, { flushMs: 0 });
+  log.append({ ts: 1, op: "observe_tab", tier: "read", allowed: true });
+  log.flush();
+  assert.equal(fs.existsSync(`${file}.tmp`), false);
+  assert.equal(fs.existsSync(file), true);
+});
+
 test("hashEntry is deterministic and prev-sensitive", () => {
   const body = bodyOf({ ts: 5, op: "act_tab", tier: "write", allowed: true });
   assert.equal(hashEntry(GENESIS, body), hashEntry(GENESIS, body));

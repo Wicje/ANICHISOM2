@@ -31,6 +31,7 @@ const AgentAct = require("./agent-act");
 const Debrief = require("./debrief");
 const AgentPolicy = require("./agent-policy");
 const { createAuditLog, summarize: summarizeAudit } = require("./audit-log");
+const { createGrantRegistry } = require("./grant-registry");
 const Metrics = require("./metrics");
 
 // Boxes without a usable GPU (broken libva/iHD, headless Wayland) get a
@@ -189,7 +190,10 @@ function agentLog(e) { agentTimeline.push({ ts: agentNow(), ...e }); if (agentTi
 // itself and the boundary is theatre.
 const auditLogs = new Map();   // profileId -> audit log
 const pendingApprovals = new Map(); // requestId -> {op, params, ts, tab, url, fingerprint, describe}
-const spentGrants = new Set(); // grant ids already consumed
+// Grants live in host state, never in caller-supplied fields: the fingerprint
+// is public (pending_approvals exposes it so an agent can poll), so matching it
+// proves nothing. Only an id this registry issued is authority.
+const grantRegistry = createGrantRegistry();
 let approvalSeq = 0;
 
 function auditLog() {
@@ -210,25 +214,37 @@ function audit(entry) {
 /** Bump a daily counter and persist it on the profile store. */
 function countMetric(key, by = 1) {
   try {
-    if (!store) return;
+    if (!store?.cfg) return;
     store.cfg.metrics = Metrics.bump(store.cfg.metrics || {}, key, Date.now(), by);
     store.cfg.metrics = Metrics.prune(store.cfg.metrics, Metrics.DEFAULT_DAYS, Date.now());
+    // cfg is only durable once it is written back: sqlite persists via
+    // _saveCfg() (config.json sidecar), the JSON store via _saveSoon().
+    try { store._saveCfg(); } catch { /* not the sqlite backend */ }
+    try { store._saveSoon?.(); } catch { /* not the JSON backend */ }
   } catch { /* metrics must never break a page */ }
 }
 
 /**
- * The one gate. Callers pass {op, params, source, grant} and get the policy
- * decision plus the audit line already written.
+ * The one gate. Callers pass {op, params, source, grant, auto} and get the
+ * policy decision plus the audit line already written. `auto` is passed
+ * separately from `params` on purpose: it must not change the action
+ * fingerprint, or a granted action could not be retried.
  */
-function gate({ op, params = {}, source = "agent", grant = null, tab = null, url = null, summaryText = null }) {
-  const d = AgentPolicy.decide({
-    op,
-    source,
-    params,
-    grant,
-    spent: grant ? spentGrants.has(grant.id) : false,
-    auto: !!params.auto,
-  });
+function gate({ op, params = {}, source = "agent", grant = null, auto = false, tab = null, url = null, summaryText = null }) {
+  // A presented grant is only a claim until the registry vouches for it.
+  const held = grant?.id ? grantRegistry.resolve(grant, op, params) : null;
+  const trusted = held?.ok ? { id: held.grant.id, op: held.grant.op, fp: held.grant.fp } : null;
+  const spent = !!(held && (held.spent === true || held.grant?.spent === true));
+  // This function must fail CLOSED, and it must never fail to record: a throw
+  // between the decision and the audit write would leave the most interesting
+  // attempts (forged grants, malformed input) missing from the chain.
+  let d;
+  try {
+    d = AgentPolicy.decide({ op, source, params, grant: trusted, spent, auto: !!auto });
+  } catch (e) {
+    console.error(`[continua] policy error on ${op}: ${e?.message || e}`);
+    d = { allowed: false, tier: AgentPolicy.tierOf(op), needsApproval: false, reason: "policy-error" };
+  }
   audit({
     actor: source === "user" ? "user" : source === "page" ? "page" : "agent",
     op,
@@ -242,8 +258,10 @@ function gate({ op, params = {}, source = "agent", grant = null, tab = null, url
     grantId: grant?.id || null,
     summary: summaryText,
   });
-  if (d.allowed) countMetric(d.tier === "write" ? "agent_writes" : "agent_reads");
-  else countMetric("agent_denied");
+  if (d.allowed && source !== "user") countMetric(d.tier === "write" ? "agent_writes" : "agent_reads");
+  // Only automated traffic is an agent action. The user driving their own
+  // Settings must not inflate the agent counters the UI reports.
+  else if (source !== "user") countMetric("agent_denied");
   return d;
 }
 
@@ -269,7 +287,7 @@ function approveRequest(requestId) {
   const req = pendingApprovals.get(requestId);
   if (!req) return { error: "no-such-request" };
   pendingApprovals.delete(requestId);
-  const grant = AgentPolicy.mintGrant(req.op, req.params, { nonce: requestId });
+  const grant = grantRegistry.issue({ op: req.op, params: req.params, nonce: requestId });
   // The approval itself is part of the audit trail.
   audit({ actor: "user", op: req.op, tier: AgentPolicy.tierOf(req.op), allowed: true, source: "user", reason: "user-approved", tab: req.tab, target: req.url, fp: req.fp || req.fingerprint, grantId: grant.id, summary: req.describe });
   countMetric("agent_writes");
@@ -2104,15 +2122,17 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       const c = AgentAct.classify(act, { approved: false, auto: false });
       if (!c.ok) return { error: c.reason || "invalid-action" };
       const params = { verb: String(args.verb || "").toLowerCase(), id: args.id === undefined ? null : String(args.id), label: t.label };
-      const d = gate({ op: "agent_act", params, source: args.source === "page" ? "page" : "agent", grant: args.grant || null, tab: t.label, url: t.url, summaryText: `${params.verb} ${params.id === null ? "" : params.id}`.trim() });
+      const d = gate({ op: "agent_act", params, source: args.source === "page" ? "page" : "agent", grant: args.grant || null, auto: !!args.auto, tab: t.label, url: t.url, summaryText: `${params.verb} ${params.id === null ? "" : params.id}`.trim() });
       if (!d.allowed) {
+        // Flat no for a self-declared auto-approval (see bridge act_tab).
+        if (d.reason === AgentPolicy.REASON.autoBlocked) return { error: d.reason };
         if (d.needsApproval) {
           const requestId = requestApproval({ op: "agent_act", params, tab: t.label, url: t.url });
           return { needsApproval: true, reason: d.reason, requestId, describe: AgentPolicy.describe("agent_act", params), verb: args.verb, id: args.id };
         }
         return { error: d.reason };
       }
-      if (args.grant?.id) spentGrants.add(args.grant.id); // single use
+      if (args.grant?.id) grantRegistry.consume(args.grant.id); // single use
       const path = String(args.id || "0").split(".").map(Number);
       let js = null;
       if (args.verb === "click") js = AgentAct.clickJs(path);
@@ -3464,15 +3484,18 @@ async function dispatchAgentRpc(payload, res) {
         // user-issued grant for this exact action; otherwise it is queued and
         // the agent gets a request id to poll. The bridge can never self-approve.
         const p2 = { verb: String(params.verb || "").toLowerCase(), id: params.id === undefined ? null : String(params.id), label: t.label };
-        const d = gate({ op: "act_tab", params: p2, source: "agent", grant: params.grant || null, tab: t.label, url: t.url, summaryText: `${p2.verb} ${p2.id === null ? "" : p2.id}`.trim() });
+        const d = gate({ op: "act_tab", params: p2, source: "agent", grant: params.grant || null, auto: !!params.auto, tab: t.label, url: t.url, summaryText: `${p2.verb} ${p2.id === null ? "" : p2.id}`.trim() });
         if (!d.allowed) {
+          // An agent demanding auto-approval gets a flat no, never a prompt:
+          // queueing would let it keep asking a human until someone caves.
+          if (d.reason === AgentPolicy.REASON.autoBlocked) return send(null, d.reason);
           if (d.needsApproval) {
             const requestId = requestApproval({ op: "act_tab", params: p2, tab: t.label, url: t.url });
             return send({ needsApproval: true, reason: d.reason, requestId, describe: AgentPolicy.describe("act_tab", p2) });
           }
           return send(null, d.reason);
         }
-        if (params.grant?.id) spentGrants.add(params.grant.id);
+        if (params.grant?.id) grantRegistry.consume(params.grant.id);
         const path = String(params.id || "0").split(".").map(Number);
         let js = null;
         if (params.verb === "click") js = AgentAct.clickJs(path);
@@ -3552,7 +3575,11 @@ function startAgentBridge() {
       console.error(`[continua] agent bridge on 127.0.0.1:${info.port} (token in agent-bridge.json, owner-only)`);
     });
     agentBridge = server;
-    app.on("will-quit", () => { try { agentBridge?.close(); } catch {} });
+    app.on("will-quit", () => {
+      try { agentBridge?.close(); } catch {}
+      // The audit chain is evidence: never let it die in memory on quit.
+      try { for (const log of auditLogs.values()) log.flush(); } catch {}
+    });
   } catch (e) { console.error("[continua] agent bridge failed", e); }
 }
 

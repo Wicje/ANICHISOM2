@@ -73,10 +73,12 @@ function bodyOf(entry) {
  */
 function createAuditLog(file, opts = {}) {
   const cap = Number(opts.cap) || 5000;
+  const flushMs = opts.flushMs === undefined ? 250 : Number(opts.flushMs);
   const entries = [];
   let seq = 0;
   let prev = GENESIS;
   let dirty = false;
+  let timer = null;
 
   function load() {
     if (!file) return;
@@ -100,12 +102,19 @@ function createAuditLog(file, opts = {}) {
     try {
       fs.mkdirSync(path.dirname(file), { recursive: true });
       const body = entries.map((e) => JSON.stringify(e)).join("\n") + "\n";
-      fs.writeFileSync(file, body);
+      // Write-then-rename: a crash mid-write must not leave a half-written
+      // chain that looks like tampering.
+      const tmp = `${file}.tmp`;
+      fs.writeFileSync(tmp, body);
+      try { fs.renameSync(tmp, file); } catch { fs.writeFileSync(file, body); }
     } catch { /* non-fatal: the in-memory chain still verifies */ }
   }
 
   /**
    * Append one decision. Returns the stored entry (with seq/hash/prev).
+   * Writes are debounced to disk: the chain must survive a crash or a quit, but
+   * a write per decision would make a burst of agent actions synchronous disk
+   * I/O. `flush()` forces it (called on will-quit).
    * @param {object} entry see bodyOf() for the hashed fields
    */
   function append(entry) {
@@ -116,7 +125,15 @@ function createAuditLog(file, opts = {}) {
     entries.push(rec);
     if (entries.length > cap) entries.splice(0, entries.length - cap);
     dirty = true;
+    schedule();
     return rec;
+  }
+
+  function schedule() {
+    if (!file || timer) return;
+    timer = setTimeout(() => { timer = null; persist(); }, flushMs);
+    // Never hold the process open just to write the audit log.
+    try { timer.unref?.(); } catch { /* not all platforms */ }
   }
 
   /**
@@ -175,7 +192,19 @@ function createAuditLog(file, opts = {}) {
 
   load();
 
-  return { append, verify, all, tail, filter, exportJsonl, manifest, get size() { return entries.length; }, get head() { return prev; }, flush: persist };
+  return {
+    append,
+    verify,
+    all,
+    tail,
+    filter,
+    exportJsonl,
+    manifest,
+    flush() { if (timer) { clearTimeout(timer); timer = null; } persist(); },
+    get size() { return entries.length; },
+    get head() { return prev; },
+    get dirty() { return dirty; },
+  };
 }
 
 /**
