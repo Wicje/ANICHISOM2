@@ -1,85 +1,27 @@
 /**
  * Continua content preload — runs in every content view (isolated world).
- * Two independent sections:
  *
- * 1. Link fork: "click a link → new tab". Capture plain left-clicks on
- *    http(s) anchors and route them through `window.open(url, "_blank")`,
- *    which lands in the host's setWindowOpenHandler → openTab. Covers SPA
- *    pushState links, which never fire will-navigate.
+ * Login/address capture: on form submit, report candidates to the host for a
+ * save prompt. Never prevents default (the login must proceed); the host
+ * prompts after the dust settles and only stores on explicit user consent.
+ * Secrets travel main-side only — the chrome UI never sees plain-text
+ * passwords.
  *
- * 2. Login capture: on form submit, report {origin, username, password} to
- *    the host for a save-password prompt. Never prevents default (the login
- *    must proceed); the host prompts after the dust settles and only stores
- *    on explicit user consent. Secrets travel main-side only — the chrome UI
- *    never sees plain-text passwords.
+ * NOTE (Chrome-like navigation): this file used to intercept every plain
+ * left-click on http(s) anchors and re-route it through
+ * `window.open(url, "_blank")`, so every clicked link forked a new tab and
+ * nothing ever navigated in place. That made Back useless across clicked
+ * links and sprayed tabs on multi-step flows (OAuth, checkouts) — nothing
+ * like Chrome, where a plain click navigates the same tab. Removed: plain
+ * clicks now proceed naturally (host will-navigate lets them through
+ * in-tab), and SPA pushState/hash navigations are picked up by
+ * did-navigate-in-page, which grows the same back/forward history stack.
+ * Real new-tab gestures (Ctrl/Cmd+click, middle-click, target=_blank,
+ * window.open) are routed by Chromium to the host's setWindowOpenHandler,
+ * which still opens tabs.
  */
 (function () {
   "use strict";
-
-  // ---------- 1. link fork ----------
-  function closestAnchor(node) {
-    while (node && node !== document.documentElement) {
-      if (node.tagName === "A" && node.href) return node;
-      // Shadow DOM host traversal
-      if (node.parentElement) node = node.parentElement;
-      else if (node.parentNode) node = node.parentNode;
-      else break;
-    }
-    return null;
-  }
-
-  function isHttp(url) {
-    return /^https?:\/\//i.test(url || "");
-  }
-
-  function isHashOnly(anchor, href) {
-    try {
-      const cur = new URL(window.location.href);
-      const next = new URL(href, window.location.href);
-      return (
-        cur.origin === next.origin &&
-        cur.pathname === next.pathname &&
-        cur.search === next.search &&
-        next.hash &&
-        next.hash !== cur.hash
-      );
-    } catch {
-      return false;
-    }
-  }
-
-  document.addEventListener(
-    "click",
-    (e) => {
-      try {
-        // Plain primary-button, no-modifier clicks only. Modified /
-        // middle-clicks already have new-tab semantics in the host.
-        if (e.defaultPrevented) return;
-        if (e.button !== 0) return;
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-        const anchor = closestAnchor(e.target);
-        if (!anchor) return;
-        const href = anchor.href || anchor.getAttribute("href") || "";
-        if (!isHttp(href)) return;
-        if (anchor.hasAttribute("download")) return;
-        if (isHashOnly(anchor, href)) return; // same-page anchor jump stays
-        // Capture phase: run before page routers so a SPA pushState link
-        // becomes a real new tab instead of an in-tab replace. stopPropagation
-        // keeps the source tab on its page (no double navigation).
-        // Trade-off: anchors that use href + JS side-effects will open a tab
-        // instead of running the side-effect — that is the requested
-        // "every link opens a new tab" behaviour.
-        e.preventDefault();
-        e.stopPropagation();
-        window.open(href, "_blank", "noopener");
-      } catch {
-        /* never break page clicks */
-      }
-    },
-    true,
-  );
-
-  // ---------- 2. login capture ----------
   let ipc = null;
   try {
     ipc = require("electron").ipcRenderer; // available in sandboxed preloads

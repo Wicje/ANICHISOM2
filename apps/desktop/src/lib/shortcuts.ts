@@ -19,6 +19,7 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   { id: "downloads", label: "Downloads", defaultCombo: "ctrl+j" },
   { id: "find", label: "Find in page", defaultCombo: "ctrl+f" },
   { id: "address", label: "Focus address bar", defaultCombo: "ctrl+l" },
+  { id: "palette", label: "Command palette", defaultCombo: "ctrl+k" },
   { id: "settings", label: "Settings", defaultCombo: "ctrl+," },
   { id: "cycle-profile", label: "Next profile", defaultCombo: "ctrl+shift+m" },
   { id: "screenshot", label: "Screenshot", defaultCombo: "ctrl+shift+s" },

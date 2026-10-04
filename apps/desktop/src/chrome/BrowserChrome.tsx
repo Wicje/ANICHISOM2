@@ -147,7 +147,10 @@ export function BrowserChrome({
   // a human. Surfaces globally — the agent's tab may not be the active one.
   // The listener effect lives below, next to the other host-push subscriptions.
   const [agentApproval, setAgentApproval] = useState<AgentApproval | null>(null);
-  useChromeModal("agent-approval", !!agentApproval);
+  const [agentQueue, setAgentQueue] = useState(0);
+  // NB: the modal registration for this overlay lives in AgentApprovalPrompt.
+  // Registering the same id twice here would let one component's cleanup clear
+  // the other's claim, desyncing which overlays are open.
   // History panel (Ctrl+H) and the ring that feeds omnibox suggestions.
   const [historyOpen, setHistoryOpen] = useState(false);
   const [recent, setRecent] = useState<HistoryItem[]>([]);
@@ -290,19 +293,23 @@ export function BrowserChrome({
   useChromeModal("suggestions", suggestOpen);
   // Agent trust boundary (ADR-012): a queued write needs a human decision.
   // Push-driven so it appears the moment the host queues it, plus a slow
-  // sweep so a prompt raised before a chrome reload is never stranded.
+  // sweep so a prompt raised before a chrome reload is never stranded. The
+  // sweep also carries the queue depth, so the prompt can say "2 more waiting".
   useEffect(() => {
     if (!isNative) return;
     const offReq = api.onAgentApproval((req) => {
       if (!req?.id) return;
       setAgentApproval((cur) => (cur && cur.id === req.id ? cur : req));
+      void api.agentPendingApprovals().then((rows) => setAgentQueue(rows.length));
     });
     const offRes = api.onAgentApprovalResolved((info) => {
       if (!info?.id) return;
       setAgentApproval((cur) => (cur && cur.id === info.id ? null : cur));
+      void api.agentPendingApprovals().then((rows) => setAgentQueue(rows.length));
     });
     const sweep = () => void api.agentPendingApprovals().then((rows) => {
-      if (rows.length) setAgentApproval((cur) => cur ?? rows[0]);
+      setAgentQueue(rows.length);
+      setAgentApproval((cur) => (cur && rows.some((r) => r.id === cur.id) ? cur : rows[0] ?? null));
     });
     sweep();
     const t = window.setInterval(sweep, 4000);
@@ -904,6 +911,16 @@ export function BrowserChrome({
         e.preventDefault();
         addressRef.current?.focus();
         addressRef.current?.select();
+        return;
+      }
+      // Ctrl/Cmd+K. The host also forwards this while focus is in the page
+      // (before-input-event -> chrome-command); binding it here too means it
+      // works when the chrome itself has focus — after launch, after clicking
+      // the toolbar, after closing a panel. Without this the product's primary
+      // shortcut is silently dead in half the focus states.
+      if (fire("palette")) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("continua:open-palette"));
         return;
       }
       if (fire("history")) {
@@ -1692,6 +1709,7 @@ export function BrowserChrome({
       <AgentApprovalPrompt
         open={!!agentApproval}
         request={agentApproval}
+        pendingCount={agentQueue || 1}
         onClose={() => setAgentApproval(null)}
       />
       <QrPanel open={qrOpen} url={activeUrl} onClose={() => setQrOpen(false)} />

@@ -1572,6 +1572,40 @@ body,
 }
 
 /* ─── History panel (Ctrl+H) ────────────────────────────── */
+/* Agent consent prompt (ADR-012). A centred, compact dialog — NOT a
+   full-height drawer like downloads/history: this is a blocking decision, it
+   must read as one, and it must not cover the toolbar the user may need to
+   check what is being written to. */
+.consent-overlay {
+  position: fixed; inset: 0; z-index: 9800;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.32);
+}
+.consent-panel {
+  width: min(460px, 92vw);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+  overflow: hidden;
+}
+.consent-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border);
+}
+.consent-title { font-size: 14px; font-weight: 650; display: inline-flex; align-items: center; gap: 8px; }
+.consent-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 9px; }
+.consent-facts {
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--hover-faint, rgba(127, 127, 127, 0.06));
+  padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;
+}
+.consent-fact { display: flex; align-items: baseline; gap: 10px; font-size: 12.5px; }
+.consent-fact > span:first-child { color: var(--text-dim); flex: none; width: 66px; }
+.consent-fact > span:last-child { flex: 1; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.consent-actions { display: flex; align-items: center; gap: 8px; padding-top: 2px; }
+.consent-actions .settings-hint { flex: 1; }
+
 .history-overlay {
   position: fixed;
   top: var(--chrome-h, 56px);

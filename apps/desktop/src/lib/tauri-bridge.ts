@@ -157,13 +157,18 @@ export type OpenTab = RestoredTab;
 export interface AgentApproval {
   id: string;
   op: string;
-  /** Human-readable prompt line, e.g. "agent_act click node 3.1 (write)". */
+  /** Human-readable prompt line, e.g. "Click on this page". No internal ids. */
   describe: string;
+  /** Precise action for developers, e.g. "act_tab click node 3.1 (write)". */
+  detail?: string;
   tab: string | null;
+  /** Origin + path only — query strings are scrubbed host-side. */
   url: string | null;
   ts: number;
   /** Action fingerprint the eventual grant will be bound to. */
   fingerprint: string;
+  /** Server-side deadline; the request is dropped once this passes. */
+  expiresAt?: number;
 }
 
 /** A user-issued, action-bound, single-use grant for one write. */
@@ -184,6 +189,8 @@ export interface AgentAuditEntry {
   tier: string;
   allowed: boolean;
   source: string;
+  /** Profile the decision was taken in (the log is per profile). */
+  profile?: string | null;
   reason: string | null;
   /** Origin + path; query strings are scrubbed before logging. */
   target: string | null;

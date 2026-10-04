@@ -32,6 +32,8 @@ const Debrief = require("./debrief");
 const AgentPolicy = require("./agent-policy");
 const { createAuditLog, summarize: summarizeAudit } = require("./audit-log");
 const { createGrantRegistry } = require("./grant-registry");
+const { createApprovalQueue } = require("./approval-queue");
+const Visual = require("./visual");
 const Metrics = require("./metrics");
 
 // Boxes without a usable GPU (broken libva/iHD, headless Wayland) get a
@@ -111,7 +113,21 @@ const START_PAGE_TEMPLATE_URL = "file://" + START_PAGE_FILE;
 let START_URL = START_PAGE_TEMPLATE_URL;
 // Generated per-profile start page (installed apps + icons baked in, no IPC
 // needed from the file:// page); falls back to the shipped template.
-const isStartPageUrl = (u) => u === START_URL || u === START_PAGE_TEMPLATE_URL;
+// Chromium normalises what we load: we build `file://C:\Users\...` but it
+// reports `file:///C:/Users/...`. An exact string compare therefore misses, the
+// tab URL keeps the raw path, and the install path leaks into the omnibox, the
+// approval prompt and audit entries. Compare normalised forms instead.
+const normLocalUrl = (u) => {
+  const s = String(u || "");
+  if (!/^file:/i.test(s)) return s;
+  let p = s.replace(/^file:\/\//i, "").replace(/\\/g, "/").replace(/^\/*/, "/");
+  try { p = decodeURIComponent(p); } catch { /* keep raw */ }
+  return process.platform === "win32" ? p.toLowerCase() : p;
+};
+const isStartPageUrl = (u) => {
+  const n = normLocalUrl(u);
+  return !!n && (n === normLocalUrl(START_URL) || n === normLocalUrl(START_PAGE_TEMPLATE_URL));
+};
 function generatedStartPageFile() {
   try {
     if (userDataPath) return path.join(profiles.profileDir(userDataPath, activeProfileId), "start-page.html");
@@ -163,7 +179,6 @@ const TAB_RAIL_WIDTH_PX = 44;
 // HTML, so dropdowns would otherwise render underneath the website.
 let modalHidden = false;
 let modalTimer = null;
-const MODAL_HIDE_DELAY_MS = 120;
 
 let chrome = null;
 let store = null;
@@ -189,12 +204,166 @@ function agentLog(e) { agentTimeline.push({ ts: agentNow(), ...e }); if (agentTi
 // `approved: true` is deliberately ignored, otherwise the agent approves
 // itself and the boundary is theatre.
 const auditLogs = new Map();   // profileId -> audit log
-const pendingApprovals = new Map(); // requestId -> {op, params, ts, tab, url, fingerprint, describe}
-// Grants live in host state, never in caller-supplied fields: the fingerprint
-// is public (pending_approvals exposes it so an agent can poll), so matching it
-// proves nothing. Only an id this registry issued is authority.
-const grantRegistry = createGrantRegistry();
+// Queued requests and the grants they become are scoped PER PROFILE. A write
+// an agent asked for in Work must never be approved from Personal, and a grant
+// issued in Work must never be spent against a Personal tab (ADR-012 — same
+// family of bug as a container tab silently reopening in the default
+// partition).
+const approvalQueue = createApprovalQueue();
+const grantRegistries = new Map(); // profileId -> grant registry
 let approvalSeq = 0;
+
+function grantsFor(profileId) {
+  const id = profileId || activeProfileId || "personal";
+  if (!grantRegistries.has(id)) grantRegistries.set(id, createGrantRegistry());
+  return grantRegistries.get(id);
+}
+
+/** Prompt payloads for the active profile only (never another profile's). */
+function pendingForActive() {
+  return approvalQueue.list(activeProfileId || "personal").map(({ id, op, describe, tab, url, ts, fingerprint, expiresAt }) => ({
+    id, op, describe, tab: tab || null,
+    // Origin + path only: a query string can carry a session token, and this
+    // payload is shown in a prompt and returned over the bridge.
+    url: scrubForPrompt(url),
+    ts, fingerprint, expiresAt,
+  }));
+}
+
+/** Strip query + fragment from a URL before it leaves the host. */
+function scrubForPrompt(url) {
+  const s = String(url || "");
+  if (!/^https?:/i.test(s)) return s.slice(0, 256);
+  try { const u = new URL(s); return `${u.origin}${u.pathname}`; } catch { return s.slice(0, 256); }
+}
+
+// ---------- visual channel (the agent's second kind of "see") ----------
+/**
+ * Capture what the user actually sees: the tab's viewport, downscaled and
+ * returned inline. Classified as a READ (no approval) because a picture of the
+ * tab is data the agent could already read via observe_tab — but bounded by
+ * visual.js so it cannot become an unbounded exfiltration channel.
+ */
+/**
+ * Capture one surface, trying each strategy in turn.
+ *
+ * `webContents.capturePage()` goes through the compositor and fails with
+ * `UnknownVizError` wherever hardware GL is off (software rendering, headless
+ * CI, some VMs) — which is exactly where an agent most needs to see the page.
+ * CDP's `Page.captureScreenshot` reads the frame directly and also gives real
+ * control over format, quality and scale, so it is tried first.
+ */
+async function grabSurface(target, plan) {
+  const errors = [];
+  // 1. DevTools protocol — reliable without a GPU, and honours format/quality.
+  try {
+    const wc = target.webContents;
+    if (!wc.debugger.isAttached()) wc.debugger.attach("1.3");
+    const res = await wc.debugger.sendCommand("Page.captureScreenshot", {
+      format: plan.format === "png" ? "png" : "jpeg",
+      ...(plan.format === "png" ? {} : { quality: Math.round(plan.quality) }),
+      captureBeyondViewport: false,
+      ...(plan.width && plan.height ? { clip: { x: 0, y: 0, width: plan.width, height: plan.height, scale: 1 } } : {}),
+    });
+    if (res?.data) {
+      const buf = Buffer.from(res.data, "base64");
+      return { buf, via: "cdp", width: plan.width || 0, height: plan.height || 0 };
+    }
+    errors.push("cdp: no data");
+  } catch (e) {
+    errors.push(`cdp: ${e?.message || e}`);
+  }
+  // 2. Native capture + downscale.
+  try {
+    const img = await target.webContents.capturePage();
+    if (img && !(typeof img.isEmpty === "function" && img.isEmpty())) {
+      const s = img.getSize();
+      const fit = Visual.fitWithin(s.width, s.height, { maxWidth: plan.width || s.width, maxHeight: plan.height || s.height });
+      const out = fit.scaled ? img.resize({ width: fit.width, height: fit.height, quality: "good" }) : img;
+      const f = out.getSize();
+      const buf = plan.format === "png" ? out.toPNG() : out.toJPEG(plan.quality);
+      return { buf, via: "capturePage", width: f.width, height: f.height };
+    }
+    errors.push("capturePage: empty");
+  } catch (e) {
+    errors.push(`capturePage: ${e?.message || e}`);
+  }
+  return { error: "capture-failed", detail: errors };
+}
+
+async function captureVisual(tab, opts = {}) {
+  if (!tab?.view || tab.discarded) return { error: "no-tab" };
+  const size = viewportOf(tab);
+  let actual = { width: 0, height: 0 };
+  try { actual = tab.view.webContents.getContentSize(); } catch {}
+  if (!actual.width) actual = size;
+  const plan = Visual.planCapture({ viewportWidth: actual.width, viewportHeight: actual.height, opts });
+  const grab = await grabSurface(tab.view, plan);
+  if (grab.error) return grab;
+  const budget = Visual.checkBudget(grab.buf.length, plan.maxBytes);
+  if (!budget.ok && budget.tooBig) return { error: "capture-too-big", bytes: budget.bytes, maxBytes: plan.maxBytes };
+  return {
+    mime: plan.format === "png" ? "image/png" : "image/jpeg",
+    bytes: grab.buf.length,
+    width: grab.width,
+    height: grab.height,
+    viewport: { width: size.width, height: size.height },
+    scaled: plan.scaled,
+    via: grab.via,
+    quality: plan.quality,
+    data: grab.buf.toString("base64"),
+  };
+}
+
+/** Capture the chrome UI itself — the layer an accessibility tree flattens. */
+async function captureChrome(opts = {}) {
+  if (!chrome || chrome.isDestroyed()) return { error: "no-chrome" };
+  let bounds = { width: 0, height: 0 };
+  try { const b = chrome.getContentBounds(); bounds = { width: b.width, height: b.height }; } catch {}
+  const plan = Visual.planCapture({ viewportWidth: bounds.width, viewportHeight: bounds.height, opts });
+  const grab = await grabSurface(chrome, plan);
+  if (grab.error) return grab;
+  const budget = Visual.checkBudget(grab.buf.length, plan.maxBytes);
+  if (!budget.ok && budget.tooBig) return { error: "capture-too-big", bytes: budget.bytes, maxBytes: plan.maxBytes };
+  return {
+    mime: plan.format === "png" ? "image/png" : "image/jpeg",
+    bytes: grab.buf.length,
+    width: grab.width,
+    height: grab.height,
+    viewport: bounds,
+    scaled: plan.scaled,
+    via: grab.via,
+    quality: plan.quality,
+    data: grab.buf.toString("base64"),
+  };
+}
+
+/**
+ * Content-area size of the tab's view, for coordinate validation.
+ * A WebContentsView reports 0x0 from `getContentSize()`, so its bounds are the
+ * reliable source; fall back to the other API, then to nothing (which makes
+ * coordinate input refuse rather than guess).
+ */
+function viewportOf(tab) {
+  try {
+    const b = tab?.view?.getBounds?.();
+    if (b && b.width > 0 && b.height > 0) return { width: b.width, height: b.height };
+  } catch {}
+  try {
+    const s = tab?.view?.webContents?.getContentSize?.();
+    if (s && s.width > 0 && s.height > 0) return s;
+  } catch {}
+  return { width: 0, height: 0 };
+}
+
+/** Content-area size of the chrome window (for chrome-targeted clicks). */
+function chromeViewport() {
+  try {
+    const b = chrome?.getContentBounds?.();
+    if (b && b.width > 0 && b.height > 0) return { width: b.width, height: b.height };
+  } catch {}
+  return { width: 0, height: 0 };
+}
 
 function auditLog() {
   const id = activeProfileId || "personal";
@@ -230,9 +399,11 @@ function countMetric(key, by = 1) {
  * separately from `params` on purpose: it must not change the action
  * fingerprint, or a granted action could not be retried.
  */
-function gate({ op, params = {}, source = "agent", grant = null, auto = false, tab = null, url = null, summaryText = null }) {
-  // A presented grant is only a claim until the registry vouches for it.
-  const held = grant?.id ? grantRegistry.resolve(grant, op, params) : null;
+function gate({ op, params = {}, source = "agent", grant = null, auto = false, profileId = null, tab = null, url = null, summaryText = null }) {
+  const profile = profileId || activeProfileId || "personal";
+  // A presented grant is only a claim until the registry vouches for it — and
+  // only the registry belonging to the acting profile can vouch.
+  const held = grant?.id ? grantsFor(profile).resolve(grant, op, params) : null;
   const trusted = held?.ok ? { id: held.grant.id, op: held.grant.op, fp: held.grant.fp } : null;
   const spent = !!(held && (held.spent === true || held.grant?.spent === true));
   // This function must fail CLOSED, and it must never fail to record: a throw
@@ -252,6 +423,7 @@ function gate({ op, params = {}, source = "agent", grant = null, auto = false, t
     allowed: d.allowed,
     source,
     reason: d.reason,
+    profile,
     tab,
     target: url,
     fp: d.fingerprint || null,
@@ -268,28 +440,33 @@ function gate({ op, params = {}, source = "agent", grant = null, auto = false, t
 /** Queue a write for human approval and hand back the prompt payload. */
 function requestApproval({ op, params, tab, url }) {
   const requestId = `apr-${Date.now().toString(36)}-${(approvalSeq++).toString(36)}`;
-  pendingApprovals.set(requestId, {
+  const describe = AgentPolicy.humanize(op, params);
+  const rec = approvalQueue.add({
     id: requestId,
+    profileId: activeProfileId || "personal",
     op,
     params,
     tab: tab || null,
     url: url || null,
     fingerprint: AgentPolicy.fingerprint(op, params),
-    describe: AgentPolicy.describe(op, params),
-    ts: Date.now(),
+    describe,
   });
-  try { chrome?.webContents.send("agent-approval-requested", { id: requestId, op, describe: AgentPolicy.describe(op, params), tab: tab || null, url: url || null, ts: Date.now() }); } catch {}
+  try { chrome?.webContents.send("agent-approval-requested", { id: requestId, op, describe, tab: tab || null, url: scrubForPrompt(url), ts: rec.ts, expiresAt: rec.expiresAt }); } catch {}
   return requestId;
 }
 
-/** User approves a queued write → mint a single-use grant bound to that action. */
+/**
+ * User approves a queued write → mint a single-use grant bound to that action,
+ * in the profile that asked for it. Answering from another profile is refused,
+ * so a Work request cannot be granted while looking at Personal.
+ */
 function approveRequest(requestId) {
-  const req = pendingApprovals.get(requestId);
-  if (!req) return { error: "no-such-request" };
-  pendingApprovals.delete(requestId);
-  const grant = grantRegistry.issue({ op: req.op, params: req.params, nonce: requestId });
+  const taken = approvalQueue.take(activeProfileId || "personal", requestId);
+  if (!taken.ok) return { error: taken.reason };
+  const req = taken.request;
+  const grant = grantsFor(req.profileId).issue({ op: req.op, params: req.params, nonce: requestId });
   // The approval itself is part of the audit trail.
-  audit({ actor: "user", op: req.op, tier: AgentPolicy.tierOf(req.op), allowed: true, source: "user", reason: "user-approved", tab: req.tab, target: req.url, fp: req.fp || req.fingerprint, grantId: grant.id, summary: req.describe });
+  audit({ actor: "user", op: req.op, tier: AgentPolicy.tierOf(req.op), allowed: true, source: "user", reason: "user-approved", tab: req.tab, target: req.url, fp: req.fingerprint, grantId: grant.id, summary: req.describe });
   countMetric("agent_writes");
   try { chrome?.webContents.send("agent-approval-resolved", { id: requestId, approved: true }); } catch {}
   return { ok: true, grant: { id: grant.id, op: grant.op, fp: grant.fp } };
@@ -297,9 +474,9 @@ function approveRequest(requestId) {
 
 /** User denies a queued write. */
 function denyRequest(requestId, why) {
-  const req = pendingApprovals.get(requestId);
-  if (!req) return { error: "no-such-request" };
-  pendingApprovals.delete(requestId);
+  const taken = approvalQueue.take(activeProfileId || "personal", requestId);
+  if (!taken.ok) return { error: taken.reason };
+  const req = taken.request;
   audit({ actor: "user", op: req.op, tier: AgentPolicy.tierOf(req.op), allowed: false, source: "user", reason: why || "user-denied", tab: req.tab, target: req.url, fp: req.fingerprint, summary: req.describe });
   try { chrome?.webContents.send("agent-approval-resolved", { id: requestId, approved: false }); } catch {}
   return { ok: true };
@@ -558,7 +735,7 @@ function layoutViews() {
       try { m.view = null; m.discarded = true; } catch {}
     }
   }
-  const sig = `${width}x${height} rail=${rw} chromeH=${ch} studio=${studio} focused=${focused} live=${[...tabs.values()].filter(t => !t.discarded && t.view).length}`;
+  const sig = `${width}x${height} rail=${rw} chromeH=${ch} studio=${studio} focused=${focused} live=${[...tabs.values()].filter(t => !t.discarded && t.view).length} modalHidden=${modalHidden}`;
   if (sig !== lastLayoutSig) { lastLayoutSig = sig; console.error(`[continua] layout ${sig}`); }
 }
 
@@ -685,8 +862,15 @@ function makeView(meta) {
       const posted = recentPosts.get(url);
       if (posted && Date.now() - posted < 15000) { recentPosts.delete(url); return; }
       if (!/^https?:\/\//i.test(url || "")) { e.preventDefault(); return; }
-      e.preventDefault();
-      forkTab(url, meta.incognito, true, meta.url, meta.container);
+      // Chrome-like in-tab navigation. A plain click (target=_self, no
+      // modifiers, JS location changes, meta refreshes) navigates THIS tab —
+      // previously every such click was preventDefault()ed and forked into a
+      // new tab, so nothing ever navigated in place, Back never worked across
+      // clicked links, and OAuth-style multi-step flows sprayed tabs. Real
+      // new-tab gestures (Ctrl/Cmd+click, middle-click, target=_blank,
+      // window.open) never reach here: Chromium routes them to
+      // setWindowOpenHandler, which still forks via forkTab below.
+      return;
     } catch {}
   });
   // Continua page menu (link/image/search/screenshot/source/inspect) instead
@@ -753,8 +937,9 @@ function makeView(meta) {
     // A committed navigation settles any pending programmatic expectation —
     // even one we don't record (start page, interstitials, internals). The
     // fresh-tab start-page commit never matched expectNav, so without this
-    // the flag stayed stuck forever: every later link click skipped the fork
-    // (treated as "programmatic") and every commit was dropped below.
+    // the flag stayed stuck forever: every later link click was then treated
+    // as "programmatic", which made navigation behaviour depend on invisible
+    // flag state instead of on what the user did.
     if (!url || isStartPageUrl(url)) { meta.expectNav = null; meta.programmatic = false; return; }
     // Reader-mode data: pages, crash/offline interstitials and internal
     // URLs never enter the back/forward stack.
@@ -1524,23 +1709,31 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     case "set_chrome_height": CHROME_H = args.height || args.chromeH || 96; layoutViews(); return;
     case "set_tab_rail": TAB_RAIL_W = args.enabled ? TAB_RAIL_WIDTH_PX : 0; layoutViews(); return;
     case "chrome_modal": {
-      // Snapshot cover support: delay the hide briefly so a cover snapshot
-      // requested alongside the open captures the VISIBLE page, not black.
+      // Hide the native views IMMEDIATELY when any overlay opens. This used to
+      // wait on a 120ms timer so a cover snapshot could catch the page, which
+      // made every overlay a race: lose it and the live page paints over the
+      // palette, so Ctrl+K "did nothing". The cover feature now reveals the
+      // views for the duration of its own capture instead (see snapshot_tab).
       clearTimeout(modalTimer);
-      if (args.open) {
-        modalTimer = setTimeout(() => { modalHidden = true; layoutViews(); }, MODAL_HIDE_DELAY_MS);
-      } else {
-        modalHidden = false; layoutViews();
-      }
+      modalTimer = null;
+      modalHidden = !!args.open;
+      layoutViews();
       return;
     }
     case "snapshot_tab": {
       const t = args.label ? tabs.get(args.label) : focused ? tabs.get(focused) : null;
       if (!t?.view) return { error: "no-tab" };
+      // The cover snapshot backs every menu/palette overlay, and those overlays
+      // now hide the views immediately — so a hidden view would capture black.
+      // Reveal for exactly the length of this capture, then restore. That makes
+      // the cover deterministic instead of a timing race.
+      const wasHidden = modalHidden;
+      if (wasHidden) { modalHidden = false; layoutViews(); }
       try {
         const img = await t.view.webContents.capturePage();
         return { dataUrl: img.toDataURL() };
       } catch (e) { return { error: String(e?.message || e) }; }
+      finally { if (wasHidden) { modalHidden = true; layoutViews(); } }
     }
     case "save_session": return store.saveSession(args.tabs || [...tabs.values()].map(t => ({ label: t.label, url: t.url, title: t.title, group: t.group || null, container: t.container || null })), args.active ?? focused);
     case "load_session": return store.loadSession();
@@ -2128,7 +2321,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
         if (d.reason === AgentPolicy.REASON.autoBlocked) return { error: d.reason };
         if (d.needsApproval) {
           const requestId = requestApproval({ op: "agent_act", params, tab: t.label, url: t.url });
-          return { needsApproval: true, reason: d.reason, requestId, describe: AgentPolicy.describe("agent_act", params), verb: args.verb, id: args.id };
+          return { needsApproval: true, reason: d.reason, requestId, describe: AgentPolicy.humanize("agent_act", params), detail: AgentPolicy.describe("agent_act", params), verb: args.verb, id: args.id };
         }
         return { error: d.reason };
       }
@@ -2152,20 +2345,80 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       return { headline: Debrief.headline(sum), summary: sum, actionItems: items, since: agentTimeline[0]?.ts || null };
     }
     case "agent_timeline_clear": { agentTimeline = []; return { ok: true }; }
+    // ---------- agent visual channel (see_visual + vision-driven input) ----------
+    case "see_visual": {
+      const t = args.label ? tabs.get(args.label) : focused ? tabs.get(focused) : null;
+      if (!t?.view || t.discarded) return { error: "no-tab" };
+      const d = gate({ op: "see_visual", params: { label: t.label }, tab: t.label, url: t.url, summaryText: `see_visual ${t.label}` });
+      if (!d.allowed) return { error: d.reason };
+      const shot = await captureVisual(t, { maxWidth: args.maxWidth, maxHeight: args.maxHeight, maxBytes: args.maxBytes, quality: args.quality });
+      if (shot.error) return shot;
+      return { tab: { label: t.label, url: scrubForPrompt(t.url), title: t.title }, ...shot, capturedAt: Date.now() };
+    }
+    // The chrome UI itself: tab strip, omnibox, panels. An accessibility tree
+    // flattens exactly the things that make an interface good or bad (spacing,
+    // alignment, whether a dialog covers the toolbar), so it gets its own look.
+    case "see_chrome": {
+      const d = gate({ op: "see_chrome", params: {}, summaryText: "see_chrome" });
+      if (!d.allowed) return { error: d.reason };
+      const shot = await captureChrome({ maxWidth: args.maxWidth, maxHeight: args.maxHeight, maxBytes: args.maxBytes, quality: args.quality });
+      if (shot.error) return shot;
+      return { ...shot, capturedAt: Date.now() };
+    }
+    // Vision-driven input. Same gate as any other write: a coordinate can hit a
+    // "Buy" button, so it needs a user-issued grant bound to that exact point.
+    case "click_at":
+    case "type_at": {
+      // target: "page" (default) or "chrome". The chrome is a separate window,
+      // so coordinates are validated against whichever surface was named.
+      const onChrome = args.target === "chrome";
+      if (!onChrome && (!t?.view || t.discarded)) return { error: "no-tab" };
+      if (onChrome && (!chrome || chrome.isDestroyed())) return { error: "no-chrome" };
+      const vp = onChrome ? chromeViewport() : viewportOf(t);
+      const point = Visual.normalizePoint({ x: args.x, y: args.y, viewportWidth: vp.width, viewportHeight: vp.height });
+      if (!point) return { error: "point-outside-viewport", viewport: vp };
+      const op = args.op || "click_at";
+      const params = { x: point.x, y: point.y, target: onChrome ? "chrome" : "page", ...(onChrome ? {} : { label: t.label }), ...(args.value ? { value: args.value } : {}) };
+      const d = gate({ op, params, source: args.source === "page" ? "page" : "agent", grant: args.grant || null, auto: !!args.auto, tab: onChrome ? null : t.label, url: onChrome ? null : t.url, summaryText: `${op} ${point.x},${point.y}${onChrome ? " (chrome)" : ""}` });
+      if (!d.allowed) {
+        if (d.reason === AgentPolicy.REASON.autoBlocked) return { error: d.reason };
+        if (d.needsApproval) {
+          const requestId = requestApproval({ op, params, tab: onChrome ? null : t.label, url: onChrome ? null : t.url });
+          return { needsApproval: true, reason: d.reason, requestId, describe: AgentPolicy.humanize(op, params), verb: op, x: point.x, y: point.y, target: params.target };
+        }
+        return { error: d.reason };
+      }
+      if (args.grant?.id) grantsFor(activeProfileId).consume(args.grant.id);
+      try {
+        const target_wc = onChrome ? chrome.webContents : t.view.webContents;
+        if (op === "type_at") {
+          target_wc.sendInputEvent({ type: "char", keyCode: String(args.value ?? "") });
+          return { ok: true, op, x: point.x, y: point.y, target: params.target };
+        }
+        for (const type of ["mouseMove", "mouseDown", "mouseUp"]) {
+          target_wc.sendInputEvent({ type, x: point.x, y: point.y, button: "left", clickCount: 1 });
+        }
+        agentLog({ type: "write", url: onChrome ? null : t.url, verb: op, x: point.x, y: point.y, approved: true });
+        return { ok: true, op, x: point.x, y: point.y, target: params.target };
+      } catch (e) { return { error: String(e?.message || e) }; }
+    }
     // ---------- agent trust boundary: approvals, audit log, metrics ----------
+    // Everything below is scoped to the ACTIVE profile: a request raised in
+    // Work is not listable, approvable or spendable from Personal.
     case "agent_pending_approvals": {
-      return [...pendingApprovals.values()].map(({ id, op, describe, tab, url, ts, fingerprint }) => ({ id, op, describe, tab, url, ts, fingerprint }));
+      return pendingForActive();
     }
     // UI-only: this is the only path that can mint a write grant. It is
     // reached from the chrome (preload), never from page content.
     case "agent_approve": {
-      const d = gate({ op: "agent_approve", params: { requestId: args.id || args.requestId || null }, source: "user", tab: pendingApprovals.get(args.id || args.requestId)?.tab || null });
+      const rid = args.id || args.requestId || null;
+      const d = gate({ op: "agent_approve", params: { requestId: rid }, source: "user", tab: approvalQueue.peek(activeProfileId || "personal", rid)?.tab || null });
       if (!d.allowed) return { error: d.reason };
-      return approveRequest(args.id || args.requestId);
+      return approveRequest(rid);
     }
     case "agent_deny": {
       const rid = args.id || args.requestId || null;
-      const req = pendingApprovals.get(rid);
+      const req = approvalQueue.peek(activeProfileId || "personal", rid);
       audit({ actor: "user", op: req?.op || "unknown", tier: AgentPolicy.tierOf(req?.op), allowed: false, source: "user", reason: "user-denied", tab: req?.tab || null, target: req?.url || null, fp: req?.fingerprint || null });
       return denyRequest(rid, "user-denied");
     }
@@ -2188,7 +2441,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
         metrics: Metrics.summary(counters || {}, { nowTs: Date.now(), days: Number(args.days) || 30 }),
         audit: summarizeAudit(auditLog().all()),
         chain: auditLog().verify(),
-        pending: pendingApprovals.size,
+        pending: approvalQueue.size(),
       };
     }
     // ---------- medium: task manager (Chromium process metrics) ----------
@@ -3491,11 +3744,11 @@ async function dispatchAgentRpc(payload, res) {
           if (d.reason === AgentPolicy.REASON.autoBlocked) return send(null, d.reason);
           if (d.needsApproval) {
             const requestId = requestApproval({ op: "act_tab", params: p2, tab: t.label, url: t.url });
-            return send({ needsApproval: true, reason: d.reason, requestId, describe: AgentPolicy.describe("act_tab", p2) });
+            return send({ needsApproval: true, reason: d.reason, requestId, describe: AgentPolicy.humanize("act_tab", p2), detail: AgentPolicy.describe("act_tab", p2) });
           }
           return send(null, d.reason);
         }
-        if (params.grant?.id) grantRegistry.consume(params.grant.id);
+        if (params.grant?.id) grantsFor(activeProfileId).consume(params.grant.id);
         const path = String(params.id || "0").split(".").map(Number);
         let js = null;
         if (params.verb === "click") js = AgentAct.clickJs(path);
@@ -3506,7 +3759,69 @@ async function dispatchAgentRpc(payload, res) {
         return send({ ok: true, verb: params.verb, id: params.id, approved: true, result: done });
       }
       case "pending_approvals": {
-        return send([...pendingApprovals.values()].map(({ id, op, describe, tab, url, ts, fingerprint }) => ({ id, op, describe, tab, url, ts, fingerprint })));
+        return send(pendingForActive());
+      }
+      // Read-only layout truth. An agent (or a human debugging a dead overlay)
+      // otherwise has to guess whether the host believes the content views are
+      // hidden — which is exactly the state that decides whether a palette or
+      // panel is visible or painted over by the page.
+      case "layout_state": {
+        return send({
+          sig: lastLayoutSig,
+          modalHidden,
+          chromeH: CHROME_H,
+          railW: TAB_RAIL_W,
+          focused: focused || null,
+          tabs: [...tabs.values()].map((t) => ({ label: t.label, visible: !!(t.view && !t.discarded), discarded: !!t.discarded })),
+        });
+      }
+      // Visual read: pixels of the tab the agent may already read semantically.
+      // Bounded (capped dimensions + byte budget) and audited like any read.
+      case "see_visual": {
+        if (!t?.view || t.discarded) return send(null, "no-tab");
+        gate({ op: "see_visual", params: { label: t.label }, tab: t.label, url: t.url, summaryText: `see_visual ${t.label}` });
+        const shot = await captureVisual(t, { maxWidth: params.maxWidth, maxHeight: params.maxHeight, maxBytes: params.maxBytes, quality: params.quality });
+        if (shot.error) return send(null, shot.error);
+        return send({ tab: { label: t.label, url: scrubForPrompt(t.url), title: t.title }, ...shot, capturedAt: Date.now() });
+      }
+      case "see_chrome": {
+        gate({ op: "see_chrome", params: {}, summaryText: "see_chrome" });
+        const shot = await captureChrome({ maxWidth: params.maxWidth, maxHeight: params.maxHeight, maxBytes: params.maxBytes, quality: params.quality });
+        if (shot.error) return send(null, shot.error);
+        return send({ ...shot, capturedAt: Date.now() });
+      }
+      // Vision-driven input: same grant gate as any write, because a coordinate
+      // can land on "Buy". Off-screen points are refused, never clamped.
+      case "click_at":
+      case "type_at": {
+        const op = method;
+        const onChrome = params.target === "chrome";
+        if (!onChrome && (!t?.view || t.discarded)) return send(null, "no-tab");
+        if (onChrome && (!chrome || chrome.isDestroyed())) return send(null, "no-chrome");
+        const vp = onChrome ? chromeViewport() : viewportOf(t);
+        const point = Visual.normalizePoint({ x: params.x, y: params.y, viewportWidth: vp.width, viewportHeight: vp.height });
+        if (!point) return send(null, "point-outside-viewport");
+        const p2 = { x: point.x, y: point.y, target: onChrome ? "chrome" : "page", ...(onChrome ? {} : { label: t.label }), ...(params.value ? { value: params.value } : {}) };
+        const d = gate({ op, params: p2, source: "agent", grant: params.grant || null, auto: !!params.auto, tab: onChrome ? null : t.label, url: onChrome ? null : t.url, summaryText: `${op} ${point.x},${point.y}${onChrome ? " (chrome)" : ""}` });
+        if (!d.allowed) {
+          if (d.reason === AgentPolicy.REASON.autoBlocked) return send(null, d.reason);
+          if (d.needsApproval) {
+            const requestId = requestApproval({ op, params: p2, tab: onChrome ? null : t.label, url: onChrome ? null : t.url });
+            return send({ needsApproval: true, reason: d.reason, requestId, describe: AgentPolicy.humanize(op, p2), x: point.x, y: point.y, target: p2.target });
+          }
+          return send(null, d.reason);
+        }
+        if (params.grant?.id) grantsFor(activeProfileId).consume(params.grant.id);
+        const target_wc = onChrome ? chrome.webContents : t.view.webContents;
+        if (op === "type_at") {
+          target_wc.sendInputEvent({ type: "char", keyCode: String(params.value ?? "") });
+          return send({ ok: true, op, x: point.x, y: point.y, target: p2.target });
+        }
+        for (const type of ["mouseMove", "mouseDown", "mouseUp"]) {
+          target_wc.sendInputEvent({ type, x: point.x, y: point.y, button: "left", clickCount: 1 });
+        }
+        agentLog({ type: "write", url: onChrome ? null : t.url, verb: op, x: point.x, y: point.y, approved: true });
+        return send({ ok: true, op, x: point.x, y: point.y, target: p2.target });
       }
       // Grants are issued by the UI only; the bridge deliberately has no
       // approve/deny method, so a token holder cannot open its own gate.
@@ -3644,3 +3959,5 @@ app.whenReady().then(async () => {  // No native File/Edit/View menu — the Rea
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createChrome(); });
 });
 app.on("window-all-closed", () => { try { globalShortcut.unregisterAll(); } catch {} persistNow(); app.quit(); });
+
+

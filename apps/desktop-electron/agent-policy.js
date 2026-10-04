@@ -35,6 +35,10 @@ const READ_OPS = new Set([
   "search_history",
   "list_closed",
   "audit_log_query",
+  // Visual read: pixels of a tab the agent may already read semantically, so it
+  // is a read — but bounded by `visual.js` (capped dimensions + byte budget).
+  "see_visual",
+  "see_chrome",
 ]);
 
 /** Automated writes: require a user grant, bound to this exact action. */
@@ -46,6 +50,10 @@ const WRITE_OPS = new Set([
   "close_tab",
   "reopen_closed",
   "read_aloud",
+  // Vision-driven input. A coordinate is a write like any other: it can hit a
+  // "Buy" button, so it needs the same user grant as an AX-targeted click.
+  "click_at",
+  "type_at",
 ]);
 
 /** Credential material: reachable from the user UI only. Never from an agent. */
@@ -208,9 +216,45 @@ function decide(req = {}) {
   return { allowed: true, tier, needsApproval: false, reason: REASON.ok, granted: true };
 }
 
+/** Plain-English phrasing for a consent prompt. No ids, no internal labels. */
+const HUMAN_VERB = {
+  click: "Click on this page",
+  type: "Type into this page",
+  select: "Choose an option on this page",
+  check: "Tick a checkbox on this page",
+  uncheck: "Untick a checkbox on this page",
+  press: "Press a key on this page",
+  focus: "Move focus on this page",
+  scroll: "Scroll this page",
+  "click_at": "Click a spot on this page",
+  "type_at": "Type into a spot on this page",
+};
+
+const HUMAN_OP = {
+  act_tab: "interact with this page",
+  agent_act: "interact with this page",
+  navigate: "navigate to another page",
+  new_tab_url: "open a new tab",
+  close_tab: "close a tab",
+  reopen_closed: "reopen a closed tab",
+  read_aloud: "read this page aloud",
+};
+
 /**
- * One-line summary for the approval prompt, e.g.
- *   "click node 3.1 on tab tab-2 (write)"
+ * The line a human reads before deciding. Deliberately free of node ids and
+ * internal tab labels: `click node 3.1 on tab tab-1791083548459-0` is noise that
+ * trains people to click through prompts without reading them. The precise
+ * action is still in the audit entry, where an investigator wants it.
+ */
+function humanize(op, params = {}) {
+  const verb = String(params.verb || "").toLowerCase();
+  const name = String(op || "");
+  return HUMAN_VERB[verb] || HUMAN_VERB[name] || HUMAN_OP[name] || `run ${name || "an action"} on this page`;
+}
+
+/**
+ * One-line summary for developer surfaces and the audit trail (precise).
+ * @example "act_tab click node 3.1 (write)"
  */
 function describe(op, params = {}) {
   const tier = tierOf(op);
@@ -241,5 +285,6 @@ module.exports = {
   mintGrant,
   verifyGrant,
   decide,
+  humanize,
   describe,
 };

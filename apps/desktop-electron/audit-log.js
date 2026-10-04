@@ -58,6 +58,9 @@ function bodyOf(entry) {
     tier: String(entry.tier || ""),
     allowed: !!entry.allowed,
     source: String(entry.source || "agent"),
+    // Profile is provenance, added after v1. Older entries have no value and
+    // stableStringify drops undefined keys, so pre-existing chains still verify.
+    profile: entry.profile === undefined || entry.profile === null ? null : String(entry.profile),
     reason: entry.reason === undefined || entry.reason === null ? null : String(entry.reason),
     target: entry.target === undefined || entry.target === null ? null : scrubUrl(entry.target),
     tab: entry.tab === undefined || entry.tab === null ? null : String(entry.tab),

@@ -8,17 +8,18 @@ import { api } from "./tauri-bridge";
  * the host (`chrome_modal`); a counter keeps nested/concurrent overlays safe.
  */
 const active = new Set<string>();
-let pushed = false;
 const listeners = new Set<(open: boolean) => void>();
 
 function push() {
   const shouldHide = active.size > 0;
-  if (shouldHide !== pushed) {
-    pushed = shouldHide;
-    void api.setChromeModal(shouldHide);
-    for (const fn of listeners) {
-      try { fn(shouldHide); } catch { /* ignore */ }
-    }
+  // Always re-assert, never dedupe on a remembered boolean. A single desync
+  // (an id removed by one overlay while another still holds it) used to wedge
+  // `pushed` forever, after which every overlay opened *behind* the live page —
+  // the palette looked like it did nothing. One extra IPC is a fair price for
+  // a state that cannot get stuck.
+  void api.setChromeModal(shouldHide);
+  for (const fn of listeners) {
+    try { fn(shouldHide); } catch { /* ignore */ }
   }
 }
 

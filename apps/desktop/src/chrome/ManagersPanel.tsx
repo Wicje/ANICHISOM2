@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   api,
   displayTitle,
@@ -647,6 +647,7 @@ function AuditSection() {
   const [pending, setPending] = useState(0);
   const [booted, setBooted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "writes" | "denied" | "mine">("all");
 
   const load = () =>
     void api
@@ -673,6 +674,23 @@ function AuditSection() {
     void load();
   }, []);
 
+  // Newest first. "mine" is the default because the question an auditor asks
+  // first is "what did this profile actually do", not "what did everyone read".
+  const rows = useMemo(() => {
+    const newest = [...entries].reverse();
+    if (filter === "writes") return newest.filter((e) => e.tier === "write");
+    if (filter === "denied") return newest.filter((e) => !e.allowed);
+    if (filter === "mine") return newest.filter((e) => e.actor !== "agent");
+    return newest;
+  }, [entries, filter]);
+
+  const FILTERS: { id: typeof filter; label: string; count: number }[] = [
+    { id: "all", label: "All", count: entries.length },
+    { id: "mine", label: "You", count: [...entries].filter((e) => e.actor !== "agent").length },
+    { id: "writes", label: "Writes", count: [...entries].filter((e) => e.tier === "write").length },
+    { id: "denied", label: "Denied", count: [...entries].filter((e) => !e.allowed).length },
+  ];
+
   return (
     <div className="settings-body">
       <div className="settings-row">
@@ -687,12 +705,13 @@ function AuditSection() {
         <button
           className="settings-btn"
           onClick={() =>
-            void api.auditLogExport().then((r) => {
-              if ("error" in r && r.error) { setError(r.error); return; }
-              toast("Audit log copied to clipboard");
-              void load();
+            void api.auditLogExport().then((res) => {
+              const r = res as { bytes?: number; error?: string };
+              if (r.error) { setError(r.error); return; }
+              toast(`Audit log copied to clipboard (${r.bytes ?? 0} bytes)`);
             })
           }
+          title="Copy the manifest + chain so it can be verified offline"
         >
           Export
         </button>
@@ -729,33 +748,51 @@ function AuditSection() {
           Awaiting you
         </span>
         <span className="settings-sub" style={{ color: pending ? "var(--accent)" : undefined }}>
-          {pending} pending
+          {pending ? `${pending} pending` : "none"}
         </span>
+      </div>
+      <div className="settings-seg" style={{ padding: "6px 0" }}>
+        {FILTERS.map((f) => (
+          <button key={f.id} className={filter === f.id ? "is-active" : ""} onClick={() => setFilter(f.id)}>
+            {f.label} {f.count}
+          </button>
+        ))}
       </div>
       {!booted ? (
         <p className="settings-hint" style={{ padding: 8 }}>Reading the chain…</p>
-      ) : entries.length === 0 ? (
+      ) : rows.length === 0 ? (
         <p className="settings-hint" style={{ padding: 8 }}>
-          Nothing yet. Reads by an agent appear here immediately; writes appear only
-          after you approve them.
+          {entries.length === 0
+            ? "Nothing yet. Reads by an agent appear here immediately; writes appear only after you approve them."
+            : "Nothing matches this filter."}
         </p>
       ) : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-          {[...entries].reverse().slice(0, 200).map((e) => (
+          {rows.slice(0, 200).map((e) => (
             <li className="settings-row" key={e.seq}>
-              <span className="settings-sub" style={{ width: 34, textAlign: "right" }}>
+              <span className="settings-sub" style={{ width: 28, textAlign: "right" }}>
                 {e.seq}
               </span>
               <span className="settings-label" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}
-                title={e.summary || e.op}>
+                title={[e.summary || e.op, e.target || "", e.reason || ""].filter(Boolean).join(" — ")}>
                 {e.summary || e.op}
+                {e.target && (
+                  <span style={{ color: "var(--text-dim)", marginLeft: 8 }}>{hostOf(e.target)}</span>
+                )}
               </span>
               <span
                 className="settings-sub"
                 style={{ color: e.allowed ? "var(--text-dim)" : "var(--danger, #e5534b)" }}
                 title={e.reason || ""}
               >
-                {e.allowed ? (e.tier === "write" ? "approved" : "read") : e.reason || "denied"}
+                {e.allowed ? (e.tier === "write" ? "allowed" : "read") : e.reason || "denied"}
+              </span>
+              <span
+                className="settings-sub"
+                style={{ width: 30, textAlign: "right" }}
+                title={`actor: ${e.actor} · source: ${e.source}`}
+              >
+                {e.actor === "user" ? "you" : e.actor === "page" ? "page" : "ai"}
               </span>
               <span className="settings-sub" style={{ width: 74, textAlign: "right" }}>
                 {formatWhen(Math.floor(e.ts / 1000))}
@@ -763,7 +800,7 @@ function AuditSection() {
               <span
                 className="settings-sub"
                 style={{ width: 54, textAlign: "right", fontFamily: "ui-monospace, Menlo, monospace" }}
-                title={`hash ${e.hash}`}
+                title={`hash ${e.hash}\nprev ${e.prev}`}
               >
                 {e.hash.slice(0, 8)}
               </span>
