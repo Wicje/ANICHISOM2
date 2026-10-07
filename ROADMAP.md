@@ -72,6 +72,31 @@
 - **Unattended agent mode** — explicitly *not* a default. If it ever ships it is
   a loud per-profile opt-in writing to the same audit chain (ADR-012).
 
+## UI/UX backlog (ranked 2026-10-07; strategy-compliant, no new mediums)
+
+Broken-first — these read as "unfinished" to anyone trying the browser:
+
+1. Tab strip empties at ~11 tabs (overflow auto-rail, `TabStrip.tsx`/`TabRail.tsx`) — repro, then fix. Most visible bug in the product.
+2. Onboarding renders behind content views (`Onboarding.tsx`) — first-run is invisible; fix z-order/hiding before any new-user push.
+3. `chrome_modal` hide path unverified — confirm `Ctrl+K` over a live page (palette is the front door).
+4. Empty states pass — new-tab, history/bookmarks/downloads at zero entries, offline page.
+
+Leverage (serve the bets, not the mediums):
+
+5. Session-restore confidence UI — "restored N tabs" moment on launch + per-workspace restore (`WorkspaceMenu.tsx`). Continuity must be *felt*.
+6. Multi-step approval queue (`AgentApprovalPrompt.tsx`) — pending list with fingerprints; scoped origin grants. Single prompts won't survive real flows.
+7. Command palette as product surface (`CommandPalette.tsx`) — fuzzy search over 200-tab sessions, action history, read-aloud volume slider.
+8. Tab identity pass — loading/progress states, truthful audible/mute badges, pinned affordances, crashed-tab inline retry.
+9. Onboarding that teaches the wedge — demo one continuity moment + one approve-and-audit moment.
+
+Polish:
+
+10. Motion discipline — one easing curve, one duration scale, skeletons for panels, no layout shift on rail show/hide.
+11. Keyboard completeness — every action reachable, focus always visible.
+12. Theme presets worth sharing — 6–10 genuinely good ones (format + import/export already ship).
+
+Explicitly out: new mediums, theme-share social features, screenshot annotation, task-manager upgrades (parity maintenance only, per STRATEGY.md).
+
 ## Done (165 host tests, chrome typechecks + builds clean)
 
 - P0 correctness: window.open/target=_blank routing, screenshare picker,
