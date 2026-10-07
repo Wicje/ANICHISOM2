@@ -1749,7 +1749,23 @@ const COLLECT_AGENT_TREE = `(() => {
   return out.slice(0, cap);
 })()`;
 
+// IPC-side agent-op budget: the bridge is rate-limited, but the same agent
+// surface is reachable via IPC from any renderer with the preload. Captures
+// (see_visual/see_chrome) and writes are the expensive/abusable classes —
+// cap them per minute so a runaway caller cannot wedge captures, the audit
+// spool, or the UI thread. Normal chrome traffic (tabs, config) is untouched.
+const IPC_AGENT_CAPPED_OPS = new Set(["act_tab", "agent_act", "click_at", "type_at", "see_visual", "see_chrome", "observe_tab", "read_page_text"]);
+const IPC_WINDOW_MS = 60000, IPC_MAX_CALLS = 1200;
+let ipcHits = { n: 0, resetAt: 0 };
+function ipcAgentOverLimit() {
+  const now = Date.now();
+  if (now > ipcHits.resetAt) { ipcHits = { n: 1, resetAt: now + IPC_WINDOW_MS }; return false; }
+  ipcHits.n += 1;
+  return ipcHits.n > IPC_MAX_CALLS;
+}
+
 ipcMain.handle("continua", async (_evt, op, args = {}) => {
+  if (IPC_AGENT_CAPPED_OPS.has(String(op || "")) && ipcAgentOverLimit()) return { error: "rate-limited" };
   const m = args.label ? tabs.get(args.label) : focused ? tabs.get(focused) : null;
   switch (op) {
     case "open_tab": return openTab(args.url || START_URL, false, true, validContainerArg(args.container));
