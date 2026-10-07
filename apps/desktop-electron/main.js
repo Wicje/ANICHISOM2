@@ -175,6 +175,35 @@ function cachedIconFile(pageUrl, href) {
     return "file://" + path.join(dir, hit);
   } catch { return null; }
 }
+// Backfill: existing installs predate the icon cache, so their tiles still
+// show letter glyphs. Verify + cache each stored https icon once; the bake
+// step swaps in file:// URLs automatically. Bounded: skips cached, 8s per
+// probe inside verifyIconUrl, sequential so one slow host can't wedge boot.
+async function refreshAppIcons() {
+  let apps = [];
+  try {
+    const cfg = store?.getConfig ? store.getConfig() : store?.state?.config;
+    apps = WebApps.sanitizeApps(cfg?.installed_apps);
+  } catch { return 0; }
+  const dir = profileIconsDir();
+  if (!dir) return 0;
+  let n = 0;
+  for (const a of apps) {
+    if (!/^https?:\/\//i.test(a.icon || "")) continue;
+    if (cachedIconFile(a.url, a.icon)) continue;
+    const v = await IconCache.verifyIconUrl(a.icon).catch(() => null);
+    if (!v?.ok) continue;
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      const name = IconCache.cacheFileName(a.url, a.icon, v.ext);
+      if (/[/\\]/.test(name)) continue;
+      fs.writeFileSync(path.join(dir, name), v.bytes);
+      n++;
+    } catch {}
+  }
+  if (n) { try { renderStartPage(); } catch {} }
+  return n;
+}
 // Fire-and-forget: verify icon bytes, then save + re-render tiles.
 function cacheIconForApp(pageUrl, href) {
   const dir = profileIconsDir();
@@ -1702,6 +1731,11 @@ function setStudio(on, source) {
 function createChrome() {
   chrome = new BrowserWindow({ width: 1280, height: 800, backgroundColor: "#0a0a0a", title: "Continua",
     autoHideMenuBar: true,
+    // Native frame where the OS decorates (Windows/macOS own min/max/close —
+    // the chrome hides its custom controls there). Frameless on Linux, where
+    // tiling WMs like river provide no decorations and the custom controls
+    // are the only way to move/minimize/close the window.
+    frame: process.platform === "win32" || process.platform === "darwin",
     webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, sandbox: true } });
   const dist = path.join(__dirname, "..", "desktop", "dist");
   const indexHtml = path.join(dist, "index.html");
@@ -2356,6 +2390,10 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       try { if (installed?.icon) cacheIconForApp(url, installed.icon); } catch {}
       try { renderStartPage(); } catch {}
       return installed;
+    }
+    case "refresh_app_icons": {
+      const n = await refreshAppIcons().catch(() => 0);
+      return { refreshed: n };
     }
     case "open_app": {
       let current = [];
@@ -4097,6 +4135,9 @@ app.whenReady().then(async () => {  // No native File/Edit/View menu — the Rea
   try { syncVersion = (store.cfg.last_version || 0) + 1; } catch {}
   try { session.fromPartition(activePartition()).setSpellCheckerEnabled(true); } catch {}
   try { session.fromPartition(activePartition()).setSpellCheckerLanguages(["en-US"]); } catch {}
+  // Icon backfill for installs that predate the disk cache (letter-glyph
+  // tiles): delayed, fire-and-forget, never blocks window creation.
+  setTimeout(() => { refreshAppIcons().catch(() => {}); }, 20000);
   wireDownloads(session.fromPartition(activePartition()), activePartition());
   wireMedia(activePartition());
   wirePermissions(session.fromPartition(activePartition()), activePartition());

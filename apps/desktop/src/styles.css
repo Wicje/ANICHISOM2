@@ -2638,6 +2638,24 @@ body::after {
   align-items: center;
   gap: 8px;
   padding: 2px 0;
+  /* Frameless windows (Linux) drag by the toolbar. Interactive descendants
+   * opt back out individually below so clicks still land on controls. */
+  -webkit-app-region: drag;
+}
+
+.chrome-row button,
+.chrome-row input,
+.chrome-row a,
+.chrome-row select,
+.chrome-row textarea,
+.chrome-row [role="button"],
+.chrome-row [role="combobox"],
+.chrome-row [role="listbox"],
+.chrome-row [role="textbox"],
+/* Tab strip keeps HTML5 drag-to-reorder: window-drag must never win there. */
+.chrome-row .tab-strip,
+.chrome-row .tab-rail {
+  -webkit-app-region: no-drag;
 }
 
 /* Tab strip: hug the nav controls, shrink on demand, rail takes over on

@@ -1223,6 +1223,8 @@ export const api = {
     invoke<{ ok?: boolean; error?: string }>("open_app", { id }).catch(() => ({ error: "unavailable" })),
   removeApp: (id: string) =>
     invoke<{ removed?: boolean; error?: string }>("remove_app", { id }).catch(() => ({ error: "unavailable" })),
+  refreshAppIcons: () =>
+    invoke<{ refreshed?: number; error?: string }>("refresh_app_icons").catch(() => ({ error: "unavailable" })),
 
   // ---------- agent track: see / work / live ----------
   observeTab: (label?: string) =>

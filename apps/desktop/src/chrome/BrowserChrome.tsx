@@ -127,6 +127,17 @@ export function BrowserChrome({
 }: BrowserChromeProps) {
   const [address, setAddress] = useState("");
   const [maximized, setMaximized] = useState(false);
+  // Host OS (win32/darwin/linux) for window-control ownership: native frame
+  // owns min/max/close on Windows/macOS, so custom controls render on Linux
+  // only (tiling WMs like river provide no decorations). Unknown defaults to
+  // showing them — a missing button strands a frameless window.
+  const [osPlatform, setOsPlatform] = useState<string | null>(null);
+  useEffect(() => {
+    if (runtime !== "electron" && runtime !== "tauri") return;
+    void api.deviceInfo().then((d) => {
+      if (d && typeof d.os === "string" && d.os) setOsPlatform(d.os);
+    }).catch(() => {});
+  }, [runtime]);
   const [theme, setTheme] = useState<"dark" | "light">(() =>
     localStorage.getItem("continua-theme") === "light" ? "light" : "dark",
   );
@@ -1619,7 +1630,7 @@ export function BrowserChrome({
           )}
         </div>
         <input ref={importBookmarksFile} type="file" accept=".html,text/html" hidden onChange={(e) => void doImportBookmarks(e.target.files?.[0])} />
-        {isNative && (
+        {isNative && osPlatform !== "win32" && osPlatform !== "darwin" && (
           <div className="window-controls">
             <button
               className="wc-btn"

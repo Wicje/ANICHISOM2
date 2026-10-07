@@ -272,6 +272,19 @@ function AppsSection({ activeUrl }: { activeUrl: string }) {  const [rows, setRo
           </button>
         </div>
       )}
+      <div className="settings-row">
+        <span className="settings-hint" style={{ flex: 1 }}>
+          Tiles showing letters instead of site icons?
+        </span>
+        <button className="settings-btn" onClick={() => void (async () => {
+          const r = await api.refreshAppIcons();
+          if ("error" in r) return toast(`Icon refresh failed: ${r.error}`, "danger");
+          toast(r.refreshed ? `Refreshed ${r.refreshed} icon${r.refreshed === 1 ? "" : "s"}` : "Icons already up to date");
+          refresh();
+        })()}>
+          Refresh icons
+        </button>
+      </div>
     </div>
   );
 }
