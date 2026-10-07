@@ -39,6 +39,20 @@ test("discards everything idle under RSS pressure", () => {
   );
 });
 
+test("never victimizes an audible tab, even over K or RSS pressure", () => {
+  const now = 1_000_000;
+  const entries = [
+    ["focus", live(now)],
+    ["music", { ...live(now - 300_000), audible: true }],
+    ["old", live(now - 200_000)],
+  ];
+  assert.deepEqual(pickVictims(entries, "focus", { poolK: 1, now }), ["old"]);
+  assert.deepEqual(
+    pickVictims(entries, "focus", { poolK: 6, rss: 2e9, rssBudget: 1e9, now }).sort(),
+    ["old"],
+  );
+});
+
 test("skips already-discarded and viewless entries", () => {
   const now = 1_000_000;
   const entries = [

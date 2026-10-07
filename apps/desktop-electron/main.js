@@ -564,6 +564,11 @@ setInterval(() => {
   for (const [lab, m] of tabs) {
     if (!m.view || m.discarded || lab === focused || lab === pendingFocus) continue;
     if ((m.lastActive || 0) > cutoff) continue;
+    // Never sleep a playing tab: discarding closes its renderer and its audio
+    // with it. It becomes eligible again once it goes quiet.
+    let audible = false;
+    try { audible = !!m.view.webContents.isCurrentlyAudible(); } catch {}
+    if (audible) continue;
     try { chrome.contentView.removeChildView(m.view); m.view.webContents.close(); } catch {}
     m.view = null; m.discarded = true; slept++;
   }
@@ -1110,6 +1115,12 @@ function sizeView(view) {
 }
 
 function prunePool() {
+  // Stamp audibility first: a playing tab is never a discard candidate, even
+  // under RSS pressure (closing it mid-playback kills its audio).
+  for (const [, m] of tabs) {
+    if (!m?.view || m.discarded) continue;
+    try { m.audible = !!m.view.webContents.isCurrentlyAudible(); } catch { m.audible = false; }
+  }
   const victims = pickVictims([...tabs.entries()], focused, {
     poolK: POOL_K, rss: rss(), rssBudget: RSS_BUDGET, discardAfterMs: DISCARD_AFTER_MS,
   });
