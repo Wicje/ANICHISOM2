@@ -20,9 +20,13 @@ const VALID_VERBS = ["click", "type", "select", "check", "uncheck", "press", "fo
 /** Verbs that mutate the page → need approval. focus/scroll are read-class. */
 const WRITE_VERBS = new Set(["click", "type", "select", "check", "uncheck", "press"]);
 
+/** press targets a named key only — no arbitrary key chords through agents. */
+const PRESS_KEYS = new Set(["Enter", "Escape", "Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "]);
+
 const REASON = {
   unknownVerb: "not-a-known-action",
   badNode: "invalid-node-id",
+  badKey: "invalid-key",
   writeNeedsApproval: "write-action-needs-approval",
   disabledNode: "node-disabled",
   pageAutoApprove: "page-content-cannot-approve",
@@ -49,6 +53,10 @@ function classify(act, ctx = {}) {
     if (!bounded) {
       return { ok: false, tier: "write", needsApproval: true, approved: false, reason: REASON.badNode };
     }
+  }
+  // press names one key from the allowlist — anything else is not an action.
+  if (verb === "press" && !PRESS_KEYS.has(String(act?.value ?? ""))) {
+    return { ok: false, tier: "write", needsApproval: true, approved: false, reason: REASON.badKey };
   }
   const tier = WRITE_VERBS.has(verb) ? "write" : "read";
   if (tier === "read") return { ok: true, tier, needsApproval: false, approved: true };
@@ -102,4 +110,65 @@ function typeJs(path, value) {
   return js;
 }
 
-module.exports = { VALID_VERBS, WRITE_VERBS, REASON, classify, guardNode, clickJs, typeJs };
+/** Emit focus: move keyboard focus to the node. Read-class, no mutation. */
+function focusJs(path) {
+  const dir = JSON.stringify(path.map((i) => String(Number(i))));
+  return `(() => { ${WALK_JS(dir)}n.focus(); return { ok:true, tag: n.tagName }; })()`;
+}
+
+/** Emit scroll: bring the node into view. Read-class, no mutation. */
+function scrollJs(path) {
+  const dir = JSON.stringify(path.map((i) => String(Number(i))));
+  return `(() => { ${WALK_JS(dir)}n.scrollIntoView({ block:'center', inline:'nearest' }); return { ok:true, tag: n.tagName }; })()`;
+}
+
+/** Emit check/uncheck: toggle a checkbox or radio. Runtime role-checked. */
+function checkJs(path, checked) {
+  const dir = JSON.stringify(path.map((i) => String(Number(i))));
+  const want = checked ? "true" : "false";
+  return (
+    `(() => { ${WALK_JS(dir)}` +
+    `const t = (n.getAttribute && n.getAttribute('type')) || ''; ` +
+    `if (!((n.tagName === 'INPUT' && (t === 'checkbox' || t === 'radio')))) return { ok:false, reason:'wrong-role' }; ` +
+    `n.checked = ${want}; n.dispatchEvent(new Event('input', { bubbles: true })); n.dispatchEvent(new Event('change', { bubbles: true })); ` +
+    `return { ok:true, checked: n.checked }; })()`
+  );
+}
+
+/**
+ * Emit select: choose the option whose value or visible text matches.
+ * Runtime role-checked against SELECT; no match is ok:false, never a guess.
+ */
+function selectJs(path, value) {
+  const dir = JSON.stringify(path.map((i) => String(Number(i))));
+  const v = JSON.stringify(String(value ?? ""));
+  return (
+    `(() => { ${WALK_JS(dir)}` +
+    `if (n.tagName !== 'SELECT') return { ok:false, reason:'wrong-role' }; ` +
+    `const want = ${v}; let idx = -1; ` +
+    `for (let i = 0; i < n.options.length; i++) { if (n.options[i].value === want || (n.options[i].text || '').trim() === want.trim()) { idx = i; break; } } ` +
+    `if (idx < 0) return { ok:false, reason:'no-such-option' }; ` +
+    `n.selectedIndex = idx; n.dispatchEvent(new Event('input', { bubbles: true })); n.dispatchEvent(new Event('change', { bubbles: true })); ` +
+    `return { ok:true, selected: n.options[idx].value }; })()`
+  );
+}
+
+/**
+ * Emit press: dispatch a named key on the node. The key allowlist is enforced
+ * host-side in classify(); the emitter re-checks because defense in depth is
+ * cheap and emitted strings are the trust edge.
+ */
+const PRESS_KEYS_JS = [...PRESS_KEYS];
+function pressJs(path, key) {
+  const dir = JSON.stringify(path.map((i) => String(Number(i))));
+  const k = JSON.stringify(String(key ?? ""));
+  const allow = JSON.stringify(PRESS_KEYS_JS);
+  return (
+    `(() => { ${WALK_JS(dir)}` +
+    `const key = ${k}; if (!${allow}.includes(key)) return { ok:false, reason:'invalid-key' }; ` +
+    `for (const type of ['keydown', 'keypress', 'keyup']) n.dispatchEvent(new KeyboardEvent(type, { key, bubbles: true, cancelable: true })); ` +
+    `return { ok:true, key }; })()`
+  );
+}
+
+module.exports = { VALID_VERBS, WRITE_VERBS, PRESS_KEYS: [...PRESS_KEYS], REASON, classify, guardNode, clickJs, typeJs, focusJs, scrollJs, checkJs, selectJs, pressJs };

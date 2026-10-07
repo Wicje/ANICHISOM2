@@ -518,6 +518,25 @@ function gate({ op, params = {}, source = "agent", grant = null, auto = false, p
   return d;
 }
 
+/**
+ * Gate a tab-mutating IPC op. The chrome UI arrives with source:"user"
+ * (stamped in preload, the single choke point — page content has no invoke),
+ * so normal driving passes straight through and is audited. Anything else is
+ * an automated caller and queues for a human like any agent write. Returns
+ * null when allowed, otherwise the response to send back.
+ */
+function gateUiWrite({ op, params, args, tab = null, url = null }) {
+  const src = args && args.source === "user" ? "user" : "agent";
+  const d = gate({ op, params, source: src, grant: args?.grant || null, auto: !!args?.auto, tab, url, summaryText: AgentPolicy.describe(op, params) });
+  if (d.allowed) return null;
+  if (d.reason === AgentPolicy.REASON.autoBlocked) return { error: d.reason };
+  if (d.needsApproval) {
+    const requestId = requestApproval({ op, params, tab, url });
+    return { needsApproval: true, reason: d.reason, requestId, describe: AgentPolicy.humanize(op, params) };
+  }
+  return { error: d.reason };
+}
+
 /** Queue a write for human approval and hand back the prompt payload. */
 function requestApproval({ op, params, tab, url }) {
   const requestId = `apr-${Date.now().toString(36)}-${(approvalSeq++).toString(36)}`;
@@ -1410,8 +1429,8 @@ async function saveFullScreenshot(lab) {
 
 // Read-aloud: speaks the tab's article text via speechSynthesis in the
 // content view (OS voices, offline-capable). Chunked so Stop lands quickly;
-// "stop" cancels immediately. Rate is clamped to the safe range.
-async function readAloud(lab, action = "speak", rate) {
+// "stop" cancels immediately. Rate and volume are clamped to safe ranges.
+async function readAloud(lab, action = "speak", rate, volume) {
   const t = lab ? tabs.get(lab) : focused ? tabs.get(focused) : null;
   if (!t?.view || t.discarded) return { error: "no-tab" };
   const wc = t.view.webContents;
@@ -1431,22 +1450,25 @@ async function readAloud(lab, action = "speak", rate) {
     const chunks = Speech.chunkText(raw || "");
     if (!chunks.length) return { error: "no-text" };
     const r = Speech.clampRate(rate);
+    const v = Speech.clampVolume(volume);
     // Cancel any in-flight speech, then queue chunks (cap 60 ≈ 12k chars).
     await wc.executeJavaScript("window.speechSynthesis.cancel()").catch(() => {});
     const queued = chunks.slice(0, 60);
-    const speakJs = (list, rateVal) => `
+    const speakJs = (list, rateVal, volVal) => `
       (() => {
         const chunks = ${JSON.stringify(list)};
         const rate = ${JSON.stringify(rateVal)};
+        const volume = ${JSON.stringify(volVal)};
         const synth = window.speechSynthesis;
         for (const c of chunks) {
           const u = new SpeechSynthesisUtterance(c);
           u.rate = rate;
+          u.volume = volume;
           synth.speak(u);
         }
         return chunks.length;
       })()`;
-    const n = await wc.executeJavaScript(speakJs(queued, r)).catch(() => 0);
+    const n = await wc.executeJavaScript(speakJs(queued, r, v)).catch(() => 0);
     return { state: "speaking", chunks: n || queued.length, truncated: chunks.length > queued.length };
   } catch (e) { return { error: String(e?.message || e) }; }
 }
@@ -1768,7 +1790,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
   if (IPC_AGENT_CAPPED_OPS.has(String(op || "")) && ipcAgentOverLimit()) return { error: "rate-limited" };
   const m = args.label ? tabs.get(args.label) : focused ? tabs.get(focused) : null;
   switch (op) {
-    case "open_tab": return openTab(args.url || START_URL, false, true, validContainerArg(args.container));
+    case "open_tab": { const g = gateUiWrite({ op: "open_tab", params: { url: args.url || START_URL }, args }); if (g) return g; return openTab(args.url || START_URL, false, true, validContainerArg(args.container)); }
     case "list_tabs": return [...tabs.entries()].map(([lab, t]) => ({ label: lab, url: t.url, title: t.title, pinned: !!t.pinned, group: t.group || null, container: t.container || null, incognito: !!t.incognito, discarded: !!t.discarded }));
     case "set_tab_group": {
       const t = tabs.get(args.label);
@@ -1777,11 +1799,11 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     }
     case "list_groups": return listGroups();
     case "create_group": return createGroup(args.name);
-    case "open_incognito_tab": return openTab(args.url || START_URL, true);
-    case "close_tab": closeTab(args.label, { silent: true }); return;
+    case "open_incognito_tab": { const g = gateUiWrite({ op: "open_incognito_tab", params: { url: args.url || START_URL }, args }); if (g) return g; return openTab(args.url || START_URL, true); }
+    case "close_tab": { const t = tabs.get(args.label); const g = gateUiWrite({ op: "close_tab", params: { label: args.label }, args, tab: args.label, url: t?.url || null }); if (g) return g; closeTab(args.label, { silent: true }); return; }
     case "activate_tab": activate(args.label); return;
-    case "navigate_tab": { const t = tabs.get(args.label); if (t) { const target = resolveUrl(args.url); t.url = isStartPageUrl(target) ? "continua://start" : target; t.history = t.history.slice(0, t.idx + 1).concat(target); t.idx++; t.expectNav = target; t.programmatic = true; const fresh = !t.view || t.discarded; const live = ensureLive(args.label); if (!fresh) live?.view?.webContents.loadURL(target).catch(() => {}); pushTabUpdated(args.label); } return; }
-    case "reload_tab": reloadTab(args.label || focused, !!args.force); return;
+    case "navigate_tab": { const g = gateUiWrite({ op: "navigate_tab", params: { label: args.label, url: args.url }, args, tab: args.label, url: args.url }); if (g) return g; const t = tabs.get(args.label); if (t) { const target = resolveUrl(args.url); t.url = isStartPageUrl(target) ? "continua://start" : target; t.history = t.history.slice(0, t.idx + 1).concat(target); t.idx++; t.expectNav = target; t.programmatic = true; const fresh = !t.view || t.discarded; const live = ensureLive(args.label); if (!fresh) live?.view?.webContents.loadURL(target).catch(() => {}); pushTabUpdated(args.label); } return; }
+    case "reload_tab": { const g = gateUiWrite({ op: "reload_tab", params: { label: args.label || focused }, args, tab: args.label || focused }); if (g) return g; reloadTab(args.label || focused, !!args.force); return; }
     case "back_tab": case "forward_tab": historyStep(args.label, op === "back_tab" ? -1 : 1); return;
     case "nav_state": { const t = tabs.get(args.label); return { back: (t?.idx ?? 0) > 0, forward: (t ? t.idx < t.history.length - 1 : false) }; }
     case "set_tab_pinned": { const t = tabs.get(args.label); if (t) t.pinned = !!args.pinned; scheduleSave(); return; }
@@ -1861,6 +1883,8 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     case "reopen_last_closed": { const cur = closedRing(); const s = ClosedRing.shiftClosed(cur); closedRings.set(activeProfileId, s.ring); if (!s.entry) return null; const lab = openTab(s.entry.url, false, true, s.entry.container || null); try { scheduleSave(); } catch {} return { label: lab, url: s.entry.url, title: s.entry.title }; }
     case "list_closed": return ClosedRing.publicRows(closedRing());
     case "reopen_closed": {
+      const g = gateUiWrite({ op: "reopen_closed", params: { index: args.index ?? null }, args });
+      if (g) return g;
       const { ring, entry } = ClosedRing.reopenAt(closedRing(), args.index);
       closedRings.set(activeProfileId, ring);
       if (!entry) return null;
@@ -2357,7 +2381,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
     // ---------- medium: full-page screenshot ----------
     case "screenshot_full": return await saveFullScreenshot(args.label);
     // ---------- medium: read-aloud (TTS via speechSynthesis) ----------
-    case "read_aloud": return await readAloud(args.label, args.action || "speak", args.rate);
+    case "read_aloud": { const g = gateUiWrite({ op: "read_aloud", params: { label: args.label || null, action: args.action || "speak" }, args, tab: args.label || null }); if (g) return g; return await readAloud(args.label, args.action || "speak", args.rate, args.volume); }
     case "read_aloud_stop": return await readAloudStop();
     // Page text for the palette's translate action (also feeds agent "read").
     case "read_page_text": {
@@ -2431,9 +2455,11 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       const act = { verb: args.verb, id: args.id, value: args.value };
       const c = AgentAct.classify(act, { approved: false, auto: false });
       if (!c.ok) return { error: c.reason || "invalid-action" };
-      // The grant binds verb + node + tab URL (+ value length for type): a tab
-      // that navigated between approval and retry re-queues instead of firing.
-      const params = { verb: String(args.verb || "").toLowerCase(), id: args.id === undefined ? null : String(args.id), label: t.label, url: t.url, ...(String(args.verb || "").toLowerCase() === "type" ? { valueLen: String(args.value ?? "").length } : {}) };
+      // The grant binds verb + node + tab URL (+ value length for value-carrying
+      // verbs): a tab that navigated between approval and retry re-queues
+      // instead of firing.
+      const verbLower = String(args.verb || "").toLowerCase();
+      const params = { verb: verbLower, id: args.id === undefined ? null : String(args.id), label: t.label, url: t.url, ...(["type", "select", "press"].includes(verbLower) ? { valueLen: String(args.value ?? "").length } : {}) };
       const d = gate({ op: "agent_act", params, source: args.source === "page" ? "page" : "agent", grant: args.grant || null, auto: !!args.auto, tab: t.label, url: t.url, summaryText: `${params.verb} ${params.id === null ? "" : params.id}`.trim() });
       if (!d.allowed) {
         // Flat no for a self-declared auto-approval (see bridge act_tab).
@@ -2445,14 +2471,23 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
         return { error: d.reason };
       }
       // Single attempt: gate() already consumed the grant atomically.
+      // Every advertised verb executes for real — a grant must never be spent
+      // on an ok:true that did nothing.
       const path = String(args.id || "0").split(".").map(Number);
       let js = null;
-      if (args.verb === "click") js = AgentAct.clickJs(path);
-      if (args.verb === "type") js = AgentAct.typeJs(path, args.value);
-      if (!js) { agentLog({ type: "interact", url: t.url, verb: args.verb, id: args.id }); return { ok: true, verb: args.verb, id: args.id, tier: c.tier }; }
+      if (verbLower === "click") js = AgentAct.clickJs(path);
+      else if (verbLower === "type") js = AgentAct.typeJs(path, args.value);
+      else if (verbLower === "focus") js = AgentAct.focusJs(path);
+      else if (verbLower === "scroll") js = AgentAct.scrollJs(path);
+      else if (verbLower === "check") js = AgentAct.checkJs(path, true);
+      else if (verbLower === "uncheck") js = AgentAct.checkJs(path, false);
+      else if (verbLower === "select") js = AgentAct.selectJs(path, args.value);
+      else if (verbLower === "press") js = AgentAct.pressJs(path, args.value);
+      if (!js) return { error: "unsupported-verb" };
       try {
         const res = await t.view.webContents.executeJavaScript(js, true).catch(() => null);
-        if (args.verb === "type" || args.verb === "click") agentLog({ type: "write", url: t.url, id: args.id, verb: args.verb, approved: true });
+        if (!res || res.ok !== true) return { error: String((res && res.reason) || "action-refused"), verb: args.verb, id: args.id };
+        agentLog({ type: AgentAct.WRITE_VERBS.has(verbLower) ? "write" : "interact", url: t.url, id: args.id, verb: args.verb, approved: true });
         return { ok: true, verb: args.verb, id: args.id, approved: true, result: res };
       } catch (e) { return { error: String(e?.message || e) }; }
     }
@@ -3857,7 +3892,8 @@ async function dispatchAgentRpc(payload, res) {
         // ADR-012: `params.approved` from the agent is IGNORED. A write needs a
         // user-issued grant for this exact action; otherwise it is queued and
         // the agent gets a request id to poll. The bridge can never self-approve.
-        const p2 = { verb: String(params.verb || "").toLowerCase(), id: params.id === undefined ? null : String(params.id), label: t.label, url: t.url, ...(String(params.verb || "").toLowerCase() === "type" ? { valueLen: String(params.value ?? "").length } : {}) };
+        const verbLower = String(params.verb || "").toLowerCase();
+        const p2 = { verb: verbLower, id: params.id === undefined ? null : String(params.id), label: t.label, url: t.url, ...(["type", "select", "press"].includes(verbLower) ? { valueLen: String(params.value ?? "").length } : {}) };
         const d = gate({ op: "act_tab", params: p2, source: "agent", grant: params.grant || null, auto: !!params.auto, tab: t.label, url: t.url, summaryText: `${p2.verb} ${p2.id === null ? "" : p2.id}`.trim() });
         if (!d.allowed) {
           // An agent demanding auto-approval gets a flat no, never a prompt:
@@ -3870,13 +3906,22 @@ async function dispatchAgentRpc(payload, res) {
           return send(null, d.reason);
         }
         // Single attempt: gate() already consumed the grant atomically.
+        // Every advertised verb executes for real — a grant must never be spent
+        // on an ok:true that did nothing.
         const path = String(params.id || "0").split(".").map(Number);
         let js = null;
-        if (params.verb === "click") js = AgentAct.clickJs(path);
-        if (params.verb === "type") js = AgentAct.typeJs(path, params.value);
-        if (!js) { agentLog({ type: "interact", url: t.url, verb: params.verb, id: params.id }); return send({ ok: true, verb: params.verb, tier: c.tier }); }
+        if (verbLower === "click") js = AgentAct.clickJs(path);
+        else if (verbLower === "type") js = AgentAct.typeJs(path, params.value);
+        else if (verbLower === "focus") js = AgentAct.focusJs(path);
+        else if (verbLower === "scroll") js = AgentAct.scrollJs(path);
+        else if (verbLower === "check") js = AgentAct.checkJs(path, true);
+        else if (verbLower === "uncheck") js = AgentAct.checkJs(path, false);
+        else if (verbLower === "select") js = AgentAct.selectJs(path, params.value);
+        else if (verbLower === "press") js = AgentAct.pressJs(path, params.value);
+        if (!js) return send(null, "unsupported-verb");
         const done = await t.view.webContents.executeJavaScript(js, true).catch(() => null);
-        if (params.verb === "type" || params.verb === "click") agentLog({ type: "write", url: t.url, id: params.id, verb: params.verb, approved: true });
+        if (!done || done.ok !== true) return send(null, String((done && done.reason) || "action-refused"));
+        agentLog({ type: AgentAct.WRITE_VERBS.has(verbLower) ? "write" : "interact", url: t.url, id: params.id, verb: params.verb, approved: true });
         return send({ ok: true, verb: params.verb, id: params.id, approved: true, result: done });
       }
       case "pending_approvals": {

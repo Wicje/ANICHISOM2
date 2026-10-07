@@ -62,4 +62,11 @@ function clampRate(rate) {
   return Math.min(2, Math.max(0.5, r));
 }
 
-module.exports = { MAX_CHUNK, chunkText, clampRate };
+/** Clamp utterance volume to 0..1 (default 1). NaN/missing means full. */
+function clampVolume(volume) {
+  const v = Number(volume);
+  if (!Number.isFinite(v)) return 1;
+  return Math.min(1, Math.max(0, v));
+}
+
+module.exports = { MAX_CHUNK, chunkText, clampRate, clampVolume };

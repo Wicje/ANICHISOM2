@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { chunkText, clampRate } = require("./speech");
+const { chunkText, clampRate, clampVolume } = require("./speech");
 
 test("chunkText packs short sentences under the cap", () => {
   const chunks = chunkText("Hello world. This is a second sentence! And a third?");
@@ -33,4 +33,13 @@ test("clampRate bounds speech rate", () => {
   assert.equal(clampRate(0), 0.5);
   assert.equal(clampRate(99), 2);
   assert.equal(clampRate("fast"), 1);
+});
+
+test("clampVolume bounds utterance volume to 0..1", () => {
+  assert.equal(clampVolume(0.5), 0.5);
+  assert.equal(clampVolume(0), 0);
+  assert.equal(clampVolume(2), 1);
+  assert.equal(clampVolume(-1), 0);
+  assert.equal(clampVolume(undefined), 1);
+  assert.equal(clampVolume("loud"), 1);
 });

@@ -113,6 +113,12 @@ test("a page can never reach a user-control op either", () => {
   assert.equal(d.allowed, false);
 });
 
+test("tab-mutating IPC ops are write-tier (host gates them)", () => {
+  for (const op of ["open_tab", "open_incognito_tab", "navigate_tab", "reload_tab", "close_tab", "reopen_closed", "new_tab_url", "read_aloud"]) {
+    assert.equal(Policy.tierOf(op), "write", `${op} must need a grant-or-user decision`);
+  }
+});
+
 test("tierOf labels approval minting as a write", () => {
   assert.equal(Policy.tierOf("agent_approve"), "write");
   assert.equal(Policy.isUserOnly("agent_approve"), true);

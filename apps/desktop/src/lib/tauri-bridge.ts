@@ -1254,8 +1254,8 @@ export const api = {
   // ---------- medium: full-page screenshot + read-aloud ----------
   screenshotFull: (label?: string) =>
     invoke<{ path?: string; error?: string }>("screenshot_full", { label: label ?? null }).catch(() => ({ error: "unavailable" })),
-  readAloud: (label?: string, action?: string, rate?: number | null) =>
-    invoke<{ state?: string; chunks?: number; truncated?: boolean; error?: string }>("read_aloud", { label: label ?? null, action: action ?? "speak", rate: rate ?? null }).catch(() => ({ error: "unavailable" })),
+  readAloud: (label?: string, action?: string, rate?: number | null, volume?: number | null) =>
+    invoke<{ state?: string; chunks?: number; truncated?: boolean; error?: string }>("read_aloud", { label: label ?? null, action: action ?? "speak", rate: rate ?? null, volume: volume ?? null }).catch(() => ({ error: "unavailable" })),
   readAloudStop: () =>
     invoke<{ state?: string }>("read_aloud_stop").catch(() => ({ state: "stopped" })),
   readPageText: (label?: string, max?: number) =>

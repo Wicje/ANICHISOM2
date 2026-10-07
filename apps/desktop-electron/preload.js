@@ -43,7 +43,12 @@ function normalize(cmd) {
 }
 
 contextBridge.exposeInMainWorld("continuaBridge", {
-  invoke: (cmd, args) => ipcRenderer.invoke("continua", normalize(cmd), args || {}),
+  // Everything through this seam originates in the chrome renderer
+  // (context-isolated; page content only gets the content/studio preloads,
+  // which expose no invoke). Stamp source:"user" here — the single choke
+  // point — so the host can tell its own UI apart from automated callers.
+  // A caller-supplied source is overwritten, never trusted.
+  invoke: (cmd, args) => ipcRenderer.invoke("continua", normalize(cmd), { ...(args || {}), source: "user" }),
   // Host-pushed events (studio mode). Returns an unsubscribe function.
   onStudio: (cb) => {
     const h = (_evt, on) => { try { cb(!!on); } catch {} };
@@ -150,10 +155,10 @@ contextBridge.exposeInMainWorld("continuaBridge", {
     return () => ipcRenderer.removeListener("load-stopped", h);
   },
   // legacy per-method shape (old spike) — all routed through the same channel
-  openTab: (url) => ipcRenderer.invoke("continua", "open_tab", { url }),
-  openIncognitoTab: (url) => ipcRenderer.invoke("continua", "open_incognito_tab", { url }),
-  closeTab: (label) => ipcRenderer.invoke("continua", "close_tab", { label }),
-  activateTab: (label) => ipcRenderer.invoke("continua", "activate_tab", { label }),
-  navigateTab: (label, url) => ipcRenderer.invoke("continua", "navigate_tab", { label, url }),
-  reloadTab: (label) => ipcRenderer.invoke("continua", "reload_tab", { label }),
+  openTab: (url) => ipcRenderer.invoke("continua", "open_tab", { url, source: "user" }),
+  openIncognitoTab: (url) => ipcRenderer.invoke("continua", "open_incognito_tab", { url, source: "user" }),
+  closeTab: (label) => ipcRenderer.invoke("continua", "close_tab", { label, source: "user" }),
+  activateTab: (label) => ipcRenderer.invoke("continua", "activate_tab", { label, source: "user" }),
+  navigateTab: (label, url) => ipcRenderer.invoke("continua", "navigate_tab", { label, url, source: "user" }),
+  reloadTab: (label) => ipcRenderer.invoke("continua", "reload_tab", { label, source: "user" }),
 });

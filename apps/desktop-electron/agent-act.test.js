@@ -11,7 +11,8 @@ test("unknown verbs and bad ids are rejected", () => {
 
 test("writes need approval; reads run free", () => {
   for (const verb of ["click", "type", "select", "check", "uncheck", "press"]) {
-    const c = Act.classify({ verb, id: "0.1", value: "x" }, {});
+    // press names its key in value; only allowlisted keys classify.
+    const c = Act.classify({ verb, id: "0.1", value: verb === "press" ? "Enter" : "x" }, {});
     assert.equal(c.ok, true);
     assert.equal(c.tier, "write");
     assert.equal(c.needsApproval, true);
@@ -42,6 +43,25 @@ test("node ids are bounded (no giant walks)", () => {
   assert.equal(Act.classify({ verb: "click", id: "0.2.1" }).ok, true);
 });
 
+test("press names an allowlisted key only", () => {
+  assert.equal(Act.classify({ verb: "press", id: "0", value: "Enter" }).ok, true);
+  assert.equal(Act.classify({ verb: "press", id: "0", value: "F13" }).ok, false);
+  assert.equal(Act.classify({ verb: "press", id: "0", value: "ctrl+alt+del" }).ok, false);
+});
+
+test("new emitters walk index-paths and refuse disabled nodes", () => {
+  for (const js of [Act.focusJs([1]), Act.scrollJs([1]), Act.checkJs([1], true), Act.selectJs([1], "a"), Act.pressJs([1], "Enter")]) {
+    assert.ok(js.includes('["1"]'));
+    assert.ok(js.includes("aria-disabled"), "execution-time disabled refusal");
+  }
+  assert.ok(Act.checkJs([0], false).includes("n.checked = false"));
+  assert.ok(Act.selectJs([0], "b").includes("no-such-option"));
+  assert.ok(Act.pressJs([0], "Enter").includes("keydown"));
+  // injection-safe values
+  const evil = `");evil();//`;
+  assert.ok(Act.selectJs([0], evil).includes(JSON.stringify(evil)));
+  assert.ok(!Act.pressJs([0], "Enter").includes("F13"));
+});
 test("emitted JS refuses disabled nodes at execution time", () => {
   for (const js of [Act.clickJs([0]), Act.typeJs([0], "x")]) {
     assert.ok(js.includes("aria-disabled"), "checks aria-disabled");

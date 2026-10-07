@@ -115,9 +115,20 @@ One file per profile: `agent-audit-log-<profile>.jsonl` (bridge-compat alias
   replay gets `grant-spent`, and concurrent double-presentations can't share.
 - Grants bind tab `url` + typed `valueLen`; navigation between approve and
   retry re-queues.
+- Every advertised act verb executes for real (`focus`/`scroll`/`check`/
+  `uncheck`/`select`/`press` emitters with runtime role checks); nothing
+  spends a grant on a vacuous `ok:true`. `press` names one allowlisted key.
+- Tab-mutating IPC ops (`open/navigate/reload/close/reopen/read_aloud`) are
+  gated like agent writes. The chrome preload stamps `source:"user"` at its
+  single choke point (page content has no `invoke`); anything else queues for
+  a human. `read_aloud` accepts a clamped `volume` (0..1).
 - IPC `type_at` is gated/audited as `type_at` (was shadowed to `click_at`).
 - `type=password` values are no longer collected into the ax-tree.
 - Emitted action JS refuses `disabled` / `aria-disabled` targets at execution
   time (snapshot may be stale); node ids are size-bounded at classify time.
-- Bridge auth precedes rate limiting; token writes are atomic and removed on
-  quit; MCP pins the bridge pid.
+- Bridge auth precedes rate limiting; IPC captures+writes carry their own
+  budget; token writes are atomic and removed on quit; MCP pins the bridge pid.
+- Accepted residual risk: a compromised chrome renderer *is* the user (it
+  holds the preload), so `agent_deny` stays ungated-but-audited and renderer
+  compromise is full compromise. Page content remains fully untrusted: no
+  `invoke`, no writes, no approvals.
