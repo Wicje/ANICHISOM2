@@ -73,10 +73,12 @@ switches a browser for a task manager*. They stay because removing them is
 regression risk for existing users. They get zero new development time. The
 last feature batch went here; that was a mistake and should not be repeated.
 
-**Consumer monetisation of the browser.** Nobody pays for a browser, and we
-cannot out-monetise a search default. Choose deliberately: either B2B seat
-licensing for the trust boundary, or a permanently free browser that exists to
-distribute something else. Doing half of each is the worst answer.
+**Consumer monetisation of the browser.** Decided 2026-10-07 (ADR-013): the
+browser is permanently free — no premium tier, no ads, no paid defaults — and
+exists to distribute the sync cloud (free local-first browsing forever; paid
+surface is cloud scale/teams later). Nobody pays for a browser, and we cannot
+out-monetise a search default. A separate enterprise browser SKU is likewise
+refused: one codebase, managed tenancy later if ever.
 
 **A GPUI/Rust chrome rewrite.** Recorded because it will be asked again.
 Chromium + Rust + GPUI in one window is not possible: two toolkits cannot both
