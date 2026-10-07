@@ -60,6 +60,26 @@ test("consume is single-use and resolve reports a spent grant", () => {
   assert.equal(replay.spent, true);
 });
 
+test("resolveAndConsume spends atomically: second attempt is spent", () => {
+  const reg = createGrantRegistry();
+  const g = reg.issue({ op: "agent_act", params: CLICK });
+  assert.equal(reg.resolveAndConsume(g, "agent_act", CLICK).ok, true);
+  const replay = reg.resolveAndConsume(g, "agent_act", CLICK);
+  assert.equal(replay.ok, false);
+  assert.equal(replay.spent, true);
+  assert.equal(replay.reason, Policy.REASON.grantSpent);
+});
+
+test("a grant bound to one URL does not fire on another", () => {
+  const reg = createGrantRegistry();
+  const params = { ...CLICK, url: "https://bank.com/" };
+  const g = reg.issue({ op: "agent_act", params });
+  assert.equal(reg.resolveAndConsume(g, "agent_act", { ...CLICK, url: "https://evil.com/" }).ok, false);
+  // Same URL still works (single attempt).
+  const g2 = reg.issue({ op: "agent_act", params });
+  assert.equal(reg.resolveAndConsume(g2, "agent_act", params).ok, true);
+});
+
 test("two issues for the same action are distinct grants", () => {
   const reg = createGrantRegistry();
   const a = reg.issue({ op: "agent_act", params: CLICK });

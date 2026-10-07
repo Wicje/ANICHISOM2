@@ -66,10 +66,31 @@ function createGrantRegistry(opts = {}) {
     return true;
   }
 
+  /**
+   * Resolve AND consume in one synchronous step. `resolve()` then `consume()`
+   * as two calls has a check-then-act race: two concurrent actions presenting
+   * the same grant both see spent:false before either consumes. The gate must
+   * use this — never resolve-then-consume across an await.
+   * @returns same shape as resolve(), with spent grants reported spent
+   */
+  function resolveAndConsume(presented, op, params, now = Date.now()) {
+    evict(now);
+    const id = presented && typeof presented === "object" ? presented.id : presented;
+    if (!id) return { ok: false, reason: Policy.REASON.grantMissing };
+    const held = grants.get(String(id));
+    if (!held) return { ok: false, reason: Policy.REASON.grantMissing };
+    if (held.spent) return { ok: false, reason: Policy.REASON.grantSpent, spent: true };
+    const check = Policy.verifyGrant({ op: held.op, fp: held.fp }, op, params, { spent: false });
+    if (!check.ok) return check;
+    held.spent = true;
+    return { ok: true, grant: held };
+  }
+
   return {
     issue,
     resolve,
     consume,
+    resolveAndConsume,
     get size() { return grants.size; },
     has: (id) => grants.has(String(id)),
   };

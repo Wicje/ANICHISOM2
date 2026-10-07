@@ -47,7 +47,14 @@ function loadBridge() {
   for (const p of bridgeFileCandidates()) {
     try {
       const info = JSON.parse(fs.readFileSync(p, "utf8"));
-      if (typeof info.port === "number" && typeof info.token === "string" && info.port > 0) return { host: "127.0.0.1", port: info.port, token: info.token };
+      if (typeof info.port !== "number" || typeof info.token !== "string" || info.port <= 0) continue;
+      // Pin to the live process: the token file is deliberately NOT unlinked
+      // on crash, so a stale file could point at an attacker's listener on a
+      // reused port. A dead pid means this candidate is stale — keep looking.
+      if (typeof info.pid === "number" && info.pid > 0) {
+        try { process.kill(info.pid, 0); } catch { continue; }
+      }
+      return { host: "127.0.0.1", port: info.port, token: info.token };
     } catch { /* keep looking */ }
   }
   return null;

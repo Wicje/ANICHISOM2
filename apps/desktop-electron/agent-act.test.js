@@ -35,6 +35,20 @@ test("explicit approval accredits; page auto-flow never does", () => {
   assert.equal(no.needsApproval, true);
 });
 
+test("node ids are bounded (no giant walks)", () => {
+  assert.equal(Act.classify({ verb: "click", id: "0".repeat(1000) }).ok, false);
+  assert.equal(Act.classify({ verb: "click", id: "99999999999999999999" }).ok, false);
+  assert.equal(Act.classify({ verb: "click", id: "0.1.2.3.4.5.6.7.8.9.10.11.12.13" }).ok, false);
+  assert.equal(Act.classify({ verb: "click", id: "0.2.1" }).ok, true);
+});
+
+test("emitted JS refuses disabled nodes at execution time", () => {
+  for (const js of [Act.clickJs([0]), Act.typeJs([0], "x")]) {
+    assert.ok(js.includes("aria-disabled"), "checks aria-disabled");
+    assert.ok(js.includes("node-disabled"), "reports node-disabled");
+  }
+});
+
 test("guardNode refuses missing and disabled nodes", () => {
   assert.equal(Act.guardNode({}, null).ok, false);
   assert.equal(Act.guardNode({}, { disabled: true }).reason, Act.REASON.disabledNode);

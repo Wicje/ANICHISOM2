@@ -40,8 +40,15 @@ const REASON = {
 function classify(act, ctx = {}) {
   const verb = String(act?.verb || "").toLowerCase();
   if (!VALID_VERBS.includes(verb)) return { ok: false, tier: "write", needsApproval: true, approved: false, reason: REASON.unknownVerb };
-  if (act.id !== undefined && act.id !== null && !/^\d+(\.\d+)*$/.test(String(act.id))) {
-    return { ok: false, tier: "write", needsApproval: true, approved: false, reason: REASON.badNode };
+  // Index-paths only, bounded: no 1000-digit segments, no deep walks that turn
+  // executeJavaScript into a DoS string. Mirrors ax-tree cleanNodeId (40 chars).
+  if (act.id !== undefined && act.id !== null) {
+    const s = String(act.id);
+    const parts = s.split(".");
+    const bounded = s.length <= 64 && parts.length <= 12 && parts.every((p) => /^\d{1,6}$/.test(p) && Number(p) < 1000000);
+    if (!bounded) {
+      return { ok: false, tier: "write", needsApproval: true, approved: false, reason: REASON.badNode };
+    }
   }
   const tier = WRITE_VERBS.has(verb) ? "write" : "read";
   if (tier === "read") return { ok: true, tier, needsApproval: false, approved: true };
@@ -62,7 +69,10 @@ const WALK_JS = (dir) =>
   `let n = null, kids = [document.body], ok = true; ` +
   `const st = ${dir}; for (let d = 0; d < st.length; d++) { if (!kids || Number(st[d]) >= kids.length) { ok = false; break; } ` +
   `n = kids[Number(st[d])]; kids = n ? n.querySelectorAll(':scope > *') : []; } ` +
-  `if (!ok || !n) return { ok:false }; `;
+  `if (!ok || !n) return { ok:false }; ` +
+  // The snapshot may be stale (page mutated between see and act): a disabled
+  // control must refuse at execution time, not just at classify time.
+  `if (n.disabled || (n.getAttribute && n.getAttribute('aria-disabled') === 'true')) return { ok:false, reason:'node-disabled' }; `;
 
 /**
  * Emit the host JS for a click: re-walk the snapshot index-path and .click().

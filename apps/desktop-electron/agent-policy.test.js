@@ -131,6 +131,14 @@ test("describe renders an approval prompt line", () => {
   assert.match(s, /\(write\)$/);
 });
 
+test("credential-shaped fields are redacted, not just password/value", () => {
+  const s = Policy.sanitize({ otp: "123456", cookie: "sess=abc", card: "4111", nickname: "bob" });
+  assert.equal(s.otp, "[redacted]");
+  assert.equal(s.cookie, "[redacted]");
+  assert.equal(s.card, "[redacted]");
+  assert.equal(s.nickname, "bob");
+});
+
 test("sanitize truncates long values and drops undefined", () => {
   const s = Policy.sanitize({ url: "x".repeat(900), gone: undefined });
   assert.equal(s.url.length, 512);

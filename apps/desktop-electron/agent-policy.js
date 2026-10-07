@@ -117,7 +117,11 @@ function stableStringify(value) {
 }
 
 /** Fields that must never enter a fingerprint or an audit entry verbatim. */
-const SECRET_FIELDS = new Set(["token", "password", "value", "secret", "auth", "key"]);
+const SECRET_FIELDS = new Set([
+  "token", "password", "passwd", "pwd", "value", "secret", "auth", "key",
+  "credential", "cookie", "session", "card", "cvv", "cvc", "ssn", "otp",
+  "mnemonic", "passphrase", "privatekey",
+]);
 
 /** Redact secret-bearing fields so grants/logs can be shared safely. */
 function sanitize(params) {

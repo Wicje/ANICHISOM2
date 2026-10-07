@@ -33,6 +33,16 @@ bridge `dispatchAgentRpc`). No path may bypass it.
   approve and execute is a known TOCTOU gap (fix queued: bind `url`).
 - `nonce` (approval request id) is stored for audit, not hashed.
 
+## 2b. What the fingerprint binds (and what it costs)
+
+Tab-scoped grants bind `url` (the tab's URL at approval) plus, for `type` /
+`type_at`, `valueLen` (the length of the text, not the text — secrets stay
+redacted). A tab that navigates between approval and retry re-queues instead
+of firing: fail closed on TOCTOU, at the price of one more prompt after
+navigations. Raw `value` is never bound (it would make the fingerprint a
+secret oracle); length-only binding distinguishes `"ok"` from an exfil payload
+without storing either.
+
 ## 3. Grant protocol (four ops, both sides in sync)
 
 1. Agent attempts write with no/invalid grant → host `decide()` returns
@@ -43,10 +53,12 @@ bridge `dispatchAgentRpc`). No path may bypass it.
 3. `approveRequest` mints `mintGrant(op, params, {nonce: requestId})`
    → `{id (16 hex), op, fp, nonce, actor: "user", issuedAt}` in the
    per-profile `grant-registry.js` (5-min TTL from issue).
-4. Agent retries with `{id, op, fp}` → `resolve()` checks op + fp + expiry +
-   `spent`, then `consume()` marks single-use. Replay or double-spend returns
-   `grant-spent` / `grantMissing` / `grantMismatch` and is audited. Consume
-   failures fail closed.
+4. Agent retries with `{id, op, fp}` → the registry resolves AND consumes in
+   one synchronous step, then the host executes exactly once. Single-use means
+   single *attempt*: a failed execution still spends the grant. The old
+   resolve-then-consume split had a check-then-act race across concurrent
+   actions; `resolveAndConsume` is the only correct call and the gate owns it —
+   callers never consume.
 
 There is deliberately no bridge/IPC approve/deny method: a token holder is a
 reader by default, never an authoriser. `agent_deny` is chrome-only.
@@ -63,6 +75,13 @@ One file per profile: `agent-audit-log-<profile>.jsonl` (bridge-compat alias
   `verify()` reports the first broken `seq`. Rotation caps at 5000 entries;
   trimming the head makes verify report a break at the first retained entry —
   honest (the window is what verifies), explained on export.
+- Seal: on quit the head `{seq, head}` per profile is sealed with the OS
+  keyring (`safeStorage`) into `agent-audit-<profile>.head.sealed`; on boot
+  the loaded chain is compared to the seal and a mismatch is logged as
+  `AUDIT SEAL MISMATCH` (file replaced/truncated while away). A full-file
+  rewrite with valid hashes still verifies *within* the file — the seal only
+  anchors the head across restarts. No keyring (headless Linux) means no
+  anchor, stated loudly instead of pretended.
 - Every decision, allowed or denied, is appended (debounced 250 ms, tmp+rename,
   flushed on quit). Query: `Managers → Agent audit`, `audit_log_export` IPC,
   or MCP `audit_log`. Export includes `chainOk` + first-bad-seq when broken.
@@ -71,8 +90,13 @@ One file per profile: `agent-audit-log-<profile>.jsonl` (bridge-compat alias
 
 - Loopback only (`127.0.0.1`, random port, per-boot 192-bit token). Token file
   `agent-bridge.json` is owner-only (`0600` + Windows `icacls` inheritance
-  removal), rate-limited at 600 req/min/IP. No remote reachability by
-  construction; `CONTINUA_BRIDGE_FILE` override is trusted config, not input.
+  removal), written atomically (tmp → lock down → rename, so a crash never
+  leaves half-JSON), and unlinked on quit so a stale file can't point a client
+  at a reused port. Auth (constant-time compare) runs before the 600 req/min
+  rate limit, so unauthenticated locals can't burn the quota. No remote
+  reachability by construction; `CONTINUA_BRIDGE_FILE` override is trusted
+  config, not input. MCP clients pin the bridge `pid` (dead pid = stale file,
+  keep looking).
 - MCP (`mcp-browser.mjs`, dependency-free stdio): `see_tab`, `act_tab`,
   `debrief`, `list_tabs`, `pending_approvals`, `audit_log`. `act_tab` takes a
   `grant` object from a prior `needsApproval` response — never an `approved`
@@ -85,6 +109,13 @@ One file per profile: `agent-audit-log-<profile>.jsonl` (bridge-compat alias
 
 ## 6. What changed recently (fail-closed fixes)
 
-- IPC + bridge grant consume now fails closed on replay (`grant-spent`).
+- IPC + bridge grant consume is atomic inside the gate (`resolveAndConsume`);
+  replay gets `grant-spent`, and concurrent double-presentations can't share.
+- Grants bind tab `url` + typed `valueLen`; navigation between approve and
+  retry re-queues.
 - IPC `type_at` is gated/audited as `type_at` (was shadowed to `click_at`).
 - `type=password` values are no longer collected into the ax-tree.
+- Emitted action JS refuses `disabled` / `aria-disabled` targets at execution
+  time (snapshot may be stale); node ids are size-bounded at classify time.
+- Bridge auth precedes rate limiting; token writes are atomic and removed on
+  quit; MCP pins the bridge pid.

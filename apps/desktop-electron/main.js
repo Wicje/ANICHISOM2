@@ -406,7 +406,9 @@ function auditLog() {
   if (!auditLogs.has(id)) {
     // Per-profile, inside the profile's own store dir: never crosses profiles.
     const file = path.join(userDataPath, `agent-audit-${id}.jsonl`);
-    auditLogs.set(id, createAuditLog(file));
+    const log = createAuditLog(file);
+    auditLogs.set(id, log);
+    try { verifyAuditSealFor(id, log); } catch {}
   }
   return auditLogs.get(id);
 }
@@ -414,6 +416,47 @@ function auditLog() {
 /** Record one decision. Returns the stored chain entry. */
 function audit(entry) {
   try { return auditLog().append({ ts: Date.now(), ...entry }); } catch { return null; }
+}
+
+/**
+ * Sealed audit checkpoint: the hash chain detects edits *within* the file,
+ * but a file-write attacker can rewrite the whole file with valid hashes.
+ * Sealing the head with the OS keyring (safeStorage) anchors it outside the
+ * file: on boot, a mismatch between the sealed head and the loaded chain
+ * means the file was replaced or truncated while we were away. Best-effort:
+ * when encryption is unavailable (headless Linux), there is no anchor and we
+ * say so instead of pretending.
+ */
+function sealAuditHeads() {
+  let safe = null;
+  try { safe = require("electron").safeStorage; } catch { return false; }
+  try {
+    if (!safe || !safe.isEncryptionAvailable()) { console.error("[continua] audit seal skipped (no OS keyring)"); return false; }
+    for (const [id, log] of auditLogs) {
+      const tail = log.tail(1)[0];
+      if (!tail) continue;
+      const sealed = safe.encryptString(JSON.stringify({ seq: tail.seq, head: log.head, at: new Date().toISOString() }));
+      fs.writeFileSync(path.join(userDataPath, `agent-audit-${id}.head.sealed`), sealed);
+    }
+    return true;
+  } catch { return false; }
+}
+function verifyAuditSeals() {
+  for (const [id, log] of auditLogs) verifyAuditSealFor(id, log);
+}
+function verifyAuditSealFor(id, log) {
+  let safe = null;
+  try { safe = require("electron").safeStorage; } catch { return; }
+  try {
+    if (!safe || !safe.isEncryptionAvailable()) return;
+    const f = path.join(userDataPath, `agent-audit-${id}.head.sealed`);
+    if (!fs.existsSync(f)) return; // first run after upgrade: nothing to compare
+    let sealed = null;
+    try { sealed = JSON.parse(safe.decryptString(fs.readFileSync(f))); } catch { return; }
+    if (sealed && sealed.head && sealed.head !== log.head) {
+      console.error(`[continua] AUDIT SEAL MISMATCH profile=${id} sealedSeq=${sealed.seq} — chain file was replaced or truncated while away`);
+    }
+  } catch {}
 }
 
 /** Bump a daily counter and persist it on the profile store. */
@@ -438,8 +481,10 @@ function countMetric(key, by = 1) {
 function gate({ op, params = {}, source = "agent", grant = null, auto = false, profileId = null, tab = null, url = null, summaryText = null }) {
   const profile = profileId || activeProfileId || "personal";
   // A presented grant is only a claim until the registry vouches for it — and
-  // only the registry belonging to the acting profile can vouch.
-  const held = grant?.id ? grantsFor(profile).resolve(grant, op, params) : null;
+  // only the registry belonging to the acting profile can vouch. Resolution
+  // and consumption are one atomic step: resolve-then-consume across an await
+  // lets two concurrent actions share one grant.
+  const held = grant?.id ? grantsFor(profile).resolveAndConsume(grant, op, params) : null;
   const trusted = held?.ok ? { id: held.grant.id, op: held.grant.op, fp: held.grant.fp } : null;
   const spent = !!(held && (held.spent === true || held.grant?.spent === true));
   // This function must fail CLOSED, and it must never fail to record: a throw
@@ -2370,7 +2415,9 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       const act = { verb: args.verb, id: args.id, value: args.value };
       const c = AgentAct.classify(act, { approved: false, auto: false });
       if (!c.ok) return { error: c.reason || "invalid-action" };
-      const params = { verb: String(args.verb || "").toLowerCase(), id: args.id === undefined ? null : String(args.id), label: t.label };
+      // The grant binds verb + node + tab URL (+ value length for type): a tab
+      // that navigated between approval and retry re-queues instead of firing.
+      const params = { verb: String(args.verb || "").toLowerCase(), id: args.id === undefined ? null : String(args.id), label: t.label, url: t.url, ...(String(args.verb || "").toLowerCase() === "type" ? { valueLen: String(args.value ?? "").length } : {}) };
       const d = gate({ op: "agent_act", params, source: args.source === "page" ? "page" : "agent", grant: args.grant || null, auto: !!args.auto, tab: t.label, url: t.url, summaryText: `${params.verb} ${params.id === null ? "" : params.id}`.trim() });
       if (!d.allowed) {
         // Flat no for a self-declared auto-approval (see bridge act_tab).
@@ -2381,7 +2428,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
         }
         return { error: d.reason };
       }
-      if (args.grant?.id && !grantsFor(activeProfileId).consume(args.grant.id)) return { error: "grant-spent" }; // single use, fail closed on replay
+      // Single attempt: gate() already consumed the grant atomically.
       const path = String(args.id || "0").split(".").map(Number);
       let js = null;
       if (args.verb === "click") js = AgentAct.clickJs(path);
@@ -2435,7 +2482,8 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       if (!point) return { error: "point-outside-viewport", viewport: vp };
       // NOTE: do not derive op from args — the case label (outer `op`) is the
       // authority, otherwise an IPC type_at would be gated/audited as click_at.
-      const params = { x: point.x, y: point.y, target: onChrome ? "chrome" : "page", ...(onChrome ? {} : { label: t.label }), ...(args.value ? { value: args.value } : {}) };
+      // The grant binds point + surface + tab URL (+ value length for type_at).
+      const params = { x: point.x, y: point.y, target: onChrome ? "chrome" : "page", ...(onChrome ? {} : { label: t.label, url: t.url }), ...(args.value ? { value: args.value } : {}), ...(op === "type_at" ? { valueLen: String(args.value ?? "").length } : {}) };
       const d = gate({ op, params, source: args.source === "page" ? "page" : "agent", grant: args.grant || null, auto: !!args.auto, tab: onChrome ? null : t.label, url: onChrome ? null : t.url, summaryText: `${op} ${point.x},${point.y}${onChrome ? " (chrome)" : ""}` });
       if (!d.allowed) {
         if (d.reason === AgentPolicy.REASON.autoBlocked) return { error: d.reason };
@@ -2445,7 +2493,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
         }
         return { error: d.reason };
       }
-      if (args.grant?.id) grantsFor(activeProfileId).consume(args.grant.id);
+      // Single attempt: gate() already consumed the grant atomically.
       try {
         const target_wc = onChrome ? chrome.webContents : t.view.webContents;
         if (op === "type_at") {
@@ -3793,7 +3841,7 @@ async function dispatchAgentRpc(payload, res) {
         // ADR-012: `params.approved` from the agent is IGNORED. A write needs a
         // user-issued grant for this exact action; otherwise it is queued and
         // the agent gets a request id to poll. The bridge can never self-approve.
-        const p2 = { verb: String(params.verb || "").toLowerCase(), id: params.id === undefined ? null : String(params.id), label: t.label };
+        const p2 = { verb: String(params.verb || "").toLowerCase(), id: params.id === undefined ? null : String(params.id), label: t.label, url: t.url, ...(String(params.verb || "").toLowerCase() === "type" ? { valueLen: String(params.value ?? "").length } : {}) };
         const d = gate({ op: "act_tab", params: p2, source: "agent", grant: params.grant || null, auto: !!params.auto, tab: t.label, url: t.url, summaryText: `${p2.verb} ${p2.id === null ? "" : p2.id}`.trim() });
         if (!d.allowed) {
           // An agent demanding auto-approval gets a flat no, never a prompt:
@@ -3805,7 +3853,7 @@ async function dispatchAgentRpc(payload, res) {
           }
           return send(null, d.reason);
         }
-        if (params.grant?.id && !grantsFor(activeProfileId).consume(params.grant.id)) return send(null, "grant-spent");
+        // Single attempt: gate() already consumed the grant atomically.
         const path = String(params.id || "0").split(".").map(Number);
         let js = null;
         if (params.verb === "click") js = AgentAct.clickJs(path);
@@ -3858,7 +3906,7 @@ async function dispatchAgentRpc(payload, res) {
         const vp = onChrome ? chromeViewport() : viewportOf(t);
         const point = Visual.normalizePoint({ x: params.x, y: params.y, viewportWidth: vp.width, viewportHeight: vp.height });
         if (!point) return send(null, "point-outside-viewport");
-        const p2 = { x: point.x, y: point.y, target: onChrome ? "chrome" : "page", ...(onChrome ? {} : { label: t.label }), ...(params.value ? { value: params.value } : {}) };
+        const p2 = { x: point.x, y: point.y, target: onChrome ? "chrome" : "page", ...(onChrome ? {} : { label: t.label, url: t.url }), ...(params.value ? { value: params.value } : {}), ...(op === "type_at" ? { valueLen: String(params.value ?? "").length } : {}) };
         const d = gate({ op, params: p2, source: "agent", grant: params.grant || null, auto: !!params.auto, tab: onChrome ? null : t.label, url: onChrome ? null : t.url, summaryText: `${op} ${point.x},${point.y}${onChrome ? " (chrome)" : ""}` });
         if (!d.allowed) {
           if (d.reason === AgentPolicy.REASON.autoBlocked) return send(null, d.reason);
@@ -3868,7 +3916,7 @@ async function dispatchAgentRpc(payload, res) {
           }
           return send(null, d.reason);
         }
-        if (params.grant?.id && !grantsFor(activeProfileId).consume(params.grant.id)) return send(null, "grant-spent");
+        // Single attempt: gate() already consumed the grant atomically.
         const target_wc = onChrome ? chrome.webContents : t.view.webContents;
         if (op === "type_at") {
           target_wc.sendInputEvent({ type: "char", keyCode: String(params.value ?? "") });
@@ -3914,13 +3962,19 @@ function startAgentBridge() {
     const server = http.createServer((req, res) => {
       res.setHeader("content-type", "application/json");
       if (req.method !== "POST" || req.url !== "/rpc") { res.writeHead(405); res.end(JSON.stringify({ error: "method-not-allowed" })); return; }
-      const ip = req.socket.remoteAddress || "unknown";
-      if (overLimit(ip)) { res.writeHead(429); res.end(JSON.stringify({ error: "rate-limited" })); return; }
+      // Auth first, then rate-limit: an unauthenticated local process must not
+      // be able to burn the quota and DoS the legitimate agent. The body cap
+      // stays first (it bounds memory before any parsing).
       let body = "";
       req.on("data", (ch) => { if (body.length < 2e6) body += ch; });
       req.on("end", () => {
         const auth = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
-        if (!auth || auth !== token) { res.writeHead(401); res.end(JSON.stringify({ error: "unauthorized" })); return; }
+        // Constant-time compare: the token is high-entropy, but !== leaks
+        // prefix length through timing to a loopback observer.
+        const okAuth = auth.length === token.length && crypto.timingSafeEqual(Buffer.from(auth), Buffer.from(token));
+        if (!okAuth) { res.writeHead(401); res.end(JSON.stringify({ error: "unauthorized" })); return; }
+        const ip = req.socket.remoteAddress || "unknown";
+        if (overLimit(ip)) { res.writeHead(429); res.end(JSON.stringify({ error: "rate-limited" })); return; }
         let payload = {};
         try { payload = JSON.parse(body || "{}"); } catch { res.writeHead(400); res.end(JSON.stringify({ error: "bad-json" })); return; }
         dispatchAgentRpc(payload, res).catch(() => res.end(JSON.stringify({ id: payload.id, error: { message: "dispatch-failed" } })));
@@ -3931,17 +3985,21 @@ function startAgentBridge() {
       for (const p of [path.join(userDataPath, "agent-bridge.json"), path.join(os.homedir(), ".continua", "agent-bridge.json")]) {
         try {
           fs.mkdirSync(path.dirname(p), { recursive: true });
-          // The token IS the credential: owner-only on every platform.
-          fs.writeFileSync(p, JSON.stringify(info), { mode: 0o600 });
-          try { fs.chmodSync(p, 0o600); } catch { /* best effort on Windows */ }
+          // The token IS the credential: owner-only on every platform, written
+          // atomically. A crash mid-write must not leave half-JSON that reads
+          // as a valid bridge (fail-soft DoS) — write tmp, lock down, rename.
+          const tmp = `${p}.tmp.${process.pid}`;
+          fs.writeFileSync(tmp, JSON.stringify(info), { mode: 0o600 });
+          try { fs.chmodSync(tmp, 0o600); } catch { /* best effort on Windows */ }
           // Windows: strip inheritance so other local users cannot read it.
           if (process.platform === "win32") {
             try {
               const { execFileSync } = require("child_process");
               const owner = process.env.USERDOMAIN ? `${process.env.USERDOMAIN}\\${process.env.USERNAME}` : process.env.USERNAME;
-              if (owner) execFileSync("icacls", [p, "/inheritance:r", "/grant:r", `${owner}:(R,W)`], { stdio: "ignore" });
+              if (owner) execFileSync("icacls", [tmp, "/inheritance:r", "/grant:r", `${owner}:(R,W)`], { stdio: "ignore" });
             } catch { /* non-fatal: mode bit above still applies */ }
           }
+          try { fs.renameSync(tmp, p); } catch { fs.writeFileSync(p, JSON.stringify(info), { mode: 0o600 }); try { fs.unlinkSync(tmp); } catch {} }
         } catch { /* non-fatal */ }
       }
       console.error(`[continua] agent bridge on 127.0.0.1:${info.port} (token in agent-bridge.json, owner-only)`);
@@ -3949,8 +4007,14 @@ function startAgentBridge() {
     agentBridge = server;
     app.on("will-quit", () => {
       try { agentBridge?.close(); } catch {}
+      // A stale token file after quit can point a client at an attacker's
+      // listener on a reused port. Remove both copies; next boot mints fresh.
+      for (const p of [path.join(userDataPath, "agent-bridge.json"), path.join(os.homedir(), ".continua", "agent-bridge.json")]) {
+        try { fs.unlinkSync(p); } catch {}
+      }
       // The audit chain is evidence: never let it die in memory on quit.
       try { for (const log of auditLogs.values()) log.flush(); } catch {}
+      try { sealAuditHeads(); } catch {}
     });
   } catch (e) { console.error("[continua] agent bridge failed", e); }
 }
