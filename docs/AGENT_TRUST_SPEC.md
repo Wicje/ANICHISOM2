@@ -96,7 +96,9 @@ One file per profile: `agent-audit-log-<profile>.jsonl` (bridge-compat alias
   rate limit, so unauthenticated locals can't burn the quota. No remote
   reachability by construction; `CONTINUA_BRIDGE_FILE` override is trusted
   config, not input. MCP clients pin the bridge `pid` (dead pid = stale file,
-  keep looking).
+  keep looking). The same agent surface is reachable over IPC from preload
+  holders, so captures and writes carry their own 1200/min budget there —
+  normal chrome traffic (tabs, config) is uncapped.
 - MCP (`mcp-browser.mjs`, dependency-free stdio): `see_tab`, `act_tab`,
   `debrief`, `list_tabs`, `pending_approvals`, `audit_log`. `act_tab` takes a
   `grant` object from a prior `needsApproval` response — never an `approved`
