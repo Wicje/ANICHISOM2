@@ -20,6 +20,7 @@ const VaultSync = require("./vault-sync");
 const Translate = require("./translate");
 const Keywords = require("./keywords");
 const WebApps = require("./webapps");
+const IconCache = require("./icon-cache");
 const Speech = require("./speech");
 const ClosedRing = require("./closed");
 const BookmarkMgr = require("./bookmarks");
@@ -138,7 +139,7 @@ function renderStartPage() {
   let apps = [];
   try {
     const cfg = store?.getConfig ? store.getConfig() : store?.state?.config;
-    apps = WebApps.sanitizeApps(cfg?.installed_apps).map((a) => ({ name: a.name, url: a.url, icon: a.icon || null }));
+    apps = WebApps.sanitizeApps(cfg?.installed_apps).map((a) => ({ name: a.name, url: a.url, icon: cachedIconFile(a.url, a.icon) || a.icon || null }));
   } catch {}
   try {
     const tpl = fs.readFileSync(START_PAGE_FILE, "utf8");
@@ -153,6 +154,41 @@ function renderStartPage() {
     }
   } catch {}
   START_URL = START_PAGE_TEMPLATE_URL;
+}
+// App-icon disk cache: profiles/<id>/icons/<sha1>.<ext>, served as file:// so
+// tiles render offline. Only files this host wrote (name = cacheFileName) are
+// ever resolved — stored https URLs are never treated as paths.
+function profileIconsDir() {
+  try {
+    if (!userDataPath) return null;
+    return path.join(profiles.profileDir(userDataPath, activeProfileId), "icons");
+  } catch { return null; }
+}
+function cachedIconFile(pageUrl, href) {
+  try {
+    const dir = profileIconsDir();
+    if (!dir || !/^https?:\/\//i.test(String(href || ""))) return null;
+    const files = fs.readdirSync(dir);
+    const key = IconCache.cacheKey(pageUrl, href);
+    const hit = files.find((f) => f.startsWith(key + "."));
+    if (!hit || /[/\\]/.test(hit)) return null;
+    return "file://" + path.join(dir, hit);
+  } catch { return null; }
+}
+// Fire-and-forget: verify icon bytes, then save + re-render tiles.
+function cacheIconForApp(pageUrl, href) {
+  const dir = profileIconsDir();
+  if (!dir || !/^https?:\/\//i.test(String(href || ""))) return;
+  IconCache.verifyIconUrl(href).then((v) => {
+    if (!v.ok) return;
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      const name = IconCache.cacheFileName(pageUrl, href, v.ext);
+      if (/[/\\]/.test(name)) return;
+      fs.writeFileSync(path.join(dir, name), v.bytes);
+      try { renderStartPage(); } catch {}
+    } catch {}
+  }).catch(() => {});
 }
 const OFFLINE_URL = "file://" + OFFLINE_FILE;
 const CRASH_URL = "file://" + CRASH_FILE;
@@ -1062,6 +1098,10 @@ function sizeView(view) {
   if (!chrome || !view) return;
   try {
     const { width, height } = chrome.getContentBounds();
+    // A minimized/restoring window reports 0x0: sizing views to the 200px
+    // floor then paints black slivers. Skip until the window has real bounds;
+    // restore/show/focus re-runs layoutViews below.
+    if (!width || !height) return;
     const ch = studio ? 0 : CHROME_H;
     const rw = studio ? 0 : TAB_RAIL_W;
     const y = ch + (studio ? 0 : CONTENT_GAP);
@@ -1598,6 +1638,9 @@ function createChrome() {
   });
   chrome.on("resize", layoutViews);
   chrome.on("move", layoutViews);
+  chrome.on("restore", layoutViews);
+  chrome.on("show", layoutViews);
+  chrome.on("focus", layoutViews);
   chrome.on("closed", () => { persistNow(); tabs.forEach(m => { try { m.view?.webContents?.close(); } catch {} }); });
 }
 
@@ -2214,6 +2257,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       const { apps, app: installed, error } = WebApps.installApp(current, url, args.name, undefined, discovered || WebApps.faviconFallback(url));
       if (error) return { error };
       save(apps);
+      try { if (installed?.icon) cacheIconForApp(url, installed.icon); } catch {}
       try { renderStartPage(); } catch {}
       return installed;
     }

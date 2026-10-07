@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, parsePasswordCsv } from "../lib/tauri-bridge";
 import { useChromeModal } from "../lib/chrome-modal";
 import type { BrowserConfigItem, ConfigPatch } from "../lib/tauri-bridge";
-import { BUILTIN_THEMES, applyTheme, decodeShare, encodeShare, resolveTheme, type Theme } from "../lib/themes";
+import { BUILTIN_THEMES, applyTheme, decodeShare, encodeShare, resolveTheme, sanitizeTheme, type Theme } from "../lib/themes";
 import { sanitizeEngine } from "../lib/tauri-bridge";
 import { SHORTCUT_ACTIONS, comboFor, comboOf, prettyCombo } from "../lib/shortcuts";
 import { ENGINES } from "./engine-list";
@@ -74,6 +74,7 @@ export function SettingsPanel({
   const [lgUser, setLgUser] = useState("");
   const [lgPass, setLgPass] = useState("");
   const [themeLink, setThemeLink] = useState("");
+  const themeFileRef = useRef<HTMLInputElement>(null);
   const [engName, setEngName] = useState("");
   const [engUrl, setEngUrl] = useState("");
   const [capturing, setCapturing] = useState<string | null>(null);
@@ -248,6 +249,34 @@ export function SettingsPanel({
                   void navigator.clipboard?.writeText(encodeShare(t)).catch(() => undefined);
                   setSyncMsg("Theme link copied — share it anywhere.");
                 }}>Share</button>
+                <button className="settings-btn" aria-label="Export active theme as JSON file" onClick={() => {
+                  const t = resolveTheme(config?.theme_id ?? "midnight", (config?.custom_themes ?? []) as Theme[]);
+                  const payload = JSON.stringify({ id: t.id, name: t.name, accent: t.accent, accentHi: t.accentHi, glowA: t.glowA, glowB: t.glowB }, null, 2);
+                  const blob = new Blob([payload], { type: "application/json" });
+                  const a = document.createElement("a");
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `${t.id}.theme.json`;
+                  document.body.appendChild(a);
+                  a.click();
+                  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+                  setSyncMsg(`Theme “${t.name}” exported — see docs/THEME_FORMAT.md.`);
+                }}>Export JSON</button>
+                <button className="settings-btn" aria-label="Import theme from JSON file" onClick={() => themeFileRef.current?.click()}>Import JSON</button>
+                <input ref={themeFileRef} type="file" accept=".json,application/json" hidden aria-label="Choose theme JSON file" onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!f) return;
+                  void f.text().then((raw) => {
+                    let parsed: unknown = null;
+                    try { parsed = JSON.parse(raw); } catch { setSyncMsg("That JSON file did not parse."); return; }
+                    const t = sanitizeTheme(parsed);
+                    if (!t) { setSyncMsg("That file is not a valid theme (need accent + accentHi hex)."); return; }
+                    const customs = [...((config?.custom_themes ?? []) as Theme[]).filter((x) => x.id !== t.id), t];
+                    applyTheme(t);
+                    onPatch({ custom_themes: customs, theme_id: t.id });
+                    setSyncMsg(`Theme “${t.name}” imported.`);
+                  }).catch(() => setSyncMsg("Could not read that file."));
+                }} />
               </div>
             </div>
           </Row>

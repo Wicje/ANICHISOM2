@@ -15,7 +15,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "test": "node --test pool.test.js sync.test.js profiles.test.js groups.test.js logins.test.js shields.test.js containers.test.js vault-sync.test.js translate.test.js keywords.test.js webapps.test.js speech.test.js closed.test.js bookmarks.test.js cookies.test.js snapshots.test.js ax-tree.test.js agent-act.test.js debrief.test.js agent-policy.test.js grant-registry.test.js approval-queue.test.js visual.test.js audit-log.test.js metrics.test.js store-sqlite.test.js",
+    "test": "node --test pool.test.js sync.test.js profiles.test.js groups.test.js logins.test.js shields.test.js containers.test.js vault-sync.test.js translate.test.js keywords.test.js webapps.test.js icon-cache.test.js speech.test.js closed.test.js bookmarks.test.js cookies.test.js snapshots.test.js ax-tree.test.js agent-act.test.js debrief.test.js agent-policy.test.js grant-registry.test.js approval-queue.test.js visual.test.js audit-log.test.js metrics.test.js store-sqlite.test.js",
     "dist": "electron-builder --publish never",
     "dist:linux": "electron-builder --linux --publish never",
     "dist:win": "electron-builder --win --publish never",
@@ -57,6 +57,7 @@
       "translate.js",
       "keywords.js",
       "webapps.js",
+      "icon-cache.js",
       "speech.js",
       "closed.js",
       "bookmarks.js",

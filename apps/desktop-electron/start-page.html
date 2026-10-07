@@ -161,7 +161,7 @@
           glyph.textContent = (name[0] || "A").toUpperCase();
           return glyph;
         };
-        if (typeof app.icon === "string" && /^https?:\/\//i.test(app.icon)) {
+        if (typeof app.icon === "string" && /^(https?|file):\/\//i.test(app.icon)) {
           const img = document.createElement("img");
           img.className = "appicon";
           img.src = app.icon;

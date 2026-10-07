@@ -95,6 +95,22 @@ trimmed to 3000) — never persisted, cleared with `agent_timeline_clear`:
 `debrief_session` runs `debrief.js#summarize` + `#actionItems` + `#headline`
 over this ring — deterministic, no LLM.
 
+## Ops reference (code-ahead-of-docs catch-up)
+
+- `see_visual {label?, maxWidth?, maxHeight?, maxBytes?, quality?}` — tab
+  pixels (free read, bounded, audited). Returns `{tab, dataUrl|buffer ref,
+  capturedAt}` or `{error: "no-tab"}`.
+- `see_chrome {…same budgets}` — chrome-window pixels (free read, audited).
+  Use for rail/overlay/toolbar truth, not page content.
+- `click_at {x, y, target: "page"|"chrome"}` / `type_at {x, y, value, target}` —
+  vision-driven writes. Points are validated against the named viewport and
+  refused when outside (never clamped). Gated + fingerprinted like any write;
+  `type_at` without a grant queues approval; replayed grants get `grant-spent`.
+- `layout_state {}` — read-only host truth: `{sig, modalHidden, chromeH,
+  railW, focused, tabs[]}`. Use when overlays/rails disagree with pixels.
+- `pending_approvals {}` / `audit_log {}` — poll the queue; export/verify the
+  chain. Full policy + log format: `docs/AGENT_TRUST_SPEC.md`.
+
 ## Tests
 
 `ax-tree.test.js`, `agent-act.test.js`, `debrief.test.js` (Node test runner,
