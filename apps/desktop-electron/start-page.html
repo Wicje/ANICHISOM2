@@ -197,7 +197,7 @@
     if (!q) return;
     const isUrl = /^https?:\/\//i.test(q) || (/^\S+\.\S{2,}/.test(q) && !/\s/.test(q));
     location.href = isUrl ? (/^https?:\/\//i.test(q) ? q : "https://" + q)
-                          : "https://duckduckgo.com/?q=" + encodeURIComponent(q);
+                          : "https://www.google.com/search?q=" + encodeURIComponent(q);
   });
   document.getElementById("q").focus();
 </script>

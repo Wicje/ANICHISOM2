@@ -38,9 +38,13 @@ function pickIconHref(html, pageUrl) {
   const links = [...src.matchAll(/<link\b[^>]*>/gi)].map((m) => m[0]).slice(0, 40);
   const cands = [];
   for (const tag of links) {
-    const rel = (/rel\s*=\s*["']?([^"'\s>]+)/i.exec(tag) || [])[1] || "";
-    if (!/^(apple-touch-icon|icon|shortcut icon)$/i.test(rel.trim()) && !/icon/i.test(rel)) continue;
-    const href = (/href\s*=\s*["']([^"']+)/i.exec(tag) || [])[1];
+    // rel may hold several tokens ("shortcut icon", "alternate icon") and may
+    // be quoted or unquoted — match the whole value, then split on whitespace.
+    const relRaw = (/rel\s*=\s*"([^"]+)"|rel\s*=\s*'([^']+)'|rel\s*=\s*([^\s>]+)/i.exec(tag) || []).slice(1).find(Boolean) || "";
+    const tokens = String(relRaw).toLowerCase().split(/\s+/).filter(Boolean);
+    const isIcon = tokens.includes("icon") || tokens.includes("apple-touch-icon");
+    if (!isIcon) continue;
+    const href = (/href\s*=\s*"([^"]+)"|href\s*=\s*'([^']+)'|href\s*=\s*([^\s>]+)/i.exec(tag) || []).slice(1).find(Boolean);
     if (!href || /^data:/i.test(href)) continue;
     let abs = null;
     try {
@@ -48,8 +52,15 @@ function pickIconHref(html, pageUrl) {
       if (u.protocol === "http:" || u.protocol === "https:") abs = u.toString().slice(0, 2000);
     } catch { /* relative junk */ }
     if (!abs) continue;
-    const sizes = (/sizes\s*=\s*["']?(\d+)x\d+/i.exec(tag) || [])[1];
-    cands.push({ href: abs, touch: /apple-touch-icon/i.test(rel), size: sizes ? parseInt(sizes, 10) : 0 });
+    // sizes may list several candidates ("16x16 32x32") — take the largest width.
+    const sizesRaw = (/sizes\s*=\s*"([^"]+)"|sizes\s*=\s*'([^']+)'|sizes\s*=\s*([^\s>]+)/i.exec(tag) || []).slice(1).find(Boolean) || "";
+    let size = 0;
+    for (const m of String(sizesRaw).matchAll(/(\d+)\s*x\s*\d+/gi)) {
+      const w = parseInt(m[1], 10);
+      if (w > size) size = w;
+    }
+    const relJoined = tokens.join(" ");
+    cands.push({ href: abs, touch: /apple-touch-icon/i.test(relJoined), size });
   }
   if (!cands.length) return null;
   cands.sort((a, b) => ((b.touch ? 1 : 0) - (a.touch ? 1 : 0)) || (b.size - a.size));
@@ -102,11 +113,15 @@ function installApp(registry, url, name, rand, icon) {
   if (!/^https?:\/\//i.test(String(url || ""))) return { apps: list, error: "bad-url" };
   const clean = String(url).trim();
   const suffix = typeof rand === "string" && rand ? rand.slice(0, 8) : require("crypto").randomBytes(4).toString("hex");
-  const art = cleanIcon(icon) || faviconFallback(clean);
+  const explicit = cleanIcon(icon);
+  const art = explicit || faviconFallback(clean);
   const existing = list.find((a) => a.url === clean);
   if (existing) {
     if (name) existing.name = displayName(clean, name);
-    if (art && !existing.icon) existing.icon = art;
+    // Explicit art always wins (refreshes a dead guess); a bare reinstall
+    // without art never clobbers a previously stored icon.
+    if (explicit) existing.icon = explicit;
+    else if (art && !existing.icon) existing.icon = art;
     return { apps: list, app: existing };
   }
   if (list.length >= MAX_APPS) return { apps: list, error: "limit" };

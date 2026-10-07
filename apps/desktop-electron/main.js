@@ -1635,7 +1635,8 @@ const COLLECT_AGENT_TREE = `(() => {
     if (out.length >= cap) return null;
     const r = role(el), nm = name(el);
     const node = { id: path, role: r, name: nm, children: [] };
-    if (r === 'textbox' || r === 'searchbox' || r === 'combobox' || r === 'textarea') node.value = String(el.value || '').slice(0,120);
+    const inputType = (el.getAttribute && el.getAttribute('type')) || '';
+    if ((r === 'textbox' || r === 'searchbox' || r === 'combobox' || r === 'textarea') && inputType.toLowerCase() !== 'password') node.value = String(el.value || '').slice(0,120);
     if (r === 'checkbox' || r === 'radio') node.checked = el.checked === true;
     if (el.disabled) node.disabled = true;
     if (r === 'link' && el.href) node.href = el.href.slice(0,2000);
@@ -2325,7 +2326,7 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
         }
         return { error: d.reason };
       }
-      if (args.grant?.id) grantRegistry.consume(args.grant.id); // single use
+      if (args.grant?.id && !grantsFor(activeProfileId).consume(args.grant.id)) return { error: "grant-spent" }; // single use, fail closed on replay
       const path = String(args.id || "0").split(".").map(Number);
       let js = null;
       if (args.verb === "click") js = AgentAct.clickJs(path);
@@ -2377,7 +2378,8 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       const vp = onChrome ? chromeViewport() : viewportOf(t);
       const point = Visual.normalizePoint({ x: args.x, y: args.y, viewportWidth: vp.width, viewportHeight: vp.height });
       if (!point) return { error: "point-outside-viewport", viewport: vp };
-      const op = args.op || "click_at";
+      // NOTE: do not derive op from args — the case label (outer `op`) is the
+      // authority, otherwise an IPC type_at would be gated/audited as click_at.
       const params = { x: point.x, y: point.y, target: onChrome ? "chrome" : "page", ...(onChrome ? {} : { label: t.label }), ...(args.value ? { value: args.value } : {}) };
       const d = gate({ op, params, source: args.source === "page" ? "page" : "agent", grant: args.grant || null, auto: !!args.auto, tab: onChrome ? null : t.label, url: onChrome ? null : t.url, summaryText: `${op} ${point.x},${point.y}${onChrome ? " (chrome)" : ""}` });
       if (!d.allowed) {
@@ -3748,7 +3750,7 @@ async function dispatchAgentRpc(payload, res) {
           }
           return send(null, d.reason);
         }
-        if (params.grant?.id) grantsFor(activeProfileId).consume(params.grant.id);
+        if (params.grant?.id && !grantsFor(activeProfileId).consume(params.grant.id)) return send(null, "grant-spent");
         const path = String(params.id || "0").split(".").map(Number);
         let js = null;
         if (params.verb === "click") js = AgentAct.clickJs(path);
@@ -3811,7 +3813,7 @@ async function dispatchAgentRpc(payload, res) {
           }
           return send(null, d.reason);
         }
-        if (params.grant?.id) grantsFor(activeProfileId).consume(params.grant.id);
+        if (params.grant?.id && !grantsFor(activeProfileId).consume(params.grant.id)) return send(null, "grant-spent");
         const target_wc = onChrome ? chrome.webContents : t.view.webContents;
         if (op === "type_at") {
           target_wc.sendInputEvent({ type: "char", keyCode: String(params.value ?? "") });

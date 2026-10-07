@@ -51,6 +51,23 @@ test("pickIconHref prefers touch icons, then largest, absolutized", () => {
   assert.equal(W.pickIconHref(`<link rel="icon" href="javascript:alert(1)">`, "https://a.com/"), null);
 });
 
+test("pickIconHref handles multi-token rel, unquoted href, multi sizes", () => {
+  const shortcut = `<link rel="shortcut icon" href="/s.ico">`;
+  assert.equal(W.pickIconHref(shortcut, "https://a.com/"), "https://a.com/s.ico");
+  const unquoted = `<link rel=icon href=/u.png sizes=32x32>`;
+  assert.equal(W.pickIconHref(unquoted, "https://a.com/"), "https://a.com/u.png");
+  const multi = `<link rel="alternate icon" href="/m.png" sizes="16x16 128x128 32x32">`;
+  assert.equal(W.pickIconHref(multi, "https://a.com/"), "https://a.com/m.png");
+});
+
+test("installApp explicit icon refreshes a dead guess", () => {
+  const guess = W.installApp([], "https://d.com/", "D", "33333333");
+  assert.equal(guess.app.icon, "https://d.com/favicon.ico");
+  const fixed = W.installApp(guess.apps, "https://d.com/", "D", "44444444", "https://d.com/real.png");
+  assert.equal(fixed.app.icon, "https://d.com/real.png");
+  const bare = W.installApp(fixed.apps, "https://d.com/", "D2", "55555555");
+  assert.equal(bare.app.icon, "https://d.com/real.png");
+});
 test("faviconFallback guesses origin/favicon.ico", () => {
   assert.equal(W.faviconFallback("https://a.com/x?y=1"), "https://a.com/favicon.ico");
   assert.equal(W.faviconFallback("notaurl"), null);

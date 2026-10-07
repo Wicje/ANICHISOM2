@@ -55,7 +55,7 @@ const invoke = <T>(cmd: string, args?: Record<string, unknown>): Promise<T> =>
  * What a freshly opened tab loads. The Continua OS backend is not deployed
  * yet, so new tabs point at a reachable search page instead of a dead domain.
  */
-export const DEFAULT_NEW_TAB_URL = "https://duckduckgo.com";
+export const DEFAULT_NEW_TAB_URL = "https://www.google.com";
 
 /**
  * Sentinel for "open the local start page". The native host maps it to its
