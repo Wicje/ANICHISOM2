@@ -858,6 +858,12 @@ function layoutViews() {
       if (!m.view || m.discarded) continue;
       if (m.view.webContents.isDestroyed()) { m.view = null; m.discarded = true; continue; }
       const vis = !modalHidden && lab === focused;
+      // Frame eviction: a view created hidden and later shown can keep a dead
+      // compositor surface — CDP captures the page but the window stays black
+      // (Electron #42378). invalidate() forces a fresh frame on every show.
+      if (vis && !m.view.webContents.isVisible()) {
+        try { m.view.webContents.invalidate(); } catch {}
+      }
       m.view.setVisible(vis);
       if (vis) sizeView(m.view);
       // Focused view runs full-speed (rAF/video/shaders); background views
