@@ -121,17 +121,29 @@ export const TabStrip = memo(function TabStrip({
   const target = ctx ? tabs.find((t) => t.label === ctx.label) : undefined;
 
   // Report overflow to the parent (drives the vertical tab rail).
+  // Debounced + hysteresis: a hard scrollWidth>clientWidth boundary flips on
+  // every favicon load / title update / 1px zoom change, which toggled the rail
+  // (and re-laid-out all views) dozens of times a second. 150ms debounce +
+  // 12px dead-band makes the transition sticky.
   useEffect(() => {
     const el = rootRef.current;
     if (!el || !onOverflowChange) return;
-    const check = () => onOverflowChange(el.scrollWidth > el.clientWidth + 2);
-    check();
-    const ro = new ResizeObserver(check);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let last: boolean | null = null;
+    const check = () => {
+      timer = null;
+      const over = el.scrollWidth > el.clientWidth + 12;
+      if (over !== last) { last = over; onOverflowChange(over); }
+    };
+    const schedule = () => { if (!timer) timer = setTimeout(check, 150); };
+    schedule();
+    const ro = new ResizeObserver(schedule);
     ro.observe(el);
-    window.addEventListener("resize", check);
+    window.addEventListener("resize", schedule);
     return () => {
+      if (timer) clearTimeout(timer);
       ro.disconnect();
-      window.removeEventListener("resize", check);
+      window.removeEventListener("resize", schedule);
     };
   }, [onOverflowChange, tabs.length]);
 

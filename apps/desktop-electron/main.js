@@ -668,8 +668,9 @@ setInterval(() => {
   if (slept) { scheduleSave(); layoutViews(); console.error(`[continua] auto-sleep ${slept} tabs (>${mins}m idle)`); }
 }, 60 * 1000);
 // Scroll keep-fresh: scrollY is otherwise captured only when switching away,
-// so the focused tab at quit would resurrect at the top. Cheap poll keeps
-// session restore honest (background tabs are captured on sleep/prune).
+// so the focused tab at quit would resurrect at the top. 30s (was 15s) —
+// each tick is a cross-process round-trip; the half-life matters less than
+// not doing it 12×/minute on an idle browser.
 setInterval(() => {
   try {
     const m = focused && tabs.get(focused);
@@ -678,7 +679,7 @@ setInterval(() => {
       if (typeof y === "number" && Number.isFinite(y)) m.scrollY = y;
     }).catch(() => {});
   } catch {}
-}, 15000);
+}, 30000);
 
 const apiBase = () => (store.cfg.continua_url || "").replace(/\/$/, "");
 const authHeaders = () => ({ "content-type": "application/json", authorization: `Bearer ${store.cfg.capability_token || ""}` });
@@ -3198,14 +3199,16 @@ async function installStoreExtension(input) {
     const pk = buf.indexOf("PK\x03\x04");
     if (pk < 0) return { error: "bad-crx" };
     fs.writeFileSync(tmpCrx, buf.subarray(pk));
-    const { spawnSync } = require("child_process");
-    let ok = false;
-    const uz = spawnSync("unzip", ["-q", tmpCrx, "-d", dest], { timeout: 30000 });
-    if (uz.status === 0) ok = true;
-    else {
-      const tr = spawnSync("tar", ["-xf", tmpCrx, "-C", dest], { timeout: 30000 });
-      if (tr.status === 0) ok = true;
-    }
+    // Async extract: spawnSync blocked the entire main process for up to 30s,
+    // freezing every tab, the chrome, and the agent bridge mid-install.
+    const { spawn } = require("child_process");
+    const extract = (cmd, args) => new Promise((resolve) => {
+      const p = spawn(cmd, args, { stdio: "ignore" });
+      p.on("error", () => resolve(false));
+      p.on("close", (code) => resolve(code === 0));
+    });
+    let ok = await extract("unzip", ["-q", tmpCrx, "-d", dest]);
+    if (!ok) ok = await extract("tar", ["-xf", tmpCrx, "-C", dest]);
     if (!ok) return { error: "no-extractor" };
     if (!fs.existsSync(path.join(dest, "manifest.json"))) {
       // Some zips nest one level deep — adopt the single subfolder.

@@ -185,6 +185,25 @@ body,
   transition: border-color 0.2s;
 }
 
+/* Modal cover: still frame of the page shown while overlays hide the native
+ * views. MUST be out of flow — an in-flow <img> renders at intrinsic height
+ * (~viewport) and inflates the chrome div, which (a) pushes the content view
+ * below the viewport (black screen) and (b) shoves the tab rail off-screen.
+ * Fixed below the measured chrome height, behind the overlays (z-index 0 vs
+ * their 9990+), pointer-transparent. */
+.modal-cover {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: var(--chrome-h, 56px);
+  width: 100%;
+  height: calc(100% - var(--chrome-h, 56px));
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+}
+
 /* Native window focused: lift the hairline into the accent so focus is legible. */
 .chrome-focused {
   border-bottom-color: var(--guide);
@@ -2687,9 +2706,11 @@ body::after {
 .tab-strip.is-rail > .tab {
   visibility: hidden;
   max-width: 0;
+  min-width: 0;
   padding-left: 0;
   padding-right: 0;
   gap: 0;
+  border-width: 0;
 }
 
 /* Address form: takes the leftover width but never stretches absurdly on a

@@ -113,6 +113,18 @@ test("a page can never reach a user-control op either", () => {
   assert.equal(d.allowed, false);
 });
 
+test("the user driving their own chrome may write without a grant", () => {
+  for (const op of ["open_tab", "close_tab", "navigate_tab", "reload_tab", "read_aloud", "act_tab"]) {
+    const d = Policy.decide({ op, source: "user", params: { label: "tab-1" } });
+    assert.equal(d.allowed, true, `${op}: user click must not need a grant`);
+    assert.equal(d.needsApproval, false);
+  }
+  // An agent still needs a grant for the same ops.
+  const a = Policy.decide({ op: "open_tab", source: "agent", params: { url: "https://a.com" } });
+  assert.equal(a.allowed, false);
+  assert.equal(a.needsApproval, true);
+});
+
 test("tab-mutating IPC ops are write-tier (host gates them)", () => {
   for (const op of ["open_tab", "open_incognito_tab", "navigate_tab", "reload_tab", "close_tab", "reopen_closed", "new_tab_url", "read_aloud"]) {
     assert.equal(Policy.tierOf(op), "write", `${op} must need a grant-or-user decision`);

@@ -82,6 +82,16 @@ function createAuditLog(file, opts = {}) {
   let prev = GENESIS;
   let dirty = false;
   let timer = null;
+  // Append-only persistence: `persisted` counts entries already on disk, so a
+  // flush appends only the new tail instead of rewriting the whole chain
+  // (was O(n) disk write per decision). `needsResync` forces one full rewrite
+  // after a cap-trim drops entries the disk still has.
+  let persisted = 0;
+  let needsResync = false;
+  // verify() cache: entries [0, verifiedSeq) already checked against
+  // verifiedHead. Reset on cap-trim (the chain is broken there by design).
+  let verifiedSeq = 0;
+  let verifiedHead = GENESIS;
 
   function load() {
     if (!file) return;
@@ -97,6 +107,9 @@ function createAuditLog(file, opts = {}) {
       seq = Math.max(seq, Number(rec.seq) || 0);
       prev = typeof rec.hash === "string" ? rec.hash : prev;
     }
+    persisted = entries.length;
+    verifiedSeq = 0;
+    verifiedHead = GENESIS;
   }
 
   function persist() {
@@ -104,12 +117,23 @@ function createAuditLog(file, opts = {}) {
     dirty = false;
     try {
       fs.mkdirSync(path.dirname(file), { recursive: true });
-      const body = entries.map((e) => JSON.stringify(e)).join("\n") + "\n";
-      // Write-then-rename: a crash mid-write must not leave a half-written
-      // chain that looks like tampering.
-      const tmp = `${file}.tmp`;
-      fs.writeFileSync(tmp, body);
-      try { fs.renameSync(tmp, file); } catch { fs.writeFileSync(file, body); }
+      if (needsResync) {
+        // Cap-trim dropped entries the disk still has: one full rewrite to
+        // resync, then back to append-only.
+        const body = entries.map((e) => JSON.stringify(e)).join("\n") + "\n";
+        const tmp = `${file}.tmp`;
+        fs.writeFileSync(tmp, body);
+        try { fs.renameSync(tmp, file); } catch { fs.writeFileSync(file, body); }
+        persisted = entries.length;
+        needsResync = false;
+      } else {
+        const fresh = entries.slice(persisted);
+        if (fresh.length) {
+          const body = fresh.map((e) => JSON.stringify(e)).join("\n") + "\n";
+          fs.appendFileSync(file, body);
+          persisted = entries.length;
+        }
+      }
     } catch { /* non-fatal: the in-memory chain still verifies */ }
   }
 
@@ -126,7 +150,12 @@ function createAuditLog(file, opts = {}) {
     const rec = { seq, prev, hash: hashEntry(prev, body), ...body };
     prev = rec.hash;
     entries.push(rec);
-    if (entries.length > cap) entries.splice(0, entries.length - cap);
+    if (entries.length > cap) {
+      entries.splice(0, entries.length - cap);
+      needsResync = true; // disk still has the trimmed entries
+      verifiedSeq = 0;
+      verifiedHead = GENESIS;
+    }
     dirty = true;
     schedule();
     return rec;
@@ -145,13 +174,19 @@ function createAuditLog(file, opts = {}) {
    * @returns {{ok:boolean, checked:number, brokenAt:number|null, head:string}}
    */
   function verify() {
-    let p = GENESIS;
-    for (const rec of entries) {
-      if (rec.prev !== p) return { ok: false, checked: entries.length, brokenAt: rec.seq, head: p };
+    // Resume from the cached head: entries [0, verifiedSeq) already checked.
+    // A cap-trim resets the cache (the retained window's first entry no longer
+    // chains to genesis — reported as a break, which is honest).
+    let p = verifiedHead;
+    for (let i = verifiedSeq; i < entries.length; i++) {
+      const rec = entries[i];
+      if (rec.prev !== p) return { ok: false, checked: i, brokenAt: rec.seq, head: p };
       const expect = hashEntry(p, bodyOf(rec));
-      if (rec.hash !== expect) return { ok: false, checked: entries.length, brokenAt: rec.seq, head: p };
+      if (rec.hash !== expect) return { ok: false, checked: i, brokenAt: rec.seq, head: p };
       p = rec.hash;
     }
+    verifiedSeq = entries.length;
+    verifiedHead = p;
     return { ok: true, checked: entries.length, brokenAt: null, head: p };
   }
 

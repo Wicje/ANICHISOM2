@@ -157,6 +157,46 @@ test("no temp file is left behind after a write", () => {
   assert.equal(fs.existsSync(file), true);
 });
 
+test("persist is append-only: second flush appends, not rewrites", () => {
+  const dir = tmp();
+  const file = path.join(dir, "audit.jsonl");
+  const log = createAuditLog(file, { flushMs: 10000 });
+  log.append({ ts: 1, op: "observe_tab", tier: "read", allowed: true });
+  log.flush();
+  const after1 = fs.readFileSync(file, "utf8");
+  log.append({ ts: 2, op: "observe_tab", tier: "read", allowed: true });
+  log.flush();
+  const after2 = fs.readFileSync(file, "utf8");
+  assert.equal(after2.startsWith(after1), true, "old content preserved (appended)");
+  assert.equal(after2.trim().split("\n").length, 2, "two lines on disk");
+  assert.equal(createAuditLog(file).verify().ok, true);
+});
+
+test("verify caches the prefix: new appends still check against the cached head", () => {
+  const log = createAuditLog(null);
+  for (let i = 0; i < 100; i++) log.append({ ts: i, op: "observe_tab", tier: "read", allowed: true });
+  const head1 = log.verify().head;
+  // Repeated calls are consistent (cache returns the same head, no rehash).
+  assert.equal(log.verify().head, head1);
+  // A new entry appended after a verify is checked against the cached head.
+  log.append({ ts: 100, op: "observe_tab", tier: "read", allowed: true });
+  assert.equal(log.verify().ok, true, "new entry verifies against cached head");
+  assert.notEqual(log.verify().head, head1, "head advances");
+});
+
+test("cap-trim resyncs the file and reports the break honestly", () => {
+  const dir = tmp();
+  const file = path.join(dir, "audit.jsonl");
+  const log = createAuditLog(file, { cap: 5, flushMs: 10000 });
+  for (let i = 0; i < 8; i++) log.append({ ts: i, op: "observe_tab", tier: "read", allowed: true });
+  log.flush();
+  const lines = fs.readFileSync(file, "utf8").trim().split("\n");
+  assert.equal(lines.length, 5, "only the cap window is on disk");
+  const reloaded = createAuditLog(file);
+  assert.equal(reloaded.size, 5);
+  assert.equal(reloaded.verify().ok, false, "retained window does not chain to genesis");
+});
+
 test("hashEntry is deterministic and prev-sensitive", () => {
   const body = bodyOf({ ts: 5, op: "act_tab", tier: "write", allowed: true });
   assert.equal(hashEntry(GENESIS, body), hashEntry(GENESIS, body));

@@ -208,6 +208,13 @@ function decide(req = {}) {
   if (source === "page") {
     return { allowed: false, tier, needsApproval: true, reason: REASON.pageCannotWrite };
   }
+  // The user driving their own chrome (a click on +, close, navigate) is the
+  // actor, not an agent — no grant. Without this, every chrome-initiated tab
+  // action queues an agent approval (the "new tab asks for permission" bug).
+  // Agents (source "agent") still need a single-use grant below.
+  if (source === "user") {
+    return { allowed: true, tier, needsApproval: false, reason: REASON.ok };
+  }
   if (req.auto) {
     return { allowed: false, tier, needsApproval: true, reason: REASON.autoBlocked };
   }
