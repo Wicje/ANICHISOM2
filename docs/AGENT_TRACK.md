@@ -153,3 +153,29 @@ of band (MCP) today; an in-chrome prompt is a future enhancement.
   rephrase).
 - Non-loopback exposure, HTTPS not required (loopback-only), no auth-less
   paths.
+
+## User/Agent chrome states + agent panel (shipped 2026-10-09)
+
+The chrome now has two states, toggled in the top bar and on the start page
+(state lives in `App`, shared by `BrowserChrome` and `NewTab`). User state is
+the full browser; Agent state adds a 320px side panel (`AgentPanel.tsx`) with
+four tabs: approval queue (approve/deny with countdowns, wired to
+`agentApprove`/`agentDeny`), activity log, agent chat, and permission toggles
+(global vs per-action). The trust boundary is unchanged: reads are free,
+writes still need single-use human-issued grants per ADR-012; the panel is a
+surface, not a bypass.
+
+Same batch, UI-wide: the start page ports the neumorphic new-tab design
+(control bar, wordmark hero, search pill, action circles, state-aware copy);
+light theme is now the default with neumorphic treatments for tabs, address
+bar, panels, palette, toasts and the agent panel. Reliability fixes in this
+batch: rail latch (kills the overflow flip-flop), sticky modal cover + forced
+frame invalidate (kills the black overlay canvas), `isVisible` replaced with a
+visibility-transition flag in `layoutViews`, horizontal strip collapses fully
+in rail mode, identity buttons shrink so the address bar never dives under the
+profile pill. Landing carries real screenshots, the demo video, and matching
+share metadata. Build health: 30 empty lockfile stubs repaired and
+`@babel/core` declared for the next-pwa chain (was breaking Vercel builds).
+
+Deferred: full host test suite (`check:host`), local shell build proof
+(blocked by network), agent-state landing screenshot refresh.
