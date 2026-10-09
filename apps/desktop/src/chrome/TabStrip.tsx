@@ -190,7 +190,7 @@ export const TabStrip = memo(function TabStrip({
 
   return (
     <>
-    <div className={`tab-strip${rail ? " is-rail" : ""}${tabs.length >= 12 ? " tabs-favicons" : ""}`} ref={rootRef}>
+    <div className={`tab-strip${rail ? " is-rail" : ""}${tabs.length >= 12 && !rail ? " tabs-favicons" : ""}`} ref={rootRef}>
       {tabs.map((tab) => {
         const active = tab.label === activeLabel;
         const vaulted = Boolean(tab.vault_id);
