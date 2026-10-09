@@ -3744,3 +3744,125 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .agent-toggle.is-on .agent-toggle-knob {
   transform: translateX(16px);
 }
+
+.start-hero-new {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 16px 8px;
+}
+
+.start-wordmark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.start-wordmark-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+}
+
+.start-wordmark-name {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--text);
+}
+
+.start-hero-title {
+  font-size: 34px;
+  line-height: 1.1;
+  letter-spacing: -0.8px;
+  margin: 0 0 10px;
+  color: var(--text);
+}
+
+.start-search-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(560px, 100%);
+  margin-top: 22px;
+  padding: 6px 6px 6px 20px;
+  border-radius: 980px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+
+.start-search-pill:focus-within {
+  border-color: var(--guide);
+}
+
+.start-search-pill input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 15px;
+  outline: none;
+}
+
+.start-search-pill input::placeholder {
+  color: var(--text-dim);
+}
+
+.start-search-pill button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 17px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.start-search-pill button:hover {
+  background: var(--accent-hi);
+}
+
+.start-circles {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.start-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--border-faint);
+  background: var(--surface-card);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.start-circle:hover {
+  color: var(--accent-hi);
+  border-color: var(--guide);
+  transform: translateY(-1px);
+}
+
+.start-page--agent .start-wordmark-mark {
+  background: var(--incognito);
+}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { api, displayTitle } from "../lib/tauri-bridge";
 import type {
   DeviceInfo,
@@ -7,11 +8,20 @@ import type {
   TabRecord,
 } from "../lib/tauri-bridge";
 import { Favicon } from "../components/Favicon";
-import { IconStar, IconStarFilled } from "../components/icons";
+import {
+  IconBrand,
+  IconReader,
+  IconRestore,
+  IconSettings,
+  IconStack,
+  IconStar,
+  IconStarFilled,
+} from "../components/icons";
 
 interface NewTabProps {
   onResume: (id?: string) => Promise<void>;
   onOpen: (url: string) => Promise<void>;
+  uiMode: "user" | "agent";
 }
 
 function formatStamp(secs: number): string {
@@ -37,13 +47,14 @@ interface TopSite {
   pinned: boolean;
 }
 
-export function NewTab({ onResume, onOpen }: NewTabProps) {
+export function NewTab({ onResume, onOpen, uiMode }: NewTabProps) {
   const [device, setDevice] = useState<DeviceInfo | null>(null);
   const [lastSession, setLastSession] = useState<TabRecord[] | null>(null);
   const [memory, setMemory] = useState<SessionSummary[]>([]);
   const [continuaUrl, setContinuaUrl] = useState("…");
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [speedDial, setSpeedDial] = useState<string[]>([]);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     void api.deviceInfo().then(setDevice);
@@ -54,7 +65,6 @@ export function NewTab({ onResume, onOpen }: NewTabProps) {
     void api.getBrowserConfig().then((c) => setSpeedDial(c?.speed_dial ?? []));
   }, []);
 
-  // Pinned speed-dial tiles first, then the hosts visited most from history.
   const topSites = useMemo<TopSite[]>(() => {
     const pins = speedDial.map((url) => ({
       url,
@@ -91,13 +101,57 @@ export function NewTab({ onResume, onOpen }: NewTabProps) {
   const hour = new Date().getHours();
   const greeting = hour < 5 ? "Up late?" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
+  const go = (e: FormEvent) => {
+    e.preventDefault();
+    const q = query.trim();
+    if (!q) return;
+    const url = /^https?:\/\//i.test(q)
+      ? q
+      : /\S+\.\S{2,}/.test(q) && !/\s/.test(q)
+        ? `https://${q}`
+        : `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+    setQuery("");
+    void onOpen(url);
+  };
+
+  const circles = [
+    { label: "Resume session", icon: <IconRestore size={15} />, run: () => void onResume() },
+    { label: "Managers", icon: <IconStack size={15} />, run: () => window.dispatchEvent(new CustomEvent("continua:open-managers")) },
+    { label: "Reading list", icon: <IconReader size={15} />, run: () => window.dispatchEvent(new CustomEvent("continua:open-reading")) },
+    { label: "Settings", icon: <IconSettings size={15} />, run: () => window.dispatchEvent(new CustomEvent("continua:open-settings")) },
+  ];
+
   return (
-    <div className="start-page">
-      <div className="start-hero">
-        <h1 className="start-title">{greeting} — where to next?</h1>
+    <div className={`start-page start-page--${uiMode}`}>
+      <div className="start-hero-new">
+        <div className="start-wordmark">
+          <span className="start-wordmark-mark"><IconBrand size={22} /></span>
+          <span className="start-wordmark-name">Continua</span>
+        </div>
+        <h1 className="start-hero-title">{greeting} — where to next?</h1>
         <p className="start-sub">
-          Resume a session, jump to the top of your day, or just start typing.
+          {uiMode === "agent"
+            ? "Agent state is on — grants land in the panel on the right."
+            : "Resume a session, jump to the top of your day, or just start typing."}
         </p>
+        <form className="start-search-pill" onSubmit={go}>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search or enter address…"
+            spellCheck={false}
+            autoComplete="off"
+            aria-label="Search or enter address"
+          />
+          <button type="submit" title="Go">→</button>
+        </form>
+        <div className="start-circles">
+          {circles.map((c) => (
+            <button key={c.label} className="start-circle" onClick={c.run} title={c.label} aria-label={c.label}>
+              {c.icon}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="start-grid">

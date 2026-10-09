@@ -70,6 +70,7 @@ export default function App() {
   // Tabs live in Rust WebviewWindows; React keeps the canonical metadata.
   const [tabs, setTabs, patch] = useTabMirror();
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
+  const [uiMode, setUiMode] = useState<"user" | "agent">("user");
 
   // Mirror page titles pushed from Rust (tab:title-changed), coalesced.
   // Tauri-legacy only: Electron pushes state through IPC responses instead.
@@ -379,6 +380,8 @@ export default function App() {
       <BrowserChrome
         tabs={tabs}
         activeLabel={activeLabel}
+        uiMode={uiMode}
+        onUiModeChange={setUiMode}
         onOpen={openTab}
         onOpenIncognito={openIncognito}
         onClose={closeTab}
@@ -395,7 +398,7 @@ export default function App() {
         runtime={isTauriNative() ? "tauri" : isElectron() ? "electron" : "browser"}
       />
       {tabs.length === 0 && (
-        <NewTab onResume={restoreLastSession} onOpen={openTab} />
+        <NewTab onResume={restoreLastSession} onOpen={openTab} uiMode={uiMode} />
       )}
       {firstRun && tabs.length === 0 && !showOnboarding && (
         <div className="intro-hint" onClick={dismissIntro} role="button" aria-label="Dismiss first-run tip">

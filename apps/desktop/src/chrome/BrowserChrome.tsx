@@ -84,6 +84,8 @@ interface BrowserChromeProps {
   onReopen: () => Promise<void>;
   onSwitchWorkspace?: (session: OpenTab[]) => void;
   runtime: "tauri" | "electron" | "browser";
+  uiMode: "user" | "agent";
+  onUiModeChange: (mode: "user" | "agent") => void;
 }
 
 type Suggestion =
@@ -127,6 +129,8 @@ export function BrowserChrome({
   onReopen,
   onSwitchWorkspace,
   runtime,
+  uiMode,
+  onUiModeChange,
 }: BrowserChromeProps) {
   const [address, setAddress] = useState("");
   const [maximized, setMaximized] = useState(false);
@@ -688,8 +692,6 @@ export function BrowserChrome({
 
   const railVisible = railOn || !!config?.vertical_tabs;
 
-  const [uiMode, setUiMode] = useState<"user" | "agent">("user");
-
   // Live search-engine suggestions, debounced and race-guarded.
   useEffect(() => {
     const q = address.trim();
@@ -1244,14 +1246,14 @@ export function BrowserChrome({
         <div className="ui-mode-toggle">
           <button
             className={`ui-mode-btn${uiMode === "user" ? " is-active" : ""}`}
-            onClick={() => setUiMode("user")}
+            onClick={() => onUiModeChange("user")}
             title="User mode"
           >
             <IconUser size={13} />
           </button>
           <button
             className={`ui-mode-btn${uiMode === "agent" ? " is-active" : ""}`}
-            onClick={() => setUiMode("agent")}
+            onClick={() => onUiModeChange("agent")}
             title="Agent mode"
           >
             <IconBot size={13} />
@@ -1776,7 +1778,7 @@ export function BrowserChrome({
         onSetContainer={(label, container) => onSetContainer?.(label, container)}
         focusSection={managersFocus}
       />
-      <AgentPanel open={uiMode === "agent"} onClose={() => setUiMode("user")} />
+      <AgentPanel open={uiMode === "agent"} onClose={() => onUiModeChange("user")} />
     </div>
   );
 }
