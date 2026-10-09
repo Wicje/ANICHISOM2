@@ -81,6 +81,13 @@ export default function Home() {
           </div>
         </section>
 
+        <section style={{ marginTop: 24 }}>
+          <video controls preload="metadata" poster="/images/screenshots/browser-user.png" style={{ width: '100%', display: 'block', borderRadius: 12, border: '1px solid #2c2c2e', background: '#000' }}>
+            <source src="/videos/continua-demo.mp4" type="video/mp4" />
+          </video>
+          <p style={{ color: '#6e6e73', fontSize: 13, textAlign: 'center', marginTop: 12 }}>Watch Continua in action — User and Agent states, the tab rail, and the new start page.</p>
+        </section>
+
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: 16, marginTop: 24 }}>
           {FEATURES.map((f) => (
             <div key={f.title} style={{ background: '#161617', border: '1px solid #2c2c2e', borderRadius: 12, padding: 22 }}>
