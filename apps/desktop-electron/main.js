@@ -861,9 +861,10 @@ function layoutViews() {
       // Frame eviction: a view created hidden and later shown can keep a dead
       // compositor surface — CDP captures the page but the window stays black
       // (Electron #42378). invalidate() forces a fresh frame on every show.
-      if (vis && !m.view.webContents.isVisible()) {
+      if (vis && !m.lastVis) {
         try { m.view.webContents.invalidate(); } catch {}
       }
+      m.lastVis = vis;
       m.view.setVisible(vis);
       if (vis) sizeView(m.view);
       // Focused view runs full-speed (rAF/video/shaders); background views

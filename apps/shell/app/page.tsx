@@ -12,6 +12,7 @@ const FEATURES = [
   { title: 'Make it yours', desc: 'Theme gallery, per-profile worlds, custom search engines, remappable shortcuts, per-site zoom memory.' },
   { title: 'Tabs that stay alive', desc: 'Pooled views with paint-aware switching — no white flash, no black canvas on heavy pages.' },
   { title: 'Daily-driver kit', desc: 'Command palette, omnibox, reader mode, downloads manager, history search, bookmark import, extensions.' },
+  { title: 'User and Agent states', desc: 'Browse normally in User state, or flip to Agent state: approval queue, activity log, agent chat and permissions in a side panel.' },
 ];
 
 const PLATFORMS = [
@@ -65,6 +66,19 @@ export default function Home() {
             </a>
           </div>
           <p style={{ color: '#6e6e73', fontSize: 12, marginTop: 16 }}>Free forever for local use · sync pairs with your own backend</p>
+        </section>
+
+        <section style={{ marginTop: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+            <figure style={{ margin: 0, background: '#161617', border: '1px solid #2c2c2e', borderRadius: 12, overflow: 'hidden' }}>
+              <img src="/images/screenshots/browser-user.png" alt="Continua browser in User state" style={{ width: '100%', display: 'block' }} />
+              <figcaption style={{ padding: '12px 16px', color: '#86868b', fontSize: 13 }}>User state — full browser chrome, start page with resume, memory and top sites.</figcaption>
+            </figure>
+            <figure style={{ margin: 0, background: '#161617', border: '1px solid #2c2c2e', borderRadius: 12, overflow: 'hidden' }}>
+              <img src="/images/screenshots/browser-agent.png" alt="Continua browser in Agent state" style={{ width: '100%', display: 'block' }} />
+              <figcaption style={{ padding: '12px 16px', color: '#86868b', fontSize: 13 }}>Agent state — approval queue, activity log, chat and permissions beside the page.</figcaption>
+            </figure>
+          </div>
         </section>
 
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: 16, marginTop: 24 }}>
