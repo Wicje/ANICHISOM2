@@ -25,7 +25,7 @@ const softwareApplication = {
     'Real-time collaboration',
     'Privacy-first architecture',
   ],
-  screenshot: `${SITE_URL}/images/landing/coding-dark.jpg`,
+  screenshot: `${SITE_URL}/images/screenshots/browser-user.png`,
   softwareVersion: '1.0.0',
   releaseDate: '2026-01-01',
   applicationSubCategory: 'Productivity, Workflow Automation',

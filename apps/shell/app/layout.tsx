@@ -9,7 +9,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 
 const SITE_URL = 'https://continuaos.cc';
 const SITE_NAME = 'Continua';
-const OG_IMAGE = `${SITE_URL}/images/landing/coding-dark.jpg`;
+const OG_IMAGE = `${SITE_URL}/images/screenshots/browser-user.png`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -49,10 +49,10 @@ export const metadata: Metadata = {
     images: [
       {
         url: OG_IMAGE,
-        width: 1280,
-        height: 720,
-        alt: 'Continua — Pick up where you left off on any device',
-        type: 'image/jpeg',
+        width: 1440,
+        height: 900,
+        alt: 'Continua browser — User state with the new start page',
+        type: 'image/png',
       },
     ],
   },
