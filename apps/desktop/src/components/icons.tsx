@@ -322,3 +322,21 @@ export const IconPrinter = (p: IconProps) => (
     <rect x="7" y="13.5" width="10" height="7" rx="1" />
   </svg>
 );
+
+export const IconBot = (p: IconProps) => (
+  <svg {...svg(p)}>
+    <rect x="4" y="8" width="16" height="12" rx="2" />
+    <path d="M12 8V4" />
+    <circle cx="12" cy="3" r="1" />
+    <circle cx="9" cy="13" r="1" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="13" r="1" fill="currentColor" stroke="none" />
+    <path d="M9 17h6" />
+  </svg>
+);
+
+export const IconUser = (p: IconProps) => (
+  <svg {...svg(p)}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />
+  </svg>
+);

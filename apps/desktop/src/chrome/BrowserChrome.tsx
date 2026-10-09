@@ -30,6 +30,7 @@ import { BookmarksBar } from "./BookmarksBar";
 import { TabRail } from "./TabRail";
 import { ManagersPanel } from "./ManagersPanel";
 import { AgentApprovalPrompt } from "./AgentApprovalPrompt";
+import { AgentPanel } from "./AgentPanel";
 import { parseBookmarkHtml } from "./BookmarksBar";
 import { Favicon } from "../components/Favicon";
 import { ENGINES } from "./engine-list";
@@ -62,6 +63,8 @@ import {
   IconVault,
   IconEquals,
   IconSpark,
+  IconBot,
+  IconUser,
 } from "../components/icons";
 
 interface BrowserChromeProps {
@@ -685,6 +688,8 @@ export function BrowserChrome({
 
   const railVisible = railOn || !!config?.vertical_tabs;
 
+  const [uiMode, setUiMode] = useState<"user" | "agent">("user");
+
   // Live search-engine suggestions, debounced and race-guarded.
   useEffect(() => {
     const q = address.trim();
@@ -1236,6 +1241,22 @@ export function BrowserChrome({
         <div className="brand-mark" title="Continua">
           <IconBrand size={15} />
         </div>
+        <div className="ui-mode-toggle">
+          <button
+            className={`ui-mode-btn${uiMode === "user" ? " is-active" : ""}`}
+            onClick={() => setUiMode("user")}
+            title="User mode"
+          >
+            <IconUser size={13} />
+          </button>
+          <button
+            className={`ui-mode-btn${uiMode === "agent" ? " is-active" : ""}`}
+            onClick={() => setUiMode("agent")}
+            title="Agent mode"
+          >
+            <IconBot size={13} />
+          </button>
+        </div>
         <div className="nav-controls">
           <button
             className="nav-btn"
@@ -1755,6 +1776,7 @@ export function BrowserChrome({
         onSetContainer={(label, container) => onSetContainer?.(label, container)}
         focusSection={managersFocus}
       />
+      <AgentPanel open={uiMode === "agent"} onClose={() => setUiMode("user")} />
     </div>
   );
 }
