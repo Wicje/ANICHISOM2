@@ -61,9 +61,11 @@ docs/
   any local harness) may *read* any tab freely. Every *write* requires a
   human-issued, action-bound, single-use grant; page content can never approve;
   credential ops are user-only. Every decision, allowed or denied, lands in an
-  append-only hash-chained log you can verify and export
-  (**Managers → Agent audit**). This is the product's wedge — see
-  `docs/STRATEGY.md`.
+   append-only hash-chained log you can verify and export
+   (**Managers → Agent audit**). This is the product's wedge — see
+   `docs/STRATEGY.md`. The chrome has **User and Agent states**: User is the
+   full browser; Agent adds a side panel with the approval queue, activity
+   log, agent chat and permissions.
 - **Daily-driver kit** — command palette (Ctrl+K) with local Tidy-tabs
   intelligence (on-device group suggestions, duplicates, sleeping tabs with
   wake-on-click, per-tab memory), shields (on-device blocklist, default on),
@@ -77,6 +79,16 @@ The 12 "mediums" (keyword search, closed ring, per-site cookies, installed web
 apps, screenshots, read-aloud, task manager, snapshots, tab search, bookmark and
 history managers, detect/translate) are **parity maintenance**: they stay, they
 get no new investment. See `docs/STRATEGY.md` for what does.
+
+## Screenshots
+
+User state — full browser chrome with the new start page:
+
+![Continua browser in User state](apps/shell/public/images/screenshots/browser-user.png)
+
+Agent state — approval queue, activity log, agent chat and permissions beside the page:
+
+![Continua browser in Agent state](apps/shell/public/images/screenshots/browser-agent.png)
 
 ## Quick start
 
