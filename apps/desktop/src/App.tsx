@@ -398,7 +398,7 @@ export default function App() {
         runtime={isTauriNative() ? "tauri" : isElectron() ? "electron" : "browser"}
       />
       {tabs.length === 0 && (
-        <NewTab onResume={restoreLastSession} onOpen={openTab} uiMode={uiMode} />
+        <NewTab onResume={restoreLastSession} onOpen={openTab} uiMode={uiMode} onUiModeChange={setUiMode} />
       )}
       {firstRun && tabs.length === 0 && !showOnboarding && (
         <div className="intro-hint" onClick={dismissIntro} role="button" aria-label="Dismiss first-run tip">

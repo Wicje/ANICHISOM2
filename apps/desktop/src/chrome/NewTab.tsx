@@ -22,6 +22,7 @@ interface NewTabProps {
   onResume: (id?: string) => Promise<void>;
   onOpen: (url: string) => Promise<void>;
   uiMode: "user" | "agent";
+  onUiModeChange: (mode: "user" | "agent") => void;
 }
 
 function formatStamp(secs: number): string {
@@ -47,7 +48,7 @@ interface TopSite {
   pinned: boolean;
 }
 
-export function NewTab({ onResume, onOpen, uiMode }: NewTabProps) {
+export function NewTab({ onResume, onOpen, uiMode, onUiModeChange }: NewTabProps) {
   const [device, setDevice] = useState<DeviceInfo | null>(null);
   const [lastSession, setLastSession] = useState<TabRecord[] | null>(null);
   const [memory, setMemory] = useState<SessionSummary[]>([]);
@@ -122,19 +123,34 @@ export function NewTab({ onResume, onOpen, uiMode }: NewTabProps) {
   ];
 
   return (
-    <div className={`start-page start-page--${uiMode}`}>
-      <div className="start-hero-new">
-        <div className="start-wordmark">
-          <span className="start-wordmark-mark"><IconBrand size={22} /></span>
-          <span className="start-wordmark-name">Continua</span>
+    <div className="start-page start-neu">
+      <div className="sneu-control">
+        <button
+          className={`sneu-state${uiMode === "user" ? " is-active" : ""}`}
+          onClick={() => onUiModeChange("user")}
+        >
+          User
+        </button>
+        <button
+          className={`sneu-state${uiMode === "agent" ? " is-active" : ""}`}
+          onClick={() => onUiModeChange("agent")}
+        >
+          Agent
+        </button>
+      </div>
+
+      <div className="sneu-canvas">
+        <div className="sneu-wordmark">
+          <span className="sneu-mark"><IconBrand size={22} /></span>
+          <span className="sneu-name">Continua</span>
         </div>
-        <h1 className="start-hero-title">{greeting} — where to next?</h1>
-        <p className="start-sub">
+        <h1 className="sneu-title">{greeting} — where to next?</h1>
+        <p className="sneu-sub">
           {uiMode === "agent"
             ? "Agent state is on — grants land in the panel on the right."
             : "Resume a session, jump to the top of your day, or just start typing."}
         </p>
-        <form className="start-search-pill" onSubmit={go}>
+        <form className="sneu-search" onSubmit={go}>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -143,11 +159,11 @@ export function NewTab({ onResume, onOpen, uiMode }: NewTabProps) {
             autoComplete="off"
             aria-label="Search or enter address"
           />
-          <button type="submit" title="Go">→</button>
+          <button type="submit" title="Go" aria-label="Go">→</button>
         </form>
-        <div className="start-circles">
+        <div className="sneu-circles">
           {circles.map((c) => (
-            <button key={c.label} className="start-circle" onClick={c.run} title={c.label} aria-label={c.label}>
+            <button key={c.label} className="sneu-btn" onClick={c.run} title={c.label} aria-label={c.label}>
               {c.icon}
             </button>
           ))}
@@ -155,7 +171,7 @@ export function NewTab({ onResume, onOpen, uiMode }: NewTabProps) {
       </div>
 
       <div className="start-grid">
-        <section className="start-card" aria-label="Resume">
+        <section className="start-card sneu-card" aria-label="Resume">
           <div className="start-card-title">
             <span>Resume</span>
             {lastSession && lastSession.length > 0 && (
@@ -186,7 +202,7 @@ export function NewTab({ onResume, onOpen, uiMode }: NewTabProps) {
           )}
         </section>
 
-        <section className="start-card" aria-label="Memory">
+        <section className="start-card sneu-card" aria-label="Memory">
           <div className="start-card-title">
             <span>Memory</span>
             {memories.length > 0 && (
@@ -217,7 +233,7 @@ export function NewTab({ onResume, onOpen, uiMode }: NewTabProps) {
           )}
         </section>
 
-        <section className="start-card" aria-label="Top sites">
+        <section className="start-card sneu-card" aria-label="Top sites">
           <div className="start-card-title">
             <span>Top sites</span>
             {topSites.length > 0 && (
