@@ -146,7 +146,7 @@ export function BrowserChrome({
     }).catch(() => {});
   }, [runtime]);
   const [theme, setTheme] = useState<"dark" | "light">(() =>
-    localStorage.getItem("continua-theme") === "light" ? "light" : "dark",
+    localStorage.getItem("continua-theme") === "dark" ? "dark" : "light",
   );
   const [canBack, setCanBack] = useState(false);
   const [canForward, setCanForward] = useState(false);
