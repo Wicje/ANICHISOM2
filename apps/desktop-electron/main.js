@@ -1910,6 +1910,10 @@ ipcMain.handle("continua", async (_evt, op, args = {}) => {
       const wasHidden = modalHidden;
       if (wasHidden) { modalHidden = false; layoutViews(); }
       try {
+        if (wasHidden) {
+          try { t.view.webContents.invalidate(); } catch {}
+          await new Promise((r) => setTimeout(r, 48));
+        }
         const img = await t.view.webContents.capturePage();
         return { dataUrl: img.toDataURL() };
       } catch (e) { return { error: String(e?.message || e) }; }

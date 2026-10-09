@@ -393,11 +393,16 @@ export function BrowserChrome({
   // Modal cover: while any overlay hides the native views, show the page's
   // last frame underneath so menus float over content, never black.
   const [cover, setCover] = useState<string | null>(null);
+  const coverRef = useRef<string | null>(null);
   useEffect(() => subscribeModal((open) => {
     if (!isNative) return;
     if (open) {
+      if (coverRef.current) setCover(coverRef.current);
       void api.snapshotTab(activeLabel ?? undefined).then((r) => {
-        if (r?.dataUrl) setCover(r.dataUrl);
+        if (r?.dataUrl && r.dataUrl.length > 25000) {
+          coverRef.current = r.dataUrl;
+          setCover(r.dataUrl);
+        }
       });
     } else {
       window.setTimeout(() => setCover(null), 180);
@@ -1213,10 +1218,18 @@ export function BrowserChrome({
       }
     });
   }, []);
+  const railLatch = useRef(false);
+  const railTimer = useRef<number | null>(null);
   const handleOverflow = useCallback((over: boolean) => {
-    setRailOn(over);
-    if (isNative) void api.setTabRail(over || !!config?.vertical_tabs);
-  }, [isNative, config?.vertical_tabs]);
+    if (railTimer.current !== null) window.clearTimeout(railTimer.current);
+    railTimer.current = window.setTimeout(() => {
+      railTimer.current = null;
+      if (over) railLatch.current = true;
+      else if (tabs.length <= 6) railLatch.current = false;
+      setRailOn(railLatch.current);
+      if (isNative) void api.setTabRail(railLatch.current || !!config?.vertical_tabs);
+    }, 200);
+  }, [isNative, config?.vertical_tabs, tabs.length]);
 
   return (
     <div
