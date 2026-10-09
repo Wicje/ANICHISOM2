@@ -1038,7 +1038,8 @@ body,
 
 .profile-btn {
   max-width: 150px;
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .workspace-btn {
@@ -1049,7 +1050,7 @@ body,
   height: 28px;
   min-width: 0;
   max-width: 160px;
-  flex: none;
+  flex: 0 1 auto;
   padding: 0 7px 0 9px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border);
@@ -4182,4 +4183,26 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 
 :root[data-theme="light"] .load-line {
   background: linear-gradient(90deg, var(--accent-deep), var(--accent-hi));
+}
+
+.chrome[data-tabs="many"] .workspace-btn-name {
+  display: none;
+}
+
+.chrome[data-tabs="many"] .workspace-btn {
+  max-width: 64px;
+}
+
+.chrome[data-tabs="many"] .star-btn {
+  display: none;
+}
+
+.chrome[data-tabs="many"] .rail-item {
+  width: 30px;
+  height: 30px;
+}
+
+.chrome[data-tabs="many"] .rail-fav {
+  width: 14px;
+  height: 14px;
 }

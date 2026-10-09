@@ -1235,6 +1235,7 @@ export function BrowserChrome({
     <div
       ref={chromeRef}
       className={`chrome${focused ? " chrome-focused" : ""}`}
+      data-tabs={tabs.length > 12 ? "many" : "few"}
       style={{
         position: "fixed",
         top: 0,
