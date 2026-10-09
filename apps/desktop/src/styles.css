@@ -4029,16 +4029,50 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 
 :root[data-theme="light"] .tab {
   background: #e6eaf1;
+  border: none;
+  border-radius: 14px;
+  color: #1e293b;
   box-shadow:
-    3px 3px 7px rgba(156, 171, 197, 0.3),
-    -3px -3px 7px rgba(255, 255, 255, 0.8);
+    4px 4px 9px rgba(156, 171, 197, 0.35),
+    -4px -4px 9px rgba(255, 255, 255, 0.85);
+}
+
+:root[data-theme="light"] .tab:hover {
+  color: #1e293b;
 }
 
 :root[data-theme="light"] .tab-active {
   background: #eef2f7;
+  border: none;
   box-shadow:
-    inset 2px 2px 5px rgba(156, 171, 197, 0.4),
-    inset -2px -2px 5px rgba(255, 255, 255, 0.85);
+    inset 2px 2px 5px rgba(156, 171, 197, 0.45),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.9);
+}
+
+:root[data-theme="light"] .tab-active .tab-title {
+  color: #1d4ed8;
+}
+
+:root[data-theme="light"] .tab-strip.tabs-favicons .tab {
+  border-radius: 50%;
+}
+
+:root[data-theme="light"] .tab-new,
+:root[data-theme="light"] .tab-new-split {
+  background: #eef2f7;
+  border: none;
+  border-radius: 50%;
+  color: #1e293b;
+  box-shadow:
+    3px 3px 7px rgba(156, 171, 197, 0.35),
+    -3px -3px 7px rgba(255, 255, 255, 0.85);
+}
+
+:root[data-theme="light"] .tab-group-head {
+  background: #eef2f7;
+  box-shadow:
+    3px 3px 7px rgba(156, 171, 197, 0.35),
+    -3px -3px 7px rgba(255, 255, 255, 0.85);
 }
 
 :root[data-theme="light"] .address-bar {
