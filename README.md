@@ -39,6 +39,11 @@ docs/
   **Download** page (`/download`, manifest-driven).
 - Fresh **Chromium** builds (AppImage/deb/dmg/nsis) are published to
   **GitHub Releases** on every `v*` tag via the `browser` release job.
+  The **Download** page manifest (`apps/shell/public/downloads/manifest.json`)
+  points at `v0.4.0` assets — Windows `Continua-Setup-0.4.0.exe` included.
+- Sync backend (live): `https://continua-xi.vercel.app` (`/api/health` → 200).
+  Set it in the browser under Settings → Sync; the `continuaos.cc` default is
+  not deployed and sync stays local-only without it.
 - From source: `npm install && npm run build:browser-chrome && npm run dev:browser`.
 
 ## What the browser does today

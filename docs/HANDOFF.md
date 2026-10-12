@@ -1,3 +1,30 @@
+# HANDOFF — where work stopped (2026-10-12, Windows desktop)
+
+## 2026-10-12 session (`C:\Users\Vathos\chisom files\ANICHISOM2`, branch main)
+
+- Sync backend verified LIVE: `https://continua-xi.vercel.app/api/health` → 200.
+  Supabase `supabase-Continua` healthy, anon/service keys present, Vercel
+  `continua` project has sync env vars (`CAPABILITY_JWT_SECRET` falls back to
+  `SUPABASE_SECRET_KEY`, so pairing works). `continuaos.cc` does NOT resolve —
+  browsers must set Sync server to the live URL (this PC's browser was on the
+  dead default → "queued offline"). Cross-machine push/pull still unverified.
+- Download manifest FIXED + PUSHED (`1143c2e`): it was invalid JSON (missing
+  comma + duplicate `message`), so `/download` showed "Coming soon" for all
+  platforms. Now valid; win/mac/linux point at GH `v0.4.0` assets (Windows
+  `Continua-Setup-0.4.0.exe` active). Live site still serves the OLD manifest
+  and an OLDER landing — redeploy of this repo pending (Vercel CLI install
+  timed out twice; token + project id on hand).
+- Landing: user wants it to mirror `Downloads\FireShot\my ref.png` (dark ref)
+  in `apps/desktop/DESIGN.md` (Apple, dark-first) with REAL product
+  screenshots (`browser-user.png` / `browser-agent.png`), driving to
+  `/download`. This model cannot view images — matched by extracted palette
+  + DESIGN.md only; expect a visual review pass.
+- Tokens were pasted in chat (1 dead `sbp_`, 1 live `sbp_`, 1 live `vcp_`).
+  User must ROTATE all of them. Nothing secret was committed (diff reviewed).
+- Repo remote is `https://github.com/Wicje/ANICHISOM2.git` (HTTPS push works).
+
+---
+
 # HANDOFF — where work stopped (2026-10-04, battery dying)
 
 Read this first on the next machine. Everything below is committed and pushed;

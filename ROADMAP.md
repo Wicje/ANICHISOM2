@@ -1,11 +1,11 @@
 # Continua — What's Left & What's Blocking
 
-> Living status file (updated 2026-10-04). Product truth stays in
+> Living status file (updated 2026-10-12). Product truth stays in
 > `docs/decisions/`; direction and what we refuse to build live in
 > `docs/STRATEGY.md`; this file tracks execution: blockers first, then
 > remaining work, then done.
 
-## Fixed since the last update (2026-10-04)
+## Fixed since the last update (2026-10-12)
 
 - **Packaged builds booted into a crash.** `main.js` requires `logins.js`,
   `shields.js` and `groups.js` at module scope and electron-builder's
@@ -26,6 +26,16 @@
 - **CI ran none of it.** Added `browser-host` (165 host tests, `node --check`
   gate, packaging guard, chrome typecheck+build). The two frozen `Shell` jobs are
   now explicitly `continue-on-error` instead of silently red and blocking.
+- **Sync backend verified live.** `https://continua-xi.vercel.app/api/health`
+  returns 200; Supabase project `supabase-Continua` is healthy with anon +
+  service keys; capability-token pairing falls back to `SUPABASE_SECRET_KEY`,
+  so pairing works. The browser default `continuaos.cc` is dead — set Sync
+  server to the live URL or cross-machine continuity stays local-only.
+- **Download manifest was invalid JSON.** `apps/shell/public/downloads/
+  manifest.json` had a missing comma + duplicate `message`, so the client
+  fetch threw and win/mac/linux all rendered "Coming soon". Fixed and pushed;
+  all three point at GH release `v0.4.0` assets (Windows
+  `Continua-Setup-0.4.0.exe` active).
 
 ## Blockers
 
@@ -46,10 +56,12 @@
 
 ### 3. Tauri release jobs — DONE (matrix removed)
 
-### 4. Sync unproven end-to-end — OPEN, the top engineering blocker
-- Pairing + delta sync are complete and unit-tested, but never observed against
-  a live backend. If `continuaos.cc` isn't deployed, cross-machine continuity is
-  a local-only truth. Verify before promising it to anyone.
+### 4. Sync backend live, end-to-end still unproven — OPEN
+- Backend is live (`continua-xi.vercel.app`, health 200, Supabase healthy);
+  `continuaos.cc` is dead, so browsers must set Sync server to the live URL.
+  Pairing + delta sync are complete and unit-tested, but no browser has yet
+  pushed/pulled against the live backend (this machine's browser was still on
+  the dead default). Verify a real push/pull before promising it to anyone.
 
 ### 5. Widevine/DRM on Linux — OPEN, needs a Chrome-installed box
 - Electron bundles the CDM on Win/mac; on Linux the browser borrows Chrome's CDM
