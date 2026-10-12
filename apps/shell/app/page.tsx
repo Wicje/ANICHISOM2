@@ -83,14 +83,10 @@ export default function Home() {
           </div>
         </section>
 
-        <section style={{ marginTop: 24 }}>
-          <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 8, overflow: 'hidden' }}>
-            <video controls preload="metadata" poster="/images/screenshots/browser-user.png" style={{ width: '100%', display: 'block', background: '#000' }}>
-              <source src="/videos/continua-demo.mp4" type="video/mp4" />
-            </video>
-          </div>
-          <p style={{ color: MUTED, fontSize: 13, textAlign: 'center', marginTop: 12 }}>Watch Continua in action — User and Agent states, the tab rail, and the new start page.</p>
-        </section>
+        {/* Demo video temporarily omitted: public/videos/continua-demo.mp4 is
+            87MB and blocks deploys on slow connections. Restore this section
+            (and the mp4) once on a fast link or Blob-hosted. Poster +
+            screenshots above already carry the product proof. */}
 
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: 20, marginTop: 44 }}>
           {FEATURES.map((f) => (
