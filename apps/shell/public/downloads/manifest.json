@@ -5,8 +5,7 @@
   "release": {
     "version": "0.4.0",
     "released": "2026-09-19",
-    "message": "Profiles, themes, Tidy tabs, single-row chrome, shields, store installs."
-    "message": "Profiles (Work ↔ Personal), theme gallery, local Tidy-tabs intelligence, paint-aware tab switching, working back/forward."
+    "message": "Profiles (Work ↔ Personal), theme gallery, Tidy tabs, shields, paint-aware tab switching, store installs."
   },
   "platforms": {
     "mac": {
