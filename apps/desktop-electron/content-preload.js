@@ -137,4 +137,94 @@
     },
     true,
   );
+
+  // Fallback capture for logins that never fire a native submit (button
+  // onClick + fetch/XHR). Same candidate shape, same host validation and
+  // explicit user consent; the host dedupes identical unprompted entries so
+  // a click-then-submit pair prompts once, not twice. Never prevents
+  // default, never blocks the page.
+  function collectLogin() {
+    try {
+      if (!ipc) return null;
+      const proto = window.location.protocol || "";
+      if (proto !== "http:" && proto !== "https:") return null;
+      const inputs = [...document.querySelectorAll("input")];
+      const passEl =
+        inputs.find((i) => (i.type || "").toLowerCase() === "password" && visible(i)) ||
+        inputs.find((i) => (i.type || "").toLowerCase() === "password");
+      if (!passEl || !passEl.value) return null;
+      const scope = passEl.form ? [...passEl.form.querySelectorAll("input")] : inputs;
+      const userEl =
+        scope.find(
+          (i) =>
+            i !== passEl &&
+            /user|name|email|login|account/i.test(
+              (i.name || "") + (i.id || "") + (i.type || "") + (i.getAttribute("autocomplete") || ""),
+            ),
+        ) ||
+        scope.find(
+          (i) =>
+            i !== passEl &&
+            ((i.type || "").toLowerCase() === "text" || (i.type || "").toLowerCase() === "email"),
+        );
+      const username = (userEl && userEl.value ? userEl.value : "").trim().slice(0, 320);
+      const password = String(passEl.value || "").slice(0, 1024);
+      if (!username || !password) return null;
+      return { origin: window.location.origin, username, password };
+    } catch {
+      return null;
+    }
+  }
+
+  function isSubmitControl(el) {
+    try {
+      if (!el || el.nodeType !== 1) return false;
+      const tag = (el.tagName || "").toUpperCase();
+      if (tag === "BUTTON") {
+        const t = (el.type || "").toLowerCase();
+        return t === "" || t === "submit"; // <button> defaults to submit
+      }
+      if (tag === "INPUT") {
+        const t = (el.type || "").toLowerCase();
+        return t === "submit" || t === "image";
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  document.addEventListener(
+    "click",
+    (e) => {
+      try {
+        if (!ipc) return;
+        let el = e.target;
+        // Walk up: clicks often land on spans/icons inside the button.
+        for (let i = 0; i < 4 && el; i++) {
+          if (isSubmitControl(el)) break;
+          el = el.parentElement;
+        }
+        if (!isSubmitControl(el)) return;
+        const cand = collectLogin();
+        if (cand) ipc.send("continua-login-candidate", cand);
+      } catch {}
+    },
+    true,
+  );
+
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      try {
+        if (!ipc || e.key !== "Enter") return;
+        const el = e.target;
+        if (!el || (el.tagName || "").toUpperCase() !== "INPUT") return;
+        if ((el.type || "").toLowerCase() !== "password") return;
+        const cand = collectLogin();
+        if (cand) ipc.send("continua-login-candidate", cand);
+      } catch {}
+    },
+    true,
+  );
 })();

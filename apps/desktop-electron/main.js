@@ -3026,10 +3026,20 @@ const FILL_JS = (user, pass) => `
   const userEl = scope.find(i => i !== passEl && /user|name|email|login|account/i.test((i.name || "") + (i.id || "") + (i.type || "") + (i.getAttribute("autocomplete") || "")))
     || scope.find(i => i !== passEl && ((i.type || "").toLowerCase() === "text" || (i.type || "").toLowerCase() === "email"));
   const set = (el, v) => {
-    el.focus();
-    el.value = v;
+    // Native setter so React/Vue/Angular controlled inputs actually take the
+    // value. Plain el.value= is invisible to their state trackers: the fill
+    // looks done but submits blank — the classic "autofill doesn't work".
+    try {
+      const proto = (el instanceof window.HTMLTextAreaElement)
+        ? window.HTMLTextAreaElement.prototype
+        : window.HTMLInputElement.prototype;
+      const desc = Object.getOwnPropertyDescriptor(proto, "value");
+      if (desc && typeof desc.set === "function") desc.set.call(el, v);
+      else el.value = v;
+    } catch { try { el.value = v; } catch {} }
     el.dispatchEvent(new Event("input", { bubbles: true }));
     el.dispatchEvent(new Event("change", { bubbles: true }));
+    try { el.focus(); } catch {}
   };
   if (userEl) set(userEl, ${JSON.stringify(user)});
   set(passEl, ${JSON.stringify(pass)});
@@ -3420,6 +3430,14 @@ ipcMain.on("continua-login-candidate", (evt, data) => {
     if (!validCandidate(cand)) return;
     // Anti-spoof: the claimed origin must be the tab's own committed origin.
     if (originOf(owner.url) !== cand.origin) return;
+    // Click-then-submit pairs report the same login twice: if an unprompted
+    // identical candidate is already pending, just refresh it instead of
+    // queueing a second prompt.
+    const prev = pendingCandidates.get(owner.label);
+    if (prev && !prev.prompted && prev.origin === cand.origin && prev.username === cand.username && prev.password === cand.password) {
+      prev.at = Date.now();
+      return;
+    }
     const entry = { ...cand, at: Date.now(), prompted: false };
     pendingCandidates.set(owner.label, entry);
     // No-navigation logins (fetch/XHR) never commit: prompt on a short delay.
