@@ -1,0 +1,5 @@
+{
+  "installCommand": "npm install --prefix apps/shell --legacy-peer-deps --include=dev --no-audit --no-fund",
+  "buildCommand": "npm --prefix apps/shell run build",
+  "outputDirectory": "apps/shell/.next"
+}
