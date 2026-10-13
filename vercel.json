@@ -1,5 +1,5 @@
 {
-  "installCommand": "npm install --prefix apps/shell --legacy-peer-deps --include=dev --no-audit --no-fund",
+  "installCommand": "npm install --prefix apps/shell --legacy-peer-deps --include=dev --ignore-scripts --no-audit --no-fund && node apps/shell/node_modules/@tailwindcss/oxide/scripts/install.js",
   "buildCommand": "npm --prefix apps/shell run build",
   "outputDirectory": "apps/shell/.next"
 }
