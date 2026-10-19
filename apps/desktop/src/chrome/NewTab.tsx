@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { api, displayTitle } from "../lib/tauri-bridge";
 import type {
+  AgentAuditSummary,
+  ContinuaMetrics,
   DeviceInfo,
   HistoryItem,
   SessionSummary,
@@ -9,6 +11,7 @@ import type {
 } from "../lib/tauri-bridge";
 import { Favicon } from "../components/Favicon";
 import {
+  IconBot,
   IconBrand,
   IconReader,
   IconRestore,
@@ -55,6 +58,8 @@ export function NewTab({ onResume, onOpen, uiMode, onUiModeChange }: NewTabProps
   const [continuaUrl, setContinuaUrl] = useState("…");
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [speedDial, setSpeedDial] = useState<string[]>([]);
+  const [metrics, setMetrics] = useState<ContinuaMetrics | null>(null);
+  const [boundary, setBoundary] = useState<AgentAuditSummary | null>(null);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -64,6 +69,14 @@ export function NewTab({ onResume, onOpen, uiMode, onUiModeChange }: NewTabProps
     void api.getContinuaUrl().then(setContinuaUrl);
     void api.getHistory().then(setHistory);
     void api.getBrowserConfig().then((c) => setSpeedDial(c?.speed_dial ?? []));
+    // The two numbers that decide whether Continua is a real product
+    // (docs/STRATEGY.md): continuity and the agent trust boundary, read live.
+    void api.agentStats(30).then((res) => {
+      const s = res as { metrics?: ContinuaMetrics; audit?: AgentAuditSummary; error?: string };
+      if (s.error) return;
+      setMetrics(s.metrics ?? null);
+      setBoundary(s.audit ?? null);
+    });
   }, []);
 
   const topSites = useMemo<TopSite[]>(() => {
@@ -117,6 +130,7 @@ export function NewTab({ onResume, onOpen, uiMode, onUiModeChange }: NewTabProps
 
   const circles = [
     { label: "Resume session", icon: <IconRestore size={15} />, run: () => void onResume() },
+    { label: "Session", icon: <IconBot size={15} />, run: () => window.dispatchEvent(new CustomEvent("continua:open-session")) },
     { label: "Managers", icon: <IconStack size={15} />, run: () => window.dispatchEvent(new CustomEvent("continua:open-managers")) },
     { label: "Reading list", icon: <IconReader size={15} />, run: () => window.dispatchEvent(new CustomEvent("continua:open-reading")) },
     { label: "Settings", icon: <IconSettings size={15} />, run: () => window.dispatchEvent(new CustomEvent("continua:open-settings")) },
@@ -171,6 +185,45 @@ export function NewTab({ onResume, onOpen, uiMode, onUiModeChange }: NewTabProps
       </div>
 
       <div className="start-grid">
+        <section className="start-card sneu-card" aria-label="Continuity">
+          <div className="start-card-title">
+            <span>Continuity</span>
+            {metrics && (
+              <span className="start-card-count">
+                {metrics.windowDays}d
+              </span>
+            )}
+          </div>
+          {metrics ? (
+            <ul className="stat-list">
+              <li className="stat-row">
+                <span className="stat-label">Sessions restored</span>
+                <span className="stat-value">{metrics.sessionsRestored}</span>
+              </li>
+              <li className="stat-row">
+                <span className="stat-label">Restored today</span>
+                <span className="stat-value">{metrics.sessionsRestoredToday}</span>
+              </li>
+              <li className="stat-row">
+                <span className="stat-label">Tabs opened</span>
+                <span className="stat-value">{metrics.tabsOpened}</span>
+              </li>
+              <li className="stat-row">
+                <span className="stat-label">Agent reads / writes</span>
+                <span className="stat-value">
+                  {boundary ? `${boundary.reads} / ${boundary.writes}` : "—"}
+                </span>
+              </li>
+              <li className="stat-row">
+                <span className="stat-label">Agent writes denied</span>
+                <span className="stat-value">{boundary ? boundary.denied : "—"}</span>
+              </li>
+            </ul>
+          ) : (
+            <p className="start-empty">Reading the continuity ledger…</p>
+          )}
+        </section>
+
         <section className="start-card sneu-card" aria-label="Resume">
           <div className="start-card-title">
             <span>Resume</span>

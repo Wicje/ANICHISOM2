@@ -13,6 +13,7 @@ import {
 import { attachCadence } from "../lib/cadence";
 import { useChromeModal } from "../lib/chrome-modal";
 import {
+  IconBot,
   IconBrand,
   IconCamera,
   IconCheck,
@@ -246,6 +247,14 @@ export function CommandPalette({
       hint: "reopen your workspace",
       icon: IconClock,
       run: () => void onRestore(false),
+    });
+    raw.push({
+      key: "review-session",
+      group: "Actions",
+      label: "Review session",
+      hint: "what the agent read, proposed and you granted",
+      icon: IconBot,
+      run: () => window.dispatchEvent(new CustomEvent("continua:open-session")),
     });
     raw.push({
       key: "export",

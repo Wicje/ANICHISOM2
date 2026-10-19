@@ -64,6 +64,20 @@ Pick one wedge and be the best thing in the world at it. Candidates: research
 (on-device, shields by default, no account), or banking (isolated containers).
 Four is worse than one. Name the one before the next feature lands.
 
+**Named 2026-10-19: "reviewable agent research sessions."** One job, not two.
+An agent works a large, multi-tab research question *on the user's behalf*, and
+every page-changing step it takes is a human-granted, single-use, hash-chained
+write the user can review after the fact. Work (Bet 1, the boundary) is how the
+agent is allowed to act; research (Bet 2, continuity) is the scale it acts at —
+a 50-tab session that survives a restart and can be handed to an agent without
+handing it the keys. They are one loop, so they are one workflow.
+
+The surface this implies is a **reviewable session**: the unit is not a tab and
+not a message, it is a *run* — a question, the tabs the agent opened and read,
+the writes it proposed and who granted them, and the resulting artifact, all
+backed by one segment of the audit chain. This is what the next dedicated
+feature builds toward; nothing else gets discretionary UI time until it exists.
+
 ## What we refuse to build
 
 **Parity maintenance only** — the 12 mediums, theme gallery, Tidy tabs,

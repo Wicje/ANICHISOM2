@@ -179,3 +179,39 @@ share metadata. Build health: 30 empty lockfile stubs repaired and
 
 Deferred: full host test suite (`check:host`), local shell build proof
 (blocked by network), agent-state landing screenshot refresh.
+
+## Panels go live + the named workflow (shipped 2026-10-19)
+
+The agent panel was de-mocked end to end. `AgentPanel.tsx` no longer carries
+`INITIAL_ACTIVITY` / `INITIAL_PERMISSIONS`; approvals come from
+`agent_pending_approvals`, Activity from `audit_log_query` (real hash-chain
+entries), and the boundary view shows the fixed rules (reads free / writes
+grant-bound / user-only) with live counts from `agent_stats` — not toggles,
+because the boundary is not user-togglable. Every approval row is now an
+inspector: clicking it reveals the `op`, `detail`, `tab`, `target` and the full
+`fingerprint` the eventual grant is bound to, with the replay-resistance note.
+`Managers → Agent audit` already did chain verify + export (`AuditSection`), so
+that surface was left as-is rather than duplicated.
+
+**Bet 3 named: "reviewable agent research sessions"** (`docs/STRATEGY.md`).
+Work (the boundary, Bet 1) and research (session scale, Bet 2) are one loop, so
+one workflow. The surface it implies is new: `SessionPanel.tsx` — a *run* is the
+unit. It reads `debrief_session` (headline, top sites by time share,
+interactions, writes proposed/granted, action items) for the readable half, and
+the audit chain filtered to `tier=write` for the half that cannot be rewritten
+(op, grant attribution, hash prefix). Continuity shows reopenable sessions
+(`browse_sessions`); `agent_timeline_clear` starts a fresh run (the chain is
+untouched); `audit_log_export` copies the evidence. Opened via the
+`continua:open-session` event, a NewTab action circle, and a "Review session"
+palette command.
+
+`NewTab` gained a Continuity card reading the two strategy metrics
+(`metrics.js` via `agent_stats`): sessions restored / restored today / tabs
+opened, plus agent reads / writes / denied.
+
+Gates: `tsc --noEmit` clean, `vite build` clean, `check:host` green (28 host
+modules packaged, 215 pass / 0 fail / 4 skipped). Repackaged as
+`Continua-0.4.1.AppImage` and installed to `~/Applications/Continua-0.4.1.AppImage`
+(stable name; the drun launcher prefers it). No v0.4.1 GitHub Release exists, so
+the download manifest still correctly points at v0.4.0 — do not bump it to
+0.4.1 until assets are published, or every download 404s.

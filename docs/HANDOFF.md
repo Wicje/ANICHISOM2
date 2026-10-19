@@ -1,3 +1,51 @@
+# HANDOFF — where work stopped (2026-10-19, Arch Linux)
+
+## 2026-10-19 session (this repo, main, uncommitted)
+
+**Panels went live + the one workflow was named.** Full detail in
+`docs/AGENT_TRACK.md` ("Panels go live + the named workflow"). In short:
+
+- `AgentPanel.tsx` de-mocked: approvals ← `agent_pending_approvals`, activity ←
+  `audit_log_query`, boundary rules ← `agent_stats`. Approval rows expand into a
+  grant-fingerprint inspector. `Managers → Agent audit` already had chain
+  verify + export; left alone.
+- **Bet 3 named: "reviewable agent research sessions"** (recorded in
+  `docs/STRATEGY.md`). New `SessionPanel.tsx` implements the implied surface:
+  a *run* — debrief (readable) + audit-chain writes (evidence) + continuity.
+  Opened via `continua:open-session`, a NewTab circle, and the palette.
+- `NewTab` continuity card from `metrics.js` via `agent_stats`.
+
+**Build state:** `tsc` clean, `vite build` clean, `check:host` green (28 host
+modules, 215 pass / 0 fail / 4 skipped). Repackaged
+`Continua-0.4.1.AppImage` ("Continua-0.4.1_*.AppImage" removed); installed as
+`~/Applications/Continua-0.4.1.AppImage`. drun launcher
+(`~/.local/bin/continua-browser`) now prefers the stable name
+`Continua.AppImage` then falls back to newest `Continua-*.AppImage`; desktop
+entry refreshed. Chromium caches cleared (`Cache`, `Code Cache`, `GPUCache`,
+`Dawn*`, `blob_storage`, `Shared Dictionary`); user data preserved
+(`continua-store.json`, `config.json`, `Cookies`, `agent-audit-personal.jsonl`).
+The `Partitions/` dir (1.9 GB) is site-profile data — **do not delete it**.
+
+**Downloads / Vercel — verified live, do not break it:**
+- Landing + sync are LIVE at `https://continua-xi.vercel.app` (`/`,
+  `/download`, `/api/health` all 200). Vercel project `anichisom-2`
+  (`apps/shell/.vercel/project.json`); `vercel.json` at root + in `apps/shell`.
+- `/downloads/manifest.json` is valid and points at **v0.4.0**,
+  whose assets ARE live: `Continua-Setup-0.4.0.exe`, `Continua-0.4.0-arm64.dmg`
+  (both 200). **No v0.4.1 Release exists** — `Continua-0.4.1.AppImage` /
+  `*.deb` 404. Do not bump the manifest to 0.4.1 until a release with assets is
+  published, or every download breaks.
+- **Uncommitted and unpushed.** All of this session's work is working-tree only.
+  A redeploy of Vercel would ship whatever is pushed, so it will not include
+  these UI changes until committed + pushed.
+
+**Blocked / needs credentials:** publishing a v0.4.1 GitHub Release (and thus
+bumping the manifest) needs working GitHub auth — `gh` returned
+`401 Bad credentials`. Repo remote is `git@github.com:Wicje/ANICHISOM2.git`
+(SSH); HTTPS push has worked before. No secrets were read, written or committed.
+
+---
+
 # HANDOFF — where work stopped (2026-10-12, Windows desktop)
 
 ## 2026-10-12 session (`C:\Users\Vathos\chisom files\ANICHISOM2`, branch main)

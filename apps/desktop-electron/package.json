@@ -39,6 +39,12 @@
         "repo": "ANICHISOM2"
       }
     ],
+    "extraResources": [
+      {
+        "from": "../desktop/dist",
+        "to": "desktop/dist"
+      }
+    ],
     "files": [
       "main.js",
       "preload.js",
@@ -77,7 +83,7 @@
       "offline.html",
       "crash.html",
       "studio-pill.html",
-      "../desktop/dist/**/*"
+      "desktop/dist/**/*"
     ],
     "linux": {
       "target": [

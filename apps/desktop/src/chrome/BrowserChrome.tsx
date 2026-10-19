@@ -31,6 +31,7 @@ import { TabRail } from "./TabRail";
 import { ManagersPanel } from "./ManagersPanel";
 import { AgentApprovalPrompt } from "./AgentApprovalPrompt";
 import { AgentPanel } from "./AgentPanel";
+import { SessionPanel } from "./SessionPanel";
 import { parseBookmarkHtml } from "./BookmarksBar";
 import { Favicon } from "../components/Favicon";
 import { ENGINES } from "./engine-list";
@@ -257,6 +258,14 @@ export function BrowserChrome({
   const [suggestRows, setSuggestRows] = useState<string[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [config, setConfig] = useState<BrowserConfigItem | null>(null);
+  // The one workflow Continua owns: a reviewable agent research session
+  // (docs/STRATEGY.md, Bet 3). Opened as a sibling drawer of Managers.
+  const [sessionOpen, setSessionOpen] = useState(false);
+  useEffect(() => {
+    const open = () => setSessionOpen(true);
+    window.addEventListener("continua:open-session", open);
+    return () => window.removeEventListener("continua:open-session", open);
+  }, []);
   // Managers drawer (containers, apps, cookies, snapshots, tab manager…).
   const [managersOpen, setManagersOpen] = useState(false);
   const [managersFocus, setManagersFocus] = useState<string | null>(null);
@@ -1792,6 +1801,7 @@ export function BrowserChrome({
         onSetContainer={(label, container) => onSetContainer?.(label, container)}
         focusSection={managersFocus}
       />
+      <SessionPanel open={sessionOpen} onClose={() => setSessionOpen(false)} />
       <AgentPanel open={uiMode === "agent"} onClose={() => onUiModeChange("user")} />
     </div>
   );
