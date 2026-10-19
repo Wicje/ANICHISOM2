@@ -1,6 +1,6 @@
 # HANDOFF — where work stopped (2026-10-19, Arch Linux)
 
-## 2026-10-19 session (this repo, main, uncommitted)
+## 2026-10-19 session (this repo, main, pushed @ 52eaa13)
 
 **Panels went live + the one workflow was named.** Full detail in
 `docs/AGENT_TRACK.md` ("Panels go live + the named workflow"). In short:
@@ -35,9 +35,12 @@ The `Partitions/` dir (1.9 GB) is site-profile data — **do not delete it**.
   (both 200). **No v0.4.1 Release exists** — `Continua-0.4.1.AppImage` /
   `*.deb` 404. Do not bump the manifest to 0.4.1 until a release with assets is
   published, or every download breaks.
-- **Uncommitted and unpushed.** All of this session's work is working-tree only.
-  A redeploy of Vercel would ship whatever is pushed, so it will not include
-  these UI changes until committed + pushed.
+- **Committed and pushed** as `52eaa13` to `origin/main`
+  (`git@github.com:Wicje/ANICHISOM2.git`), 11 files +1254/−169.
+  `package-lock.json` was deliberately left untracked (removing the corrupt one
+  in `f3a6e71` is what lets Vercel resolve fresh; re-committing it risks the
+  Vercel install). Pushing does **not** redeploy Vercel — the live site still
+  serves the older build + v0.4.0 manifest until a redeploy is triggered.
 
 **Blocked / needs credentials:** publishing a v0.4.1 GitHub Release (and thus
 bumping the manifest) needs working GitHub auth — `gh` returned
